@@ -1,0 +1,108 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Light mode (default) */
+    --primary: #3363AD;
+    --primary-70: rgba(51, 99, 173, 0.7);
+    --secondary: #595F74;
+    --dark: #373449;
+    --neutral: #69695D;
+    --neutral-60: rgba(105, 105, 93, 0.6);
+    --page-bg: #EFF1F8;
+    --card-bg: #FFFFFF;
+    --card-text: #111827;
+    --card-subtitle: #595F74;
+    --card-shadow: rgba(16, 24, 40, 0.06);
+    
+    --background: 239 241 248; /* #EFF1F8 */
+    --foreground: 17 24 39; /* #111827 */
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 217 65% 44%; /* #3363AD */
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    /* Dark mode */
+    --primary: #3363AD;
+    --primary-70: rgba(51, 99, 173, 0.7);
+    --secondary: #595F74;
+    --dark: #373449;
+    --neutral: #69695D;
+    --neutral-60: rgba(105, 105, 93, 0.6);
+    --page-bg: #1f1146;
+    --card-bg: #111827;
+    --card-text: #f8fafc;
+    --card-subtitle: rgba(255, 255, 255, 0.75);
+    --card-shadow: rgba(0, 0, 0, 0.6);
+    
+    --background: 31 17 70; /* #1f1146 */
+    --foreground: 248 250 252; /* #f8fafc */
+    --border: 55 52 73;
+    --input: 55 52 73;
+    --ring: 217 65% 44%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-page-bg text-card-text;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  .dark body {
+    @apply text-card-text;
+  }
+}
+
+@keyframes slide-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in {
+  animation: slide-in 0.3s ease-out;
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-primary text-white hover:bg-primary/90 rounded-md transition-colors;
+  }
+  
+  .btn-outline {
+    @apply border border-input bg-background hover:bg-accent hover:text-accent-foreground rounded-md transition-colors;
+  }
+  
+  .product-card {
+    @apply bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden;
+  }
+  
+  .section-container {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12;
+  }
+
+  /* Hide scrollbar utility */
+  .scrollbar-hide {
+    /* Firefox */
+    scrollbar-width: none;
+    /* Safari and Chrome */
+    -ms-overflow-style: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
