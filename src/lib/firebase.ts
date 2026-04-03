@@ -1,5 +1,5 @@
-import { initializeApp } from "firebase/app";
-import { getMessaging, getToken, onMessage, Messaging } from "firebase/messaging";
+import { initializeApp, getApps } from "firebase/app";
+import { getMessaging, getToken, onMessage } from "firebase/messaging";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -10,23 +10,22 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-let messaging: Messaging | null = null;
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+const messaging = getMessaging(app);
 
-export const initFirebaseMessaging = () => {
-  if (!messaging) {
-    const app = initializeApp(firebaseConfig);
-    messaging = getMessaging(app);
+export const requestFcmToken = async (registration: ServiceWorkerRegistration): Promise<string | null> => {
+  try {
+    const token = await getToken(messaging, {
+      vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
+      serviceWorkerRegistration: registration,
+    });
+    return token || null;
+  } catch (err) {
+    console.error("FCM token error:", err);
+    return null;
   }
-  return messaging;
 };
 
-export const requestFcmToken = async (registration?: ServiceWorkerRegistration) => {
-  const messaging = initFirebaseMessaging();
-  const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
-  return await getToken(messaging, { vapidKey, serviceWorkerRegistration: registration });
-};
-
-export const onForegroundMessage = (cb: Parameters<typeof onMessage>[1]) => {
-  const messaging = initFirebaseMessaging();
-  return onMessage(messaging, cb);
+export const onForegroundMessage = (callback: (payload: any) => void) => {
+  return onMessage(messaging, callback);
 };

@@ -13,7 +13,7 @@ import { useNavigate } from "react-router-dom";
 import ProfileAvatar from "./ProfileAvatar";
 import { Bell, Search } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { useNotificationsSocket } from "@/hooks/useNotificationsSocket";
+import { useNotificationsContext } from "@/contexts/NotificationsContext";
 import { useProfilePhoto } from "@/hooks/useProfilePhoto";
 import { logout as logoutService } from "@/services/auth.service";
 import { Notification } from "@/types";
@@ -31,27 +31,12 @@ export default function DashTop() {
   const signOut = useSignOut();
   const navigate = useNavigate();
   const { notifications, unreadCount, connected, markAsRead, markAllAsRead } =
-    useNotificationsSocket();
+    useNotificationsContext();
 
   const handleLogout = () => {
     signOut();
     logoutService(); // This will redirect to /auth/login
   };
-
-  useEffect(() => {
-    if (showNotifications && notifications.length > 0) {
-      const timer = setTimeout(() => {
-        const unreadNotifications = notifications.filter((n) => !n.isRead);
-        if (unreadNotifications.length > 0) {
-          unreadNotifications.forEach((notification) => {
-            markAsRead(notification.id);
-          });
-        }
-      }, 1000);
-
-      return () => clearTimeout(timer);
-    }
-  }, [showNotifications, notifications, markAsRead]);
 
   // Close notifications when clicking outside or pressing Escape
   useEffect(() => {

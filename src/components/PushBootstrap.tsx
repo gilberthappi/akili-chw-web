@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import usePushNotifications from "@/hooks/usePushNotifications";
+import usePushNotifications from "@/hooks/usePushNotifications.tsx";
 import toast from "react-hot-toast";
 
 const PushBootstrap = () => {
