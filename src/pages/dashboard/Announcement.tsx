@@ -356,25 +356,22 @@ const Announcement: React.FC = () => {
       </div>
 
       {/* Announcements List - iOS Cards */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         {filteredAnnouncements.map((announcement) => (
           <div
             key={announcement.id}
-            className="group relative bg-white/50 backdrop-blur-md border border-white/60 rounded-2xl hover:bg-white/80 hover:border-blue-200/50 hover:shadow-lg transition-all duration-300 overflow-hidden"
+            className="group relative bg-white border border-gray-200 rounded-lg hover:border-blue-300 hover:shadow-md transition-all duration-200 overflow-hidden"
           >
-            {/* Gradient Background */}
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 via-indigo-400 to-blue-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-
-            <div className="p-6">
+            <div className="p-5">
               <div className="flex items-start justify-between gap-4">
                 {/* Left Content */}
                 <div className="flex-1 min-w-0">
                   {/* Title and Status Badge */}
-                  <div className="flex items-start gap-3 mb-3">
-                    <h3 className="text-xl font-bold text-gray-900 leading-tight">{announcement.title}</h3>
+                  <div className="flex items-start gap-3 mb-2">
+                    <h3 className="text-lg font-semibold text-gray-900 leading-tight">{announcement.title}</h3>
                     <div className="flex gap-2 flex-shrink-0">
                       <Badge
-                        className={`${getStatusColor(announcement.status)} rounded-full px-3 py-1 text-xs font-semibold`}
+                        className={`${getStatusColor(announcement.status)} rounded-full px-2.5 py-0.5 text-xs font-medium`}
                       >
                         {announcement.status === 'published' ? '✓ Live' : '📝 Draft'}
                       </Badge>
@@ -382,73 +379,61 @@ const Announcement: React.FC = () => {
                   </div>
 
                   {/* Meta Information */}
-                  <div className="flex flex-wrap items-center gap-3 mb-4 text-sm">
-                    <span className="text-gray-600">
-                      📅 {new Date(announcement.publishAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  <div className="flex flex-wrap items-center gap-3 mb-3 text-xs text-gray-600">
+                    <span className="flex items-center gap-1">
+                      📅 {new Date(announcement.publishAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </span>
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-100/50 text-blue-700 text-xs font-semibold">
-                      {announcement.segment || 'Announcement'}
+                    {announcement.validUntil && (
+                      <span className="flex items-center gap-1">
+                        ⏰ Until {new Date(announcement.validUntil).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </span>
+                    )}
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 text-xs font-medium">
+                      👥 {announcement.segment}
                     </span>
                   </div>
 
-                  {/* Priority and Content */}
-                  <div className="mb-3">
-                    <Badge className={`${getPriorityColor(announcement.priority)} rounded-lg px-3 py-1 text-xs font-bold inline-block`}>
-                      {announcement.priority === 'high' && '🔴 HIGH PRIORITY'}
-                      {announcement.priority === 'medium' && '🟡 MEDIUM PRIORITY'}
-                      {announcement.priority === 'low' && '🟢 LOW PRIORITY'}
+                  {/* Priority Badge */}
+                  <div className="mb-3 flex items-center gap-2">
+                    <Badge className={`${getPriorityColor(announcement.priority)} rounded-md px-2 py-0.5 text-xs font-semibold`}>
+                      {announcement.priority === 'high' && '🔴 HIGH'}
+                      {announcement.priority === 'medium' && '🟡 MEDIUM'}
+                      {announcement.priority === 'low' && '🟢 LOW'}
                     </Badge>
                   </div>
 
                   {/* Content Preview */}
-                  <p className="text-gray-700 leading-relaxed text-sm mb-4 line-clamp-2">
+                  <p className="text-gray-700 text-sm mb-3 line-clamp-2 leading-relaxed">
                     {announcement.body}
                   </p>
-
-                  {/* Target Segment Tags */}
-                  <div className="flex flex-wrap gap-2">
-                    <span
-                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700 text-xs font-semibold"
-                    >
-                      👥 {announcement.segment}
-                    </span>
-                  </div>
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex flex-col gap-2 flex-shrink-0">
+                <div className="flex gap-1.5 flex-shrink-0">
                   <button
                     onClick={() => handleToggleStatus(announcement.id)}
-                    className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-gray-100 to-gray-50 hover:from-blue-100 hover:to-blue-50 text-gray-700 hover:text-blue-600 font-semibold text-sm transition-all duration-200 border border-gray-200 hover:border-blue-200"
+                    className="flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-md bg-gray-100 hover:bg-blue-100 text-gray-700 hover:text-blue-700 font-medium text-xs transition-all duration-150 border border-gray-200 hover:border-blue-300"
                     title={announcement.status === 'published' ? 'Unpublish' : 'Publish'}
                   >
                     {announcement.status === 'published' ? (
-                      <>
-                        <EyeSlashIcon className="w-4 h-4" />
-                        <span className="hidden sm:inline">Hide</span>
-                      </>
+                      <EyeSlashIcon className="w-4 h-4" />
                     ) : (
-                      <>
-                        <EyeIcon className="w-4 h-4" />
-                        <span className="hidden sm:inline">Publish</span>
-                      </>
+                      <EyeIcon className="w-4 h-4" />
                     )}
                   </button>
                   <button
                     onClick={() => handleEditAnnouncement(announcement)}
-                    className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-blue-100 to-blue-50 hover:from-blue-200 hover:to-blue-100 text-blue-700 font-semibold text-sm transition-all duration-200 border border-blue-200"
+                    className="flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-700 font-medium text-xs transition-all duration-150 border border-blue-200"
                     title="Edit"
                   >
                     <PencilIcon className="w-4 h-4" />
-                    <span className="hidden sm:inline">Edit</span>
                   </button>
                   <button
                     onClick={() => handleDeleteAnnouncement(announcement)}
-                    className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-red-100 to-red-50 hover:from-red-200 hover:to-red-100 text-red-600 hover:text-red-700 font-semibold text-sm transition-all duration-200 border border-red-200"
+                    className="flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-md bg-red-50 hover:bg-red-100 text-red-600 font-medium text-xs transition-all duration-150 border border-red-200"
                     title="Delete"
                   >
                     <TrashIcon className="w-4 h-4" />
-                    <span className="hidden sm:inline">Delete</span>
                   </button>
                 </div>
               </div>
