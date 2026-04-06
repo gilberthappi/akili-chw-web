@@ -1,115 +1,28 @@
 import React, { useState, useMemo } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { PlusIcon, PencilIcon, TrashIcon, EyeIcon, EyeSlashIcon, FunnelIcon } from '@heroicons/react/24/outline';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
-import { Card } from '@/components/common/Card';
 import { Badge } from '@/components/common/Badge';
 import Modal from '@/components/common/Modal';
 import { toast } from 'react-hot-toast';
-
-interface Announcement {
-  id: number;
-  title: string;
-  date: string;
-  category: string;
-  content: string;
-  priority: 'high' | 'medium' | 'low';
-  status: 'draft' | 'published';
-  author: string;
-  targetAudience: string[];
-  createdAt: string;
-  updatedAt: string;
-}
+import {
+  getAllAnnouncements,
+  createAnnouncement,
+  updateAnnouncement,
+  deleteAnnouncement,
+  type IAnnouncement,
+} from '@/services/announcement.service';
 
 const Announcement: React.FC = () => {
-  const [announcements, setAnnouncements] = useState<Announcement[]>([
-    {
-      id: 1,
-      title: "New Community Health Training Program Launched",
-      date: "2024-12-15",
-      category: "Training",
-      content: "We're excited to announce the launch of our new Community Health Training Program. This comprehensive program will equip community health workers with essential skills and knowledge.",
-      priority: "high",
-      status: "published",
-      author: "Dr. Marie Claire Uwimana",
-      targetAudience: ["CHWs", "Supervisors"],
-      createdAt: "2024-12-15T08:00:00Z",
-      updatedAt: "2024-12-15T08:00:00Z"
-    },
-    {
-      id: 2,
-      title: "System Maintenance Scheduled for December 20th",
-      date: "2024-12-10",
-      category: "Maintenance",
-      content: "The platform will undergo scheduled maintenance on December 20th from 2:00 AM to 4:00 AM EAT. Some services may be temporarily unavailable during this period.",
-      priority: "medium",
-      status: "published",
-      author: "System Admin",
-      targetAudience: ["All Users"],
-      createdAt: "2024-12-10T08:00:00Z",
-      updatedAt: "2024-12-10T08:00:00Z"
-    },
-    {
-      id: 3,
-      title: "COVID-19 Vaccination Campaign Update",
-      date: "2024-12-08",
-      category: "Health Alert",
-      content: "The latest round of COVID-19 vaccinations is now available at all participating hospitals. Eligible individuals are encouraged to get vaccinated.",
-      priority: "high",
-      status: "published",
-      author: "Health Ministry",
-      targetAudience: ["CHWs", "Public"],
-      createdAt: "2024-12-08T08:00:00Z",
-      updatedAt: "2024-12-08T08:00:00Z"
-    },
-    {
-      id: 4,
-      title: "New Mobile App Features Released",
-      date: "2024-12-05",
-      category: "Updates",
-      content: "We've released several new features in our mobile app, including offline course access and improved notification system. Update your app to access these features.",
-      priority: "low",
-      status: "draft",
-      author: "Development Team",
-      targetAudience: ["App Users"],
-      createdAt: "2024-12-05T08:00:00Z",
-      updatedAt: "2024-12-05T08:00:00Z"
-    },
-    {
-      id: 5,
-      title: "Annual Health Conference Registration Open",
-      date: "2024-12-01",
-      category: "Events",
-      content: "Registration is now open for the Annual Community Health Conference scheduled for January 15-17, 2025. Early bird discounts available until December 31st.",
-      priority: "medium",
-      status: "published",
-      author: "Conference Committee",
-      targetAudience: ["Healthcare Professionals"],
-      createdAt: "2024-12-01T08:00:00Z",
-      updatedAt: "2024-12-01T08:00:00Z"
-    },
-    {
-      id: 6,
-      title: "Partnership with Local NGOs Announced",
-      date: "2024-11-28",
-      category: "Partnerships",
-      content: "We're proud to announce our new partnership with three local NGOs to expand community health services across rural areas in Rwanda.",
-      priority: "low",
-      status: "published",
-      author: "Partnership Manager",
-      targetAudience: ["CHWs", "NGOs"],
-      createdAt: "2024-11-28T08:00:00Z",
-      updatedAt: "2024-11-28T08:00:00Z"
-    }
-  ]);
-
+  const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
+  const [editingAnnouncement, setEditingAnnouncement] = useState<IAnnouncement | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'published' | 'draft'>('all');
   const [priorityFilter, setPriorityFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
-  const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; announcement: Announcement | null }>({
+  const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; announcement: IAnnouncement | null }>({
     isOpen: false,
     announcement: null
   });
@@ -117,31 +30,120 @@ const Announcement: React.FC = () => {
   // Form state
   const [formData, setFormData] = useState({
     title: '',
-    category: '',
-    content: '',
+    body: '',
+    segment: '',
+    publishAt: new Date().toISOString().split('T')[0],
+    validUntil: '',
     priority: 'medium' as 'high' | 'medium' | 'low',
     status: 'draft' as 'draft' | 'published',
-    targetAudience: [] as string[]
   });
 
   const categories = ['Training', 'Maintenance', 'Health Alert', 'Updates', 'Events', 'Partnerships'];
-  const audienceOptions = ['All Users', 'CHWs', 'Supervisors', 'Healthcare Professionals', 'NGOs', 'Public', 'App Users'];
+  const segmentOptions = ['all', 'ADMIN', 'TRAINER', 'SUPERVISOR', 'TRAINEE', 'DEVELOPER', 'ADMINISTRATOR', 'STAFF'];
+
+  // Fetch announcements using useQuery
+  const { data: announcements = [], isLoading } = useQuery({
+    queryKey: ['ANNOUNCEMENTS'],
+    queryFn: async () => {
+      const response = await getAllAnnouncements();
+      return response.data;
+    },
+  });
+
+  // Mutation for creating announcement
+  const createMutation = useMutation({
+    mutationFn: (payload: Parameters<typeof createAnnouncement>[0]) => createAnnouncement(payload),
+    onSuccess: () => {
+      toast.success('Announcement created successfully');
+      queryClient.invalidateQueries({ queryKey: ['announcements'] });
+      setIsDialogOpen(false);
+      resetForm();
+    },
+    onError: (error: unknown) => {
+      const errorMessage = error instanceof Error ? error.message : 'Error creating announcement';
+      console.error('Error creating announcement:', error);
+      toast.error(errorMessage);
+    },
+  });
+
+  // Mutation for updating announcement
+  const updateMutation = useMutation({
+    mutationFn: (params: { id: string; payload: Parameters<typeof updateAnnouncement>[1] }) =>
+      updateAnnouncement(params.id, params.payload),
+    onSuccess: () => {
+      toast.success('Announcement updated successfully');
+      queryClient.invalidateQueries({ queryKey: ['announcements'] });
+      setIsDialogOpen(false);
+      setEditingAnnouncement(null);
+      resetForm();
+    },
+    onError: (error: unknown) => {
+      const errorMessage = error instanceof Error ? error.message : 'Error updating announcement';
+      console.error('Error updating announcement:', error);
+      toast.error(errorMessage);
+    },
+  });
+
+  // Mutation for deleting announcement
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteAnnouncement(id),
+    onSuccess: () => {
+      toast.success('Announcement deleted successfully');
+      queryClient.invalidateQueries({ queryKey: ['announcements'] });
+      setDeleteConfirm({ isOpen: false, announcement: null });
+    },
+    onError: (error: unknown) => {
+      const errorMessage = error instanceof Error ? error.message : 'Error deleting announcement';
+      console.error('Error deleting announcement:', error);
+      toast.error(errorMessage);
+    },
+  });
+
+  // Mutation for toggling status
+  const toggleStatusMutation = useMutation({
+    mutationFn: (id: string) => {
+      const announcement = announcements.find((a) => a.id === id);
+      if (!announcement) throw new Error('Announcement not found');
+      const newStatus = announcement.status === 'published' ? 'draft' : 'published';
+      return updateAnnouncement(id, { status: newStatus });
+    },
+    onSuccess: () => {
+      toast.success('Announcement status updated');
+      queryClient.invalidateQueries({ queryKey: ['announcements'] });
+    },
+    onError: (error: unknown) => {
+      const errorMessage = error instanceof Error ? error.message : 'Error updating announcement';
+      console.error('Error updating status:', error);
+      toast.error(errorMessage);
+    },
+  });
+
+  const resetForm = () => {
+    setFormData({
+      title: '',
+      body: '',
+      segment: '',
+      publishAt: new Date().toISOString().split('T')[0],
+      validUntil: '',
+      priority: 'medium',
+      status: 'draft',
+    });
+  };
 
   const filteredAnnouncements = useMemo(() => {
     return announcements.filter(announcement => {
       const matchesSearch = announcement.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           announcement.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           announcement.author.toLowerCase().includes(searchTerm.toLowerCase());
+                           announcement.body.toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchesStatus = statusFilter === 'all' || announcement.status === statusFilter;
       const matchesPriority = priorityFilter === 'all' || announcement.priority === priorityFilter;
-      const matchesCategory = categoryFilter === 'all' || announcement.category === categoryFilter;
+      const matchesCategory = categoryFilter === 'all' || announcement.segment === categoryFilter;
 
       return matchesSearch && matchesStatus && matchesPriority && matchesCategory;
     });
   }, [announcements, searchTerm, statusFilter, priorityFilter, categoryFilter]);
 
-  const getPriorityColor = (priority: string) => {
+  const getPriorityColor = (priority?: string) => {
     switch (priority) {
       case 'high': return 'bg-red-100 text-red-800 border-red-200';
       case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
@@ -150,7 +152,7 @@ const Announcement: React.FC = () => {
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status?: string) => {
     return status === 'published'
       ? 'bg-green-100 text-green-800 border-green-200'
       : 'bg-gray-100 text-gray-800 border-gray-200';
@@ -158,434 +160,455 @@ const Announcement: React.FC = () => {
 
   const handleCreateAnnouncement = () => {
     setEditingAnnouncement(null);
-    setFormData({
-      title: '',
-      category: '',
-      content: '',
-      priority: 'medium',
-      status: 'draft',
-      targetAudience: []
-    });
+    resetForm();
     setIsDialogOpen(true);
   };
 
-  const handleEditAnnouncement = (announcement: Announcement) => {
+  const handleEditAnnouncement = (announcement: IAnnouncement) => {
     setEditingAnnouncement(announcement);
     setFormData({
       title: announcement.title,
-      category: announcement.category,
-      content: announcement.content,
-      priority: announcement.priority,
-      status: announcement.status,
-      targetAudience: announcement.targetAudience
+      body: announcement.body,
+      segment: announcement.segment,
+      publishAt: announcement.publishAt.split('T')[0],
+      validUntil: announcement.validUntil ? announcement.validUntil.split('T')[0] : '',
+      priority: announcement.priority || 'medium',
+      status: announcement.status || 'draft',
     });
     setIsDialogOpen(true);
   };
 
-  const handleSaveAnnouncement = () => {
-    if (!formData.title || !formData.category || !formData.content) {
+  const handleSaveAnnouncement = async () => {
+    if (!formData.title || !formData.body || !formData.segment) {
       toast.error('Please fill in all required fields');
       return;
     }
 
-    const now = new Date().toISOString();
+    const payload = {
+      title: formData.title,
+      body: formData.body,
+      segment: formData.segment,
+      publishAt: formData.publishAt,
+      validUntil: formData.validUntil || null,
+      priority: formData.priority,
+      status: formData.status,
+    };
 
     if (editingAnnouncement) {
-      // Update existing announcement
-      setAnnouncements(prev => prev.map(ann =>
-        ann.id === editingAnnouncement.id
-          ? {
-              ...ann,
-              ...formData,
-              updatedAt: now
-            }
-          : ann
-      ));
-      toast.success('Announcement updated successfully');
+      updateMutation.mutate({ id: editingAnnouncement.id, payload });
     } else {
-      // Create new announcement
-      const newAnnouncement: Announcement = {
-        id: Math.max(...announcements.map(a => a.id)) + 1,
-        ...formData,
-        date: new Date().toISOString().split('T')[0],
-        author: 'Admin User', // In real app, get from auth context
-        createdAt: now,
-        updatedAt: now
-      };
-      setAnnouncements(prev => [newAnnouncement, ...prev]);
-      toast.success('Announcement created successfully');
+      createMutation.mutate(payload);
     }
-
-    setIsDialogOpen(false);
   };
 
-  const handleDeleteAnnouncement = (announcement: Announcement) => {
+  const handleDeleteAnnouncement = (announcement: IAnnouncement) => {
     setDeleteConfirm({ isOpen: true, announcement });
   };
 
   const confirmDelete = () => {
-    if (deleteConfirm.announcement) {
-      setAnnouncements(prev => prev.filter(ann => ann.id !== deleteConfirm.announcement!.id));
-      toast.success('Announcement deleted successfully');
-      setDeleteConfirm({ isOpen: false, announcement: null });
-    }
+    if (!deleteConfirm.announcement) return;
+    deleteMutation.mutate(deleteConfirm.announcement.id);
   };
 
-  const handleToggleStatus = (id: number) => {
-    setAnnouncements(prev => prev.map(ann =>
-      ann.id === id
-        ? {
-            ...ann,
-            status: ann.status === 'published' ? 'draft' : 'published',
-            updatedAt: new Date().toISOString()
-          }
-        : ann
-    ));
-    toast.success('Announcement status updated');
-  };
-
-  const handleAudienceChange = (audience: string, checked: boolean) => {
-    setFormData(prev => ({
-      ...prev,
-      targetAudience: checked
-        ? [...prev.targetAudience, audience]
-        : prev.targetAudience.filter(a => a !== audience)
-    }));
+  const handleToggleStatus = (id: string) => {
+    toggleStatusMutation.mutate(id);
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Announcement Management</h1>
-          <p className="text-gray-600 mt-1">Create, manage, and publish announcements for the community</p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 pb-12">
+      {/* Header Section - iOS Style */}
+      <div className="bg-white/80 backdrop-blur-xl border-b border-gray-200/50 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+            <div>
+              <h1 className="text-4xl font-bold bg-primary  to-indigo-600 bg-clip-text text-transparent">
+                Announcements
+              </h1>
+              <p className="text-gray-600 mt-2 text-sm font-medium">Create and manage community announcements with ease</p>
+            </div>
+            <Button 
+              onClick={handleCreateAnnouncement} 
+              className="flex items-center gap-2 bg-primary to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 rounded-full px-6 h-12"
+            >
+              <PlusIcon className="w-5 h-5" />
+              <span className="font-semibold">New Announcement</span>
+            </Button>
+          </div>
         </div>
-        <Button onClick={handleCreateAnnouncement} className="flex items-center gap-2">
-          <PlusIcon className="w-5 h-5" />
-          Create Announcement
-        </Button>
       </div>
 
-      {/* Filters */}
-      <Card className="mb-6">
-        <div className="p-6">
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <FunnelIcon className="w-5 h-5" />
-            Filters
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 mt-8">
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="group relative bg-white/40 backdrop-blur-md border border-white/60 rounded-2xl p-6 hover:bg-white/60 transition-all duration-300 shadow-sm hover:shadow-md">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-400/10 to-transparent rounded-2xl" />
+          <div className="relative">
+            <p className="text-gray-600 text-sm font-medium mb-2">Total Announcements</p>
+            <p className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              {isLoading ? '-' : announcements.length}
+            </p>
+          </div>
+        </div>
+
+        <div className="group relative bg-white/40 backdrop-blur-md border border-white/60 rounded-2xl p-6 hover:bg-white/60 transition-all duration-300 shadow-sm hover:shadow-md">
+          <div className="absolute inset-0 bg-gradient-to-br from-green-400/10 to-transparent rounded-2xl" />
+          <div className="relative">
+            <p className="text-gray-600 text-sm font-medium mb-2">Published</p>
+            <p className="text-4xl font-bold text-green-600">
+              {isLoading ? '-' : announcements.filter((a) => a.status === 'published').length}
+            </p>
+          </div>
+        </div>
+
+        <div className="group relative bg-white/40 backdrop-blur-md border border-white/60 rounded-2xl p-6 hover:bg-white/60 transition-all duration-300 shadow-sm hover:shadow-md">
+          <div className="absolute inset-0 bg-gradient-to-br from-gray-400/10 to-transparent rounded-2xl" />
+          <div className="relative">
+            <p className="text-gray-600 text-sm font-medium mb-2">Drafts</p>
+            <p className="text-4xl font-bold text-gray-700">
+              {isLoading ? '-' : announcements.filter((a) => a.status === 'draft').length}
+            </p>
+          </div>
+        </div>
+
+        <div className="group relative bg-white/40 backdrop-blur-md border border-white/60 rounded-2xl p-6 hover:bg-white/60 transition-all duration-300 shadow-sm hover:shadow-md">
+          <div className="absolute inset-0 bg-gradient-to-br from-red-400/10 to-transparent rounded-2xl" />
+          <div className="relative">
+            <p className="text-gray-600 text-sm font-medium mb-2">High Priority</p>
+            <p className="text-4xl font-bold text-red-600">
+              {isLoading ? '-' : announcements.filter((a) => a.priority === 'high').length}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Filters Section - iOS Style */}
+      <div className="bg-white/40 backdrop-blur-md border border-white/60 rounded-2xl p-6 shadow-sm">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <FunnelIcon className="w-5 h-5 text-blue-600" />
+          Filters & Search
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Search</label>
+            <div className="relative">
               <Input
-                placeholder="Search announcements..."
+                placeholder="Search..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 rounded-xl border-gray-300 focus:border-primary"
               />
+              <div className="absolute left-3 top-3 text-gray-400">🔍</div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-              <select
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as 'all' | 'published' | 'draft')}
-              >
-                <option value="all">All Status</option>
-                <option value="published">Published</option>
-                <option value="draft">Draft</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
-              <select
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                value={priorityFilter}
-                onChange={(e) => setPriorityFilter(e.target.value as 'all' | 'high' | 'medium' | 'low')}
-              >
-                <option value="all">All Priority</option>
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-              <select
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-              >
-                <option value="all">All Categories</option>
-                {categories.map(category => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
-              </select>
-            </div>
-            <div className="flex items-end">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setSearchTerm('');
-                  setStatusFilter('all');
-                  setPriorityFilter('all');
-                  setCategoryFilter('all');
-                }}
-              >
-                Clear Filters
-              </Button>
-            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Status</label>
+            <select
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary bg-white/80 backdrop-blur transition-all"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as 'all' | 'published' | 'draft')}
+            >
+              <option value="all">All Status</option>
+              <option value="published">Published</option>
+              <option value="draft">Draft</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Priority</label>
+            <select
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary bg-white/80 backdrop-blur transition-all"
+              value={priorityFilter}
+              onChange={(e) => setPriorityFilter(e.target.value as 'all' | 'high' | 'medium' | 'low')}
+            >
+              <option value="all">All Priority</option>
+              <option value="high">🔴 High</option>
+              <option value="medium">🟡 Medium</option>
+              <option value="low">🟢 Low</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Category</label>
+            <select
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary bg-white/80 backdrop-blur transition-all"
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+            >
+              <option value="all">All Categories</option>
+              {categories.map(category => (
+                <option key={category} value={category}>{category}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-end">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSearchTerm('');
+                setStatusFilter('all');
+                setPriorityFilter('all');
+                setCategoryFilter('all');
+              }}
+              className="w-full rounded-xl"
+            >
+              Clear All
+            </Button>
           </div>
         </div>
-      </Card>
-
-      {/* Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <Card>
-          <div className="p-4">
-            <div className="text-2xl font-bold text-blue-600">{announcements.length}</div>
-            <p className="text-sm text-gray-600">Total Announcements</p>
-          </div>
-        </Card>
-        <Card>
-          <div className="p-4">
-            <div className="text-2xl font-bold text-green-600">
-              {announcements.filter(a => a.status === 'published').length}
-            </div>
-            <p className="text-sm text-gray-600">Published</p>
-          </div>
-        </Card>
-        <Card>
-          <div className="p-4">
-            <div className="text-2xl font-bold text-gray-600">
-              {announcements.filter(a => a.status === 'draft').length}
-            </div>
-            <p className="text-sm text-gray-600">Drafts</p>
-          </div>
-        </Card>
-        <Card>
-          <div className="p-4">
-            <div className="text-2xl font-bold text-red-600">
-              {announcements.filter(a => a.priority === 'high').length}
-            </div>
-            <p className="text-sm text-gray-600">High Priority</p>
-          </div>
-        </Card>
       </div>
 
-      {/* Announcements List */}
+      {/* Announcements List - iOS Cards */}
       <div className="space-y-4">
         {filteredAnnouncements.map((announcement) => (
-          <Card key={announcement.id} className="hover:shadow-md transition-shadow">
+          <div
+            key={announcement.id}
+            className="group relative bg-white/50 backdrop-blur-md border border-white/60 rounded-2xl hover:bg-white/80 hover:border-blue-200/50 hover:shadow-lg transition-all duration-300 overflow-hidden"
+          >
+            {/* Gradient Background */}
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 via-indigo-400 to-blue-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+
             <div className="p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-xl font-semibold text-gray-900">{announcement.title}</h3>
-                    <Badge className={getStatusColor(announcement.status)}>
-                      {announcement.status}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
-                    <span>{new Date(announcement.date).toLocaleDateString()}</span>
-                    <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
-                      {announcement.category}
-                    </span>
-                    <span>By {announcement.author}</span>
-                  </div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <Badge className={getPriorityColor(announcement.priority)}>
-                      {announcement.priority.toUpperCase()} PRIORITY
-                    </Badge>
-                  </div>
-                  <p className="text-gray-700 leading-relaxed mb-3">{announcement.content}</p>
-                  <div className="flex flex-wrap gap-1">
-                    {announcement.targetAudience.map(audience => (
-                      <Badge key={audience} variant="default" className="text-xs">
-                        {audience}
+              <div className="flex items-start justify-between gap-4">
+                {/* Left Content */}
+                <div className="flex-1 min-w-0">
+                  {/* Title and Status Badge */}
+                  <div className="flex items-start gap-3 mb-3">
+                    <h3 className="text-xl font-bold text-gray-900 leading-tight">{announcement.title}</h3>
+                    <div className="flex gap-2 flex-shrink-0">
+                      <Badge
+                        className={`${getStatusColor(announcement.status)} rounded-full px-3 py-1 text-xs font-semibold`}
+                      >
+                        {announcement.status === 'published' ? '✓ Live' : '📝 Draft'}
                       </Badge>
-                    ))}
+                    </div>
+                  </div>
+
+                  {/* Meta Information */}
+                  <div className="flex flex-wrap items-center gap-3 mb-4 text-sm">
+                    <span className="text-gray-600">
+                      📅 {new Date(announcement.publishAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </span>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-100/50 text-blue-700 text-xs font-semibold">
+                      {announcement.segment || 'Announcement'}
+                    </span>
+                  </div>
+
+                  {/* Priority and Content */}
+                  <div className="mb-3">
+                    <Badge className={`${getPriorityColor(announcement.priority)} rounded-lg px-3 py-1 text-xs font-bold inline-block`}>
+                      {announcement.priority === 'high' && '🔴 HIGH PRIORITY'}
+                      {announcement.priority === 'medium' && '🟡 MEDIUM PRIORITY'}
+                      {announcement.priority === 'low' && '🟢 LOW PRIORITY'}
+                    </Badge>
+                  </div>
+
+                  {/* Content Preview */}
+                  <p className="text-gray-700 leading-relaxed text-sm mb-4 line-clamp-2">
+                    {announcement.body}
+                  </p>
+
+                  {/* Target Segment Tags */}
+                  <div className="flex flex-wrap gap-2">
+                    <span
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700 text-xs font-semibold"
+                    >
+                      👥 {announcement.segment}
+                    </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 ml-4">
-                  <Button
-                    variant="outline"
-                    size="sm"
+
+                {/* Action Buttons */}
+                <div className="flex flex-col gap-2 flex-shrink-0">
+                  <button
                     onClick={() => handleToggleStatus(announcement.id)}
-                    className="flex items-center gap-1"
+                    className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-gray-100 to-gray-50 hover:from-blue-100 hover:to-blue-50 text-gray-700 hover:text-blue-600 font-semibold text-sm transition-all duration-200 border border-gray-200 hover:border-blue-200"
+                    title={announcement.status === 'published' ? 'Unpublish' : 'Publish'}
                   >
                     {announcement.status === 'published' ? (
                       <>
                         <EyeSlashIcon className="w-4 h-4" />
-                        Unpublish
+                        <span className="hidden sm:inline">Hide</span>
                       </>
                     ) : (
                       <>
                         <EyeIcon className="w-4 h-4" />
-                        Publish
+                        <span className="hidden sm:inline">Publish</span>
                       </>
                     )}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
+                  </button>
+                  <button
                     onClick={() => handleEditAnnouncement(announcement)}
-                    className="flex items-center gap-1"
+                    className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-blue-100 to-blue-50 hover:from-blue-200 hover:to-blue-100 text-blue-700 font-semibold text-sm transition-all duration-200 border border-blue-200"
+                    title="Edit"
                   >
                     <PencilIcon className="w-4 h-4" />
-                    Edit
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
+                    <span className="hidden sm:inline">Edit</span>
+                  </button>
+                  <button
                     onClick={() => handleDeleteAnnouncement(announcement)}
-                    className="text-red-600 hover:text-red-700 flex items-center gap-1"
+                    className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-red-100 to-red-50 hover:from-red-200 hover:to-red-100 text-red-600 hover:text-red-700 font-semibold text-sm transition-all duration-200 border border-red-200"
+                    title="Delete"
                   >
                     <TrashIcon className="w-4 h-4" />
-                    Delete
-                  </Button>
+                    <span className="hidden sm:inline">Delete</span>
+                  </button>
                 </div>
               </div>
             </div>
-          </Card>
+          </div>
         ))}
       </div>
 
+      {/* Empty State */}
       {filteredAnnouncements.length === 0 && (
-        <Card className="p-8 text-center">
-          <p className="text-gray-500">No announcements found matching your criteria.</p>
-        </Card>
+        <div className="bg-white/50 backdrop-blur-md border border-white/60 rounded-2xl p-12 text-center">
+          <div className="text-6xl mb-4">📢</div>
+          <p className="text-gray-600 text-lg font-medium mb-2">No announcements found</p>
+          <p className="text-gray-500 text-sm mb-6">Try adjusting your filters or create a new announcement</p>
+          <Button onClick={handleCreateAnnouncement} className="bg-primary to-indigo-600">
+            <PlusIcon className="w-4 h-4 mr-2" />
+            Create First Announcement
+          </Button>
+        </div>
       )}
 
-      {/* Create/Edit Modal */}
+      {/* Create/Edit Modal - iOS Style */}
       <Modal
         isOpen={isDialogOpen}
         onClose={() => setIsDialogOpen(false)}
         title={editingAnnouncement ? 'Edit Announcement' : 'Create New Announcement'}
         big={true}
       >
-        <div className="space-y-4">
+        <div className="space-y-5">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+            <label className="block text-sm font-bold text-gray-800 mb-2">Announcement Title *</label>
             <Input
               value={formData.title}
               onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-              placeholder="Enter announcement title"
+              placeholder="Enter an engaging title..."
+              className="rounded-xl border-gray-300 focus:border-primary focus:ring-primary"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
+              <label className="block text-sm font-bold text-gray-800 mb-2">Target Segment *</label>
               <select
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                value={formData.category}
-                onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary bg-white transition-all"
+                value={formData.segment}
+                onChange={(e) => setFormData(prev => ({ ...prev, segment: e.target.value }))}
               >
-                <option value="">Select category</option>
-                {categories.map(category => (
-                  <option key={category} value={category}>{category}</option>
+                <option value="">Select segment</option>
+                {segmentOptions.map(segment => (
+                  <option key={segment} value={segment}>{segment}</option>
                 ))}
               </select>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+              <label className="block text-sm font-bold text-gray-800 mb-2">Priority Level</label>
               <select
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary bg-white transition-all"
                 value={formData.priority}
                 onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value as 'high' | 'medium' | 'low' }))}
               >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
+                <option value="low">🟢 Low</option>
+                <option value="medium">🟡 Medium</option>
+                <option value="high">🔴 High</option>
               </select>
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Content *</label>
+            <label className="block text-sm font-bold text-gray-800 mb-2">Announcement Message *</label>
             <textarea
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-vertical"
-              value={formData.content}
-              onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
-              placeholder="Enter announcement content"
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary resize-vertical font-medium"
+              value={formData.body}
+              onChange={(e) => setFormData(prev => ({ ...prev, body: e.target.value }))}
+              placeholder="Write your announcement message here..."
               rows={6}
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Target Audience</label>
-            <div className="grid grid-cols-2 gap-2">
-              {audienceOptions.map(audience => (
-                <label key={audience} className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    checked={formData.targetAudience.includes(audience)}
-                    onChange={(e) => handleAudienceChange(audience, e.target.checked)}
-                    className="rounded"
-                  />
-                  <span className="text-sm">{audience}</span>
-                </label>
-              ))}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-bold text-gray-800 mb-2">Publish Date</label>
+              <input
+                type="date"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary bg-white transition-all"
+                value={formData.publishAt}
+                onChange={(e) => setFormData(prev => ({ ...prev, publishAt: e.target.value }))}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-gray-800 mb-2">Valid Until (Optional)</label>
+              <input
+                type="date"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary bg-white transition-all"
+                value={formData.validUntil}
+                onChange={(e) => setFormData(prev => ({ ...prev, validUntil: e.target.value }))}
+              />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+            <label className="block text-sm font-bold text-gray-800 mb-2">Status</label>
             <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary bg-white transition-all"
               value={formData.status}
               onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value as 'draft' | 'published' }))}
             >
-              <option value="draft">Draft</option>
-              <option value="published">Published</option>
+              <option value="draft">📝 Save as Draft</option>
+              <option value="published">✓ Publish Immediately</option>
             </select>
           </div>
 
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+            <Button 
+              variant="outline" 
+              onClick={() => setIsDialogOpen(false)}
+              className="px-6 rounded-lg"
+            >
               Cancel
             </Button>
-            <Button onClick={handleSaveAnnouncement}>
-              {editingAnnouncement ? 'Update' : 'Create'} Announcement
+            <Button 
+              onClick={handleSaveAnnouncement}
+              className="px-6 bg-primary to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg"
+            >
+              {editingAnnouncement ? '✓ Update' : '✓ Create'} Announcement
             </Button>
           </div>
         </div>
       </Modal>
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Confirmation Modal - iOS Style */}
       <Modal
         isOpen={deleteConfirm.isOpen}
         onClose={() => setDeleteConfirm({ isOpen: false, announcement: null })}
         title="Delete Announcement"
       >
-        <div className="p-4">
-          <p className="text-gray-700 mb-4">
-            Are you sure you want to delete "{deleteConfirm.announcement?.title}"?
-            This action cannot be undone.
+        <div className="space-y-4">
+          <p className="text-gray-700 font-medium text-base">
+            Are you sure you want to delete <span className="font-bold">"{deleteConfirm.announcement?.title}"</span>?
           </p>
-          <div className="flex justify-end gap-2">
+          <p className="text-gray-500 text-sm">This action cannot be undone.</p>
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
             <Button
               variant="outline"
               onClick={() => setDeleteConfirm({ isOpen: false, announcement: null })}
+              className="px-6 rounded-lg"
             >
               Cancel
             </Button>
             <Button
               onClick={confirmDelete}
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className="px-6 bg-red-600 hover:bg-red-700 text-white rounded-lg"
             >
               Delete
             </Button>
           </div>
         </div>
       </Modal>
-
-      {/* Under Construction Watermark */}
-      <div className="fixed inset-0 pointer-events-none z-50 flex items-center justify-center">
-        <div className="transform rotate-12 bg-red-500 bg-opacity-20 text-red-800 text-4xl font-bold px-8 py-4 rounded-lg border-2 border-red-500 border-opacity-30">
-          UNDER CONSTRUCTION
-        </div>
-      </div>
+    </div>
     </div>
   );
 };

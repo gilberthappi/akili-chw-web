@@ -255,6 +255,12 @@ const Calendar: React.FC = () => {
       return;
     }
 
+    // Validate "Ends On" is mandatory for repeating events
+    if (eventData.frequency !== 'NONE' && (!eventData.recurrenceEndsAt || eventData.recurrenceEndsAt.trim() === '')) {
+      toast.error('Ends On date is required for repeating events');
+      return;
+    }
+
     // Validate required hostEmail field
     if (!eventData.hostEmail || eventData.hostEmail.trim() === '') {
       console.error('Host email is required');
@@ -2307,13 +2313,16 @@ const Calendar: React.FC = () => {
                         required={false}
                       />
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Ends On</label>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Ends On {isRepeating && <span className="text-red-500">*</span>}
+                          </label>
                           <input
                             type="date"
                             value={recurrenceEnd}
                             min={formDate || getTodayDate()}
                             onChange={(e) => setRecurrenceEnd(e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            required={isRepeating}
                           />
                       </div>
                     </div>
