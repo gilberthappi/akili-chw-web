@@ -56,9 +56,38 @@ export const usePushNotifications = () => {
     register();
 
     const unsubscribe = onForegroundMessage((payload) => {
-      const title = payload.notification?.title || "Notification";
-      const body = payload.notification?.body || payload.data?.message;
-      toast(title + (body ? `: ${body}` : ""));
+      const title = payload.notification?.title || payload.data?.title || "Notification";
+      const body = payload.notification?.body || payload.data?.body || "";
+      const type = payload.data?.type;
+
+      // Play a notification sound for foreground notifications
+      try {
+        const audio = new Audio('/notification-sound.mp3');
+        audio.volume = 0.5;
+        audio.play().catch(() => {}); // silently fail if autoplay blocked
+      } catch (_) {}
+
+      if (type === "calendar_reminder") {
+        toast(() => (
+          <div style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
+            <span style={{ fontSize: "20px" }}>📅</span>
+            <div>
+              <strong style={{ display: "block", marginBottom: "2px" }}>{title}</strong>
+              <span style={{ fontSize: "13px", color: "#555" }}>{body}</span>
+            </div>
+          </div>
+        ), { duration: 8000 });
+      } else {
+        toast(() => (
+          <div style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
+            <span style={{ fontSize: "20px" }}>🔔</span>
+            <div>
+              <strong style={{ display: "block", marginBottom: "2px" }}>{title}</strong>
+              {body && <span style={{ fontSize: "13px", color: "#555" }}>{body}</span>}
+            </div>
+          </div>
+        ), { duration: 5000 });
+      }
     });
 
     return () => {

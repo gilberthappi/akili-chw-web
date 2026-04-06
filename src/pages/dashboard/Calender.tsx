@@ -123,7 +123,6 @@ const Calendar: React.FC = () => {
   const [externalEmailInput, setExternalEmailInput] = useState('');
   const [isCreatingMeeting, setIsCreatingMeeting] = useState(false);
   const [eventToDelete, setEventToDelete] = useState<any>(null);
-  const [isDeletingMeeting, setIsDeletingMeeting] = useState(false);
   const [expandedDate, setExpandedDate] = useState<Date | null>(null);
   const [reminders, setReminders] = useState<number[]>([30]);
   const [reminderInput, setReminderInput] = useState<string>('');
@@ -200,7 +199,7 @@ const Calendar: React.FC = () => {
         : [Number(eventData.reminders || 30)],
       startAt: startDateTime.toISOString(),
       endAt: endDateTime.toISOString(),
-      recurrenceEndsAt: eventData.recurrenceEndsAt || null,
+      recurrenceEndsAt: eventData.recurrenceEndsAt || undefined,
       meetingType: eventData.meetingType.toUpperCase().replace('-', '_'),
       
       location: eventData.location,
@@ -211,13 +210,9 @@ const Calendar: React.FC = () => {
       participants:
         eventData.attendees?.map((userId: any) => ({
           userId,
-          status: 'PENDING',
-          role: null,
         })) || [],
       externalParticipants: (eventData.externalParticipants || []).map((email: string) => ({
         email,
-        status: 'PENDING',
-        role: null,
       })),
       attachments: (eventData.attachments || []).filter((a: any) => a?.url).map((a: any) => ({
         name: getAttachmentLabel(a.url, a.name),
@@ -424,39 +419,6 @@ const Calendar: React.FC = () => {
   const confirmDeleteEvent = async () => {
     const event = eventToDelete;
     if (!event) return;
-
-    // If it's an eBumenyi meeting, delete the meeting first
-    if (event.meetingType === 'EBUMENYI_MEETING' && event.location && event.location.includes('/meeting/')) {
-      setIsDeletingMeeting(true);
-      try {
-        // Extract meetingId from URL: https://meeting.ebumenyi.online/meeting/6pf-nfp-uvh
-        const urlParts = event.location.split('/');
-        const meetingId = urlParts[urlParts.length - 1];
-
-        const apiUrl = import.meta.env.VITE_EBUMENYI_MEET_API_URL || 'https://meeting.ebumenyi.online/api/meetings/schedule';
-
-        const deleteResponse = await fetch(apiUrl, {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            meetingId: meetingId,
-            hostEmail: event.hostEmail
-          })
-        });
-
-        if (!deleteResponse.ok) {
-          console.error('Failed to delete eBumenyi meeting');
-        } else {
-          console.log('eBumenyi meeting deleted successfully');
-        }
-      } catch (error) {
-        console.error('Error deleting eBumenyi meeting:', error);
-      } finally {
-        setIsDeletingMeeting(false);
-      }
-    }
 
     // Delete the event
     deleteEventMutation.mutate(event.id);
@@ -2863,10 +2825,10 @@ const Calendar: React.FC = () => {
               </button>
               <button
                 onClick={confirmDeleteEvent}
-                disabled={deleteEventMutation.isPending || isDeletingMeeting}
+                disabled={deleteEventMutation.isPending}
                 className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isDeletingMeeting ? 'Deleting Meeting...' : deleteEventMutation.isPending ? 'Deleting...' : 'Delete Event'}
+                {deleteEventMutation.isPending ? 'Deleting...' : 'Delete Event'}
               </button>
             </div>
           </div>
