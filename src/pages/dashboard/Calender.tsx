@@ -29,7 +29,7 @@ import TextField from "@/components/common/form/TextField";
 import TextArea from "@/components/common/form/TextArea";
 import Button from "@/components/common/form/Button";
 import { getAllUsersNopagination } from "@/services/users.api";
-import { createEvent, updateEvent, deleteEvent, getAllEvents } from "@/services/calender.service";
+import { createEvent, updateEvent, deleteEvent, getAllEvents, cancelOccurrence, updateOccurrence } from "@/services/calender.service";
 import { useAuth } from "@/hooks/useAuth";
 import { uploadFileByType } from "@/services/uploader.api";
 
@@ -90,7 +90,34 @@ const Calendar: React.FC = () => {
   });
 
   const users = usersData?.data || [];
-  const events = Array.isArray(eventsData?.data) ? eventsData.data : Array.isArray(eventsData) ? eventsData : [];
+  
+  // Deduplicate events: for recurring events with same commonId, keep only the one for the specific date
+  const events = React.useMemo(() => {
+    const rawEvents = Array.isArray(eventsData?.data) ? eventsData.data : Array.isArray(eventsData) ? eventsData : [];
+    if (!rawEvents.length) return [];
+    
+    const eventMap = new Map<string, typeof rawEvents[0]>();
+    
+    rawEvents.forEach(event => {
+      if (!event.isRepeating || !event.commonId) {
+        // Non-recurring events: keep all
+        const key = event.id;
+        eventMap.set(key, event);
+      } else {
+        // Recurring events: keep one per date
+        const eventDate = event.startAt ? new Date(event.startAt).toDateString() : 'unknown';
+        const key = `${event.commonId}-${eventDate}`;
+        
+        // If we already have an event for this commonId on this date, keep the first one
+        if (!eventMap.has(key)) {
+          eventMap.set(key, event);
+        }
+      }
+    });
+    
+    return Array.from(eventMap.values());
+  }, [eventsData]);
+  
   const [editingEvent, setEditingEvent] = useState<any>(null);
   const [showEventModal, setShowEventModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
@@ -129,6 +156,9 @@ const Calendar: React.FC = () => {
   const [attachments, setAttachments] = useState<{ name: string; url: string }[]>([]);
   const [attachmentUrl, setAttachmentUrl] = useState('');
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
+  const [occurrenceActionMode, setOccurrenceActionMode] = useState<'single' | 'all' | 'future' | null>(null);
+  const [showOccurrenceActionDialog, setShowOccurrenceActionDialog] = useState(false);
+  const [occurrenceActionType, setOccurrenceActionType] = useState<'edit' | 'delete' | null>(null);
 
   // Initialize selectedEventType and formDate when modal opens
   React.useEffect(() => {
@@ -220,9 +250,6 @@ const Calendar: React.FC = () => {
       })),
     };
     
-    
-    console.log('📅 BACKEND PAYLOAD:', backendPayload);
-    
     // Use the mutation to create/update the event
     if (eventData.id) {
       // Update existing event
@@ -238,34 +265,31 @@ const Calendar: React.FC = () => {
 
     // Validate required title field
     if (!eventData.title || eventData.title.trim() === '') {
-      console.error('Title is required');
       toast.error('Title is required');
-      return;
+      return false;
     }
 
     // Validate required description field
     if (!eventData.description || eventData.description.trim() === '') {
-      console.error('Description is required');
       toast.error('Description is required');
-      return;
+      return false;
     }
 
     if (eventData.frequency === 'WEEKLY' && (!eventData.daysOfWeek || eventData.daysOfWeek.length === 0)) {
       toast.error('Select at least one weekday for weekly repeats');
-      return;
+      return false;
     }
 
     // Validate "Ends On" is mandatory for repeating events
-    if (eventData.frequency !== 'NONE' && (!eventData.recurrenceEndsAt || eventData.recurrenceEndsAt.trim() === '')) {
-      toast.error('Ends On date is required for repeating events');
-      return;
+    if (eventData.frequency !== 'NONE' && (!eventData.recurrenceEndsAt || (typeof eventData.recurrenceEndsAt === 'string' && eventData.recurrenceEndsAt.trim() === ''))) {
+      toast.error(`Please set an "Ends On" date for ${eventData.frequency} repeating events`);
+      return false;
     }
 
     // Validate required hostEmail field
     if (!eventData.hostEmail || eventData.hostEmail.trim() === '') {
-      console.error('Host email is required');
       toast.error('Host email is required');
-      return;
+      return false;
     }
 
     // Validate date is not in the past
@@ -273,23 +297,21 @@ const Calendar: React.FC = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     if (eventDate < today) {
-      console.error('Event date cannot be in the past');
       toast.error('Event date cannot be in the past');
-      return;
+      return false;
     }
 
     if (eventData.recurrenceEndsAt && eventData.recurrenceEndsAt < eventData.date) {
       toast.error('Recurrence end date must be after start date');
-      return;
+      return false;
     }
 
     // Validate at least one participant is required
     const hasParticipants = (eventData.attendees && eventData.attendees.length > 0) || 
                            (eventData.externalParticipants && eventData.externalParticipants.length > 0);
     if (!hasParticipants) {
-      console.error('At least one participant is required');
       toast.error('At least one participant is required');
-      return;
+      return false;
     }
 
     // If meeting type is ebumenyi-meeting, create meeting link via API
@@ -326,9 +348,6 @@ const Calendar: React.FC = () => {
           requestBody.meetingId = meetingId;
         }
 
-        console.log('Creating/updating eBumenyi meeting with:', requestBody);
-        console.log('API URL:', apiUrl);
-
         const response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
@@ -340,7 +359,6 @@ const Calendar: React.FC = () => {
 
         if (response.ok) {
           const result = await response.json();
-          console.log('API Response:', result);
           
           // Try multiple possible property names for the meeting link
           const meetingUrl = result.meetingLink || 
@@ -357,7 +375,6 @@ const Calendar: React.FC = () => {
 
           if (meetingUrl) {
             finalEventData.location = meetingUrl;
-            console.log('Meeting URL found:', meetingUrl);
             
             // Send to backend now that we have the meeting link
             sendEventToBackend(finalEventData, editingEvent);
@@ -367,7 +384,6 @@ const Calendar: React.FC = () => {
             if (meetingId) {
               // For updates, keep the existing meeting URL
               finalEventData.location = editingEvent.location;
-              console.log('Keeping existing meeting URL for update:', editingEvent.location);
               sendEventToBackend(finalEventData, editingEvent);
               setIsCreatingMeeting(false);
             } else {
@@ -380,12 +396,6 @@ const Calendar: React.FC = () => {
           }
         } else {
           const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-          console.error('Failed to create Ebumenyi meeting:', {
-            status: response.status,
-            statusText: response.statusText,
-            error: errorData
-          });
-          
           toast.error(`Failed to create meeting: ${errorData.message || response.statusText}`);
 
           // Show sign-in modal
@@ -393,17 +403,16 @@ const Calendar: React.FC = () => {
           
           // Don't create the event
           setIsCreatingMeeting(false);
-          return;
+          return false;
         }
       } catch (error) {
-        console.error('Error creating Ebumenyi meeting:', error);
         toast.error('Network error while creating meeting. Please try again.');
         // Show sign-in modal
         setShowSignInModal(true);
         
         // Don't create the event
         setIsCreatingMeeting(false);
-        return;
+        return false;
       }
     } else {
       // For non-ebumenyi meetings, send to backend immediately since we have all data
@@ -411,6 +420,7 @@ const Calendar: React.FC = () => {
     }
     
     // Events are managed by React Query, no need to manually update local state
+    return true;
   };
 
   const handleViewEvent = (event: any) => {
@@ -419,15 +429,42 @@ const Calendar: React.FC = () => {
   };
 
   const handleDeleteEvent = (event: any) => {
-    setEventToDelete(event);
+    // If recurring, show occurrence mode selection dialog
+    if (event.isRepeating && event.commonId) {
+      setEventToDelete(event);
+      setOccurrenceActionType('delete');
+      setShowOccurrenceActionDialog(true);
+    } else {
+      // For non-recurring events, show delete confirmation modal
+      setEventToDelete(event);
+    }
   };
 
   const confirmDeleteEvent = async () => {
     const event = eventToDelete;
     if (!event) return;
 
-    // Delete the event
-    deleteEventMutation.mutate(event.id);
+    try {
+      // For recurring events with selected mode
+      if (event.isRepeating && event.commonId && occurrenceActionMode) {
+        // Pass the mode directly to cancelOccurrence
+        await cancelOccurrence(event.id, occurrenceActionMode as "single" | "all" | "future");
+        toast.success('Occurrence deleted successfully!');
+      } else {
+        // Non-recurring event
+        deleteEventMutation.mutate(event.id);
+        return;
+      }
+
+      // Refresh data
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      setEventToDelete(null);
+      setShowDetailsModal(false);
+      setOccurrenceActionMode(null);
+      setOccurrenceActionType(null);
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Failed to delete occurrence');
+    }
   };
 
   // Helper function to get default date (today)
@@ -621,7 +658,6 @@ const Calendar: React.FC = () => {
       ]);
       toast.success('Attachment uploaded');
     } catch (err) {
-      console.error(err);
       toast.error('Upload failed, please try again.');
     } finally {
       setIsUploadingAttachment(false);
@@ -2022,22 +2058,26 @@ const Calendar: React.FC = () => {
                 >
                   Close
                 </button>
-                <button
-                  onClick={() => handleDeleteEvent(selectedEvent)}
-                  className="px-4 py-2 text-red-700 bg-red-100 rounded-lg hover:bg-red-200 font-medium"
-                >
-                  <Trash2 className="w-4 h-4 inline mr-2" /> Delete
-                </button>
-                <button
-                  onClick={() => {
-                    setEditingEvent(selectedEvent);
-                    setShowEventModal(true);
-                    setShowDetailsModal(false);
-                  }}
-                  className="px-4 py-2  bg-primary text-white rounded-lg  font-medium hover:bg-[#4d81d2]"
-                >
-                  <Edit className="w-4 h-4  inline mr-2" /> Edit
-                </button>
+                {selectedEvent.amOwner && (
+                  <>
+                    <button
+                      onClick={() => handleDeleteEvent(selectedEvent)}
+                      className="px-4 py-2 text-red-700 bg-red-100 rounded-lg hover:bg-red-200 font-medium"
+                    >
+                      <Trash2 className="w-4 h-4 inline mr-2" /> Delete
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditingEvent(selectedEvent);
+                        setShowEventModal(true);
+                        setShowDetailsModal(false);
+                      }}
+                      className="px-4 py-2  bg-primary text-white rounded-lg  font-medium hover:bg-[#4d81d2]"
+                    >
+                      <Edit className="w-4 h-4  inline mr-2" /> Edit
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -2112,32 +2152,43 @@ const Calendar: React.FC = () => {
                 recurrenceEndsAt: recurrenceEnd ? new Date(recurrenceEnd) : null,
               };
 
-              await handleCreateEvent({ ...eventData, ...(editingEvent ? { id: editingEvent.id } : {}) });
-              setQuickActionDefaults(null);
-              setSelectedDateForForm(null);
-              setFormDate('');
-              setSelectedMeetingType('EBUMENYI_MEETING');
-              setFrequency('NONE');
-              setIsRepeating(false);
-              setDaysOfWeek([]);
-              setRecurrenceEnd('');
-              setSelectedAttendees([]);
-              setExternalParticipants([]);
-              setExternalEmailInput('');
-              setReminders([30]);
-              setReminderInput('');
-              setAttachments([]);
-              setAttachmentUrl('');
-              setIsUploadingAttachment(false);
-              setAttendeeSearchTerm('');
-              setAttendeeFilterRole('all');
-              setAttendeeFilterHospital('all');
-              setAttendeeFilterDistrict('all');
-              setAttendeeFilterSector('all');
-              setAttendeeFilterCell('all');
-              setAttendeeFilterVillage('all');
-              setAttendeeFilterCell('all');
-              setAttendeeFilterVillage('all');
+              // If editing a recurring event, show occurrence mode dialog first
+              if (editingEvent && editingEvent.isRepeating && editingEvent.commonId) {
+                setOccurrenceActionType('edit');
+                setShowOccurrenceActionDialog(true);
+                // Store the event data temporarily for use after mode selection
+                (window as any).__pendingEditData = { ...eventData, id: editingEvent.id };
+                return;
+              }
+
+              const success = await handleCreateEvent({ ...eventData, ...(editingEvent ? { id: editingEvent.id } : {}) });
+              
+              // Only clear form if submission was successful
+              if (success) {
+                setQuickActionDefaults(null);
+                setSelectedDateForForm(null);
+                setFormDate('');
+                setSelectedMeetingType('EBUMENYI_MEETING');
+                setFrequency('NONE');
+                setIsRepeating(false);
+                setDaysOfWeek([]);
+                setRecurrenceEnd('');
+                setSelectedAttendees([]);
+                setExternalParticipants([]);
+                setExternalEmailInput('');
+                setReminders([30]);
+                setReminderInput('');
+                setAttachments([]);
+                setAttachmentUrl('');
+                setIsUploadingAttachment(false);
+                setAttendeeSearchTerm('');
+                setAttendeeFilterRole('all');
+                setAttendeeFilterHospital('all');
+                setAttendeeFilterDistrict('all');
+                setAttendeeFilterSector('all');
+                setAttendeeFilterCell('all');
+                setAttendeeFilterVillage('all');
+              }
             }}>
                 <div className="space-y-4">
 
@@ -2791,8 +2842,8 @@ const Calendar: React.FC = () => {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
-      {eventToDelete && (
+      {/* Delete Confirmation Modal - Only for non-recurring events */}
+      {eventToDelete && !(eventToDelete.isRepeating && eventToDelete.commonId) && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-30">
           <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
             <div className="flex items-center justify-between mb-4">
@@ -2838,6 +2889,166 @@ const Calendar: React.FC = () => {
                 className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {deleteEventMutation.isPending ? 'Deleting...' : 'Delete Event'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Occurrence Action Dialog (Edit or Delete recurring event) */}
+      {showOccurrenceActionDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-30">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">
+              {occurrenceActionType === 'delete' ? 'Delete this event?' : 'Update this event?'}
+            </h3>
+            <p className="text-gray-600 mb-6">
+              {occurrenceActionType === 'delete'
+                ? 'This is a recurring event. What would you like to delete?'
+                : 'This is a recurring event. What would you like to update?'}
+            </p>
+
+            <div className="space-y-2 mb-6">
+              <button
+                onClick={() => {
+                  setOccurrenceActionMode('single');
+                }}
+                className={`w-full text-left p-3 border rounded-lg transition-colors ${
+                  occurrenceActionMode === 'single'
+                    ? 'border-blue-300 bg-blue-50'
+                    : 'border-gray-200 hover:bg-blue-50 hover:border-blue-300'
+                }`}
+              >
+                <p className="font-medium text-gray-900">This occurrence only</p>
+                <p className="text-sm text-gray-600">
+                  {occurrenceActionType === 'delete'
+                    ? 'Delete only this instance'
+                    : 'Update only this instance'}
+                </p>
+              </button>
+
+              <button
+                onClick={() => {
+                  setOccurrenceActionMode('future');
+                }}
+                className={`w-full text-left p-3 border rounded-lg transition-colors ${
+                  occurrenceActionMode === 'future'
+                    ? 'border-blue-300 bg-blue-50'
+                    : 'border-gray-200 hover:bg-blue-50 hover:border-blue-300'
+                }`}
+              >
+                <p className="font-medium text-gray-900">This and all future occurrences</p>
+                <p className="text-sm text-gray-600">
+                  {occurrenceActionType === 'delete'
+                    ? 'Delete this and all following instances'
+                    : 'Update this and all following instances'}
+                </p>
+              </button>
+
+              <button
+                onClick={() => {
+                  setOccurrenceActionMode('all');
+                }}
+                className={`w-full text-left p-3 border rounded-lg transition-colors ${
+                  occurrenceActionMode === 'all'
+                    ? 'border-blue-300 bg-blue-50'
+                    : 'border-gray-200 hover:bg-blue-50 hover:border-blue-300'
+                }`}
+              >
+                <p className="font-medium text-gray-900">All occurrences</p>
+                <p className="text-sm text-gray-600">
+                  {occurrenceActionType === 'delete'
+                    ? 'Delete the entire event series'
+                    : 'Update all instances in the series'}
+                </p>
+              </button>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowOccurrenceActionDialog(false);
+                  setOccurrenceActionType(null);
+                  setOccurrenceActionMode(null);
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (occurrenceActionType === 'delete') {
+                    confirmDeleteEvent();
+                  } else if (occurrenceActionType === 'edit') {
+                    const pendingData = (window as any).__pendingEditData;
+                    if (pendingData && editingEvent && occurrenceActionMode) {
+                      try {
+                        // Parse the pending data to extract the fields we need for the API call
+                        const [startTimeStr, endTimeStr] = pendingData.time.split(' - ');
+                        const eventDate = new Date(pendingData.date);
+                        
+                        const startDateTime = new Date(eventDate);
+                        const [startHours, startMinutes] = startTimeStr.split(':').map(Number);
+                        startDateTime.setHours(startHours, startMinutes, 0, 0);
+                        
+                        const endDateTime = new Date(eventDate);
+                        const [endHours, endMinutes] = endTimeStr.split(':').map(Number);
+                        endDateTime.setHours(endHours, endMinutes, 0, 0);
+                        
+                        const updatePayload = {
+                          title: pendingData.title,
+                          description: pendingData.description,
+                          type: pendingData.type,
+                          frequency: pendingData.frequency || 'NONE',
+                          daysOfWeek: pendingData.daysOfWeek || [],
+                          timezone: 'Africa/Kigali',
+                          reminderMinutesBefore: Array.isArray(pendingData.reminders)
+                            ? pendingData.reminders
+                            : [Number(pendingData.reminders || 30)],
+                          startAt: startDateTime.toISOString(),
+                          endAt: endDateTime.toISOString(),
+                          recurrenceEndsAt: pendingData.recurrenceEndsAt,
+                          meetingType: pendingData.meetingType?.toUpperCase().replace('-', '_'),
+                          location: pendingData.location,
+                          priority: pendingData.priority?.toUpperCase(),
+                          hostEmail: pendingData.hostEmail,
+                          participants: pendingData.attendees?.map((userId: any) => ({ userId })) || [],
+                          externalParticipants: (pendingData.externalParticipants || []).map((email: string) => ({ email })),
+                          attachments: (pendingData.attachments || []).filter((a: any) => a?.url).map((a: any) => ({ name: a.name, url: a.url })),
+                        };
+                        
+                        // Call the single updateOccurrence function with the selected mode
+                        await updateOccurrence(editingEvent.id, updatePayload, occurrenceActionMode as "single" | "all" | "future");
+                        
+                        // Show appropriate success message based on mode
+                        const modeMessages = {
+                          single: 'Occurrence updated successfully!',
+                          future: 'This and all future occurrences updated successfully!',
+                          all: 'All occurrences updated successfully!'
+                        };
+                        toast.success(modeMessages[occurrenceActionMode as "single" | "all" | "future"]);
+                        
+                        // Refresh data
+                        queryClient.invalidateQueries({ queryKey: ['events'] });
+                        setShowEventModal(false);
+                        setEditingEvent(null);
+                      } catch (error: any) {
+                        toast.error(error?.response?.data?.message || 'Failed to update occurrence');
+                      }
+                    }
+                  }
+                  setShowOccurrenceActionDialog(false);
+                  setOccurrenceActionType(null);
+                  setOccurrenceActionMode(null);
+                }}
+                disabled={!occurrenceActionMode}
+                className={`flex-1 px-4 py-2 rounded-lg text-white font-medium transition-colors ${
+                  occurrenceActionType === 'delete'
+                    ? 'bg-red-600 hover:bg-red-700 disabled:bg-red-300'
+                    : 'bg-primary hover:bg-blue-900 disabled:bg-blue-300'
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                {occurrenceActionType === 'delete' ? 'Delete' : 'Update'}
               </button>
             </div>
           </div>

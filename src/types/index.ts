@@ -1234,4 +1234,13 @@ export interface IEvent {
   status?: "confirmed" | "pending" | "scheduled" | "cancelled";
   createdAt?: string;
   updatedAt?: string;
+  // Expanded recurring instance fields
+  isRecurringInstance?: boolean;
+  instanceId?: string;
+  occurrenceNumber?: number;
+  titleOverride?: string;
+  descriptionOverride?: string;
+  locationOverride?: string;
+  isCancelled?: boolean;
+  originalEventId?: string;
 }
