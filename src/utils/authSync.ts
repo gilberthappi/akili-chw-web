@@ -28,6 +28,7 @@ export const broadcastAuthChange = (type: 'login' | 'logout') => {
   if (authChannel) {
     authChannel.postMessage({ type, timestamp: Date.now() });
   }
+  window.dispatchEvent(new CustomEvent('auth_change', { detail: type }));
   // Also trigger storage events for fallback
   if (type === 'login') {
     window.dispatchEvent(
