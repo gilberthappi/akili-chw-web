@@ -43,7 +43,7 @@ const Announcement: React.FC = () => {
 
   // Fetch announcements using useQuery
   const { data: announcements = [], isLoading } = useQuery({
-    queryKey: ['ANNOUNCEMENTS'],
+    queryKey: ['announcements'],
     queryFn: async () => {
       const response = await getAllAnnouncements();
       return response.data;
@@ -551,15 +551,17 @@ const Announcement: React.FC = () => {
             <Button 
               variant="outline" 
               onClick={() => setIsDialogOpen(false)}
-              className="px-6 rounded-lg"
+              disabled={createMutation.isPending || updateMutation.isPending}
+              className="px-6 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </Button>
             <Button 
               onClick={handleSaveAnnouncement}
-              className="px-6 bg-primary to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg"
+              disabled={createMutation.isPending || updateMutation.isPending}
+              className="px-6 bg-primary to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {editingAnnouncement ? '✓ Update' : '✓ Create'} Announcement
+              {createMutation.isPending || updateMutation.isPending ? '⏳ Saving...' : (editingAnnouncement ? '✓ Update' : '✓ Create')} Announcement
             </Button>
           </div>
         </div>
@@ -580,15 +582,17 @@ const Announcement: React.FC = () => {
             <Button
               variant="outline"
               onClick={() => setDeleteConfirm({ isOpen: false, announcement: null })}
-              className="px-6 rounded-lg"
+              disabled={deleteMutation.isPending}
+              className="px-6 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </Button>
             <Button
               onClick={confirmDelete}
-              className="px-6 bg-red-600 hover:bg-red-700 text-white rounded-lg"
+              disabled={deleteMutation.isPending}
+              className="px-6 bg-red-600 hover:bg-red-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Delete
+              {deleteMutation.isPending ? '⏳ Deleting...' : 'Delete'}
             </Button>
           </div>
         </div>

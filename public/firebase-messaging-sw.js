@@ -16,7 +16,7 @@ firebase.initializeApp(firebaseConfig);
 const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage(function(payload) {
-  const notificationTitle = payload.notification?.title || payload.data?.title || 'Ibutsa ry\'ikiganiro';
+  const notificationTitle = payload.notification?.title || payload.data?.title || 'Ukwibutsa';
   const notificationBody = payload.notification?.body || payload.data?.body || '';
   const type = payload.data?.type || '';
 

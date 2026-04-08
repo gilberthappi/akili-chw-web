@@ -91,31 +91,11 @@ const Calendar: React.FC = () => {
 
   const users = usersData?.data || [];
   
-  // Deduplicate events: for recurring events with same commonId, keep only the one for the specific date
+  // Use events exactly as provided by the backend (no client-side deduplication)
   const events = React.useMemo(() => {
-    const rawEvents = Array.isArray(eventsData?.data) ? eventsData.data : Array.isArray(eventsData) ? eventsData : [];
-    if (!rawEvents.length) return [];
-    
-    const eventMap = new Map<string, typeof rawEvents[0]>();
-    
-    rawEvents.forEach(event => {
-      if (!event.isRepeating || !event.commonId) {
-        // Non-recurring events: keep all
-        const key = event.id;
-        eventMap.set(key, event);
-      } else {
-        // Recurring events: keep one per date
-        const eventDate = event.startAt ? new Date(event.startAt).toDateString() : 'unknown';
-        const key = `${event.commonId}-${eventDate}`;
-        
-        // If we already have an event for this commonId on this date, keep the first one
-        if (!eventMap.has(key)) {
-          eventMap.set(key, event);
-        }
-      }
-    });
-    
-    return Array.from(eventMap.values());
+    if (Array.isArray(eventsData?.data)) return eventsData.data;
+    if (Array.isArray(eventsData)) return eventsData;
+    return [];
   }, [eventsData]);
   
   const [editingEvent, setEditingEvent] = useState<any>(null);
@@ -159,6 +139,7 @@ const Calendar: React.FC = () => {
   const [occurrenceActionMode, setOccurrenceActionMode] = useState<'single' | 'all' | 'future' | null>(null);
   const [showOccurrenceActionDialog, setShowOccurrenceActionDialog] = useState(false);
   const [occurrenceActionType, setOccurrenceActionType] = useState<'edit' | 'delete' | null>(null);
+  const [isProcessingOccurrence, setIsProcessingOccurrence] = useState(false);
 
   // Initialize selectedEventType and formDate when modal opens
   React.useEffect(() => {
@@ -1180,8 +1161,8 @@ const Calendar: React.FC = () => {
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Health Calendar</h1>
-            <p className="text-gray-600">Manage training sessions, screenings, and health events</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Calendar</h1>
+            <p className="text-gray-600">Manage training sessions, screenings, and events</p>
           </div>
           <div className="flex items-center gap-3">
             <button
@@ -2054,7 +2035,8 @@ const Calendar: React.FC = () => {
               <div className="flex items-center justify-end gap-3 pt-6 border-t">
                 <button
                   onClick={() => setShowDetailsModal(false)}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                  disabled={deleteEventMutation.isPending}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Close
                 </button>
@@ -2062,9 +2044,10 @@ const Calendar: React.FC = () => {
                   <>
                     <button
                       onClick={() => handleDeleteEvent(selectedEvent)}
-                      className="px-4 py-2 text-red-700 bg-red-100 rounded-lg hover:bg-red-200 font-medium"
+                      disabled={deleteEventMutation.isPending}
+                      className="px-4 py-2 text-red-700 bg-red-100 rounded-lg hover:bg-red-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <Trash2 className="w-4 h-4 inline mr-2" /> Delete
+                      <Trash2 className="w-4 h-4 inline mr-2" /> {deleteEventMutation.isPending ? 'Deleting...' : 'Delete'}
                     </button>
                     <button
                       onClick={() => {
@@ -2072,9 +2055,10 @@ const Calendar: React.FC = () => {
                         setShowEventModal(true);
                         setShowDetailsModal(false);
                       }}
-                      className="px-4 py-2  bg-primary text-white rounded-lg  font-medium hover:bg-[#4d81d2]"
+                      disabled={deleteEventMutation.isPending || updateEventMutation.isPending}
+                      className="px-4 py-2  bg-primary text-white rounded-lg  font-medium hover:bg-[#4d81d2] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <Edit className="w-4 h-4  inline mr-2" /> Edit
+                      <Edit className="w-4 h-4  inline mr-2" /> {updateEventMutation.isPending ? 'Loading...' : 'Edit'}
                     </button>
                   </>
                 )}
@@ -2370,16 +2354,18 @@ const Calendar: React.FC = () => {
                       />
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Ends On {isRepeating && <span className="text-red-500">*</span>} {editingEvent?.isRepeating && <span className="text-xs text-gray-500">(read-only)</span>}
+                            Ends On {isRepeating && <span className="text-red-500">*</span>} 
+                            {editingEvent?.isRepeating && occurrenceActionMode === 'single' && <span className="text-xs text-gray-500">(read-only)</span>}
+                            {editingEvent?.isRepeating && (occurrenceActionMode === 'all' || occurrenceActionMode === 'future') && <span className="text-xs text-blue-600">(editable - change to expand/reduce range)</span>}
                           </label>
                           <input
                             type="date"
                             value={recurrenceEnd}
                             min={formDate || getTodayDate()}
                             onChange={(e) => setRecurrenceEnd(e.target.value)}
-                            disabled={editingEvent?.isRepeating}
+                            disabled={editingEvent?.isRepeating && occurrenceActionMode === 'single'}
                             className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                              editingEvent?.isRepeating ? 'bg-gray-100 cursor-not-allowed opacity-60' : ''
+                              editingEvent?.isRepeating && occurrenceActionMode === 'single' ? 'bg-gray-100 cursor-not-allowed opacity-60' : ''
                             }`}
                             required={isRepeating}
                           />
@@ -2985,78 +2971,113 @@ const Calendar: React.FC = () => {
               </button>
               <button
                 onClick={async () => {
-                  if (occurrenceActionType === 'delete') {
-                    confirmDeleteEvent();
-                  } else if (occurrenceActionType === 'edit') {
-                    const pendingData = (window as any).__pendingEditData;
-                    if (pendingData && editingEvent && occurrenceActionMode) {
-                      try {
-                        // Parse the pending data to extract the fields we need for the API call
-                        const [startTimeStr, endTimeStr] = pendingData.time.split(' - ');
-                        const eventDate = new Date(pendingData.date);
-                        
-                        const startDateTime = new Date(eventDate);
-                        const [startHours, startMinutes] = startTimeStr.split(':').map(Number);
-                        startDateTime.setHours(startHours, startMinutes, 0, 0);
-                        
-                        const endDateTime = new Date(eventDate);
-                        const [endHours, endMinutes] = endTimeStr.split(':').map(Number);
-                        endDateTime.setHours(endHours, endMinutes, 0, 0);
-                        
-                        const updatePayload = {
-                          title: pendingData.title,
-                          description: pendingData.description,
-                          type: pendingData.type,
-                          frequency: pendingData.frequency || 'NONE',
-                          daysOfWeek: pendingData.daysOfWeek || [],
-                          timezone: 'Africa/Kigali',
-                          reminderMinutesBefore: Array.isArray(pendingData.reminders)
-                            ? pendingData.reminders
-                            : [Number(pendingData.reminders || 30)],
-                          startAt: startDateTime.toISOString(),
-                          endAt: endDateTime.toISOString(),
-                          recurrenceEndsAt: pendingData.recurrenceEndsAt,
-                          meetingType: pendingData.meetingType?.toUpperCase().replace('-', '_'),
-                          location: pendingData.location,
-                          priority: pendingData.priority?.toUpperCase(),
-                          hostEmail: pendingData.hostEmail,
-                          participants: pendingData.attendees?.map((userId: any) => ({ userId })) || [],
-                          externalParticipants: (pendingData.externalParticipants || []).map((email: string) => ({ email })),
-                          attachments: (pendingData.attachments || []).filter((a: any) => a?.url).map((a: any) => ({ name: a.name, url: a.url })),
-                        };
-                        
-                        // Call the single updateOccurrence function with the selected mode
-                        await updateOccurrence(editingEvent.id, updatePayload, occurrenceActionMode as "single" | "all" | "future");
-                        
-                        // Show appropriate success message based on mode
-                        const modeMessages = {
-                          single: 'Occurrence updated successfully!',
-                          future: 'This and all future occurrences updated successfully!',
-                          all: 'All occurrences updated successfully!'
-                        };
-                        toast.success(modeMessages[occurrenceActionMode as "single" | "all" | "future"]);
-                        
-                        // Refresh data
-                        queryClient.invalidateQueries({ queryKey: ['events'] });
-                        setShowEventModal(false);
-                        setEditingEvent(null);
-                      } catch (error: any) {
-                        toast.error(error?.response?.data?.message || 'Failed to update occurrence');
+                  setIsProcessingOccurrence(true);
+                  try {
+                    if (occurrenceActionType === 'delete') {
+                      confirmDeleteEvent();
+                    } else if (occurrenceActionType === 'edit') {
+                      const pendingData = (window as any).__pendingEditData;
+                      if (pendingData && editingEvent && occurrenceActionMode) {
+                        try {
+                          let startDateTime: Date;
+                          let endDateTime: Date;
+
+                          // For "all" and "future" modes: preserve original dates but allow time changes
+                          // The backend will calculate the time offset and apply to all occurrences
+                          if (occurrenceActionMode === 'single') {
+                            // For single: use the new date and time from the form
+                            const [startTimeStr, endTimeStr] = pendingData.time.split(' - ');
+                            const eventDate = new Date(pendingData.date);
+                            
+                            startDateTime = new Date(eventDate);
+                            const [startHours, startMinutes] = startTimeStr.split(':').map(Number);
+                            startDateTime.setHours(startHours, startMinutes, 0, 0);
+                            
+                            endDateTime = new Date(eventDate);
+                            const [endHours, endMinutes] = endTimeStr.split(':').map(Number);
+                            endDateTime.setHours(endHours, endMinutes, 0, 0);
+                          } else {
+                            // For "all" and "future": use original event's date but with new time
+                            const [startTimeStr, endTimeStr] = pendingData.time.split(' - ');
+                            const existingStartDate = new Date(editingEvent.startAt);
+                            const existingEndDate = new Date(editingEvent.endAt);
+                            
+                            // Apply new time to existing dates
+                            startDateTime = new Date(existingStartDate);
+                            const [startHours, startMinutes] = startTimeStr.split(':').map(Number);
+                            startDateTime.setHours(startHours, startMinutes, 0, 0);
+                            
+                            endDateTime = new Date(existingEndDate);
+                            const [endHours, endMinutes] = endTimeStr.split(':').map(Number);
+                            endDateTime.setHours(endHours, endMinutes, 0, 0);
+                          }
+                          
+                          const updatePayload: any = {
+                            title: pendingData.title,
+                            description: pendingData.description,
+                            type: pendingData.type,
+                            frequency: pendingData.frequency || editingEvent.frequency || 'NONE',
+                            daysOfWeek: pendingData.daysOfWeek && pendingData.daysOfWeek.length > 0 
+                              ? pendingData.daysOfWeek 
+                              : (editingEvent.daysOfWeek && editingEvent.daysOfWeek.length > 0 ? editingEvent.daysOfWeek : []),
+                            timezone: 'Africa/Kigali',
+                            reminderMinutesBefore: Array.isArray(pendingData.reminders)
+                              ? pendingData.reminders
+                              : [Number(pendingData.reminders || 30)],
+                            startAt: startDateTime.toISOString(),
+                            endAt: endDateTime.toISOString(),
+                            meetingType: pendingData.meetingType?.toUpperCase().replace('-', '_'),
+                            location: pendingData.location,
+                            priority: pendingData.priority?.toUpperCase(),
+                            hostEmail: pendingData.hostEmail,
+                            participants: pendingData.attendees?.map((userId: any) => ({ userId })) || [],
+                            externalParticipants: (pendingData.externalParticipants || []).map((email: string) => ({ email })),
+                            attachments: (pendingData.attachments || []).filter((a: any) => a?.url).map((a: any) => ({ name: a.name, url: a.url })),
+                          };
+
+                          // For "all" and "future" modes, allow user to change recurrence end date
+                          if (occurrenceActionMode === 'all' || occurrenceActionMode === 'future') {
+                            updatePayload.recurrenceEndsAt = pendingData.recurrenceEndsAt || editingEvent.recurrenceEndsAt;
+                          }
+                          
+                          // Call the single updateOccurrence function with the selected mode
+                          await updateOccurrence(editingEvent.id, updatePayload, occurrenceActionMode as "single" | "all" | "future");
+                          
+                          // Show appropriate success message based on mode
+                          const modeMessages = {
+                            single: 'Occurrence updated successfully!',
+                            future: 'This and all future occurrences updated successfully!',
+                            all: 'All occurrences updated successfully!'
+                          };
+                          toast.success(modeMessages[occurrenceActionMode as "single" | "all" | "future"]);
+                          
+                          // Refresh data
+                          queryClient.invalidateQueries({ queryKey: ['events'] });
+                          setShowEventModal(false);
+                          setEditingEvent(null);
+                        } catch (error: any) {
+                          toast.error(error?.response?.data?.message || 'Failed to update occurrence');
+                        }
                       }
                     }
+                  } finally {
+                    setShowOccurrenceActionDialog(isProcessingOccurrence);
+                    setOccurrenceActionType(null);
+                    setOccurrenceActionMode(null);
+                    setIsProcessingOccurrence(false);
                   }
-                  setShowOccurrenceActionDialog(false);
-                  setOccurrenceActionType(null);
-                  setOccurrenceActionMode(null);
                 }}
-                disabled={!occurrenceActionMode}
+                disabled={!occurrenceActionMode || isProcessingOccurrence}
                 className={`flex-1 px-4 py-2 rounded-lg text-white font-medium transition-colors ${
                   occurrenceActionType === 'delete'
                     ? 'bg-red-600 hover:bg-red-700 disabled:bg-red-300'
                     : 'bg-primary hover:bg-blue-900 disabled:bg-blue-300'
                 } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
-                {occurrenceActionType === 'delete' ? 'Delete' : 'Update'}
+                {isProcessingOccurrence 
+                  ? (occurrenceActionType === 'delete' ? '⏳ Deleting...' : '⏳ Updating...')
+                  : (occurrenceActionType === 'delete' ? 'Delete' : 'Update')
+                }
               </button>
             </div>
           </div>
