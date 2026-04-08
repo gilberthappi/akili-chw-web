@@ -2282,14 +2282,19 @@ const Calendar: React.FC = () => {
 
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Date {editingEvent?.isRepeating && <span className="text-xs text-gray-500">(read-only for repeating events)</span>}*
+                    </label>
                     <input
                       type="date"
                       name="date"
                       min={getTodayDate()}
                       value={formDate}
                       onChange={(e) => setFormDate(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={editingEvent?.isRepeating}
+                      className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        editingEvent?.isRepeating ? 'bg-gray-100 cursor-not-allowed opacity-60' : ''
+                      }`}
                       required
                     />
                   </div>
@@ -2365,14 +2370,17 @@ const Calendar: React.FC = () => {
                       />
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Ends On {isRepeating && <span className="text-red-500">*</span>}
+                            Ends On {isRepeating && <span className="text-red-500">*</span>} {editingEvent?.isRepeating && <span className="text-xs text-gray-500">(read-only)</span>}
                           </label>
                           <input
                             type="date"
                             value={recurrenceEnd}
                             min={formDate || getTodayDate()}
                             onChange={(e) => setRecurrenceEnd(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            disabled={editingEvent?.isRepeating}
+                            className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                              editingEvent?.isRepeating ? 'bg-gray-100 cursor-not-allowed opacity-60' : ''
+                            }`}
                             required={isRepeating}
                           />
                       </div>
