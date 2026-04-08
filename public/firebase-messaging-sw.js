@@ -19,23 +19,45 @@ messaging.onBackgroundMessage(function(payload) {
   const notificationTitle = payload.notification?.title || payload.data?.title || 'Ibutsa ry\'ikiganiro';
   const notificationBody = payload.notification?.body || payload.data?.body || '';
   const type = payload.data?.type || '';
-  
-  const notificationOptions = {
-    body: notificationBody,
-    icon: '/chw.png',
-    badge: '/chw.png',
-    tag: payload.data?.entityId || 'notification',  // prevents duplicate notifications
-    renotify: true,  // plays sound even if same tag
-    requireInteraction: type === 'calendar_reminder', // stays until clicked for reminders
-    vibrate: [200, 100, 200],
-    data: payload.data || {},
-    actions: type === 'calendar_reminder' ? [
-      { action: 'view', title: 'View Event' },
-      { action: 'dismiss', title: 'Dismiss' }
-    ] : [],
+
+  const showNotification = () => {
+    const notificationOptions = {
+      body: notificationBody,
+      icon: '/chw.png',
+      badge: '/chw.png',
+      tag: payload.data?.entityId || 'notification',
+      renotify: true,
+      requireInteraction: type === 'calendar_reminder',
+      vibrate: [200, 100, 200],
+      data: payload.data || {},
+      actions: type === 'calendar_reminder' ? [
+        { action: 'view', title: 'View Event' },
+        { action: 'dismiss', title: 'Dismiss' }
+      ] : [],
+    };
+    // Signal the page that FCM is handling this notification
+    try {
+      const channel = new BroadcastChannel('fcm_notification_channel');
+      channel.postMessage({ type: 'FCM_HANDLED', entityId: payload.data?.entityId || 'notification' });
+      channel.close();
+    } catch (_) {}
+
+    return self.registration.showNotification(notificationTitle, notificationOptions);
   };
-  
-  self.registration.showNotification(notificationTitle, notificationOptions);
+
+  return self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+    for (const client of clientList) {
+      if (
+        (client.url.includes('localhost') || client.url.includes('ebumenyi.online')) &&
+        client.focused === true
+      ) {
+        // Tab is open and focused — socket handles this, skip OS notification
+        return;
+      }
+    }
+    // Tab is closed or hidden — show OS notification
+    return showNotification();
+  });
 });
 
 self.addEventListener('notificationclick', function(event) {

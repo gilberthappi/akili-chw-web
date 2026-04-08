@@ -1,10 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { createContext, useContext, useCallback, useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
-import toast from "react-hot-toast";
-import { Notification } from "@/types";
-import { useAuth } from "@/hooks/useAuth";
+import type { Notification } from "@/types";
 import { getSocketBaseURL } from "@/config/api.config";
+import { getCookieValue } from "@/utils/jwt";
 
 interface NotificationsContextType {
   notifications: Notification[];
@@ -14,34 +13,52 @@ interface NotificationsContextType {
   markAllAsRead: () => void;
   deleteNotification: (notificationId: string) => void;
   clearAllNotifications: () => void;
-  socket: Socket | null;
 }
 
 const NotificationsContext = createContext<NotificationsContextType | undefined>(undefined);
 
+// Get token from localStorage OR cookie — whichever has it
+const getToken = (): string | null => {
+  const fromStorage = localStorage.getItem("accessToken");
+  if (fromStorage) return fromStorage.replace(/^Bearer\s+/i, "");
+  
+  const fromCookie = getCookieValue("accessToken");
+  if (fromCookie) {
+    // Sync to localStorage for future reads
+    localStorage.setItem("accessToken", fromCookie);
+    return fromCookie.replace(/^Bearer\s+/i, "");
+  }
+  
+  return null;
+};
+
 export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [connected, setConnected] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const socketRef = useRef<Socket | null>(null);
 
-  useEffect(() => {
-    const rawToken = localStorage.getItem("accessToken");
-
-    if (!user || !rawToken) {
-      console.warn("[NotificationsContext] No user or token available");
+  const connect = useCallback(() => {
+    const token = getToken();
+    if (!token) {
+      console.warn("[NotificationsContext] No token available");
       return;
     }
 
-    // Clean token - remove Bearer prefix if present
-    const cleanToken = rawToken.replace(/^Bearer\s+/i, "");
-    console.log("[NotificationsContext] Attempting socket connection");
+    // If socket exists and is connected, do nothing
+    if (socketRef.current?.connected) return;
+
+    // If socket exists but is disconnected/broken, destroy it first
+    if (socketRef.current) {
+      socketRef.current.removeAllListeners();
+      socketRef.current.disconnect();
+      socketRef.current = null;
+    }
+
+    console.log("[NotificationsContext] Connecting socket...");
 
     const socket = io(getSocketBaseURL(), {
-      auth: {
-        token: cleanToken,
-      },
+      auth: { token },
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
@@ -51,173 +68,196 @@ export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({
     socketRef.current = socket;
 
     socket.on("connect", () => {
-      console.log("[NotificationsContext] Socket connected with ID:", socket.id);
+      console.log("[NotificationsContext] Connected:", socket.id);
       setConnected(true);
-      // Request initial notifications
       socket.emit("get_notifications");
     });
 
     socket.on("disconnect", (reason: string) => {
-      console.log("[NotificationsContext] Socket disconnected:", reason);
+      console.log("[NotificationsContext] Disconnected:", reason);
       setConnected(false);
     });
 
     socket.on("connect_error", (error: any) => {
-      console.error("[NotificationsContext] Socket connection error:", error.message);
+      console.error("[NotificationsContext] Connection error:", error.message);
       setConnected(false);
     });
 
     socket.on("connected", (data: any) => {
-      console.log("[NotificationsContext] Socket 'connected' event received:", data);
+      console.log("[NotificationsContext] Server confirmed connection:", data);
       setConnected(true);
     });
 
-    // Handle new notification
-    const handleNewNotification = (notification: Notification) => {
-      console.log("[NotificationsContext] New notification received:", notification);
+    socket.on("notifications", (initial: Notification[]) => {
+      console.log("[NotificationsContext] Initial notifications:", initial.length);
+      setNotifications(initial);
+      setUnreadCount(initial.filter((n) => !n.isRead).length);
+    });
+
+    socket.on("notification", (notification: Notification) => {
+      console.log("[NotificationsContext] New notification:", notification.title);
       setNotifications((prev) => [notification, ...prev]);
       if (!notification.isRead) {
         setUnreadCount((prev) => prev + 1);
       }
 
-      // Show toast popup for incoming notifications
-      const isReminder = notification.type === "warning" || notification.entityType === "calendar_reminder";
-      toast(() => (
-        <div style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
-          <span style={{ fontSize: "20px" }}>
-            {isReminder ? "📅" : "🔔"}
-          </span>
-          <div>
-            <strong style={{ display: "block", marginBottom: "2px" }}>
-              {notification.title}
-            </strong>
-            <span style={{ fontSize: "13px", color: "#555" }}>
-              {notification.message}
-            </span>
-          </div>
-        </div>
-      ),
-      { duration: isReminder ? 8000 : 5000 });
+      // Show OS notification only if tab is not focused AND FCM service worker didn't handle it
+      if (document.visibilityState !== 'visible' && Notification.permission === 'granted') {
+        const isReminder = notification.type === 'warning' ||
+          (notification as any).entityType === 'calendar_reminder';
+        const entityId = (notification as any).entityId || 'notification';
 
-      // Play sound
-      try {
-        const audio = new Audio('/notification-sound.mp3');
-        audio.volume = 0.5;
-        audio.play().catch(() => {});
-      } catch (_) {}
-    };
+        let fcmHandled = false;
 
-    socket.on("notification", handleNewNotification);
+        // Listen for FCM signal from service worker via BroadcastChannel
+        let channel: BroadcastChannel | null = null;
+        try {
+          channel = new BroadcastChannel('fcm_notification_channel');
+          channel.onmessage = (event) => {
+            if (event.data?.type === 'FCM_HANDLED' && event.data?.entityId === entityId) {
+              fcmHandled = true;
+            }
+          };
+        } catch (_) {}
 
-    socket.on("notifications", (initial: Notification[]) => {
-      console.log("[NotificationsContext] Initial notifications loaded:", initial.length);
-      setNotifications(initial);
-      const unread = initial.filter((n) => !n.isRead).length;
-      setUnreadCount(unread);
+        // Wait 2 seconds — if FCM handled it, skip; otherwise show native notification
+        setTimeout(() => {
+          try { channel?.close(); } catch (_) {}
+          if (!fcmHandled) {
+            const osNotification = new Notification(notification.title, {
+              body: notification.message,
+              icon: '/chw.png',
+              badge: '/chw.png',
+              tag: entityId,
+              requireInteraction: isReminder,
+            });
+            osNotification.onclick = () => {
+              window.focus();
+              osNotification.close();
+            };
+          }
+        }, 2000);
+      }
     });
 
     socket.on("unread_count_updated", (data: { unreadCount: number }) => {
-      console.log("[NotificationsContext] Unread count updated:", data.unreadCount);
-      // Only update unread count from server if it's a meaningful change
-      // (not the initial load which may arrive after we already computed 
-      // the correct count from the notifications array)
       setUnreadCount((prev) => {
-        // If server says 0 but we have unread notifications in state, trust our state
-        if (data.unreadCount === 0 && prev > 0) {
-          return prev;
-        }
+        if (data.unreadCount === 0 && prev > 0) return prev;
         return data.unreadCount ?? 0;
       });
     });
 
     socket.on("notification_marked_read", (data: { notificationId: string }) => {
-      setNotifications((prev) =>
-        prev.map((notification) =>
-          notification.id === data.notificationId
-            ? { ...notification, isRead: true }
-            : notification,
-        ),
-      );
+      setNotifications((prev) => {
+        const updated = prev.map((n) =>
+          n.id === data.notificationId ? { ...n, isRead: true } : n
+        );
+        setUnreadCount(updated.filter((n) => !n.isRead).length);
+        return updated;
+      });
     });
 
     socket.on("all_notifications_marked_read", () => {
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      setUnreadCount(0);
+    });
+
+    socket.on("notification_deleted", (data: { notificationId: string }) => {
       setNotifications((prev) =>
-        prev.map((notification) => ({ ...notification, isRead: true })),
+        prev.filter((n) => n.id !== data.notificationId)
       );
     });
 
-    return () => {
-      console.log("[NotificationsContext] Disconnecting socket");
-      socket.disconnect();
-    };
-  }, [user]);
+    socket.on("all_notifications_cleared", () => {
+      setNotifications([]);
+      setUnreadCount(0);
+    });
+  }, []);
 
-  // Mark a specific notification as read
+  useEffect(() => {
+    // Initial connection attempt
+    connect();
+
+    // Poll every 5 seconds — if not connected and token exists, retry
+    const retryInterval = setInterval(() => {
+      if (!socketRef.current?.connected && getToken()) {
+        console.log("[NotificationsContext] Retry interval: attempting reconnect...");
+        connect();
+      }
+    }, 5000);
+
+    // Listen for storage changes (login sets token in localStorage)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "accessToken" && e.newValue && !socketRef.current?.connected) {
+        console.log("[NotificationsContext] Token detected in storage, connecting...");
+        connect();
+      }
+    };
+
+    // Listen for custom auth events from authSync
+    const handleAuthChange = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail === "login" && !socketRef.current?.connected) {
+        console.log("[NotificationsContext] Auth login event detected, connecting...");
+        setTimeout(() => connect(), 100);
+      }
+      if (customEvent.detail === "logout") {
+        console.log("[NotificationsContext] Auth logout event detected, disconnecting...");
+        if (socketRef.current) {
+          socketRef.current.removeAllListeners();
+          socketRef.current.disconnect();
+          socketRef.current = null;
+          setConnected(false);
+          setNotifications([]);
+          setUnreadCount(0);
+        }
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    window.addEventListener("auth_change", handleAuthChange);
+
+    return () => {
+      clearInterval(retryInterval);
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("auth_change", handleAuthChange);
+      if (socketRef.current) {
+        socketRef.current.removeAllListeners();
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+    };
+  }, [connect]);
+
   const markAsRead = useCallback((notificationId: string) => {
-    // Optimistically update local state first
     setNotifications((prev) => {
-      const updated = prev.map((notification) =>
-        notification.id === notificationId
-          ? { ...notification, isRead: true }
-          : notification,
+      const updated = prev.map((n) =>
+        n.id === notificationId ? { ...n, isRead: true } : n
       );
-      // Recompute unread count from actual state
       setUnreadCount(updated.filter((n) => !n.isRead).length);
       return updated;
     });
-
-    // Send to server via socket
-    if (socketRef.current?.connected) {
-      socketRef.current.emit("mark_as_read", { notificationId });
-    } else {
-      console.warn("[NotificationsContext] Socket not connected, cannot mark notification as read");
-    }
+    socketRef.current?.emit("mark_as_read", { notificationId });
   }, []);
 
-  // Mark all notifications as read
   const markAllAsRead = useCallback(() => {
-    // Optimistically update local state first
-    setNotifications((prev) =>
-      prev.map((notification) => ({ ...notification, isRead: true })),
-    );
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
     setUnreadCount(0);
-
-    // Send to server via socket
-    if (socketRef.current?.connected) {
-      socketRef.current.emit("mark_all_as_read");
-    } else {
-      console.warn("[NotificationsContext] Socket not connected, cannot mark all notifications as read");
-    }
+    socketRef.current?.emit("mark_all_as_read");
   }, []);
 
-  // Delete a notification
   const deleteNotification = useCallback((notificationId: string) => {
-    // Optimistically update local state first
     setNotifications((prev) =>
-      prev.filter((notification) => notification.id !== notificationId),
+      prev.filter((n) => n.id !== notificationId)
     );
     setUnreadCount((prev) => Math.max(0, prev - 1));
-
-    // Send to server via socket
-    if (socketRef.current?.connected) {
-      socketRef.current.emit("delete_notification", { notificationId });
-    } else {
-      console.warn("[NotificationsContext] Socket not connected, cannot delete notification");
-    }
+    socketRef.current?.emit("delete_notification", { notificationId });
   }, []);
 
-  // Clear all notifications
   const clearAllNotifications = useCallback(() => {
-    // Optimistically update local state first
     setNotifications([]);
     setUnreadCount(0);
-
-    // Send to server via socket
-    if (socketRef.current?.connected) {
-      socketRef.current.emit("clear_all_notifications");
-    } else {
-      console.warn("[NotificationsContext] Socket not connected, cannot clear all notifications");
-    }
+    socketRef.current?.emit("clear_all_notifications");
   }, []);
 
   return (
@@ -230,7 +270,6 @@ export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({
         markAllAsRead,
         deleteNotification,
         clearAllNotifications,
-        socket: socketRef.current,
       }}
     >
       {children}
