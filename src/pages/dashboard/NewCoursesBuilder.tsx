@@ -7,11 +7,38 @@ import {
   CourseCreationForm,
 } from "@/types/courseBuilder.d";
 
-type BuilderLocationState = {
-  courseForm?: CourseCreationForm;
+type CreatedCourseDraft = {
+  id: string;
+  title: string;
+  description?: string;
+  coverIcon: string;
+  isPublished: boolean;
+  createdAt: string;
+  updatedAt: string;
 };
 
-const buildDraftCourse = (formData?: CourseCreationForm): CourseBuilderData => {
+type BuilderLocationState = {
+  courseForm?: CourseCreationForm;
+  createdCourse?: CreatedCourseDraft;
+};
+
+const buildDraftCourse = (
+  formData?: CourseCreationForm,
+  createdCourse?: CreatedCourseDraft
+): CourseBuilderData => {
+  if (createdCourse) {
+    return {
+      id: createdCourse.id,
+      title: createdCourse.title,
+      description: createdCourse.description || formData?.description || "",
+      coverIcon: createdCourse.coverIcon || formData?.coverIcon || "📘",
+      sections: [],
+      isPublished: createdCourse.isPublished,
+      createdAt: createdCourse.createdAt,
+      updatedAt: createdCourse.updatedAt,
+    };
+  }
+
   const now = new Date().toISOString();
 
   return {
@@ -35,7 +62,7 @@ export default function NewCoursesBuilder() {
   const locationState = (location.state as BuilderLocationState | null) ?? null;
 
   const [courseData, setCourseData] = useState<CourseBuilderData>(() =>
-    buildDraftCourse(locationState?.courseForm)
+    buildDraftCourse(locationState?.courseForm, locationState?.createdCourse)
   );
 
   const handleSaveCourse = (updatedCourse: CourseBuilderData) => {

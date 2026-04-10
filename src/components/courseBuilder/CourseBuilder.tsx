@@ -568,7 +568,7 @@ export default function CourseBuilder({
   };
 
   return (
-    <div className="min-h-screen flex bg-gray-50">
+    <div className="h-full flex bg-gray-50">
       {/* Sidebar - Sections & Chapters */}
       <div className={`bg-white border-r border-gray-200 flex flex-col transition-all duration-300 ${sidebarOpen ? "w-80" : "w-0"} overflow-hidden`}>
         {/* Header */}
