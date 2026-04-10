@@ -34,7 +34,7 @@ export interface CourseBuilderData {
   id: string;
   title: string;
   description: string;
-  coverIcon: string; // emoji or icon code
+  coverIcon: string; // uploaded image URL/data URL or legacy icon value
   sections: CourseSection[];
   isPublished: boolean;
   createdAt: string;
