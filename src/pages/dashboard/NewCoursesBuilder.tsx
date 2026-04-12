@@ -234,22 +234,33 @@ export default function NewCoursesBuilder() {
     return null;
   })();
 
-  const handleSaveCourse = async (updatedCourse: CourseBuilderData) => {
+  // Silent background save — no toast, no cache invalidation (avoids remount while editing)
+  const handleAutoSave = async (updatedCourse: CourseBuilderData) => {
     try {
       const payload = buildApiPayload(updatedCourse);
       await updateCourse(updatedCourse.id, payload);
-      // Invalidate the detail cache so coming back to this page re-loads
-      // the latest saved data instead of the stale pre-edit version.
-      await queryClient.invalidateQueries({ queryKey: detailQueryKey });
-      // Also invalidate the courses list so the courses page shows fresh data.
-      await queryClient.invalidateQueries({ queryKey: courseKeys.all });
-      toast.success("Course saved successfully!");
     } catch (error) {
       const msg =
         (error as { response?: { data?: { message?: string } } })?.response
-          ?.data?.message ?? "Failed to save course";
+          ?.data?.message ?? "Auto-save failed";
+      console.error("Auto-save error:", msg);
+      throw error; // re-throw so CourseBuilder can show error status
+    }
+  };
+
+  const handlePublishCourse = async (updatedCourse: CourseBuilderData) => {
+    try {
+      const payload = buildApiPayload({ ...updatedCourse, isPublished: true });
+      await updateCourse(updatedCourse.id, payload);
+      await queryClient.invalidateQueries({ queryKey: detailQueryKey });
+      await queryClient.invalidateQueries({ queryKey: courseKeys.all });
+      toast.success("Course published successfully!");
+    } catch (error) {
+      const msg =
+        (error as { response?: { data?: { message?: string } } })?.response
+          ?.data?.message ?? "Failed to publish course";
       toast.error(msg);
-      throw error; // re-throw so CourseBuilder can reset its saving state
+      throw error;
     }
   };
 
@@ -283,7 +294,8 @@ export default function NewCoursesBuilder() {
     <CourseBuilder
       key={`${courseData.id}-${courseData.updatedAt}`}
       courseData={courseData}
-      onSave={handleSaveCourse}
+      onAutoSave={handleAutoSave}
+      onPublish={handlePublishCourse}
       onBack={handleBack}
     />
   );

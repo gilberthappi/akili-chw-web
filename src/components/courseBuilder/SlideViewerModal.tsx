@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { X, ExternalLink, FileText, Image as ImageIcon, Video } from "lucide-react";
 import { CourseSlide } from "@/types/courseBuilder.d";
 
@@ -17,6 +17,25 @@ export default function SlideViewerModal({ slide, onClose }: SlideViewerModalPro
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [slide, onClose]);
+
+  // Fetch PDF as a blob URL so the iframe gets a same-origin URL —
+  // avoids cross-origin Content-Disposition download triggers in Chrome/Edge.
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (slide?.fileType !== "pdf") return;
+    let objectUrl: string;
+    fetch(slide.fileUrl)
+      .then((r) => r.blob())
+      .then((blob) => {
+        objectUrl = URL.createObjectURL(blob);
+        setPdfBlobUrl(objectUrl);
+      })
+      .catch(() => setPdfBlobUrl(null));
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      setPdfBlobUrl(null);
+    };
+  }, [slide?.fileUrl, slide?.fileType]);
 
   if (!slide) return null;
 
@@ -70,27 +89,18 @@ export default function SlideViewerModal({ slide, onClose }: SlideViewerModalPro
         {/* ── Content ── */}
         <div className="flex-1 overflow-hidden bg-gray-900 flex items-center justify-center relative">
           {slide.fileType === "pdf" && (
-            <>
-              <embed
-                src={slide.fileUrl}
-                type="application/pdf"
-                className="w-full h-full"
+            pdfBlobUrl ? (
+              <iframe
+                src={pdfBlobUrl}
+                title={slide.title}
+                className="w-full h-full border-0"
               />
-              {/* Fallback shown when embed can't render (e.g. some Cloudinary or cross-origin restrictions) */}
-              <noscript>
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-gray-900">
-                  <FileText className="w-16 h-16 text-gray-400" />
-                  <a
-                    href={slide.fileUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition"
-                  >
-                    Open PDF in new tab
-                  </a>
-                </div>
-              </noscript>
-            </>
+            ) : (
+              <div className="flex flex-col items-center justify-center gap-3 text-gray-400">
+                <FileText className="w-12 h-12" />
+                <span className="text-sm">Loading PDF...</span>
+              </div>
+            )
           )}
 
           {slide.fileType === "image" && (

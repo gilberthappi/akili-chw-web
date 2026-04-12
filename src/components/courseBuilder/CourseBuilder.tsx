@@ -1,6 +1,6 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
-  Save,
+  Globe,
   Trash2,
   Plus,
   ChevronDown,
@@ -10,6 +10,9 @@ import {
   ClipboardList,
   FileQuestion,
   CheckSquare,
+  Loader2,
+  CheckCircle,
+  AlertCircle,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import SlideUpload from "@/components/courseBuilder/SlideUpload";
@@ -119,11 +122,12 @@ type ViewMode = "slides" | "midTest" | "preTest" | "finalTest";
 
 interface CourseBuilderProps {
   courseData: CourseBuilderData;
-  onSave: (data: CourseBuilderData) => Promise<void>;
+  onAutoSave: (data: CourseBuilderData) => Promise<void>;
+  onPublish: (data: CourseBuilderData) => Promise<void>;
   onBack: () => void;
 }
 
-export default function CourseBuilder({ courseData, onSave }: CourseBuilderProps) {
+export default function CourseBuilder({ courseData, onAutoSave, onPublish }: CourseBuilderProps) {
   const defaultSections =
     courseData.sections.length > 0
       ? courseData.sections
@@ -155,7 +159,8 @@ export default function CourseBuilder({ courseData, onSave }: CourseBuilderProps
   const [draggedChapterId, setDraggedChapterId] = useState<string>("");
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
   const [viewMode, setViewMode] = useState<ViewMode>("slides");
-  const [isSaving, setIsSaving] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
   // Course-level test state
   const [preTest, setPreTest] = useState<TestConfig | undefined>(
@@ -170,6 +175,44 @@ export default function CourseBuilder({ courseData, onSave }: CourseBuilderProps
   const dragOverChapterId = useRef<string>("");
   const slidesContainerRef = useRef<HTMLDivElement>(null);
   const autoScrollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Auto-save refs to avoid stale closures
+  const onAutoSaveRef = useRef(onAutoSave);
+  const courseDataRef = useRef(courseData);
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isFirstRender = useRef(true);
+  useEffect(() => { onAutoSaveRef.current = onAutoSave; }, [onAutoSave]);
+  useEffect(() => { courseDataRef.current = courseData; }, [courseData]);
+
+  // Debounced auto-save: fires 1.5s after the last change to sections/preTest/finalTest
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    setAutoSaveStatus("saving");
+    autoSaveTimer.current = setTimeout(async () => {
+      const updated: CourseBuilderData = {
+        ...courseDataRef.current,
+        sections,
+        preTest,
+        finalTest,
+        updatedAt: new Date().toISOString(),
+      };
+      try {
+        await onAutoSaveRef.current(updated);
+        setAutoSaveStatus("saved");
+        setTimeout(() => setAutoSaveStatus("idle"), 3000);
+      } catch {
+        setAutoSaveStatus("error");
+      }
+    }, 1500);
+    return () => {
+      if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sections, preTest, finalTest]);
 
   const selectedSection = sections.find((s) => s.id === selectedSectionId);
   const selectedChapter = selectedSection?.chapters.find(
@@ -622,10 +665,10 @@ export default function CourseBuilder({ courseData, onSave }: CourseBuilderProps
     toast.success("Chapter reordered");
   };
 
-  // ── Save ──────────────────────────────────────────────────────────────────────
-  const handleSave = async () => {
+  // ── Publish ───────────────────────────────────────────────────────────────────
+  const handlePublish = async () => {
     if (sections.length === 0) {
-      toast.error("Please add at least one section");
+      toast.error("Please add at least one section before publishing");
       return;
     }
     const updated: CourseBuilderData = {
@@ -633,13 +676,14 @@ export default function CourseBuilder({ courseData, onSave }: CourseBuilderProps
       sections,
       preTest,
       finalTest,
+      isPublished: true,
       updatedAt: new Date().toISOString(),
     };
-    setIsSaving(true);
+    setIsPublishing(true);
     try {
-      await onSave(updated);
+      await onPublish(updated);
     } finally {
-      setIsSaving(false);
+      setIsPublishing(false);
     }
   };
 
@@ -925,13 +969,31 @@ export default function CourseBuilder({ courseData, onSave }: CourseBuilderProps
                   Clear All
                 </button>
               )}
+              {autoSaveStatus === "saving" && (
+                <span className="text-xs text-gray-500 flex items-center gap-1">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Auto-saving...
+                </span>
+              )}
+              {autoSaveStatus === "saved" && (
+                <span className="text-xs text-green-600 flex items-center gap-1">
+                  <CheckCircle className="w-3 h-3" />
+                  Saved
+                </span>
+              )}
+              {autoSaveStatus === "error" && (
+                <span className="text-xs text-red-500 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  Auto-save failed
+                </span>
+              )}
               <button
-                onClick={handleSave}
-                disabled={isSaving}
-                className="px-4 py-2 text-sm bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition flex items-center gap-2 disabled:opacity-60"
+                onClick={handlePublish}
+                disabled={isPublishing}
+                className="px-4 py-2 text-sm bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition flex items-center gap-2 disabled:opacity-60"
               >
-                <Save className="w-4 h-4" />
-                {isSaving ? "Saving..." : "Save Course"}
+                <Globe className="w-4 h-4" />
+                {isPublishing ? "Publishing..." : "Publish"}
               </button>
             </div>
           </div>
