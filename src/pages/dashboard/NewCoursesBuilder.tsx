@@ -219,7 +219,6 @@ export default function NewCoursesBuilder() {
     const draft = locationState?.createdCourse;
     const form = locationState?.courseForm;
     if (draft) {
-      const now = new Date().toISOString();
       return {
         id: draft.id,
         title: draft.title,
