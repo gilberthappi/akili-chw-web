@@ -102,14 +102,8 @@ const CourseList: FC<ListProps> = ({ hideHeader = false, filter }) => {
             key: "reviews",
             render: (row: ICourse) => (
                       <span className="flex items-center gap-1">
-                        {row.sections?.length ? (
-                          <>
-                            <span className="text-yellow-500 text-lg">★</span>
-                            <span className="text-[#333333]">{row.rating || 0}</span>
-                          </>
-                        ) : (
-                          <span className="text-gray-400">N/A</span>
-                        )}
+                          <span className="text-yellow-500 text-lg">★</span>
+                          <span className="text-[#333333]">{row.rating || 0}</span>
                       </span>
             ),
           },
