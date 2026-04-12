@@ -14,6 +14,8 @@ import {
 import toast from "react-hot-toast";
 import SlideUpload from "@/components/courseBuilder/SlideUpload";
 import SlideCard from "@/components/courseBuilder/SlideCard";
+import SlideViewerModal from "@/components/courseBuilder/SlideViewerModal";
+import { uploadSlideFile } from "@/services/course.service";
 import {
   CourseBuilderData,
   CourseSection,
@@ -148,6 +150,7 @@ export default function CourseBuilder({ courseData, onSave }: CourseBuilderProps
   const [editingChapterId, setEditingChapterId] = useState<string>("");
   const [editingText, setEditingText] = useState<string>("");
   const [draggedSlideId, setDraggedSlideId] = useState<string>("");
+  const [viewingSlide, setViewingSlide] = useState<CourseSlide | null>(null);
   const [draggedSectionId, setDraggedSectionId] = useState<string>("");
   const [draggedChapterId, setDraggedChapterId] = useState<string>("");
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
@@ -166,7 +169,7 @@ export default function CourseBuilder({ courseData, onSave }: CourseBuilderProps
   const dragOverSectionId = useRef<string>("");
   const dragOverChapterId = useRef<string>("");
   const slidesContainerRef = useRef<HTMLDivElement>(null);
-  const autoScrollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const autoScrollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const selectedSection = sections.find((s) => s.id === selectedSectionId);
   const selectedChapter = selectedSection?.chapters.find(
@@ -379,6 +382,42 @@ export default function CourseBuilder({ courseData, onSave }: CourseBuilderProps
       })
     );
     toast.success("Slide duplicated");
+  };
+
+  const replaceSlide = async (slideId: string, file: File) => {
+    const getFileType = (name: string): "pdf" | "image" | "video" => {
+      const ext = name.toLowerCase().split(".").pop() || "";
+      if (ext === "pdf") return "pdf";
+      if (["mp4", "avi", "mov", "mkv", "webm", "flv", "wmv", "m4v", "3gp"].includes(ext)) return "video";
+      return "image";
+    };
+
+    const uploadToast = toast.loading("Uploading replacement file…");
+    try {
+      const fileUrl = await uploadSlideFile(file);
+      setSections((prev) =>
+        prev.map((s) => ({
+          ...s,
+          chapters: s.chapters.map((c) => ({
+            ...c,
+            slides: c.slides.map((sl) =>
+              sl.id === slideId
+                ? {
+                    ...sl,
+                    fileUrl,
+                    fileName: file.name,
+                    fileType: getFileType(file.name),
+                    title: file.name.replace(/\.[^/.]+$/, ""),
+                  }
+                : sl
+            ),
+          })),
+        }))
+      );
+      toast.success("Slide replaced successfully", { id: uploadToast });
+    } catch {
+      toast.error("Failed to upload replacement file", { id: uploadToast });
+    }
   };
 
   const downloadSlide = (slide: CourseSlide) => {
@@ -1034,6 +1073,8 @@ export default function CourseBuilder({ courseData, onSave }: CourseBuilderProps
                           onDelete={deleteSlide}
                           onDuplicate={duplicateSlide}
                           onDownload={downloadSlide}
+                          onReplace={replaceSlide}
+                          onView={setViewingSlide}
                           onTitleChange={updateSlideTitle}
                           isDragging={draggedSlideId === slide.id}
                           isAnySlideBeingDragged={draggedSlideId !== ""}
@@ -1051,6 +1092,7 @@ export default function CourseBuilder({ courseData, onSave }: CourseBuilderProps
                       />
                     </div>
                   </div>
+
                 </div>
               </div>
             )}
@@ -1079,6 +1121,12 @@ export default function CourseBuilder({ courseData, onSave }: CourseBuilderProps
           </div>
         </div>
       </div>
+
+      {/* ── Slide viewer modal — rendered at root level, outside scroll containers ── */}
+      <SlideViewerModal
+        slide={viewingSlide}
+        onClose={() => setViewingSlide(null)}
+      />
     </div>
   );
 }

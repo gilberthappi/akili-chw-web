@@ -1,5 +1,6 @@
 import { ICourse, IPaged, IResponse, TDashboardStatisticsResponse } from "@/types";
 import api from "./api";
+import { getBackendURL } from "@/config/api.config";
 
 export const getAllCourses = async (params?: string): Promise<IPaged<ICourse[]>> => {
   const queryParams = params ? params : "";
@@ -42,4 +43,63 @@ export const updateCourse = async (
 
 export const deleteCourse = async (id: string): Promise<number> => {
   return (await api.delete(`/courses/${id}`)).data;
+};
+
+const VIDEO_EXTS = new Set(["mp4", "avi", "mov", "mkv", "webm", "flv", "wmv", "m4v", "3gp"]);
+
+function detectSlideFileKind(file: File): "video" | "pdf" | "image" {
+  // Prefer MIME type, fall back to extension (file.type can be empty on some browsers/OS)
+  const mime = file.type.toLowerCase();
+  if (mime.startsWith("video/")) return "video";
+  if (mime === "application/pdf") return "pdf";
+
+  const ext = file.name.toLowerCase().split(".").pop() ?? "";
+  if (VIDEO_EXTS.has(ext)) return "video";
+  if (ext === "pdf") return "pdf";
+  return "image";
+}
+
+/**
+ * Upload a single slide file to the server and return a persisted URL.
+ *
+ * Endpoint routing (each uses a dedicated multer parser so the stream
+ * is only consumed once — chaining two parsers breaks on non-video files):
+ *   video  → POST /upload/video    field: "video"   → local path, prefixed with backend base URL
+ *   pdf    → POST /upload/document field: "document" → Cloudinary secure_url
+ *   image  → POST /upload/image    field: "image"   → Cloudinary secure_url
+ */
+export const uploadSlideFile = async (file: File): Promise<string> => {
+  const kind = detectSlideFileKind(file);
+
+  let endpoint: string;
+  let fieldName: string;
+
+  if (kind === "video") {
+    endpoint = "/upload/video";
+    fieldName = "video";
+  } else if (kind === "pdf") {
+    endpoint = "/upload/document";
+    fieldName = "document";
+  } else {
+    endpoint = "/upload/image";
+    fieldName = "image";
+  }
+
+  const form = new FormData();
+  form.append(fieldName, file);
+
+  const response = await api.post(endpoint, form, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+
+  let url: string = response.data?.data?.url;
+  if (!url) throw new Error("Upload succeeded but no URL was returned");
+
+  // Video uploads return a server-relative path (e.g. /uploads/videos/uuid.mp4).
+  // Prefix with the backend base URL so it works from the browser.
+  if (url.startsWith("/")) {
+    url = `${getBackendURL()}${url}`;
+  }
+
+  return url;
 };
