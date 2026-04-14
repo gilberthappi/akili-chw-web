@@ -17,10 +17,10 @@ const CourseTableActions: FC<ICourseTableActionsProps> = ({ item }) => {
   const [showDocs, setShowDocs] = useState(false);
 
   const handleEdit = () => {
-    navigate(`/courses/edit/${item.id}`, {
+    navigate(`/courses/builder`, {
       state: {
+        editCourseId: item.id,
         course: item,
-        courseName: item.title
       }
     });
   };

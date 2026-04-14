@@ -9,7 +9,7 @@ import {
   Play,
   RotateCw,
 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { CourseSlide } from "@/types/courseBuilder.d";
 
 interface SlideCardProps {
@@ -17,7 +17,8 @@ interface SlideCardProps {
   onDelete: (id: string) => void;
   onDuplicate: (id: string) => void;
   onDownload: (slide: CourseSlide) => void;
-  onReplace?: (slideId: string) => void;
+  onReplace?: (slideId: string, file: File) => void;
+  onView?: (slide: CourseSlide) => void;
   onTitleChange?: (slideId: string, newTitle: string) => void;
   isDragging?: boolean;
   isAnySlideBeingDragged?: boolean;
@@ -55,74 +56,102 @@ export default function SlideCard({
   slide,
   onDelete,
   onDuplicate,
+  onView,
   onReplace,
   onTitleChange,
   isDragging = false,
   isAnySlideBeingDragged = false,
   order = 0,
 }: SlideCardProps) {
-  const [showVideoPlayer, setShowVideoPlayer] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editingTitle, setEditingTitle] = useState(slide.title);
+  const replaceInputRef = useRef<HTMLInputElement>(null);
+
+  // Keep editingTitle in sync when the slide title changes externally (e.g. after replace)
+  useEffect(() => {
+    setEditingTitle(slide.title);
+  }, [slide.title]);
+
+  const handleReplaceClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    replaceInputRef.current?.click();
+  };
+
+  const handleReplaceFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      onReplace?.(slide.id, file);
+    }
+    // Reset so the same file can be re-selected later
+    e.target.value = "";
+  };
+
   return (
     <div
       className={`bg-white rounded-lg border-2 border-gray-200 overflow-hidden transition transform flex flex-col ${
-        isAnySlideBeingDragged 
-          ? "scale-75 opacity-60 aspect-square" 
-          : isDragging 
-          ? "opacity-75 scale-50 aspect-square" 
+        isAnySlideBeingDragged
+          ? "scale-75 opacity-60 aspect-square"
+          : isDragging
+          ? "opacity-75 scale-50 aspect-square"
           : "aspect-square hover:border-blue-400"
       }`}
     >
-      {/* Preview Area */}
-      <div className="flex-1 bg-gray-100 flex items-center justify-center relative group overflow-hidden">
+      {/* ── Preview Area — click to open viewer ── */}
+      <div
+        className="flex-1 bg-gray-100 flex items-center justify-center relative group overflow-hidden cursor-pointer"
+        onClick={() => onView?.(slide)}
+      >
+        {/* Image thumbnail */}
         {slide.fileType === "image" && (
           <img
             src={slide.fileUrl}
             alt={slide.title}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover pointer-events-none select-none"
+            draggable={false}
           />
         )}
+
+        {/* PDF — icon only (no iframe/embed that swallows clicks) */}
         {slide.fileType === "pdf" && (
-          <iframe
-            src={`${slide.fileUrl}#toolbar=0&navpanes=0&scrollbar=0`}
-            className="w-full h-full border-none"
-            title={slide.title}
-          />
+          <div className="flex flex-col items-center justify-center gap-2 pointer-events-none select-none">
+            <FileText className="w-14 h-14 text-red-400" />
+            <span className="text-xs font-semibold text-red-500 uppercase tracking-wide">
+              PDF
+            </span>
+          </div>
         )}
+
+        {/* Video thumbnail */}
         {slide.fileType === "video" && (
           <>
             <video
               src={slide.fileUrl}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover pointer-events-none"
               crossOrigin="anonymous"
+              muted
             />
-            <button
-              onClick={() => setShowVideoPlayer(true)}
-              className="absolute inset-0 flex items-center justify-center bg-black/0 hover:bg-black/30 opacity-0 group-hover:opacity-100 transition"
-              title="Play video"
-            >
-              <div className="bg-white rounded-full p-4 shadow-lg">
-                <Play className="w-8 h-8 text-blue-600 fill-blue-600" />
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="bg-white rounded-full p-3 shadow-lg opacity-0 group-hover:opacity-100 transition">
+                <Play className="w-6 h-6 text-blue-600 fill-blue-600" />
               </div>
-            </button>
+            </div>
           </>
         )}
 
-        {/* Position Badge */}
-        <div className="absolute top-2 right-2 bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shadow">
+        {/* Position badge */}
+        <div className="absolute top-2 right-2 bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shadow pointer-events-none">
           {order}
         </div>
 
-        {/* Drag Handle */}
-        <div className="absolute top-2 left-2 bg-white rounded-lg p-1 shadow opacity-0 group-hover:opacity-100 transition">
+        {/* Drag handle */}
+        <div className="absolute top-2 left-2 bg-white rounded-lg p-1 shadow opacity-0 group-hover:opacity-100 transition pointer-events-none">
           <GripVertical className="w-4 h-4 text-gray-600" />
         </div>
       </div>
 
-      {/* Content */}
+      {/* ── Content ── */}
       <div className="p-3 space-y-2">
-        {/* Title - Inline Editable */}
+        {/* Title — inline editable */}
         {isEditingTitle ? (
           <input
             type="text"
@@ -149,17 +178,18 @@ export default function SlideCard({
               }
             }}
             className="w-full px-2 py-1 text-xs font-medium bg-white border-2 border-blue-500 rounded focus:outline-none"
+            onClick={(e) => e.stopPropagation()}
           />
         ) : (
-          <p 
+          <p
             onClick={() => setIsEditingTitle(true)}
-            className="font-medium text-gray-900  text-sm line-clamp-2 cursor-pointer hover:text-blue-600 transition"
+            className="font-medium text-gray-900 text-sm line-clamp-2 cursor-pointer hover:text-blue-600 transition"
           >
             {slide.title}
           </p>
         )}
 
-        {/* File Info */}
+        {/* File info */}
         <div className="flex items-center gap-2 text-xs">
           <span
             className={`px-2 py-1 rounded-full font-semibold flex items-center gap-1 ${getFileTypeColor(
@@ -169,29 +199,39 @@ export default function SlideCard({
             {getFileIcon(slide.fileType)}
             {slide.fileType.toUpperCase()}
           </span>
-          <span className="text-gray-600">{slide.fileName}</span>
+          <span className="text-gray-600 truncate">{slide.fileName}</span>
         </div>
 
         {/* Actions */}
         <div className="flex items-center gap-1 pt-2 border-t border-gray-200">
           <button
-            onClick={() => onDuplicate(slide.id)}
+            onClick={(e) => { e.stopPropagation(); onDuplicate(slide.id); }}
             className="flex-1 p-2 text-blue-600 hover:bg-blue-50 rounded transition flex items-center justify-center gap-1"
             title="Duplicate slide"
           >
             <Copy className="w-4 h-4" />
             <span className="text-xs">Duplicate</span>
           </button>
+
+          {/* Replace button + hidden file input in the same component */}
           <button
-            onClick={() => onReplace?.(slide.id)}
+            onClick={handleReplaceClick}
             className="flex-1 p-2 text-amber-600 hover:bg-amber-50 rounded transition flex items-center justify-center gap-1"
             title="Replace slide"
           >
             <RotateCw className="w-4 h-4" />
             <span className="text-xs">Replace</span>
           </button>
+          <input
+            ref={replaceInputRef}
+            type="file"
+            accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.bmp,.svg,.ico,.tiff,.mp4,.avi,.mov,.mkv,.webm,.flv,.wmv,.m4v,.3gp"
+            style={{ display: "none" }}
+            onChange={handleReplaceFileChange}
+          />
+
           <button
-            onClick={() => onDelete(slide.id)}
+            onClick={(e) => { e.stopPropagation(); onDelete(slide.id); }}
             className="flex-1 p-2 text-red-600 hover:bg-red-50 rounded transition flex items-center justify-center gap-1"
             title="Delete slide"
           >
@@ -200,43 +240,6 @@ export default function SlideCard({
           </button>
         </div>
       </div>
-
-      {/* Preview Modal - Removed since we only support PDF, Image, and Video */}
-      
-      {/* Video Player Modal */}
-      {showVideoPlayer && slide.fileType === "video" && (
-        <div 
-          className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"
-          onClick={() => setShowVideoPlayer(false)}
-        >
-          <div 
-            className="bg-black rounded-lg max-w-4xl w-full max-h-screen overflow-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between p-4">
-              <h2 className="text-lg font-bold text-white">{slide.title}</h2>
-              <button
-                onClick={() => setShowVideoPlayer(false)}
-                className="text-white hover:text-gray-300 text-3xl font-bold"
-              >
-                ×
-              </button>
-            </div>
-
-            {/* Video Player */}
-            <div className="bg-black flex items-center justify-center">
-              <video
-                src={slide.fileUrl}
-                className="w-full h-auto max-h-[calc(100vh-150px)] object-contain"
-                controls
-                autoPlay
-                crossOrigin="anonymous"
-              />
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

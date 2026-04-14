@@ -10,6 +10,13 @@ export interface CourseSlide {
   createdAt: string;
 }
 
+export interface TestConfig {
+  questionToBeAnswered: number;
+  marksToPass: number;
+  description: string;
+  isPublished?: boolean;
+}
+
 export interface CourseChapter {
   id: string;
   title: string;
@@ -18,6 +25,7 @@ export interface CourseChapter {
   slides: CourseSlide[];
   hasTest: boolean;
   testId?: string;
+  midTest?: TestConfig;
 }
 
 export interface CourseSection {
@@ -39,6 +47,8 @@ export interface CourseBuilderData {
   isPublished: boolean;
   createdAt: string;
   updatedAt: string;
+  preTest?: TestConfig;
+  finalTest?: TestConfig;
 }
 
 export interface CourseCreationForm {
