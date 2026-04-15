@@ -146,7 +146,9 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
   const [selectedSectionId, setSelectedSectionId] = useState<string>(
     defaultSections[0]?.id || ""
   );
-  const [selectedChapterId, setSelectedChapterId] = useState<string>("");
+  const [selectedChapterId, setSelectedChapterId] = useState<string>(
+    defaultSections[0]?.chapters[0]?.id || ""
+  );
   const [expandedSectionId, setExpandedSectionId] = useState<string>(
     defaultSections[0]?.id || ""
   );
@@ -754,16 +756,20 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
                 </div>
               ) : (
                 <div
+                  onClick={() =>
+                    setExpandedSectionId(
+                      expandedSectionId === section.id ? "" : section.id
+                    )
+                  }
+                  onDoubleClick={() => startEditingSection(section)}
+                  title="Click to expand · Double-click to rename"
                   className={`w-full text-left px-3 py-2.5 rounded font-bold text-sm transition flex items-center justify-between cursor-pointer group ${
                     selectedSectionId === section.id
                       ? "bg-blue-100 text-blue-800"
                       : "bg-blue-50 text-blue-700 hover:bg-blue-100"
                   }`}
                 >
-                  <span
-                    onClick={() => startEditingSection(section)}
-                    className="truncate flex-1"
-                  >
+                  <span className="truncate flex-1 select-none">
                     📂 {section.title}
                   </span>
                   <div className="flex items-center gap-1 flex-shrink-0 ml-2">
@@ -855,19 +861,15 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
                               onClick={() =>
                                 handleChapterSelect(section.id, chapter.id)
                               }
+                              onDoubleClick={() => startEditingChapter(chapter)}
+                              title="Click to select · Double-click to rename"
                               className={`w-full text-left px-2 py-1.5 text-xs rounded font-medium transition flex items-center justify-between cursor-pointer group ${
                                 selectedChapterId === chapter.id
                                   ? "bg-purple-100 text-purple-800"
                                   : "bg-purple-50 text-purple-700 hover:bg-purple-100"
                               }`}
                             >
-                              <span
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  startEditingChapter(chapter);
-                                }}
-                                className="truncate flex-1"
-                              >
+                              <span className="truncate flex-1 select-none">
                                 📘 {chapter.title}
                                 {chapter.midTest && (
                                   <span className="ml-1 text-green-600 font-bold">
