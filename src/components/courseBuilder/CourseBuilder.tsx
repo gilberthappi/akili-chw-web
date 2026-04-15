@@ -13,11 +13,13 @@ import {
   Loader2,
   CheckCircle,
   AlertCircle,
+  HelpCircle,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import SlideUpload from "@/components/courseBuilder/SlideUpload";
 import SlideCard from "@/components/courseBuilder/SlideCard";
 import SlideViewerModal from "@/components/courseBuilder/SlideViewerModal";
+import QuestionBuilderModal from "@/components/courseBuilder/QuestionBuilderModal";
 import { uploadSlideFile } from "@/services/course.service";
 import {
   CourseBuilderData,
@@ -171,6 +173,13 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
   const [finalTest, setFinalTest] = useState<TestConfig | undefined>(
     courseData.finalTest
   );
+
+  // Question builder modal state
+  const [questionModal, setQuestionModal] = useState<{
+    open: boolean;
+    label: string;
+    midTestId?: string;
+  }>({ open: false, label: "" });
 
   const dragOverSlideId = useRef<string>("");
   const dragOverSectionId = useRef<string>("");
@@ -1073,6 +1082,17 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
                   value={preTest}
                   onChange={setPreTest}
                 />
+                {preTest && (
+                  <button
+                    onClick={() =>
+                      setQuestionModal({ open: true, label: "Pre-Test Questions" })
+                    }
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-orange-50 text-orange-700 border border-orange-200 rounded-lg hover:bg-orange-100 transition"
+                  >
+                    <HelpCircle className="w-4 h-4" />
+                    Manage Questions
+                  </button>
+                )}
               </div>
             )}
 
@@ -1090,6 +1110,17 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
                   value={finalTest}
                   onChange={setFinalTest}
                 />
+                {finalTest && (
+                  <button
+                    onClick={() =>
+                      setQuestionModal({ open: true, label: "Final Test Questions" })
+                    }
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 transition"
+                  >
+                    <HelpCircle className="w-4 h-4" />
+                    Manage Questions
+                  </button>
+                )}
               </div>
             )}
 
@@ -1107,6 +1138,27 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
                   value={selectedChapter.midTest}
                   onChange={updateChapterMidTest}
                 />
+                {selectedChapter.midTest && (
+                  selectedChapter.testId ? (
+                    <button
+                      onClick={() =>
+                        setQuestionModal({
+                          open: true,
+                          label: `Mid-Test Questions — ${selectedChapter.title}`,
+                          midTestId: selectedChapter.testId,
+                        })
+                      }
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-purple-50 text-purple-700 border border-purple-200 rounded-lg hover:bg-purple-100 transition"
+                    >
+                      <HelpCircle className="w-4 h-4" />
+                      Manage Questions
+                    </button>
+                  ) : (
+                    <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                      Save the course first to manage questions for this mid-test.
+                    </p>
+                  )
+                )}
               </div>
             )}
 
@@ -1190,6 +1242,15 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
       <SlideViewerModal
         slide={viewingSlide}
         onClose={() => setViewingSlide(null)}
+      />
+
+      {/* ── Question builder modal ── */}
+      <QuestionBuilderModal
+        isOpen={questionModal.open}
+        onClose={() => setQuestionModal({ open: false, label: "" })}
+        label={questionModal.label}
+        courseId={courseData.id}
+        midTestId={questionModal.midTestId}
       />
     </div>
   );
