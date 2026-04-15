@@ -8,18 +8,17 @@ import {
   Menu,
   BookOpen,
   ClipboardList,
-  FileQuestion,
-  CheckSquare,
+  Database,
+  LayoutList,
   Loader2,
   CheckCircle,
   AlertCircle,
-  HelpCircle,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import SlideUpload from "@/components/courseBuilder/SlideUpload";
 import SlideCard from "@/components/courseBuilder/SlideCard";
 import SlideViewerModal from "@/components/courseBuilder/SlideViewerModal";
-import QuestionBuilderModal from "@/components/courseBuilder/QuestionBuilderModal";
+import QuestionBankPanel from "@/components/courseBuilder/QuestionBankPanel";
 import { uploadSlideFile } from "@/services/course.service";
 import {
   CourseBuilderData,
@@ -53,13 +52,13 @@ function TestConfigForm({ label, value, onChange }: TestConfigFormProps) {
   };
 
   return (
-    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
+    <div className="bg-page-bg border border-gray-200 rounded-lg p-5 space-y-3">
       <div className="flex items-center justify-between">
-        <h4 className="font-semibold text-gray-800 text-sm">{label}</h4>
+        <h4 className="font-semibold text-dark text-sm">{label}</h4>
         <button
           onClick={handleToggle}
           className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-            enabled ? "bg-blue-600" : "bg-gray-300"
+            enabled ? "bg-primary" : "bg-gray-300"
           }`}
         >
           <span
@@ -71,23 +70,22 @@ function TestConfigForm({ label, value, onChange }: TestConfigFormProps) {
       </div>
 
       {enabled && value && (
-        <div className="space-y-2">
+        <div className="space-y-3">
           <div>
-            <label className="block text-xs text-gray-600 mb-1">
+            <label className="block text-xs font-medium text-secondary mb-1.5">
               Questions to Answer
+              <span className="ml-1 font-normal text-gray-400">(randomly selected from Question Bank)</span>
             </label>
             <input
               type="number"
               min={1}
               value={value.questionToBeAnswered}
-              onChange={(e) =>
-                update({ questionToBeAnswered: Number(e.target.value) })
-              }
-              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+              onChange={(e) => update({ questionToBeAnswered: Number(e.target.value) })}
+              className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/40"
             />
           </div>
           <div>
-            <label className="block text-xs text-gray-600 mb-1">
+            <label className="block text-xs font-medium text-secondary mb-1.5">
               Marks to Pass (%)
             </label>
             <input
@@ -95,23 +93,31 @@ function TestConfigForm({ label, value, onChange }: TestConfigFormProps) {
               min={0}
               max={100}
               value={value.marksToPass}
-              onChange={(e) =>
-                update({ marksToPass: Number(e.target.value) })
-              }
-              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+              onChange={(e) => update({ marksToPass: Number(e.target.value) })}
+              className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/40"
             />
           </div>
           <div>
-            <label className="block text-xs text-gray-600 mb-1">
+            <label className="block text-xs font-medium text-secondary mb-1.5">
               Description
+              <span className="ml-1 text-destructive font-bold">*</span>
+              <span className="ml-1 font-normal text-gray-400">(shown to students as test feedback)</span>
             </label>
             <textarea
-              rows={2}
+              rows={3}
+              required
               value={value.description}
               onChange={(e) => update({ description: e.target.value })}
-              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
-              placeholder="Optional description..."
+              className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none ${
+                value.description.trim() === ""
+                  ? "border-destructive/60 bg-destructive/5"
+                  : "border-gray-300"
+              }`}
+              placeholder="Describe what this test covers and what feedback students will receive..."
             />
+            {value.description.trim() === "" && (
+              <p className="text-xs text-destructive mt-1">Description is required — students see this as feedback.</p>
+            )}
           </div>
         </div>
       )}
@@ -120,11 +126,11 @@ function TestConfigForm({ label, value, onChange }: TestConfigFormProps) {
 }
 
 // ─── Main Component ────────────────────────────────────────────────────────────
-type ViewMode = "slides" | "midTest" | "preTest" | "finalTest";
+type ViewMode = "slides" | "midTest" | "questionBank" | "tests";
 
 interface CourseBuilderProps {
   courseData: CourseBuilderData;
-  onAutoSave: (data: CourseBuilderData) => Promise<void>;
+  onAutoSave: (data: CourseBuilderData) => Promise<CourseBuilderData | void>;
   onPublish: (data: CourseBuilderData) => Promise<void>;
   onBack: () => void;
 }
@@ -167,19 +173,16 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
   const [autoSaveStatus, setAutoSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
   // Course-level test state
-  const [preTest, setPreTest] = useState<TestConfig | undefined>(
-    courseData.preTest
-  );
-  const [finalTest, setFinalTest] = useState<TestConfig | undefined>(
-    courseData.finalTest
-  );
+  const [preTest, setPreTest] = useState<TestConfig | undefined>(courseData.preTest);
+  const [finalTest, setFinalTest] = useState<TestConfig | undefined>(courseData.finalTest);
+  const [finalExam, setFinalExam] = useState<TestConfig | undefined>(courseData.finalExam);
 
-  // Question builder modal state
-  const [questionModal, setQuestionModal] = useState<{
-    open: boolean;
-    label: string;
-    midTestId?: string;
-  }>({ open: false, label: "" });
+  // Track mid-test question bank refresh per chapter
+  const [midTestRefreshKey, setMidTestRefreshKey] = useState(0);
+  // testId values populated after auto-save (key: "sectionTitle::chapterTitle")
+  const [extraTestIds, setExtraTestIds] = useState<Record<string, string>>({});
+  // mid-test card drag state
+  const [draggedMidTest, setDraggedMidTest] = useState(false);
 
   const dragOverSlideId = useRef<string>("");
   const dragOverSectionId = useRef<string>("");
@@ -187,7 +190,6 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
   const slidesContainerRef = useRef<HTMLDivElement>(null);
   const autoScrollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Auto-save refs to avoid stale closures
   const onAutoSaveRef = useRef(onAutoSave);
   const courseDataRef = useRef(courseData);
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -195,7 +197,7 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
   useEffect(() => { onAutoSaveRef.current = onAutoSave; }, [onAutoSave]);
   useEffect(() => { courseDataRef.current = courseData; }, [courseData]);
 
-  // Debounced auto-save: fires 1.5s after the last change to sections/preTest/finalTest
+  // Debounced auto-save
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
@@ -209,12 +211,23 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
         sections,
         preTest,
         finalTest,
+        finalExam,
         updatedAt: new Date().toISOString(),
       };
       try {
-        await onAutoSaveRef.current(updated);
+        const freshData = await onAutoSaveRef.current(updated);
         setAutoSaveStatus("saved");
         setTimeout(() => setAutoSaveStatus("idle"), 3000);
+        // Populate testIds from fresh API data without triggering another auto-save
+        if (freshData) {
+          const newIds: Record<string, string> = {};
+          freshData.sections.forEach((s) => {
+            s.chapters.forEach((ch) => {
+              if (ch.testId) newIds[`${s.title}::${ch.title}`] = ch.testId;
+            });
+          });
+          setExtraTestIds(newIds);
+        }
       } catch {
         setAutoSaveStatus("error");
       }
@@ -223,14 +236,12 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
       if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sections, preTest, finalTest]);
+  }, [sections, preTest, finalTest, finalExam]);
 
   const selectedSection = sections.find((s) => s.id === selectedSectionId);
-  const selectedChapter = selectedSection?.chapters.find(
-    (c) => c.id === selectedChapterId
-  );
+  const selectedChapter = selectedSection?.chapters.find((c) => c.id === selectedChapterId);
 
-  // ── Sections ─────────────────────────────────────────────────────────────────
+  // ── Sections ──────────────────────────────────────────────────────────────────
   const addSection = () => {
     const newSection: CourseSection = {
       id: `section-${Date.now()}`,
@@ -338,7 +349,6 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
     toast.success("Chapter deleted");
   };
 
-  // Update mid-test for the selected chapter
   const updateChapterMidTest = (value: TestConfig | undefined) => {
     if (!selectedChapterId) return;
     setSections(
@@ -357,6 +367,22 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
     );
   };
 
+  const updateChapterActivityAt = (activityAt: number | undefined) => {
+    if (!selectedChapterId) return;
+    setSections(
+      sections.map((s) =>
+        s.id === selectedSectionId
+          ? {
+              ...s,
+              chapters: s.chapters.map((c) =>
+                c.id === selectedChapterId ? { ...c, activityAt } : c
+              ),
+            }
+          : s
+      )
+    );
+  };
+
   // ── Slides ────────────────────────────────────────────────────────────────────
   const addSlidesToChapter = (newSlides: CourseSlide[]) => {
     if (!selectedChapter) return;
@@ -368,9 +394,7 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
             chapters: s.chapters.map((c) => {
               if (c.id === selectedChapterId) {
                 const maxOrder =
-                  c.slides.length > 0
-                    ? Math.max(...c.slides.map((sl) => sl.order))
-                    : 0;
+                  c.slides.length > 0 ? Math.max(...c.slides.map((sl) => sl.order)) : 0;
                 const slidesWithOrder = newSlides.map((slide, index) => ({
                   ...slide,
                   order: maxOrder + index + 1,
@@ -539,8 +563,7 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
     if (autoScrollIntervalRef.current) clearInterval(autoScrollIntervalRef.current);
     autoScrollIntervalRef.current = setInterval(() => {
       if (slidesContainerRef.current) {
-        slidesContainerRef.current.scrollTop +=
-          direction === "up" ? -20 : 20;
+        slidesContainerRef.current.scrollTop += direction === "up" ? -20 : 20;
       }
     }, 50);
   };
@@ -570,18 +593,23 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
   };
 
   const handleDrop = () => {
+    // Mid-test card being repositioned onto a slide
+    if (draggedMidTest) {
+      if (!selectedChapter) return;
+      const sorted = [...selectedChapter.slides].sort((a, b) => a.order - b.order);
+      const targetIdx = sorted.findIndex((s) => s.id === dragOverSlideId.current);
+      updateChapterActivityAt(targetIdx !== -1 ? targetIdx + 1 : sorted.length + 1);
+      setDraggedMidTest(false);
+      dragOverSlideId.current = "";
+      toast.success("Mid-Test repositioned");
+      return;
+    }
     if (!selectedChapter || !draggedSlideId) return;
-    const draggedIndex = selectedChapter.slides.findIndex(
-      (s) => s.id === draggedSlideId
-    );
+    const draggedIndex = selectedChapter.slides.findIndex((s) => s.id === draggedSlideId);
     const targetIndex = selectedChapter.slides.findIndex(
       (s) => s.id === dragOverSlideId.current
     );
-    if (
-      draggedIndex === -1 ||
-      targetIndex === -1 ||
-      draggedIndex === targetIndex
-    ) {
+    if (draggedIndex === -1 || targetIndex === -1 || draggedIndex === targetIndex) {
       setDraggedSlideId("");
       return;
     }
@@ -610,20 +638,13 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
   };
 
   // ── Drag: Sections ────────────────────────────────────────────────────────────
-  const handleSectionDragStart = (sectionId: string) =>
-    setDraggedSectionId(sectionId);
+  const handleSectionDragStart = (sectionId: string) => setDraggedSectionId(sectionId);
 
   const handleSectionDrop = () => {
     if (!draggedSectionId) return;
     const draggedIndex = sections.findIndex((s) => s.id === draggedSectionId);
-    const targetIndex = sections.findIndex(
-      (s) => s.id === dragOverSectionId.current
-    );
-    if (
-      draggedIndex === -1 ||
-      targetIndex === -1 ||
-      draggedIndex === targetIndex
-    ) {
+    const targetIndex = sections.findIndex((s) => s.id === dragOverSectionId.current);
+    if (draggedIndex === -1 || targetIndex === -1 || draggedIndex === targetIndex) {
       setDraggedSectionId("");
       return;
     }
@@ -637,22 +658,15 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
   };
 
   // ── Drag: Chapters ────────────────────────────────────────────────────────────
-  const handleChapterDragStart = (chapterId: string) =>
-    setDraggedChapterId(chapterId);
+  const handleChapterDragStart = (chapterId: string) => setDraggedChapterId(chapterId);
 
   const handleChapterDrop = () => {
     if (!selectedSection || !draggedChapterId) return;
-    const draggedIndex = selectedSection.chapters.findIndex(
-      (c) => c.id === draggedChapterId
-    );
+    const draggedIndex = selectedSection.chapters.findIndex((c) => c.id === draggedChapterId);
     const targetIndex = selectedSection.chapters.findIndex(
       (c) => c.id === dragOverChapterId.current
     );
-    if (
-      draggedIndex === -1 ||
-      targetIndex === -1 ||
-      draggedIndex === targetIndex
-    ) {
+    if (draggedIndex === -1 || targetIndex === -1 || draggedIndex === targetIndex) {
       setDraggedChapterId("");
       return;
     }
@@ -682,11 +696,19 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
       toast.error("Please add at least one section before publishing");
       return;
     }
+    const missingDesc = sections
+      .flatMap((s) => s.chapters)
+      .find((c) => c.midTest && c.midTest.description.trim() === "");
+    if (missingDesc) {
+      toast.error(`Mid-Test description is required for "${missingDesc.title}"`);
+      return;
+    }
     const updated: CourseBuilderData = {
       ...courseData,
       sections,
       preTest,
       finalTest,
+      finalExam,
       isPublished: true,
       updatedAt: new Date().toISOString(),
     };
@@ -698,7 +720,6 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
     }
   };
 
-  // ── Helpers ───────────────────────────────────────────────────────────────────
   const handleChapterSelect = (sectionId: string, chapterId: string) => {
     setSelectedSectionId(sectionId);
     setSelectedChapterId(chapterId);
@@ -707,7 +728,7 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
 
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
-    <div className="h-full flex bg-gray-50">
+    <div className="h-full flex bg-page-bg">
       {/* ── Sidebar ── */}
       <div
         className={`bg-white border-r border-gray-200 flex flex-col transition-all duration-300 ${
@@ -717,10 +738,10 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-200 flex-shrink-0">
           <div className="flex items-center justify-between">
-            <h1 className="text-xl font-bold text-gray-900">Sections</h1>
+            <h1 className="text-xl font-bold text-dark">Sections</h1>
             <button
               onClick={() => setSidebarOpen(false)}
-              className="text-gray-500 hover:text-gray-700 p-1"
+              className="text-secondary hover:text-dark p-1"
             >
               <ChevronUp className="w-5 h-5 rotate-90" />
             </button>
@@ -760,7 +781,7 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
                         setEditingText("");
                       }
                     }}
-                    className="flex-1 px-2 py-1.5 text-sm font-bold bg-white border-2 border-blue-500 rounded focus:outline-none"
+                    className="flex-1 px-2 py-1.5 text-sm font-bold bg-white border-2 border-primary rounded focus:outline-none"
                   />
                 </div>
               ) : (
@@ -774,8 +795,8 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
                   title="Click to expand · Double-click to rename"
                   className={`w-full text-left px-3 py-2.5 rounded font-bold text-sm transition flex items-center justify-between cursor-pointer group ${
                     selectedSectionId === section.id
-                      ? "bg-blue-100 text-blue-800"
-                      : "bg-blue-50 text-blue-700 hover:bg-blue-100"
+                      ? "bg-primary/10 text-primary"
+                      : "bg-primary/5 text-primary/80 hover:bg-primary/10"
                   }`}
                 >
                   <span className="truncate flex-1 select-none">
@@ -787,7 +808,7 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
                         e.stopPropagation();
                         addChapter(section.id);
                       }}
-                      className="opacity-0 group-hover:opacity-100 transition text-green-500 hover:text-green-700 p-1"
+                      className="opacity-0 group-hover:opacity-100 transition text-green-600 hover:text-green-700 p-1"
                       title="Add chapter"
                     >
                       <Plus className="w-4 h-4" />
@@ -797,7 +818,7 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
                         e.stopPropagation();
                         deleteSection(section.id);
                       }}
-                      className="opacity-0 group-hover:opacity-100 transition text-red-500 hover:text-red-700 p-1"
+                      className="opacity-0 group-hover:opacity-100 transition text-destructive/60 hover:text-destructive p-1"
                       title="Delete section"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -821,130 +842,119 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
               )}
 
               {/* Chapters */}
-              {expandedSectionId === section.id &&
-                section.chapters.length > 0 && (
-                  <div className="pl-3 mt-1">
-                    <div className="space-y-0.5 border-l-2 border-blue-200 pl-2 ml-1">
-                      {section.chapters.map((chapter) => (
-                        <div
-                          key={chapter.id}
-                          className={`transition ${
-                            draggedChapterId === chapter.id ? "opacity-50" : ""
-                          }`}
-                          draggable
-                          onDragStart={() =>
-                            handleChapterDragStart(chapter.id)
-                          }
-                          onDragOver={(e) => {
-                            e.preventDefault();
-                            dragOverChapterId.current = chapter.id;
-                          }}
-                          onDrop={handleChapterDrop}
-                          onDragEnd={() => setDraggedChapterId("")}
-                        >
-                          {editingChapterId === chapter.id ? (
-                            <div className="flex items-center gap-2 px-1 py-1.5">
-                              <input
-                                type="text"
-                                autoFocus
-                                value={editingText}
-                                onChange={(e) =>
-                                  setEditingText(e.target.value)
+              {expandedSectionId === section.id && section.chapters.length > 0 && (
+                <div className="pl-3 mt-1">
+                  <div className="space-y-0.5 border-l-2 border-primary/20 pl-2 ml-1">
+                    {section.chapters.map((chapter) => (
+                      <div
+                        key={chapter.id}
+                        className={`transition ${
+                          draggedChapterId === chapter.id ? "opacity-50" : ""
+                        }`}
+                        draggable
+                        onDragStart={() => handleChapterDragStart(chapter.id)}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          dragOverChapterId.current = chapter.id;
+                        }}
+                        onDrop={handleChapterDrop}
+                        onDragEnd={() => setDraggedChapterId("")}
+                      >
+                        {editingChapterId === chapter.id ? (
+                          <div className="flex items-center gap-2 px-1 py-1.5">
+                            <input
+                              type="text"
+                              autoFocus
+                              value={editingText}
+                              onChange={(e) => setEditingText(e.target.value)}
+                              onBlur={() => saveEditingChapter(chapter.id)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") saveEditingChapter(chapter.id);
+                                if (e.key === "Escape") {
+                                  setEditingChapterId("");
+                                  setEditingText("");
                                 }
-                                onBlur={() =>
-                                  saveEditingChapter(chapter.id)
-                                }
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter")
-                                    saveEditingChapter(chapter.id);
-                                  if (e.key === "Escape") {
-                                    setEditingChapterId("");
-                                    setEditingText("");
-                                  }
-                                }}
-                                className="flex-1 px-1.5 py-0.5 text-xs font-medium bg-white border-2 border-purple-500 rounded focus:outline-none"
-                              />
-                            </div>
-                          ) : (
-                            <div
-                              onClick={() =>
-                                handleChapterSelect(section.id, chapter.id)
-                              }
-                              onDoubleClick={() => startEditingChapter(chapter)}
-                              title="Click to select · Double-click to rename"
-                              className={`w-full text-left px-2 py-1.5 text-xs rounded font-medium transition flex items-center justify-between cursor-pointer group ${
-                                selectedChapterId === chapter.id
-                                  ? "bg-purple-100 text-purple-800"
-                                  : "bg-purple-50 text-purple-700 hover:bg-purple-100"
-                              }`}
+                              }}
+                              className="flex-1 px-1.5 py-0.5 text-xs font-medium bg-white border-2 border-secondary rounded focus:outline-none"
+                            />
+                          </div>
+                        ) : (
+                          <div
+                            onClick={() => handleChapterSelect(section.id, chapter.id)}
+                            onDoubleClick={() => startEditingChapter(chapter)}
+                            title="Click to select · Double-click to rename"
+                            className={`w-full text-left px-2 py-1.5 text-xs rounded font-medium transition flex items-center justify-between cursor-pointer group ${
+                              selectedChapterId === chapter.id
+                                ? "bg-secondary/10 text-secondary"
+                                : "bg-secondary/5 text-secondary/80 hover:bg-secondary/10"
+                            }`}
+                          >
+                            <span className="truncate flex-1 select-none">
+                              📘 {chapter.title}
+                              {chapter.midTest && (
+                                <span className="ml-1 text-green-600 font-bold">✓</span>
+                              )}
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteChapter(chapter.id);
+                              }}
+                              className="opacity-0 group-hover:opacity-100 transition text-destructive/60 hover:text-destructive p-0.5 flex-shrink-0"
                             >
-                              <span className="truncate flex-1 select-none">
-                                📘 {chapter.title}
-                                {chapter.midTest && (
-                                  <span className="ml-1 text-green-600 font-bold">
-                                    ✓
-                                  </span>
-                                )}
-                              </span>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  deleteChapter(chapter.id);
-                                }}
-                                className="opacity-0 group-hover:opacity-100 transition text-red-500 hover:text-red-700 p-0.5 flex-shrink-0"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                )}
+                </div>
+              )}
             </div>
           ))}
         </div>
 
-        {/* Sidebar Footer: Add Section + Course Tests */}
+        {/* Sidebar Footer */}
         <div className="sticky bottom-0 px-4 py-4 border-t border-gray-200 space-y-2 bg-white">
-          {/* Course-level test buttons */}
+          {/* Question Bank + Tests buttons */}
           <div className="flex gap-2">
             <button
               onClick={() => {
                 setSelectedChapterId("");
-                setViewMode("preTest");
+                setViewMode("questionBank");
               }}
               className={`flex-1 px-3 py-2 text-xs font-semibold rounded-lg border transition flex items-center justify-center gap-1 ${
-                viewMode === "preTest"
-                  ? "bg-orange-100 text-orange-700 border-orange-300"
-                  : "bg-white text-gray-700 border-gray-300 hover:bg-orange-50"
+                viewMode === "questionBank"
+                  ? "bg-primary/10 text-primary border-primary/30"
+                  : "bg-white text-secondary border-gray-300 hover:bg-primary/5"
               }`}
             >
-              <FileQuestion className="w-3.5 h-3.5" />
-              Pre-Test
-              {preTest && <span className="text-green-600 font-bold">✓</span>}
+              <Database className="w-3.5 h-3.5" />
+              Question Bank
             </button>
             <button
               onClick={() => {
                 setSelectedChapterId("");
-                setViewMode("finalTest");
+                setViewMode("tests");
               }}
               className={`flex-1 px-3 py-2 text-xs font-semibold rounded-lg border transition flex items-center justify-center gap-1 ${
-                viewMode === "finalTest"
-                  ? "bg-green-100 text-green-700 border-green-300"
-                  : "bg-white text-gray-700 border-gray-300 hover:bg-green-50"
+                viewMode === "tests"
+                  ? "bg-primary/10 text-primary border-primary/30"
+                  : "bg-white text-secondary border-gray-300 hover:bg-primary/5"
               }`}
             >
-              <CheckSquare className="w-3.5 h-3.5" />
-              Final Test
-              {finalTest && <span className="text-green-600 font-bold">✓</span>}
+              <LayoutList className="w-3.5 h-3.5" />
+              Tests
+              {(preTest || finalTest || finalExam) && (
+                <span className="text-green-600 font-bold">✓</span>
+              )}
             </button>
           </div>
 
           <button
             onClick={addSection}
-            className="w-full px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2"
+            className="w-full px-4 py-2 bg-primary text-white font-semibold rounded-lg hover:bg-primary/90 transition flex items-center justify-center gap-2"
           >
             <Plus className="w-4 h-4" />
             Add Section
@@ -961,27 +971,25 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
               {!sidebarOpen && (
                 <button
                   onClick={() => setSidebarOpen(true)}
-                  className="text-gray-600 hover:text-gray-900 p-1"
+                  className="text-secondary hover:text-dark p-1"
                 >
                   <Menu className="w-6 h-6" />
                 </button>
               )}
-              <h2 className="text-2xl font-bold text-gray-900">
-                {courseData.title}
-              </h2>
+              <h2 className="text-2xl font-bold text-dark">{courseData.title}</h2>
             </div>
             <div className="flex items-center gap-2">
               {selectedChapter && selectedChapter.slides.length > 0 && viewMode === "slides" && (
                 <button
                   onClick={clearAllSlides}
-                  className="px-4 py-2 text-sm bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition flex items-center gap-2"
+                  className="px-4 py-2 text-sm bg-destructive/10 text-destructive rounded-lg hover:bg-destructive/20 transition flex items-center gap-2"
                 >
                   <Trash2 className="w-4 h-4" />
                   Clear All
                 </button>
               )}
               {autoSaveStatus === "saving" && (
-                <span className="text-xs text-gray-500 flex items-center gap-1">
+                <span className="text-xs text-secondary flex items-center gap-1">
                   <Loader2 className="w-3 h-3 animate-spin" />
                   Auto-saving...
                 </span>
@@ -993,7 +1001,7 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
                 </span>
               )}
               {autoSaveStatus === "error" && (
-                <span className="text-xs text-red-500 flex items-center gap-1">
+                <span className="text-xs text-destructive flex items-center gap-1">
                   <AlertCircle className="w-3 h-3" />
                   Auto-save failed
                 </span>
@@ -1001,7 +1009,7 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
               <button
                 onClick={handlePublish}
                 disabled={isPublishing}
-                className="px-4 py-2 text-sm bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition flex items-center gap-2 disabled:opacity-60"
+                className="px-4 py-2 text-sm bg-primary text-white font-semibold rounded-lg hover:bg-primary/90 transition flex items-center gap-2 disabled:opacity-60"
               >
                 <Globe className="w-4 h-4" />
                 {isPublishing ? "Publishing..." : "Publish"}
@@ -1010,25 +1018,27 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
           </div>
 
           {/* Breadcrumb / Tabs */}
-          {viewMode === "preTest" && (
-            <p className="text-sm text-orange-600 font-medium">
-              📋 Course Pre-Test Configuration
+          {viewMode === "questionBank" && (
+            <p className="text-sm text-primary font-medium flex items-center gap-1.5">
+              <Database className="w-4 h-4" />
+              Question Bank — shared across Pre-Test, Final Test, and Exam
             </p>
           )}
-          {viewMode === "finalTest" && (
-            <p className="text-sm text-green-600 font-medium">
-              ✅ Course Final Test Configuration
+          {viewMode === "tests" && (
+            <p className="text-sm text-primary font-medium flex items-center gap-1.5">
+              <LayoutList className="w-4 h-4" />
+              Tests Configuration
             </p>
           )}
           {(viewMode === "slides" || viewMode === "midTest") && (
             <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm text-gray-600">
+              <div className="flex items-center gap-2 text-sm text-secondary">
                 <span className="font-semibold">📂 Section:</span>
-                <span className="text-gray-900 font-medium">
+                <span className="text-dark font-medium">
                   {selectedSection?.title || "—"}
                 </span>
                 <span className="font-semibold ml-2">📘 Chapter:</span>
-                <span className="text-gray-900 font-medium">
+                <span className="text-dark font-medium">
                   {selectedChapter?.title || "Select a chapter"}
                 </span>
               </div>
@@ -1038,18 +1048,21 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
                     onClick={() => setViewMode("slides")}
                     className={`px-3 py-1.5 text-xs font-semibold rounded-md border transition ${
                       viewMode === "slides"
-                        ? "bg-blue-600 text-white border-blue-600"
-                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                        ? "bg-primary text-white border-primary"
+                        : "bg-white text-secondary border-gray-300 hover:bg-gray-50"
                     }`}
                   >
                     Slides
                   </button>
                   <button
-                    onClick={() => setViewMode("midTest")}
+                    onClick={() => {
+                      setViewMode("midTest");
+                      setMidTestRefreshKey((k) => k + 1);
+                    }}
                     className={`px-3 py-1.5 text-xs font-semibold rounded-md border transition flex items-center gap-1 ${
                       viewMode === "midTest"
-                        ? "bg-purple-600 text-white border-purple-600"
-                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                        ? "bg-secondary text-white border-secondary"
+                        : "bg-white text-secondary border-gray-300 hover:bg-gray-50"
                     }`}
                   >
                     <ClipboardList className="w-3 h-3" />
@@ -1068,147 +1081,246 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
         <div className="flex-1 overflow-auto">
           <div className="max-w-8xl mx-auto p-6">
 
-            {/* Pre-Test Panel */}
-            {viewMode === "preTest" && (
-              <div className="max-w-lg space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Course Pre-Test
-                </h3>
-                <p className="text-sm text-gray-500">
-                  A pre-test is given to students before starting the course to assess their prior knowledge.
-                </p>
-                <TestConfigForm
-                  label="Pre-Test"
-                  value={preTest}
-                  onChange={setPreTest}
-                />
-                {preTest && (
-                  <button
-                    onClick={() =>
-                      setQuestionModal({ open: true, label: "Pre-Test Questions" })
-                    }
-                    className="flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-orange-50 text-orange-700 border border-orange-200 rounded-lg hover:bg-orange-100 transition"
-                  >
-                    <HelpCircle className="w-4 h-4" />
-                    Manage Questions
-                  </button>
-                )}
+            {/* ── Question Bank Panel ── */}
+            {viewMode === "questionBank" && (
+              <div className="max-w-2xl space-y-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-dark">Question Bank</h3>
+                  <p className="text-sm text-secondary mt-1">
+                    All questions stored here are randomly selected when students take the
+                    Pre-Test, Final Test, or Exam. Each test draws the number of questions
+                    you configure. Mid-Test uses its own separate questions.
+                  </p>
+                </div>
+                <QuestionBankPanel courseId={courseData.id} />
               </div>
             )}
 
-            {/* Final Test Panel */}
-            {viewMode === "finalTest" && (
-              <div className="max-w-lg space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Course Final Test
-                </h3>
-                <p className="text-sm text-gray-500">
-                  A final test is given to students after completing the course to assess their overall learning.
-                </p>
-                <TestConfigForm
-                  label="Final Test"
-                  value={finalTest}
-                  onChange={setFinalTest}
-                />
-                {finalTest && (
-                  <button
-                    onClick={() =>
-                      setQuestionModal({ open: true, label: "Final Test Questions" })
-                    }
-                    className="flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 transition"
-                  >
-                    <HelpCircle className="w-4 h-4" />
-                    Manage Questions
-                  </button>
-                )}
+            {/* ── Tests Panel ── */}
+            {viewMode === "tests" && (
+              <div className="space-y-5">
+                <div>
+                  <h3 className="text-lg font-semibold text-dark">Tests</h3>
+                  <p className="text-sm text-secondary mt-1">
+                    Configure how many questions each test draws from the Question Bank.
+                    Questions are selected randomly each time a student takes the test.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Pre-Test */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-bold uppercase tracking-wider text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded">
+                        Pre-Test
+                      </span>
+                      <p className="text-xs text-gray-400">Given before the course begins</p>
+                    </div>
+                    <TestConfigForm label="Pre-Test" value={preTest} onChange={setPreTest} />
+                  </div>
+
+                  {/* Final Test */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-bold uppercase tracking-wider text-secondary bg-secondary/10 border border-secondary/20 px-2 py-0.5 rounded">
+                        Final Test
+                      </span>
+                      <p className="text-xs text-gray-400">Given after completing the course</p>
+                    </div>
+                    <TestConfigForm label="Final Test" value={finalTest} onChange={setFinalTest} />
+                  </div>
+
+                  {/* Exam */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-bold uppercase tracking-wider text-dark bg-dark/10 border border-dark/20 px-2 py-0.5 rounded">
+                        Exam
+                      </span>
+                      <p className="text-xs text-gray-400">Final formal assessment</p>
+                    </div>
+                    <TestConfigForm label="Exam" value={finalExam} onChange={setFinalExam} />
+                  </div>
+                </div>
               </div>
             )}
 
-            {/* Mid-Test Panel (per chapter) */}
+            {/* ── Mid-Test Panel ── */}
             {viewMode === "midTest" && selectedChapter && (
-              <div className="max-w-lg space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Mid-Test for "{selectedChapter.title}"
-                </h3>
-                <p className="text-sm text-gray-500">
-                  A mid-test is given to students after completing this chapter to check their understanding.
-                </p>
+              <div className="max-w-2xl space-y-5">
+                <div>
+                  <h3 className="text-lg font-semibold text-dark">
+                    Mid-Test — {selectedChapter.title}
+                  </h3>
+                  <p className="text-sm text-secondary mt-1">
+                    Given after students complete this chapter. Mid-Test uses its own
+                    questions — not from the Question Bank.
+                  </p>
+                </div>
+
                 <TestConfigForm
                   label="Mid-Test"
                   value={selectedChapter.midTest}
                   onChange={updateChapterMidTest}
                 />
+
                 {selectedChapter.midTest && (
-                  selectedChapter.testId ? (
-                    <button
-                      onClick={() =>
-                        setQuestionModal({
-                          open: true,
-                          label: `Mid-Test Questions — ${selectedChapter.title}`,
-                          midTestId: selectedChapter.testId,
-                        })
-                      }
-                      className="flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-purple-50 text-purple-700 border border-purple-200 rounded-lg hover:bg-purple-100 transition"
-                    >
-                      <HelpCircle className="w-4 h-4" />
-                      Manage Questions
-                    </button>
-                  ) : (
-                    <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                      Save the course first to manage questions for this mid-test.
+                  <div className="bg-page-bg border border-gray-200 rounded-lg p-5 space-y-3">
+                    <h4 className="font-semibold text-dark text-sm">Position in Slides</h4>
+                    <p className="text-xs text-gray-400">
+                      The Mid-Test card will appear at this slot in the slides view. You can also drag it there.
                     </p>
-                  )
+                    <input
+                      type="number"
+                      min={1}
+                      max={selectedChapter.slides.length + 1}
+                      value={selectedChapter.activityAt ?? (selectedChapter.slides.length + 1)}
+                      onChange={(e) => {
+                        const v = Number(e.target.value);
+                        updateChapterActivityAt(v > 0 ? v : undefined);
+                      }}
+                      className="w-32 px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    />
+                  </div>
                 )}
+
+                {selectedChapter.midTest && (() => {
+                  const resolvedTestId =
+                    selectedChapter.testId ??
+                    extraTestIds[`${selectedSection?.title}::${selectedChapter.title}`];
+                  return (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-semibold text-dark">Questions</h4>
+                        {!resolvedTestId && (
+                          <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-0.5">
+                            Saving course to link questions…
+                          </span>
+                        )}
+                      </div>
+                      {resolvedTestId ? (
+                        <QuestionBankPanel
+                          courseId={courseData.id}
+                          midTestId={resolvedTestId}
+                          refreshKey={midTestRefreshKey}
+                        />
+                      ) : (
+                        <div className="text-sm text-secondary italic py-4 text-center border-2 border-dashed border-gray-200 rounded-lg">
+                          Questions will be available after the course is saved.
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             )}
 
-            {/* Slides Panel */}
+            {/* ── Slides Panel ── */}
             {viewMode === "slides" && selectedChapter && (
               <div className="bg-white rounded-lg border-2 border-gray-200 p-6 flex flex-col">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  Slides
-                </h3>
+                <h3 className="text-lg font-semibold text-dark mb-4">Slides</h3>
                 <div
                   ref={slidesContainerRef}
                   className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 overflow-y-auto flex-1"
                 >
-                  {selectedChapter.slides
-                    .sort((a, b) => a.order - b.order)
-                    .map((slide, index) => (
-                      <div
-                        key={slide.id}
-                        className="p-2 -m-2 rounded-lg hover:bg-blue-50 transition"
-                        draggable
-                        onDragStart={() => handleDragStart(slide.id)}
-                        onDragOver={(e) => handleSlideDragOver(e, slide.id)}
-                        onDrop={handleDrop}
-                        onDragEnd={handleSlideDragEnd}
-                      >
-                        <SlideCard
-                          slide={slide}
-                          onDelete={deleteSlide}
-                          onDuplicate={duplicateSlide}
-                          onDownload={downloadSlide}
-                          onReplace={replaceSlide}
-                          onView={setViewingSlide}
-                          onTitleChange={updateSlideTitle}
-                          isDragging={draggedSlideId === slide.id}
-                          isAnySlideBeingDragged={draggedSlideId !== ""}
-                          order={index + 1}
-                        />
-                      </div>
-                    ))}
+                  {(() => {
+                    const sortedSlides = [...selectedChapter.slides].sort(
+                      (a, b) => a.order - b.order
+                    );
+                    const hasMidTest = !!selectedChapter.midTest;
+                    // activityAt is 1-indexed position of the mid-test card in the combined list
+                    const midTestSlot = selectedChapter.activityAt ?? sortedSlides.length + 1;
+
+                    type CombinedItem =
+                      | { kind: "slide"; slide: CourseSlide; slideIndex: number }
+                      | { kind: "midTest"; slot: number };
+
+                    const items: CombinedItem[] = [];
+                    let midInserted = false;
+                    sortedSlides.forEach((slide, i) => {
+                      if (hasMidTest && !midInserted && i + 1 >= midTestSlot) {
+                        items.push({ kind: "midTest", slot: midTestSlot });
+                        midInserted = true;
+                      }
+                      items.push({ kind: "slide", slide, slideIndex: i });
+                    });
+                    if (hasMidTest && !midInserted) {
+                      items.push({ kind: "midTest", slot: midTestSlot });
+                    }
+
+                    return items.map((item, combinedIdx) => {
+                      if (item.kind === "midTest") {
+                        return (
+                          <div
+                            key="midTest-card"
+                            className={`p-2 -m-2 rounded-lg transition ${
+                              draggedMidTest ? "opacity-50" : ""
+                            }`}
+                            draggable
+                            onDragStart={() => {
+                              setDraggedMidTest(true);
+                              setDraggedSlideId("");
+                            }}
+                            onDragOver={(e) => e.preventDefault()}
+                            onDragEnd={() => setDraggedMidTest(false)}
+                          >
+                            <div
+                              className="bg-secondary/10 border-2 border-secondary/30 rounded-lg aspect-square flex flex-col items-center justify-center p-3 cursor-pointer hover:bg-secondary/20 transition select-none"
+                              onClick={() => {
+                                setViewMode("midTest");
+                                setMidTestRefreshKey((k) => k + 1);
+                              }}
+                              title="Click to configure · Drag to reposition"
+                            >
+                              <ClipboardList className="w-10 h-10 text-secondary mb-2" />
+                              <span className="text-xs font-bold text-secondary">Mid-Test</span>
+                              <span className="text-xs text-secondary/60 mt-0.5">
+                                Slot {combinedIdx + 1}
+                              </span>
+                              <span className="text-xs text-secondary/40 mt-1">
+                                ⠿ drag to move
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      const { slide, slideIndex } = item;
+                      return (
+                        <div
+                          key={slide.id}
+                          className="p-2 -m-2 rounded-lg hover:bg-primary/5 transition"
+                          draggable
+                          onDragStart={() => handleDragStart(slide.id)}
+                          onDragOver={(e) => handleSlideDragOver(e, slide.id)}
+                          onDrop={handleDrop}
+                          onDragEnd={handleSlideDragEnd}
+                        >
+                          <SlideCard
+                            slide={slide}
+                            onDelete={deleteSlide}
+                            onDuplicate={duplicateSlide}
+                            onDownload={downloadSlide}
+                            onReplace={replaceSlide}
+                            onView={setViewingSlide}
+                            onTitleChange={updateSlideTitle}
+                            isDragging={draggedSlideId === slide.id}
+                            isAnySlideBeingDragged={draggedSlideId !== ""}
+                            order={slideIndex + 1}
+                          />
+                        </div>
+                      );
+                    });
+                  })()}
 
                   {/* Upload Card */}
                   <div className="p-2 -m-2 rounded-lg">
-                    <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg aspect-square flex flex-col items-center justify-center p-3 hover:bg-gray-100 transition">
+                    <div className="bg-page-bg border-2 border-dashed border-gray-300 rounded-lg aspect-square flex flex-col items-center justify-center p-3 hover:bg-primary/5 transition">
                       <SlideUpload
                         onSlideAdded={addSlidesToChapter}
                         currentOrder={selectedChapter.slides.length}
                       />
                     </div>
                   </div>
-
                 </div>
               </div>
             )}
@@ -1217,17 +1329,17 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
             {viewMode === "slides" && !selectedChapter && (
               <div className="bg-white rounded-lg border-2 border-dashed border-gray-300 p-12 text-center">
                 <BookOpen className="w-16 h-16 mx-auto text-gray-300 mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                <h3 className="text-lg font-semibold text-dark mb-2">
                   No chapter selected
                 </h3>
-                <p className="text-gray-600 mb-6">
+                <p className="text-secondary mb-6">
                   Select a chapter from the sidebar or create a new one to start adding slides
                 </p>
                 <button
                   onClick={() => {
                     if (selectedSection) addChapter(selectedSection.id);
                   }}
-                  className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition flex items-center gap-2 mx-auto"
+                  className="px-4 py-2 bg-primary text-white font-semibold rounded-lg hover:bg-primary/90 transition flex items-center gap-2 mx-auto"
                 >
                   <Plus className="w-4 h-4" />
                   Create First Chapter
@@ -1238,19 +1350,10 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
         </div>
       </div>
 
-      {/* ── Slide viewer modal — rendered at root level, outside scroll containers ── */}
+      {/* Slide viewer */}
       <SlideViewerModal
         slide={viewingSlide}
         onClose={() => setViewingSlide(null)}
-      />
-
-      {/* ── Question builder modal ── */}
-      <QuestionBuilderModal
-        isOpen={questionModal.open}
-        onClose={() => setQuestionModal({ open: false, label: "" })}
-        label={questionModal.label}
-        courseId={courseData.id}
-        midTestId={questionModal.midTestId}
       />
     </div>
   );

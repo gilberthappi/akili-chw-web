@@ -26,6 +26,7 @@ export interface CourseChapter {
   hasTest: boolean;
   testId?: string;
   midTest?: TestConfig;
+  activityAt?: number;
 }
 
 export interface CourseSection {
@@ -49,6 +50,7 @@ export interface CourseBuilderData {
   updatedAt: string;
   preTest?: TestConfig;
   finalTest?: TestConfig;
+  finalExam?: TestConfig;
 }
 
 export interface CourseCreationForm {
