@@ -114,6 +114,19 @@ export const uploadDocument = async (file: File): Promise<FileUploadResponse> =>
   return response.data;
 };
 
+// Get a signed (time-limited) URL for a Cloudinary asset — needed for raw/authenticated files
+export const getSignedUrl = async (url: string): Promise<string> => {
+  const response = await api.get('/upload/sign', { params: { url } });
+  return response.data.signedUrl as string;
+};
+
+// Return a proxy URL that streams the Cloudinary asset through the API server.
+// Use this for PDFs/raw files that return 401 when accessed directly.
+export const getProxyUrl = (url: string): string => {
+  const base = api.defaults.baseURL ?? '';
+  return `${base}/upload/proxy?url=${encodeURIComponent(url)}`;
+};
+
 // Helper function to determine upload type based on file
 export const uploadFileByType = async (file: File): Promise<FileUploadResponse> => {
   if (!file.type) {

@@ -1,5 +1,5 @@
 import { FC, useEffect, useState, useCallback } from "react";
-import { uploadFileByType } from "@/services/uploader.api";
+import { uploadFileByType, getProxyUrl } from "@/services/uploader.api";
 import { createDocument, deleteDocument, getAllDocuments, IDocument, updateDocument } from "@/services/document.service";
 import Modal from "../common/Modal";
 
@@ -100,7 +100,11 @@ const DocumentModal: FC<DocumentModalProps> = ({ courseId, isOpen, onClose }) =>
                     <div className="font-medium">{d.fileName}</div>
                   </div>
                   <div className="flex gap-2">
-                    <button className="text-blue-600" onClick={() => d.file && window.open(d.file, '_blank')}>View</button>
+                    <button className="text-blue-600" onClick={() => {
+                      if (!d.file) return;
+                      const isPdf = d.file.toLowerCase().includes('.pdf') || d.fileName.toLowerCase().endsWith('.pdf');
+                      window.open(isPdf ? getProxyUrl(d.file) : d.file, '_blank');
+                    }}>View</button>
                     <button className="text-yellow-600" onClick={() => startEdit(d)}>Edit</button>
                     <button className="text-red-600" onClick={() => handleDelete(d.id)}>Delete</button>
                   </div>

@@ -13,11 +13,13 @@ import {
   Loader2,
   CheckCircle,
   AlertCircle,
+  HelpCircle,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import SlideUpload from "@/components/courseBuilder/SlideUpload";
 import SlideCard from "@/components/courseBuilder/SlideCard";
 import SlideViewerModal from "@/components/courseBuilder/SlideViewerModal";
+import QuestionBuilderModal from "@/components/courseBuilder/QuestionBuilderModal";
 import { uploadSlideFile } from "@/services/course.service";
 import {
   CourseBuilderData,
@@ -146,7 +148,9 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
   const [selectedSectionId, setSelectedSectionId] = useState<string>(
     defaultSections[0]?.id || ""
   );
-  const [selectedChapterId, setSelectedChapterId] = useState<string>("");
+  const [selectedChapterId, setSelectedChapterId] = useState<string>(
+    defaultSections[0]?.chapters[0]?.id || ""
+  );
   const [expandedSectionId, setExpandedSectionId] = useState<string>(
     defaultSections[0]?.id || ""
   );
@@ -169,6 +173,13 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
   const [finalTest, setFinalTest] = useState<TestConfig | undefined>(
     courseData.finalTest
   );
+
+  // Question builder modal state
+  const [questionModal, setQuestionModal] = useState<{
+    open: boolean;
+    label: string;
+    midTestId?: string;
+  }>({ open: false, label: "" });
 
   const dragOverSlideId = useRef<string>("");
   const dragOverSectionId = useRef<string>("");
@@ -754,16 +765,20 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
                 </div>
               ) : (
                 <div
+                  onClick={() =>
+                    setExpandedSectionId(
+                      expandedSectionId === section.id ? "" : section.id
+                    )
+                  }
+                  onDoubleClick={() => startEditingSection(section)}
+                  title="Click to expand · Double-click to rename"
                   className={`w-full text-left px-3 py-2.5 rounded font-bold text-sm transition flex items-center justify-between cursor-pointer group ${
                     selectedSectionId === section.id
                       ? "bg-blue-100 text-blue-800"
                       : "bg-blue-50 text-blue-700 hover:bg-blue-100"
                   }`}
                 >
-                  <span
-                    onClick={() => startEditingSection(section)}
-                    className="truncate flex-1"
-                  >
+                  <span className="truncate flex-1 select-none">
                     📂 {section.title}
                   </span>
                   <div className="flex items-center gap-1 flex-shrink-0 ml-2">
@@ -855,19 +870,15 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
                               onClick={() =>
                                 handleChapterSelect(section.id, chapter.id)
                               }
+                              onDoubleClick={() => startEditingChapter(chapter)}
+                              title="Click to select · Double-click to rename"
                               className={`w-full text-left px-2 py-1.5 text-xs rounded font-medium transition flex items-center justify-between cursor-pointer group ${
                                 selectedChapterId === chapter.id
                                   ? "bg-purple-100 text-purple-800"
                                   : "bg-purple-50 text-purple-700 hover:bg-purple-100"
                               }`}
                             >
-                              <span
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  startEditingChapter(chapter);
-                                }}
-                                className="truncate flex-1"
-                              >
+                              <span className="truncate flex-1 select-none">
                                 📘 {chapter.title}
                                 {chapter.midTest && (
                                   <span className="ml-1 text-green-600 font-bold">
@@ -1071,6 +1082,17 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
                   value={preTest}
                   onChange={setPreTest}
                 />
+                {preTest && (
+                  <button
+                    onClick={() =>
+                      setQuestionModal({ open: true, label: "Pre-Test Questions" })
+                    }
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-orange-50 text-orange-700 border border-orange-200 rounded-lg hover:bg-orange-100 transition"
+                  >
+                    <HelpCircle className="w-4 h-4" />
+                    Manage Questions
+                  </button>
+                )}
               </div>
             )}
 
@@ -1088,6 +1110,17 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
                   value={finalTest}
                   onChange={setFinalTest}
                 />
+                {finalTest && (
+                  <button
+                    onClick={() =>
+                      setQuestionModal({ open: true, label: "Final Test Questions" })
+                    }
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 transition"
+                  >
+                    <HelpCircle className="w-4 h-4" />
+                    Manage Questions
+                  </button>
+                )}
               </div>
             )}
 
@@ -1105,6 +1138,27 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
                   value={selectedChapter.midTest}
                   onChange={updateChapterMidTest}
                 />
+                {selectedChapter.midTest && (
+                  selectedChapter.testId ? (
+                    <button
+                      onClick={() =>
+                        setQuestionModal({
+                          open: true,
+                          label: `Mid-Test Questions — ${selectedChapter.title}`,
+                          midTestId: selectedChapter.testId,
+                        })
+                      }
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-purple-50 text-purple-700 border border-purple-200 rounded-lg hover:bg-purple-100 transition"
+                    >
+                      <HelpCircle className="w-4 h-4" />
+                      Manage Questions
+                    </button>
+                  ) : (
+                    <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                      Save the course first to manage questions for this mid-test.
+                    </p>
+                  )
+                )}
               </div>
             )}
 
@@ -1188,6 +1242,15 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
       <SlideViewerModal
         slide={viewingSlide}
         onClose={() => setViewingSlide(null)}
+      />
+
+      {/* ── Question builder modal ── */}
+      <QuestionBuilderModal
+        isOpen={questionModal.open}
+        onClose={() => setQuestionModal({ open: false, label: "" })}
+        label={questionModal.label}
+        courseId={courseData.id}
+        midTestId={questionModal.midTestId}
       />
     </div>
   );
