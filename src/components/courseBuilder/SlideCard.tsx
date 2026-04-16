@@ -23,6 +23,7 @@ interface SlideCardProps {
   isDragging?: boolean;
   isAnySlideBeingDragged?: boolean;
   order?: number;
+  displayMode?: "grid" | "list";
 }
 
 const getFileIcon = (fileType: string) => {
@@ -62,6 +63,7 @@ export default function SlideCard({
   isDragging = false,
   isAnySlideBeingDragged = false,
   order = 0,
+  displayMode = "grid",
 }: SlideCardProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editingTitle, setEditingTitle] = useState(slide.title);
@@ -86,6 +88,95 @@ export default function SlideCard({
     e.target.value = "";
   };
 
+  /* ── List row layout ── */
+  if (displayMode === "list") {
+    return (
+      <div
+        className={`bg-white rounded-lg border border-gray-200 flex items-center gap-3 px-3 py-2 group transition ${
+          isDragging ? "opacity-50" : "hover:border-blue-400"
+        }`}
+      >
+        {/* Drag handle */}
+        <GripVertical className="w-4 h-4 text-gray-300 group-hover:text-gray-500 flex-shrink-0 transition" />
+
+        {/* Order badge */}
+        <div className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">
+          {order}
+        </div>
+
+        {/* Thumbnail / icon */}
+        <div
+          className="w-9 h-9 rounded-md overflow-hidden flex items-center justify-center bg-gray-100 flex-shrink-0 cursor-pointer"
+          onClick={() => onView?.(slide)}
+        >
+          {slide.fileType === "image" ? (
+            <img src={slide.fileUrl} alt={slide.title} className="w-full h-full object-cover" />
+          ) : slide.fileType === "video" ? (
+            <video src={slide.fileUrl} className="w-full h-full object-cover" muted />
+          ) : (
+            <FileText className="w-5 h-5 text-red-400" />
+          )}
+        </div>
+
+        {/* Title */}
+        <div className="flex-1 min-w-0">
+          {isEditingTitle ? (
+            <input
+              type="text"
+              autoFocus
+              value={editingTitle}
+              onChange={(e) => setEditingTitle(e.target.value)}
+              onBlur={() => {
+                if (editingTitle.trim() && onTitleChange) onTitleChange(slide.id, editingTitle);
+                setIsEditingTitle(false);
+                setEditingTitle(slide.title);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  if (editingTitle.trim() && onTitleChange) onTitleChange(slide.id, editingTitle);
+                  setIsEditingTitle(false);
+                }
+                if (e.key === "Escape") { setIsEditingTitle(false); setEditingTitle(slide.title); }
+              }}
+              className="w-full px-2 py-0.5 text-sm border-2 border-blue-500 rounded focus:outline-none"
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : (
+            <p
+              onClick={() => setIsEditingTitle(true)}
+              className="text-sm font-medium text-gray-900 truncate cursor-pointer hover:text-blue-600 transition"
+              title={slide.title}
+            >
+              {slide.title}
+            </p>
+          )}
+          <p className="text-xs text-gray-400 truncate">{slide.fileName}</p>
+        </div>
+
+        {/* Type badge */}
+        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold flex items-center gap-1 flex-shrink-0 ${getFileTypeColor(slide.fileType)}`}>
+          {getFileIcon(slide.fileType)}
+          {slide.fileType.toUpperCase()}
+        </span>
+
+        {/* Actions */}
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <button onClick={(e) => { e.stopPropagation(); onDuplicate(slide.id); }} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition" title="Duplicate">
+            <Copy className="w-4 h-4" />
+          </button>
+          <button onClick={handleReplaceClick} className="p-1.5 text-amber-600 hover:bg-amber-50 rounded transition" title="Replace">
+            <RotateCw className="w-4 h-4" />
+          </button>
+          <input ref={replaceInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.bmp,.svg,.ico,.tiff,.mp4,.avi,.mov,.mkv,.webm,.flv,.wmv,.m4v,.3gp" style={{ display: "none" }} onChange={handleReplaceFileChange} />
+          <button onClick={(e) => { e.stopPropagation(); onDelete(slide.id); }} className="p-1.5 text-red-600 hover:bg-red-50 rounded transition" title="Delete">
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Grid card layout (default) ── */
   return (
     <div
       className={`bg-white rounded-lg border-2 border-gray-200 overflow-hidden transition transform flex flex-col ${
