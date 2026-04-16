@@ -172,6 +172,7 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
   const [viewMode, setViewMode] = useState<ViewMode>("slides");
   const [isPublishing, setIsPublishing] = useState(false);
   const [autoSaveStatus, setAutoSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   // Course-level test state
   const [preTest, setPreTest] = useState<TestConfig | undefined>(courseData.preTest);
@@ -564,23 +565,26 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
       toast.error("No slides to clear");
       return;
     }
-    if (confirm("Clear all slides from this chapter?")) {
-      setSections(
-        sections.map((s) => {
-          if (s.id === selectedSectionId) {
-            return {
-              ...s,
-              chapters: s.chapters.map((c) => {
-                if (c.id === selectedChapterId) return { ...c, slides: [] };
-                return c;
-              }),
-            };
-          }
-          return s;
-        })
-      );
-      toast.success("All slides cleared");
-    }
+    setShowClearConfirm(true);
+  };
+
+  const confirmClearSlides = () => {
+    setSections(
+      sections.map((s) => {
+        if (s.id === selectedSectionId) {
+          return {
+            ...s,
+            chapters: s.chapters.map((c) => {
+              if (c.id === selectedChapterId) return { ...c, slides: [] };
+              return c;
+            }),
+          };
+        }
+        return s;
+      })
+    );
+    setShowClearConfirm(false);
+    toast.success("All slides cleared");
   };
 
   // ── Drag: Slides ──────────────────────────────────────────────────────────────
@@ -1006,15 +1010,6 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
               <h2 className="text-2xl font-bold text-dark">{courseData.title}</h2>
             </div>
             <div className="flex items-center gap-2">
-              {selectedChapter && selectedChapter.slides.length > 0 && viewMode === "slides" && (
-                <button
-                  onClick={clearAllSlides}
-                  className="px-4 py-2 text-sm bg-destructive/10 text-destructive rounded-lg hover:bg-destructive/20 transition flex items-center gap-2"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Clear All
-                </button>
-              )}
               {autoSaveStatus === "saving" && (
                 <span className="text-xs text-secondary flex items-center gap-1">
                   <Loader2 className="w-3 h-3 animate-spin" />
@@ -1070,7 +1065,7 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
                 </span>
               </div>
               {selectedChapter && (
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2">
                   <button
                     onClick={() => setViewMode("slides")}
                     className={`px-3 py-1.5 text-xs font-semibold rounded-md border transition ${
@@ -1098,6 +1093,15 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
                       <span className="text-green-400 font-bold">✓</span>
                     )}
                   </button>
+                  {selectedChapter.slides.length > 0 && (
+                    <button
+                      onClick={clearAllSlides}
+                      className="px-3 py-1.5 text-xs font-semibold rounded-md border border-destructive/30 bg-destructive/5 text-destructive hover:bg-destructive/15 transition flex items-center gap-1"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      Clear All
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -1434,6 +1438,39 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
         slide={viewingSlide}
         onClose={() => setViewingSlide(null)}
       />
+
+      {/* Clear All Confirm Modal */}
+      {showClearConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm mx-4 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-destructive/10 rounded-lg">
+                <Trash2 className="w-5 h-5 text-destructive" />
+              </div>
+              <h3 className="text-base font-bold text-dark">Clear all slides?</h3>
+            </div>
+            <p className="text-sm text-secondary">
+              This will remove all slides from{" "}
+              <span className="font-semibold text-dark">{selectedChapter?.title}</span>.
+              The Mid-Test configuration will not be affected.
+            </p>
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={() => setShowClearConfirm(false)}
+                className="flex-1 px-4 py-2 text-sm font-semibold rounded-lg border border-gray-300 text-secondary hover:bg-gray-50 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmClearSlides}
+                className="flex-1 px-4 py-2 text-sm font-semibold rounded-lg bg-destructive text-white hover:bg-destructive/90 transition"
+              >
+                Clear Slides
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
