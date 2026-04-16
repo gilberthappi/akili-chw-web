@@ -11,6 +11,7 @@ import {
   GripVertical,
   Database,
   LayoutList,
+  LayoutGrid,
   Loader2,
   CheckCircle,
   AlertCircle,
@@ -173,6 +174,7 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
   const [isPublishing, setIsPublishing] = useState(false);
   const [autoSaveStatus, setAutoSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [slideViewMode, setSlideViewMode] = useState<"grid" | "list">("grid");
 
   // Course-level test state
   const [preTest, setPreTest] = useState<TestConfig | undefined>(courseData.preTest);
@@ -1258,10 +1260,41 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
             {/* ── Slides Panel ── */}
             {viewMode === "slides" && selectedChapter && (
               <div className="bg-white rounded-lg border-2 border-gray-200 p-6 flex flex-col">
-                <h3 className="text-lg font-semibold text-dark mb-4">Slides</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-dark">Slides</h3>
+                  {/* View toggle — like Windows File Explorer */}
+                  <div className="flex items-center gap-1 border border-gray-200 rounded-lg p-0.5 bg-gray-50">
+                    <button
+                      onClick={() => setSlideViewMode("grid")}
+                      title="Icon view"
+                      className={`p-1.5 rounded-md transition ${
+                        slideViewMode === "grid"
+                          ? "bg-white shadow text-primary"
+                          : "text-gray-400 hover:text-gray-600"
+                      }`}
+                    >
+                      <LayoutGrid className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setSlideViewMode("list")}
+                      title="List view"
+                      className={`p-1.5 rounded-md transition ${
+                        slideViewMode === "list"
+                          ? "bg-white shadow text-primary"
+                          : "text-gray-400 hover:text-gray-600"
+                      }`}
+                    >
+                      <LayoutList className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
                 <div
                   ref={slidesContainerRef}
-                  className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 overflow-y-auto flex-1"
+                  className={`overflow-y-auto flex-1 ${
+                    slideViewMode === "grid"
+                      ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2"
+                      : "flex flex-col gap-1"
+                  }`}
                 >
                   {(() => {
                     const sortedSlides = [...selectedChapter.slides].sort(
@@ -1307,62 +1340,95 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
                             onDragOver={(e) => e.preventDefault()}
                             onDragEnd={() => setDraggedMidTest(false)}
                           >
-                            <div
-                              className="bg-white rounded-lg border-2 border-gray-200 overflow-hidden transition transform flex flex-col aspect-square hover:border-secondary/60 cursor-pointer"
-                              onClick={() => {
-                                setViewMode("midTest");
-                                setMidTestRefreshKey((k) => k + 1);
-                              }}
-                              title="Click to configure · Drag to reposition"
-                            >
-                              {/* Preview Area */}
-                              <div className="flex-1 bg-gray-100 flex items-center justify-center relative group overflow-hidden">
-                                {/* Icon */}
-                                <div className="flex flex-col items-center justify-center gap-2 pointer-events-none select-none">
-                                  <ClipboardList className="w-14 h-14 text-secondary" />
-                                  <span className="text-xs font-semibold text-secondary uppercase tracking-wide">
-                                    Mid-Test
-                                  </span>
-                                </div>
-                                {/* Position badge — same blue circle as slides */}
-                                <div className="absolute top-2 right-2 bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shadow pointer-events-none">
+                            {slideViewMode === "list" ? (
+                              /* ── List row ── */
+                              <div
+                                className="bg-white rounded-lg border border-gray-200 hover:border-secondary/60 flex items-center gap-3 px-3 py-2 cursor-pointer group transition"
+                                onClick={() => { setViewMode("midTest"); setMidTestRefreshKey((k) => k + 1); }}
+                                title="Click to configure · Drag to reposition"
+                              >
+                                <GripVertical className="w-4 h-4 text-gray-300 group-hover:text-gray-500 flex-shrink-0 transition" />
+                                <div className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">
                                   {position}
                                 </div>
-                                {/* Drag handle */}
-                                <div className="absolute top-2 left-2 bg-white rounded-lg p-1 shadow opacity-0 group-hover:opacity-100 transition pointer-events-none">
-                                  <GripVertical className="w-4 h-4 text-gray-600" />
+                                <div className="w-7 h-7 rounded-full bg-secondary/10 flex items-center justify-center flex-shrink-0">
+                                  <ClipboardList className="w-4 h-4 text-secondary" />
                                 </div>
-                              </div>
-                              {/* Content */}
-                              <div className="p-3 space-y-2">
-                                <p className="font-medium text-gray-900 text-sm">Mid-Test</p>
-                                <div className="flex items-center gap-2 text-xs">
-                                  <span className="px-2 py-1 rounded-full font-semibold flex items-center gap-1 bg-secondary/10 text-secondary">
-                                    <ClipboardList className="w-4 h-4" />
-                                    TEST
-                                  </span>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-gray-900 truncate">Mid-Test</p>
                                   {testConfig && (
-                                    <span className="text-gray-600 truncate">
+                                    <p className="text-xs text-gray-500 truncate">
                                       {testConfig.questionToBeAnswered}Q · {testConfig.marksToPass}% pass
-                                    </span>
+                                    </p>
                                   )}
                                 </div>
-                                <div className="flex items-center gap-1 pt-2 border-t border-gray-200">
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setViewMode("midTest");
-                                      setMidTestRefreshKey((k) => k + 1);
-                                    }}
-                                    className="flex-1 p-2 text-secondary hover:bg-secondary/10 rounded transition flex items-center justify-center gap-1"
-                                    title="Configure Mid-Test"
-                                  >
-                                    <ClipboardList className="w-4 h-4" />
-                                    <span className="text-xs">Configure</span>
-                                  </button>
+                                <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-secondary/10 text-secondary flex-shrink-0">
+                                  TEST
+                                </span>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setViewMode("midTest"); setMidTestRefreshKey((k) => k + 1); }}
+                                  className="p-1.5 text-secondary hover:bg-secondary/10 rounded transition flex-shrink-0"
+                                  title="Configure Mid-Test"
+                                >
+                                  <ClipboardList className="w-4 h-4" />
+                                </button>
+                              </div>
+                            ) : (
+                              /* ── Grid card ── */
+                              <div
+                                className="bg-white rounded-lg border-2 border-gray-200 overflow-hidden transition transform flex flex-col aspect-square hover:border-secondary/60 cursor-pointer"
+                                onClick={() => {
+                                  setViewMode("midTest");
+                                  setMidTestRefreshKey((k) => k + 1);
+                                }}
+                                title="Click to configure · Drag to reposition"
+                              >
+                                {/* Preview Area */}
+                                <div className="flex-1 bg-gray-100 flex items-center justify-center relative group overflow-hidden">
+                                  <div className="flex flex-col items-center justify-center gap-2 pointer-events-none select-none">
+                                    <ClipboardList className="w-14 h-14 text-secondary" />
+                                    <span className="text-xs font-semibold text-secondary uppercase tracking-wide">
+                                      Mid-Test
+                                    </span>
+                                  </div>
+                                  <div className="absolute top-2 right-2 bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shadow pointer-events-none">
+                                    {position}
+                                  </div>
+                                  <div className="absolute top-2 left-2 bg-white rounded-lg p-1 shadow opacity-0 group-hover:opacity-100 transition pointer-events-none">
+                                    <GripVertical className="w-4 h-4 text-gray-600" />
+                                  </div>
+                                </div>
+                                {/* Content */}
+                                <div className="p-3 space-y-2">
+                                  <p className="font-medium text-gray-900 text-sm">Mid-Test</p>
+                                  <div className="flex items-center gap-2 text-xs">
+                                    <span className="px-2 py-1 rounded-full font-semibold flex items-center gap-1 bg-secondary/10 text-secondary">
+                                      <ClipboardList className="w-4 h-4" />
+                                      TEST
+                                    </span>
+                                    {testConfig && (
+                                      <span className="text-gray-600 truncate">
+                                        {testConfig.questionToBeAnswered}Q · {testConfig.marksToPass}% pass
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-1 pt-2 border-t border-gray-200">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setViewMode("midTest");
+                                        setMidTestRefreshKey((k) => k + 1);
+                                      }}
+                                      className="flex-1 p-2 text-secondary hover:bg-secondary/10 rounded transition flex items-center justify-center gap-1"
+                                      title="Configure Mid-Test"
+                                    >
+                                      <ClipboardList className="w-4 h-4" />
+                                      <span className="text-xs">Configure</span>
+                                    </button>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
+                            )}
                           </div>
                         );
                       }
@@ -1389,6 +1455,7 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
                             isDragging={draggedSlideId === slide.id}
                             isAnySlideBeingDragged={draggedSlideId !== ""}
                             order={position}
+                            displayMode={slideViewMode}
                           />
                         </div>
                       );
@@ -1397,7 +1464,9 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
 
                   {/* Upload Card */}
                   <div className="p-2 -m-2 rounded-lg">
-                    <div className="bg-page-bg border-2 border-dashed border-gray-300 rounded-lg aspect-square flex flex-col items-center justify-center p-3 hover:bg-primary/5 transition">
+                    <div className={`bg-page-bg border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center p-3 hover:bg-primary/5 transition ${
+                      slideViewMode === "list" ? "py-3" : "aspect-square flex-col"
+                    }`}>
                       <SlideUpload
                         onSlideAdded={addSlidesToChapter}
                         currentOrder={selectedChapter.slides.length}
