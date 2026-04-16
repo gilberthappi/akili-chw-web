@@ -72,6 +72,7 @@ function mapICourseToCourseBuilderData(course: ICourse): CourseBuilderData {
             slides,
             hasTest: !!chapter.midTest,
             testId: chapter.midTest?.id,
+            activityAt: chapter.activityAt ?? undefined,
             midTest: chapter.midTest
               ? {
                   questionToBeAnswered:
@@ -89,6 +90,7 @@ function mapICourseToCourseBuilderData(course: ICourse): CourseBuilderData {
 
   const preTestSource = course.preTests?.[0];
   const finalTestSource = course.finalTest?.[0];
+  const finalExamSource = course.finalExam?.[0];
 
   const preTest: TestConfig | undefined = preTestSource
     ? {
@@ -108,6 +110,15 @@ function mapICourseToCourseBuilderData(course: ICourse): CourseBuilderData {
       }
     : undefined;
 
+  const finalExam: TestConfig | undefined = finalExamSource
+    ? {
+        questionToBeAnswered: finalExamSource.questionToBeAnswered,
+        marksToPass: finalExamSource.marksToPass,
+        description: finalExamSource.description ?? "",
+        isPublished: finalExamSource.isPublished,
+      }
+    : undefined;
+
   return {
     id: course.id,
     title: course.title,
@@ -119,6 +130,7 @@ function mapICourseToCourseBuilderData(course: ICourse): CourseBuilderData {
     updatedAt: course.updatedAt,
     preTest,
     finalTest,
+    finalExam,
   };
 }
 
@@ -141,6 +153,10 @@ function buildApiPayload(data: CourseBuilderData): Record<string, unknown> {
         title: chapter.title,
         description: chapter.description,
         chapterNumber: ci + 1,
+        // Send undefined (omitted from JSON) when not set — sending null breaks
+        // TSOA's double validation and causes a 500 error.
+        // The backend upsert treats missing activityAt as null automatically.
+        activityAt: chapter.activityAt,
         slides: chapter.slides
           .sort((a, b) => a.order - b.order)
           .map((slide, sli) => ({
@@ -175,6 +191,15 @@ function buildApiPayload(data: CourseBuilderData): Record<string, unknown> {
             questionToBeAnswered: data.finalTest.questionToBeAnswered,
             marksToPass: data.finalTest.marksToPass,
             description: data.finalTest.description,
+          },
+        }
+      : {}),
+    ...(data.finalExam
+      ? {
+          finalExam: {
+            questionToBeAnswered: data.finalExam.questionToBeAnswered,
+            marksToPass: data.finalExam.marksToPass,
+            description: data.finalExam.description,
           },
         }
       : {}),
@@ -234,14 +259,25 @@ export default function NewCoursesBuilder() {
   })();
 
   // Silent background save — no toast, no cache invalidation (avoids remount while editing)
-  const handleAutoSave = async (updatedCourse: CourseBuilderData) => {
+  const handleAutoSave = async (updatedCourse: CourseBuilderData): Promise<CourseBuilderData | void> => {
     try {
       const payload = buildApiPayload(updatedCourse);
       await updateCourse(updatedCourse.id, payload);
+      // Silently fetch fresh data to populate newly-created testIds
+      try {
+        const freshResponse = await getCourseById(updatedCourse.id);
+        const freshCourse = freshResponse?.data as ICourse | undefined;
+        if (freshCourse) return mapICourseToCourseBuilderData(freshCourse);
+      } catch {
+        // silent — testId will update on next successful save
+      }
     } catch (error) {
-      const msg =
+      const rawMsg =
         (error as { response?: { data?: { message?: string } } })?.response
-          ?.data?.message ?? "Auto-save failed";
+          ?.data?.message;
+      // rawMsg can be "" when TSOA throws a ValidateError with empty string —
+      // fall back to a meaningful label in that case.
+      const msg = rawMsg || "Auto-save failed";
       console.error("Auto-save error:", msg);
       throw error; // re-throw so CourseBuilder can show error status
     }
