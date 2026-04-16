@@ -153,7 +153,10 @@ function buildApiPayload(data: CourseBuilderData): Record<string, unknown> {
         title: chapter.title,
         description: chapter.description,
         chapterNumber: ci + 1,
-        activityAt: chapter.activityAt ?? null,
+        // Send undefined (omitted from JSON) when not set — sending null breaks
+        // TSOA's double validation and causes a 500 error.
+        // The backend upsert treats missing activityAt as null automatically.
+        activityAt: chapter.activityAt,
         slides: chapter.slides
           .sort((a, b) => a.order - b.order)
           .map((slide, sli) => ({
@@ -269,9 +272,12 @@ export default function NewCoursesBuilder() {
         // silent — testId will update on next successful save
       }
     } catch (error) {
-      const msg =
+      const rawMsg =
         (error as { response?: { data?: { message?: string } } })?.response
-          ?.data?.message ?? "Auto-save failed";
+          ?.data?.message;
+      // rawMsg can be "" when TSOA throws a ValidateError with empty string —
+      // fall back to a meaningful label in that case.
+      const msg = rawMsg || "Auto-save failed";
       console.error("Auto-save error:", msg);
       throw error; // re-throw so CourseBuilder can show error status
     }

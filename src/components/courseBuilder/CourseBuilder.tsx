@@ -8,6 +8,7 @@ import {
   Menu,
   BookOpen,
   ClipboardList,
+  GripVertical,
   Database,
   LayoutList,
   Loader2,
@@ -194,6 +195,8 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
   const courseDataRef = useRef(courseData);
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isFirstRender = useRef(true);
+  // Prevents the sections-state update (testId injection) from triggering a redundant auto-save
+  const skipNextAutoSave = useRef(false);
   useEffect(() => { onAutoSaveRef.current = onAutoSave; }, [onAutoSave]);
   useEffect(() => { courseDataRef.current = courseData; }, [courseData]);
 
@@ -201,6 +204,11 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
+      return;
+    }
+    // Skip auto-save when only injecting testIds back into sections state
+    if (skipNextAutoSave.current) {
+      skipNextAutoSave.current = false;
       return;
     }
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
@@ -218,15 +226,34 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
         const freshData = await onAutoSaveRef.current(updated);
         setAutoSaveStatus("saved");
         setTimeout(() => setAutoSaveStatus("idle"), 3000);
-        // Populate testIds from fresh API data without triggering another auto-save
+        // Populate testIds from fresh API data and inject back into sections state
+        // so the Questions panel is available immediately without waiting for remount
         if (freshData) {
           const newIds: Record<string, string> = {};
+          const testIdByKey: Record<string, string> = {};
           freshData.sections.forEach((s) => {
             s.chapters.forEach((ch) => {
-              if (ch.testId) newIds[`${s.title}::${ch.title}`] = ch.testId;
+              if (ch.testId) {
+                const key = `${s.title}::${ch.title}`;
+                newIds[key] = ch.testId;
+                testIdByKey[key] = ch.testId;
+              }
             });
           });
           setExtraTestIds(newIds);
+          // Merge testIds into sections state (skip the resulting auto-save re-trigger)
+          if (Object.keys(testIdByKey).length > 0) {
+            skipNextAutoSave.current = true;
+            setSections((prev) =>
+              prev.map((s) => ({
+                ...s,
+                chapters: s.chapters.map((ch) => ({
+                  ...ch,
+                  testId: testIdByKey[`${s.title}::${ch.title}`] ?? ch.testId,
+                })),
+              }))
+            );
+          }
         }
       } catch {
         setAutoSaveStatus("error");
@@ -1165,21 +1192,27 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
 
                 {selectedChapter.midTest && (
                   <div className="bg-page-bg border border-gray-200 rounded-lg p-5 space-y-3">
-                    <h4 className="font-semibold text-dark text-sm">Position in Slides</h4>
+                    <h4 className="font-semibold text-dark text-sm">Slide Position</h4>
                     <p className="text-xs text-gray-400">
-                      The Mid-Test card will appear at this slot in the slides view. You can also drag it there.
+                      Enter the slide number where the Mid-Test card should appear (e.g. type <strong>5</strong> to place it at slide #5).
+                      You can also drag the card in the Slides view to reposition it.
                     </p>
-                    <input
-                      type="number"
-                      min={1}
-                      max={selectedChapter.slides.length + 1}
-                      value={selectedChapter.activityAt ?? (selectedChapter.slides.length + 1)}
-                      onChange={(e) => {
-                        const v = Number(e.target.value);
-                        updateChapterActivityAt(v > 0 ? v : undefined);
-                      }}
-                      className="w-32 px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/40"
-                    />
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min={1}
+                        max={selectedChapter.slides.length + 1}
+                        value={selectedChapter.activityAt ?? (selectedChapter.slides.length + 1)}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          updateChapterActivityAt(v > 0 ? v : undefined);
+                        }}
+                        className="w-24 px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/40"
+                      />
+                      <span className="text-xs text-gray-400">
+                        (1 – {selectedChapter.slides.length + 1})
+                      </span>
+                    </div>
                   </div>
                 )}
 
@@ -1187,13 +1220,15 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
                   const resolvedTestId =
                     selectedChapter.testId ??
                     extraTestIds[`${selectedSection?.title}::${selectedChapter.title}`];
+                  const isSaving = autoSaveStatus === "saving";
                   return (
                     <div className="space-y-3">
                       <div className="flex items-center gap-2">
                         <h4 className="text-sm font-semibold text-dark">Questions</h4>
-                        {!resolvedTestId && (
-                          <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-0.5">
-                            Saving course to link questions…
+                        {!resolvedTestId && isSaving && (
+                          <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-0.5 flex items-center gap-1">
+                            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse inline-block" />
+                            Saving…
                           </span>
                         )}
                       </div>
@@ -1205,7 +1240,9 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
                         />
                       ) : (
                         <div className="text-sm text-secondary italic py-4 text-center border-2 border-dashed border-gray-200 rounded-lg">
-                          Questions will be available after the course is saved.
+                          {isSaving
+                            ? "Linking questions after save…"
+                            : "Enable the toggle above and the course will save automatically to activate questions."}
                         </div>
                       )}
                     </div>
@@ -1248,12 +1285,15 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
                     }
 
                     return items.map((item, combinedIdx) => {
+                      const position = combinedIdx + 1;
+
                       if (item.kind === "midTest") {
+                        const testConfig = selectedChapter.midTest;
                         return (
                           <div
                             key="midTest-card"
                             className={`p-2 -m-2 rounded-lg transition ${
-                              draggedMidTest ? "opacity-50" : ""
+                              draggedMidTest ? "opacity-40 scale-95" : ""
                             }`}
                             draggable
                             onDragStart={() => {
@@ -1264,27 +1304,66 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
                             onDragEnd={() => setDraggedMidTest(false)}
                           >
                             <div
-                              className="bg-secondary/10 border-2 border-secondary/30 rounded-lg aspect-square flex flex-col items-center justify-center p-3 cursor-pointer hover:bg-secondary/20 transition select-none"
+                              className="bg-white rounded-lg border-2 border-gray-200 overflow-hidden transition transform flex flex-col aspect-square hover:border-secondary/60 cursor-pointer"
                               onClick={() => {
                                 setViewMode("midTest");
                                 setMidTestRefreshKey((k) => k + 1);
                               }}
                               title="Click to configure · Drag to reposition"
                             >
-                              <ClipboardList className="w-10 h-10 text-secondary mb-2" />
-                              <span className="text-xs font-bold text-secondary">Mid-Test</span>
-                              <span className="text-xs text-secondary/60 mt-0.5">
-                                Slot {combinedIdx + 1}
-                              </span>
-                              <span className="text-xs text-secondary/40 mt-1">
-                                ⠿ drag to move
-                              </span>
+                              {/* Preview Area */}
+                              <div className="flex-1 bg-gray-100 flex items-center justify-center relative group overflow-hidden">
+                                {/* Icon */}
+                                <div className="flex flex-col items-center justify-center gap-2 pointer-events-none select-none">
+                                  <ClipboardList className="w-14 h-14 text-secondary" />
+                                  <span className="text-xs font-semibold text-secondary uppercase tracking-wide">
+                                    Mid-Test
+                                  </span>
+                                </div>
+                                {/* Position badge — same blue circle as slides */}
+                                <div className="absolute top-2 right-2 bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shadow pointer-events-none">
+                                  {position}
+                                </div>
+                                {/* Drag handle */}
+                                <div className="absolute top-2 left-2 bg-white rounded-lg p-1 shadow opacity-0 group-hover:opacity-100 transition pointer-events-none">
+                                  <GripVertical className="w-4 h-4 text-gray-600" />
+                                </div>
+                              </div>
+                              {/* Content */}
+                              <div className="p-3 space-y-2">
+                                <p className="font-medium text-gray-900 text-sm">Mid-Test</p>
+                                <div className="flex items-center gap-2 text-xs">
+                                  <span className="px-2 py-1 rounded-full font-semibold flex items-center gap-1 bg-secondary/10 text-secondary">
+                                    <ClipboardList className="w-4 h-4" />
+                                    TEST
+                                  </span>
+                                  {testConfig && (
+                                    <span className="text-gray-600 truncate">
+                                      {testConfig.questionToBeAnswered}Q · {testConfig.marksToPass}% pass
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-1 pt-2 border-t border-gray-200">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setViewMode("midTest");
+                                      setMidTestRefreshKey((k) => k + 1);
+                                    }}
+                                    className="flex-1 p-2 text-secondary hover:bg-secondary/10 rounded transition flex items-center justify-center gap-1"
+                                    title="Configure Mid-Test"
+                                  >
+                                    <ClipboardList className="w-4 h-4" />
+                                    <span className="text-xs">Configure</span>
+                                  </button>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         );
                       }
 
-                      const { slide, slideIndex } = item;
+                      const { slide } = item;
                       return (
                         <div
                           key={slide.id}
@@ -1305,7 +1384,7 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
                             onTitleChange={updateSlideTitle}
                             isDragging={draggedSlideId === slide.id}
                             isAnySlideBeingDragged={draggedSlideId !== ""}
-                            order={slideIndex + 1}
+                            order={position}
                           />
                         </div>
                       );
