@@ -229,136 +229,147 @@ export default function QuestionBankPanel({
 
   return (
     <div className="space-y-4">
-      {/* Summary bar */}
-      <div className="flex items-center justify-between">
+      {/* Summary bar — sticky so Add Question button stays visible while scrolling */}
+      <div className="sticky top-0 bg-white z-10 flex items-center justify-between py-3 border-b border-gray-200">
         <span className="text-sm text-secondary">
           {loading
             ? "Loading…"
             : `${questions.length} question${questions.length !== 1 ? "s" : ""} in bank`}
         </span>
-        {!showAddForm && (
-          <button
-            onClick={() => setShowAddForm(true)}
-            className="px-3 py-1.5 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary/90 transition flex items-center gap-1.5"
-          >
-            <Plus className="w-4 h-4" />
-            Add Question
-          </button>
-        )}
+        <button
+          onClick={() => setShowAddForm(true)}
+          className="px-3 py-1.5 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary/90 transition flex items-center gap-1.5"
+        >
+          <Plus className="w-4 h-4" />
+          Add Question
+        </button>
       </div>
 
-      {/* Add Question Form — shown at TOP so it's always accessible without scrolling */}
+      {/* Add Question Modal */}
       {showAddForm && (
-        <div className="border-2 border-primary/20 rounded-lg p-4 space-y-3 bg-primary/5">
-          <h4 className="font-semibold text-sm text-primary">New Question</h4>
-
-          <div>
-            <label className="block text-xs text-secondary mb-1">
-              Question <span className="text-destructive">*</span>
-            </label>
-            <textarea
-              rows={2}
-              value={draft.question}
-              onChange={(e) => setDraft((d) => ({ ...d, question: e.target.value }))}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none bg-white"
-              placeholder="Enter your question..."
-            />
-          </div>
-
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={draft.allowMultiple}
-              onChange={(e) => setDraft((d) => ({ ...d, allowMultiple: e.target.checked }))}
-              className="rounded border-gray-300 text-primary focus:ring-primary"
-            />
-            <span className="text-xs text-secondary">Allow multiple correct answers</span>
-          </label>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-xs text-secondary font-medium">
-                Options <span className="text-destructive">*</span>
-              </label>
-              <span className="text-xs text-gray-400">
-                {draft.allowMultiple ? "Check all correct answers" : "Select one correct answer"}
-              </span>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
+              <h4 className="font-semibold text-base text-dark">New Question</h4>
+              <button
+                onClick={() => { setShowAddForm(false); setDraft(emptyDraft()); }}
+                className="text-gray-400 hover:text-dark transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
 
-            {draft.options.map((opt, i) => (
-              <div key={opt.id} className="flex items-center gap-2">
-                <input
-                  type={draft.allowMultiple ? "checkbox" : "radio"}
-                  name="correctAnswer"
-                  checked={opt.isCorrect}
-                  onChange={() => toggleOptionCorrect(opt.id)}
-                  className="flex-shrink-0 text-primary focus:ring-primary"
-                  title="Mark as correct"
+            {/* Modal body — scrollable */}
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+              <div>
+                <label className="block text-xs text-secondary mb-1">
+                  Question <span className="text-destructive">*</span>
+                </label>
+                <textarea
+                  rows={3}
+                  value={draft.question}
+                  onChange={(e) => setDraft((d) => ({ ...d, question: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none bg-white"
+                  placeholder="Enter your question..."
+                  autoFocus
                 />
+              </div>
+
+              <label className="flex items-center gap-2 cursor-pointer">
                 <input
-                  type="text"
-                  value={opt.label}
-                  onChange={(e) => updateDraftOption(opt.id, e.target.value)}
-                  placeholder={`Option ${i + 1}`}
-                  className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary/40 bg-white"
+                  type="checkbox"
+                  checked={draft.allowMultiple}
+                  onChange={(e) => setDraft((d) => ({ ...d, allowMultiple: e.target.checked }))}
+                  className="rounded border-gray-300 text-primary focus:ring-primary"
                 />
+                <span className="text-xs text-secondary">Allow multiple correct answers</span>
+              </label>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs text-secondary font-medium">
+                    Options <span className="text-destructive">*</span>
+                  </label>
+                  <span className="text-xs text-gray-400">
+                    {draft.allowMultiple ? "Check all correct answers" : "Select one correct answer"}
+                  </span>
+                </div>
+
+                {draft.options.map((opt, i) => (
+                  <div key={opt.id} className="flex items-center gap-2">
+                    <input
+                      type={draft.allowMultiple ? "checkbox" : "radio"}
+                      name="correctAnswer"
+                      checked={opt.isCorrect}
+                      onChange={() => toggleOptionCorrect(opt.id)}
+                      className="flex-shrink-0 text-primary focus:ring-primary"
+                      title="Mark as correct"
+                    />
+                    <input
+                      type="text"
+                      value={opt.label}
+                      onChange={(e) => updateDraftOption(opt.id, e.target.value)}
+                      placeholder={`Option ${i + 1}`}
+                      className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary/40 bg-white"
+                    />
+                    <button
+                      onClick={() => removeOption(opt.id)}
+                      className="text-gray-400 hover:text-destructive transition flex-shrink-0"
+                      title="Remove option"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+
                 <button
-                  onClick={() => removeOption(opt.id)}
-                  className="text-gray-400 hover:text-destructive transition flex-shrink-0"
-                  title="Remove option"
+                  onClick={addOption}
+                  className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition font-medium"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <Plus className="w-3.5 h-3.5" />
+                  Add option
                 </button>
               </div>
-            ))}
 
-            <button
-              onClick={addOption}
-              className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition font-medium"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              Add option
-            </button>
-          </div>
+              <div>
+                <label className="block text-xs text-secondary mb-1">
+                  Feedback Statement <span className="text-gray-400">(optional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={draft.feedbackStatement}
+                  onChange={(e) => setDraft((d) => ({ ...d, feedbackStatement: e.target.value }))}
+                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary/40 bg-white"
+                  placeholder="Shown after student answers..."
+                />
+              </div>
+            </div>
 
-          <div>
-            <label className="block text-xs text-secondary mb-1">
-              Feedback Statement <span className="text-gray-400">(optional)</span>
-            </label>
-            <input
-              type="text"
-              value={draft.feedbackStatement}
-              onChange={(e) => setDraft((d) => ({ ...d, feedbackStatement: e.target.value }))}
-              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary/40 bg-white"
-              placeholder="Shown after student answers..."
-            />
-          </div>
-
-          <div className="flex gap-2 pt-1">
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="px-4 py-2 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary/90 transition flex items-center gap-2 disabled:opacity-60"
-            >
-              {saving ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                "Save Question"
-              )}
-            </button>
-            <button
-              onClick={() => {
-                setShowAddForm(false);
-                setDraft(emptyDraft());
-              }}
-              disabled={saving}
-              className="px-4 py-2 bg-white text-secondary text-sm font-semibold rounded-lg border border-gray-300 hover:bg-gray-50 transition"
-            >
-              Cancel
-            </button>
+            {/* Modal footer */}
+            <div className="flex gap-3 px-6 py-4 border-t border-gray-200 flex-shrink-0">
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="flex-1 px-4 py-2 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary/90 transition flex items-center justify-center gap-2 disabled:opacity-60"
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Question"
+                )}
+              </button>
+              <button
+                onClick={() => { setShowAddForm(false); setDraft(emptyDraft()); }}
+                disabled={saving}
+                className="px-4 py-2 bg-white text-secondary text-sm font-semibold rounded-lg border border-gray-300 hover:bg-gray-50 transition"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}

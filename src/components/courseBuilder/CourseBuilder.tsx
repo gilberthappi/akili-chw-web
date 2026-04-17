@@ -174,7 +174,7 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
   const [isPublishing, setIsPublishing] = useState(false);
   const [autoSaveStatus, setAutoSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const [slideViewMode, setSlideViewMode] = useState<"grid" | "list">("grid");
+  const [slideViewMode, setSlideViewMode] = useState<"grid" | "list">("list");
 
   // Course-level test state
   const [preTest, setPreTest] = useState<TestConfig | undefined>(courseData.preTest);
@@ -1111,22 +1111,27 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
         </div>
 
         {/* ── Content Area ── */}
-        <div className="flex-1 overflow-auto">
-          <div className="max-w-8xl mx-auto p-6">
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Pinned header – Question Bank (title + description sit above the scroll area) */}
+          {viewMode === "questionBank" && (
+            <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-4">
+              <h3 className="text-lg font-semibold text-dark">Question Bank</h3>
+              <p className="text-sm text-secondary mt-1">
+                All questions stored here are randomly selected when students take the
+                Pre-Test, Final Test, or Exam. Each test draws the number of questions
+                you configure. Mid-Test uses its own separate questions.
+              </p>
+            </div>
+          )}
+          <div className="flex-1 overflow-auto">
+          <div className={`max-w-8xl mx-auto px-6 pb-6 ${viewMode === "questionBank" ? "pt-0" : "pt-6"}`}>
 
             {/* ── Question Bank Panel ── */}
+            {/* The panel's own sticky summary bar (count + Add Question) pins to top-0 of this
+                scroll container, so together with the pinned header above it the whole
+                "Question Bank + description + Add Question" block never scrolls away. */}
             {viewMode === "questionBank" && (
-              <div className="max-w-2xl space-y-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-dark">Question Bank</h3>
-                  <p className="text-sm text-secondary mt-1">
-                    All questions stored here are randomly selected when students take the
-                    Pre-Test, Final Test, or Exam. Each test draws the number of questions
-                    you configure. Mid-Test uses its own separate questions.
-                  </p>
-                </div>
-                <QuestionBankPanel courseId={courseData.id} />
-              </div>
+              <QuestionBankPanel courseId={courseData.id} />
             )}
 
             {/* ── Tests Panel ── */}
@@ -1179,7 +1184,7 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
 
             {/* ── Mid-Test Panel ── */}
             {viewMode === "midTest" && selectedChapter && (
-              <div className="max-w-2xl space-y-5">
+              <div className="space-y-6">
                 <div>
                   <h3 className="text-lg font-semibold text-dark">
                     Mid-Test — {selectedChapter.title}
@@ -1189,39 +1194,43 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
                     questions — not from the Question Bank.
                   </p>
                 </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                {/* Left: Configuration */}
+                <div className="space-y-5">
+                  <TestConfigForm
+                    label="Mid-Test"
+                    value={selectedChapter.midTest}
+                    onChange={updateChapterMidTest}
+                  />
 
-                <TestConfigForm
-                  label="Mid-Test"
-                  value={selectedChapter.midTest}
-                  onChange={updateChapterMidTest}
-                />
-
-                {selectedChapter.midTest && (
-                  <div className="bg-page-bg border border-gray-200 rounded-lg p-5 space-y-3">
-                    <h4 className="font-semibold text-dark text-sm">Slide Position</h4>
-                    <p className="text-xs text-gray-400">
-                      Enter the slide number where the Mid-Test card should appear (e.g. type <strong>5</strong> to place it at slide #5).
-                      You can also drag the card in the Slides view to reposition it.
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        min={1}
-                        max={selectedChapter.slides.length + 1}
-                        value={selectedChapter.activityAt ?? (selectedChapter.slides.length + 1)}
-                        onChange={(e) => {
-                          const v = Number(e.target.value);
-                          updateChapterActivityAt(v > 0 ? v : undefined);
-                        }}
-                        className="w-24 px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/40"
-                      />
-                      <span className="text-xs text-gray-400">
-                        (1 – {selectedChapter.slides.length + 1})
-                      </span>
+                  {selectedChapter.midTest && (
+                    <div className="bg-page-bg border border-gray-200 rounded-lg p-5 space-y-3">
+                      <h4 className="font-semibold text-dark text-sm">Slide Position</h4>
+                      <p className="text-xs text-gray-400">
+                        Enter the slide number where the Mid-Test card should appear (e.g. type <strong>5</strong> to place it at slide #5).
+                        You can also drag the card in the Slides view to reposition it.
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min={1}
+                          max={selectedChapter.slides.length + 1}
+                          value={selectedChapter.activityAt ?? (selectedChapter.slides.length + 1)}
+                          onChange={(e) => {
+                            const v = Number(e.target.value);
+                            updateChapterActivityAt(v > 0 ? v : undefined);
+                          }}
+                          className="w-24 px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/40"
+                        />
+                        <span className="text-xs text-gray-400">
+                          (1 – {selectedChapter.slides.length + 1})
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
 
+                {/* Right: Questions */}
                 {selectedChapter.midTest && (() => {
                   const resolvedTestId =
                     selectedChapter.testId ??
@@ -1254,6 +1263,7 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
                     </div>
                   );
                 })()}
+                </div>
               </div>
             )}
 
@@ -1498,6 +1508,7 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
                 </button>
               </div>
             )}
+          </div>
           </div>
         </div>
       </div>
