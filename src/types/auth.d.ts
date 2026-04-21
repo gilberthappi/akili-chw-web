@@ -3,6 +3,11 @@ export interface ILoginFormData {
   password: string;
 }
 
+export interface IStudentLoginFormData {
+  NID: string;
+  phoneNumber: string;
+}
+
 export interface IUpdateRestPasswordFormData {
   otp: string;
   newPassword: string;
