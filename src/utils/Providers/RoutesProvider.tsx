@@ -30,6 +30,7 @@ import Calendar from "@/pages/dashboard/Calender";
 import Help from "@/pages/dashboard/Help";
 import Hospitals from "@/pages/dashboard/Hospitals";
 import Announcement from "@/pages/dashboard/Announcement";
+import Forbidden from "@/pages/Forbidden";
 
 // Convenience role groups — keep in sync with ROLE_PERMISSIONS in permissions.ts
 const MANAGEMENT_ROLES  = ["ADMIN", "DEVELOPER"] as const;
@@ -228,6 +229,7 @@ const RoutesProvider = () => {
     { path: "/auth/reset-password",  element: <ResetPassword />,  errorElement: <ErrorPage /> },
     { path: "/terms",                element: <Terms />,          errorElement: <ErrorPage /> },
     { path: "/auth",                 element: <Navigate to="/auth/login" replace /> },
+    { path: "/forbidden",             element: <Forbidden />,      errorElement: <ErrorPage /> },
     { path: "*",                     element: <NotFound />,       errorElement: <ErrorPage /> },
   ]);
 
