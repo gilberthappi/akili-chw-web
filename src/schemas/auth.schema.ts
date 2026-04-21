@@ -1,5 +1,5 @@
 import { ZodType, z } from "zod";
-import { ILoginFormData } from "../types/auth";
+import { ILoginFormData, IStudentLoginFormData } from "../types/auth";
 import { IResetPasswordRequest } from "../types/auth";
 import { IUpdatePasswordFormData } from "../types/auth";
 
@@ -15,6 +15,16 @@ export const LoginSchema: ZodType<ILoginFormData> = z.object({
       required_error: "Password is required",
     })
     .min(4, "Password should be atleast 6 characters"),
+});
+
+export const StudentLoginSchema: ZodType<IStudentLoginFormData> = z.object({
+  NID: z
+    .string({ required_error: "National ID is required" })
+    .min(16, "National ID must be 16 characters")
+    .max(16, "National ID must be 16 characters"),
+  phoneNumber: z
+    .string({ required_error: "Phone number is required" })
+    .min(10, "Enter a valid phone number"),
 });
 
 export const ForgotPasswordSchema: ZodType<IResetPasswordRequest> = z.object({

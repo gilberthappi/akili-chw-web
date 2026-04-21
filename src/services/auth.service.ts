@@ -1,6 +1,6 @@
 import { ISignup,  IResponse, User } from "@/types";
 import api from "./api";
-import { ILoginFormData } from "@/types/auth";
+import { ILoginFormData, IStudentLoginFormData } from "@/types/auth";
 import { AuthState } from "@/types/common";
 import { broadcastAuthChange } from "@/utils/authSync";
 import { setCookieForAllDomains, clearCookiesFromAllDomains } from "@/utils/cookieHelper";
@@ -29,6 +29,17 @@ export const login = async (formData: ILoginFormData): Promise<AuthState> => {
     permissions,
     industry,
   };
+};
+
+export const loginStudent = async (formData: IStudentLoginFormData): Promise<AuthState> => {
+  const { data } = await api.post("/auth/signin/student/id-phone", formData);
+  const { token, roles, permissions, industry, ...userData } = data.data;
+  localStorage.setItem("chw", JSON.stringify({ ...userData, roles, permissions, industry }));
+  localStorage.setItem("accessToken", token);
+  localStorage.setItem("auth_user", JSON.stringify(userData));
+  setCookieForAllDomains(token);
+  broadcastAuthChange("login");
+  return { ...userData, token, roles, permissions, industry };
 };
 
 export const signup = async (data: ISignup): Promise<IResponse<User>> => {
