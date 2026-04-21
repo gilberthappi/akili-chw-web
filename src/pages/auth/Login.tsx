@@ -138,13 +138,13 @@ const DarkField: React.FC<{
   const inputType = isPassword ? (show ? "text" : "password") : type;
 
   return (
-    <div className="space-y-1.5">
-      <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider">
+    <div className="space-y-2">
+      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">
         {label}
       </label>
       <div
-        className={`flex items-center gap-3 bg-[#1a2235] border rounded-xl px-4 py-3 transition-colors ${
-          error ? "border-red-500/50" : "border-white/10 focus-within:border-[#3363AD]/60"
+        className={`flex items-center gap-3 border rounded-xl px-4 py-3.5 transition-colors ${
+          error ? "border-red-500/50 bg-[#1f1535]" : "bg-[#1c1f2e] border-white/[0.08] focus-within:border-[#3363AD]/70"
         }`}
       >
         <span className={`flex-shrink-0 ${error ? "text-red-400" : "text-gray-500"}`}>
@@ -154,7 +154,7 @@ const DarkField: React.FC<{
           {...reg}
           type={inputType}
           placeholder={placeholder}
-          className="flex-1 bg-transparent text-white text-sm placeholder:text-gray-600 outline-none min-w-0"
+          className="flex-1 bg-transparent text-white text-base placeholder:text-gray-600 outline-none min-w-0"
         />
         {isPassword && (
           <button
@@ -162,11 +162,11 @@ const DarkField: React.FC<{
             onClick={() => setShow((s) => !s)}
             className="flex-shrink-0 text-gray-500 hover:text-gray-300 transition-colors"
           >
-            {show ? <EyeOff size={16} /> : <Eye size={16} />}
+            {show ? <EyeOff size={18} /> : <Eye size={18} />}
           </button>
         )}
       </div>
-      {error && <p className="text-xs text-red-400 pl-1">{error}</p>}
+      {error && <p className="text-sm text-red-400 pl-1">{error}</p>}
     </div>
   );
 };
@@ -257,7 +257,7 @@ const StaffLoginForm: React.FC<{
       <button
         type="submit"
         disabled={mutation.isPending}
-        className="w-full bg-[#3363AD] hover:bg-[#2a52a0] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2 mt-2"
+        className="w-full bg-[#3363AD] hover:bg-[#2a52a0] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold py-4 text-base rounded-xl transition-colors flex items-center justify-center gap-2 mt-2"
       >
         {mutation.isPending ? (
           <>
@@ -326,7 +326,7 @@ const ChwLoginForm: React.FC<{
       <button
         type="submit"
         disabled={mutation.isPending}
-        className="w-full bg-[#3363AD] hover:bg-[#2a52a0] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2 mt-2"
+        className="w-full bg-[#3363AD] hover:bg-[#2a52a0] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold py-4 text-base rounded-xl transition-colors flex items-center justify-center gap-2 mt-2"
       >
         {mutation.isPending ? (
           <>
@@ -404,82 +404,84 @@ export const Login: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#0b0f1e] flex items-center justify-center p-4 lg:p-6">
-      {/* Card */}
-      <div className="w-full max-w-5xl rounded-2xl overflow-hidden shadow-2xl flex min-h-[600px] border border-white/5">
-        {/* Left decorative panel */}
+    /* Page background */
+    <div className="h-screen flex items-center justify-center p-3"
+      style={{ background: "#0e0a1f" }}
+    >
+      {/* Outer rounded card — system card-bg dark #111827 */}
+      <div
+        className="w-full h-full flex overflow-hidden"
+        style={{
+          borderRadius: 18,
+          background: "#111827",
+          boxShadow: "0 40px 80px rgba(0,0,0,0.8), 0 0 0 1px rgba(51,99,173,0.12)",
+        }}
+      >
+        {/* Left inset image card (handled inside AuthDecorativePanel with p-3 + inner rounded-2xl) */}
         <AuthDecorativePanel />
 
-        {/* Right — login form */}
-        <div className="w-full lg:w-1/2 bg-[#0f1520] flex flex-col justify-center px-8 py-10 lg:px-12">
-          {/* Brand (visible on mobile when panel is hidden) */}
+        {/* Right — login form, centered — system #111827 card bg */}
+        <div className="flex-1 flex flex-col items-center justify-center px-6 py-10 overflow-y-auto relative"
+          style={{ background: "#111827" }}
+        >
+
+          {/* Brand (mobile only) */}
           <div className="flex lg:hidden items-center gap-2 mb-8">
-            <img src="/chw.png" alt="eBumenyi" className="w-8 h-8 object-contain" />
-            <span className="text-white font-bold text-base">eBumenyi</span>
+            <img src="/chw.png" alt="eBumenyi" className="w-7 h-7 object-contain" />
+            <span className="text-white font-bold text-sm">eBumenyi</span>
           </div>
 
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-2xl font-bold text-white mb-1">Welcome back</h1>
-            <p className="text-sm text-gray-500">
-              Sign in to continue to eBumenyi
-            </p>
-          </div>
+          <div className="w-full max-w-[480px]">
+            {/* Header */}
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold text-white mb-1.5">Welcome back</h1>
+              <p className="text-base text-gray-500">Sign in to continue to eBumenyi</p>
+            </div>
 
-          {/* Mode toggle */}
-          <div className="flex gap-2 mb-7 p-1 bg-[#141b2d] rounded-xl border border-white/5">
-            {(
-              [
-                { id: "staff", label: "Staff / Admin", icon: "🏥" },
-                { id: "chw", label: "CHW / Student", icon: "👤" },
-              ] as { id: LoginMode; label: string; icon: string }[]
-            ).map(({ id, label, icon }) => (
-              <button
-                key={id}
-                onClick={() => setMode(id)}
-                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                  mode === id
-                    ? "bg-[#3363AD] text-white shadow-lg shadow-[#3363AD]/20"
-                    : "text-gray-500 hover:text-gray-300"
-                }`}
-              >
-                <span>{icon}</span>
-                {label}
-              </button>
-            ))}
-          </div>
 
-          {/* Context hint */}
-          <div className="mb-5 px-4 py-2.5 bg-[#3363AD]/10 border border-[#3363AD]/20 rounded-xl">
+            {/* Forms */}
             {mode === "staff" ? (
-              <p className="text-xs text-[#4a90d9]">
-                <span className="font-semibold">Staff, Trainers & Admins</span> — use your email address and password.
-              </p>
+              <StaffLoginForm onSuccess={handleLoginSuccess} />
             ) : (
-              <p className="text-xs text-[#4a90d9]">
-                <span className="font-semibold">Community Health Workers</span> — use your National ID and phone number.
-              </p>
+              <ChwLoginForm onSuccess={handleLoginSuccess} />
             )}
-          </div>
 
-          {/* Forms */}
-          {mode === "staff" ? (
-            <StaffLoginForm onSuccess={handleLoginSuccess} />
-          ) : (
-            <ChwLoginForm onSuccess={handleLoginSuccess} />
-          )}
+            {/* Alternative login method */}
+            <div className="mt-6 flex items-center gap-3">
+              <div className="flex-1 h-px bg-white/[0.07]" />
+              <span className="text-xs text-gray-600">or</span>
+              <div className="flex-1 h-px bg-white/[0.07]" />
+            </div>
 
-          {/* Footer links */}
-          <div className="mt-7 pt-6 border-t border-white/5 text-center">
-            <p className="text-sm text-gray-600">
-              Don't have an account?{" "}
-              <Link
-                to="/auth/signup"
-                className="text-[#4a90d9] hover:text-[#6aaae8] font-medium transition-colors"
-              >
-                Sign up
-              </Link>
-            </p>
+            <button
+              onClick={() => setMode(mode === "staff" ? "chw" : "staff")}
+              className="mt-4 w-full flex items-center justify-center gap-2.5 py-3.5 rounded-xl border border-white/[0.10] bg-[#1c1f2e] hover:border-white/25 hover:bg-[#22263a] text-sm font-medium text-gray-300 transition-all"
+            >
+              {mode === "staff" ? (
+                <>
+                  <CreditCard size={16} className="text-gray-400" />
+                  Login with National ID &amp; Phone Number
+                </>
+              ) : (
+                <>
+                  <Mail size={16} className="text-gray-400" />
+                  Login with Email &amp; Password
+                </>
+              )}
+            </button>
+
+            {/* Footer links */}
+            <div className="mt-6 pt-5 border-t border-white/[0.05] text-center">
+              <p className="text-sm text-gray-600">
+                Don't have an account?{" "}
+                <Link
+                  to="/auth/signup"
+                  className="text-[#4a90d9] hover:text-[#6aaae8] font-medium transition-colors"
+                >
+                  Sign up
+                </Link>
+              </p>
+            </div>
           </div>
         </div>
       </div>

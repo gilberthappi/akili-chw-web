@@ -3,170 +3,129 @@ import { ArrowRight } from "lucide-react";
 
 const slides = [
   {
+    image: "/slide1.png",
     title: "Empowering Rwanda's CHWs",
-    subtitle:
-      "Comprehensive digital training for Community Health Workers nationwide — learn at your own pace, anywhere.",
+    subtitle: "Comprehensive digital training for Community Health Workers nationwide — learn at your own pace, anywhere.",
   },
   {
+    image: "/slide2.png",
     title: "Learn. Grow. Heal.",
-    subtitle:
-      "Access courses, track your progress, and earn certificates on your healthcare journey with eBumenyi.",
+    subtitle: "Access courses, track your progress, and earn certificates on your healthcare journey with eBumenyi.",
   },
   {
+    image: "/slide3.png",
     title: "Building Healthier Communities",
-    subtitle:
-      "A Government of Rwanda initiative transforming frontline healthcare delivery through technology.",
+    subtitle: "A Government of Rwanda initiative transforming frontline healthcare delivery through technology.",
   },
 ];
 
 export const AuthDecorativePanel: React.FC = () => {
   const [activeSlide, setActiveSlide] = useState(0);
+  const [visible, setVisible] = useState(true);
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setActiveSlide((prev) => (prev + 1) % slides.length);
-    }, 4500);
+      setVisible(false);
+      setTimeout(() => {
+        setActiveSlide((prev) => (prev + 1) % slides.length);
+        setVisible(true);
+      }, 400);
+    }, 5000);
     return () => clearInterval(timer);
   }, []);
 
+  const goTo = (i: number) => {
+    if (i === activeSlide) return;
+    setVisible(false);
+    setTimeout(() => { setActiveSlide(i); setVisible(true); }, 400);
+  };
+
+  const slide = slides[activeSlide];
+
   return (
-    <div
-      className="hidden lg:flex lg:w-1/2 relative overflow-hidden flex-col"
-      style={{
-        background:
-          "linear-gradient(145deg, #091525 0%, #0f2340 40%, #0d3060 70%, #1a4070 100%)",
-      }}
-    >
-      {/* Dot grid pattern */}
-      <div
-        className="absolute inset-0 opacity-[0.06]"
-        style={{
-          backgroundImage:
-            "radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px)",
-          backgroundSize: "36px 36px",
-        }}
-      />
+    /* p-3 creates the inset-card gap around the photo panel */
+    <div className="w-[46%] flex-shrink-0 p-3 self-stretch">
+      <div className="relative w-full h-full rounded-2xl overflow-hidden flex flex-col">
 
-      {/* Glow orbs */}
-      <div
-        className="absolute top-0 right-0 w-72 h-72 rounded-full pointer-events-none"
-        style={{
-          background: "radial-gradient(circle, rgba(51,99,173,0.35), transparent 70%)",
-          transform: "translate(25%, -25%)",
-        }}
-      />
-      <div
-        className="absolute bottom-0 left-0 w-96 h-96 rounded-full pointer-events-none"
-        style={{
-          background: "radial-gradient(circle, rgba(51,99,173,0.25), transparent 70%)",
-          transform: "translate(-30%, 30%)",
-        }}
-      />
-      <div
-        className="absolute top-1/2 left-1/2 w-64 h-64 rounded-full pointer-events-none"
-        style={{
-          background: "radial-gradient(circle, rgba(51,99,173,0.12), transparent 70%)",
-          transform: "translate(-50%, -50%)",
-        }}
-      />
+        {/* ── Photo background ── */}
+        {slides.map((s, i) => (
+          <img
+            key={s.image}
+            src={s.image}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700"
+            style={{ opacity: i === activeSlide ? 1 : 0 }}
+          />
+        ))}
 
-      {/* Top bar */}
-      <div className="relative z-10 flex items-center justify-between px-8 pt-8">
-        <div className="flex items-center gap-3">
-          <img src="/chw.png" alt="eBumenyi" className="w-9 h-9 object-contain" />
-          <span className="text-white font-bold text-lg tracking-tight">eBumenyi</span>
-        </div>
-        <a
-          href="https://ebumenyi.online"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1.5 text-xs text-white/70 hover:text-white bg-white/10 hover:bg-white/20 px-3.5 py-1.5 rounded-full transition-all border border-white/10 hover:border-white/20"
-        >
-          Back to website <ArrowRight size={12} />
-        </a>
-      </div>
+        {/* ── Dark overlay so text is always readable ── */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.15) 40%, rgba(0,0,0,0.15) 55%, rgba(0,0,0,0.75) 100%)",
+          }}
+        />
 
-      {/* Center content */}
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-10">
-        {/* Logos */}
-        <div className="flex items-center justify-center gap-8 mb-10">
-          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3 border border-white/15">
-            <img src="/chw.png" alt="eBumenyi" className="w-16 h-16 object-contain" />
-          </div>
-          <div className="w-px h-12 bg-white/20" />
-          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3 border border-white/15">
+        {/* ── Top bar ── */}
+        <div className="relative z-10 flex items-center justify-between px-8 pt-7">
+          <div className="flex items-center gap-3">
+            <img src="/chw.png" alt="eBumenyi" className="w-10 h-10 object-contain drop-shadow" />
+            <span className="text-white font-bold text-base tracking-tight drop-shadow">eBumenyi</span>
+            <div className="w-px h-5 bg-white/35 mx-1" />
             <img
               src="/rbc-logo.png"
               alt="RBC"
-              className="w-16 h-16 object-contain"
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = "none";
-              }}
+              className="h-8 object-contain drop-shadow"
+              style={{ filter: "brightness(1.1)" }}
+              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
             />
           </div>
+          <a
+            href="https://ebumenyi.online"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 text-xs text-white/80 hover:text-white bg-black/30 hover:bg-black/50 backdrop-blur-sm px-4 py-2 rounded-full transition-all border border-white/20"
+          >
+            Back to website <ArrowRight size={12} />
+          </a>
         </div>
 
-        {/* Slide content */}
-        <div className="text-center min-h-[110px] mb-8">
-          <h2
-            key={activeSlide}
-            className="text-2xl font-bold text-white mb-3 leading-tight"
-            style={{ animation: "fadeInUp 0.5s ease" }}
-          >
-            {slides[activeSlide].title}
+        {/* ── Spacer ── */}
+        <div className="flex-1" />
+
+        {/* ── Slide text + dots ── */}
+        <div
+          className="relative z-10 px-8 pb-8 text-center"
+          style={{
+            opacity: visible ? 1 : 0,
+            transform: visible ? "translateY(0)" : "translateY(10px)",
+            transition: "opacity 0.4s ease, transform 0.4s ease",
+          }}
+        >
+          <h2 className="text-2xl font-bold text-white mb-2.5 leading-snug drop-shadow-lg">
+            {slide.title}
           </h2>
-          <p
-            key={`sub-${activeSlide}`}
-            className="text-white/60 text-sm leading-relaxed max-w-xs mx-auto"
-            style={{ animation: "fadeInUp 0.5s ease 0.1s both" }}
-          >
-            {slides[activeSlide].subtitle}
+          <p className="text-white/75 text-sm leading-relaxed mx-auto max-w-[300px]">
+            {slide.subtitle}
           </p>
-        </div>
 
-        {/* Partners card */}
-        <div className="bg-white/[0.07] backdrop-blur-sm rounded-xl px-5 py-4 border border-white/10 w-full max-w-xs">
-          <p className="text-white/40 text-[10px] uppercase tracking-widest mb-3 font-semibold">
-            Partner Organizations
-          </p>
-          <div className="grid grid-cols-2 gap-y-2 gap-x-4">
-            {[
-              { name: "RBC", label: "Coordination" },
-              { name: "WELTEL", label: "Development" },
-              { name: "CIIC-HIN", label: "Content" },
-              { name: "SFH", label: "Monitoring" },
-            ].map((p) => (
-              <div key={p.name} className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#4a90d9] flex-shrink-0" />
-                <div>
-                  <span className="text-white/80 text-xs font-medium">{p.name}</span>
-                  <span className="text-white/35 text-[10px] ml-1">{p.label}</span>
-                </div>
-              </div>
+          {/* Dots */}
+          <div className="flex items-center justify-center gap-2.5 mt-5">
+            {slides.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => goTo(i)}
+                className={`h-[3px] rounded-full transition-all duration-300 ${
+                  i === activeSlide
+                    ? "w-8 bg-white"
+                    : "w-3 bg-white/35 hover:bg-white/60"
+                }`}
+              />
             ))}
           </div>
         </div>
       </div>
-
-      {/* Slide indicators */}
-      <div className="relative z-10 flex items-center justify-center gap-2 pb-8">
-        {slides.map((_, i) => (
-          <button
-            key={i}
-            onClick={() => setActiveSlide(i)}
-            className={`h-1 rounded-full transition-all duration-300 ${
-              i === activeSlide ? "w-7 bg-white" : "w-2 bg-white/30 hover:bg-white/50"
-            }`}
-          />
-        ))}
-      </div>
-
-      <style>{`
-        @keyframes fadeInUp {
-          from { opacity: 0; transform: translateY(10px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
     </div>
   );
 };
