@@ -21,44 +21,33 @@ const slides = [
 
 export const AuthDecorativePanel: React.FC = () => {
   const [activeSlide, setActiveSlide] = useState(0);
-  const [visible, setVisible] = useState(true);
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setVisible(false);
-      setTimeout(() => {
-        setActiveSlide((prev) => (prev + 1) % slides.length);
-        setVisible(true);
-      }, 400);
+      setActiveSlide((prev) => (prev + 1) % slides.length);
     }, 5000);
     return () => clearInterval(timer);
   }, []);
 
-  const goTo = (i: number) => {
-    if (i === activeSlide) return;
-    setVisible(false);
-    setTimeout(() => { setActiveSlide(i); setVisible(true); }, 400);
-  };
-
-  const slide = slides[activeSlide];
-
   return (
-    /* p-3 creates the inset-card gap around the photo panel */
     <div className="w-[46%] flex-shrink-0 p-3 self-stretch">
       <div className="relative w-full h-full rounded-2xl overflow-hidden flex flex-col">
 
-        {/* ── Photo background ── */}
+        {/* Photos — pure CSS crossfade via opacity transition */}
         {slides.map((s, i) => (
           <img
             key={s.image}
             src={s.image}
             alt=""
-            className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700"
-            style={{ opacity: i === activeSlide ? 1 : 0 }}
+            className="absolute inset-0 w-full h-full object-cover"
+            style={{
+              opacity: i === activeSlide ? 1 : 0,
+              transition: "opacity 1.2s ease-in-out",
+            }}
           />
         ))}
 
-        {/* ── Dark overlay so text is always readable ── */}
+        {/* Dark gradient overlay */}
         <div
           className="absolute inset-0"
           style={{
@@ -67,7 +56,7 @@ export const AuthDecorativePanel: React.FC = () => {
           }}
         />
 
-        {/* ── Top bar ── */}
+        {/* Top bar */}
         <div className="relative z-10 flex items-center justify-between px-8 pt-7">
           <div className="flex items-center gap-3">
             <img src="/chw.png" alt="eBumenyi" className="w-10 h-10 object-contain drop-shadow" />
@@ -91,23 +80,15 @@ export const AuthDecorativePanel: React.FC = () => {
           </a>
         </div>
 
-        {/* ── Spacer ── */}
         <div className="flex-1" />
 
-        {/* ── Slide text + dots ── */}
-        <div
-          className="relative z-10 px-8 pb-8 text-center"
-          style={{
-            opacity: visible ? 1 : 0,
-            transform: visible ? "translateY(0)" : "translateY(10px)",
-            transition: "opacity 0.4s ease, transform 0.4s ease",
-          }}
-        >
+        {/* Slide text — keyed so React remounts it, CSS animation plays fresh */}
+        <div key={activeSlide} className="relative z-10 px-8 pb-8 text-center animate-fade-up-in">
           <h2 className="text-2xl font-bold text-white mb-2.5 leading-snug drop-shadow-lg">
-            {slide.title}
+            {slides[activeSlide].title}
           </h2>
           <p className="text-white/75 text-sm leading-relaxed mx-auto max-w-[300px]">
-            {slide.subtitle}
+            {slides[activeSlide].subtitle}
           </p>
 
           {/* Dots */}
@@ -115,11 +96,9 @@ export const AuthDecorativePanel: React.FC = () => {
             {slides.map((_, i) => (
               <button
                 key={i}
-                onClick={() => goTo(i)}
-                className={`h-[3px] rounded-full transition-all duration-300 ${
-                  i === activeSlide
-                    ? "w-8 bg-white"
-                    : "w-3 bg-white/35 hover:bg-white/60"
+                onClick={() => setActiveSlide(i)}
+                className={`h-[3px] rounded-full transition-all duration-500 ${
+                  i === activeSlide ? "w-8 bg-white" : "w-3 bg-white/35 hover:bg-white/60"
                 }`}
               />
             ))}

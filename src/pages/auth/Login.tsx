@@ -352,6 +352,12 @@ export const Login: React.FC = () => {
   const validationAttemptedRef = useRef(false);
   const [showTempIssue, setShowTempIssue] = useState(false);
   const [mode, setMode] = useState<LoginMode>("staff");
+  const [formVisible, setFormVisible] = useState(true);
+
+  const switchMode = (next: LoginMode) => {
+    setFormVisible(false);
+    setTimeout(() => { setMode(next); setFormVisible(true); }, 250);
+  };
 
   useEffect(() => {
     if (validationAttemptedRef.current || loading) return;
@@ -439,36 +445,44 @@ export const Login: React.FC = () => {
             </div>
 
 
-            {/* Forms */}
-            {mode === "staff" ? (
-              <StaffLoginForm onSuccess={handleLoginSuccess} />
-            ) : (
-              <ChwLoginForm onSuccess={handleLoginSuccess} />
-            )}
-
-            {/* Alternative login method */}
-            <div className="mt-6 flex items-center gap-3">
-              <div className="flex-1 h-px bg-white/[0.07]" />
-              <span className="text-xs text-gray-600">or</span>
-              <div className="flex-1 h-px bg-white/[0.07]" />
-            </div>
-
-            <button
-              onClick={() => setMode(mode === "staff" ? "chw" : "staff")}
-              className="mt-4 w-full flex items-center justify-center gap-2.5 py-3.5 rounded-xl border border-white/[0.10] bg-[#1c1f2e] hover:border-white/25 hover:bg-[#22263a] text-sm font-medium text-gray-300 transition-all"
+            {/* Forms + alt button — animated on mode switch */}
+            <div
+              style={{
+                opacity: formVisible ? 1 : 0,
+                transform: formVisible ? "translateY(0)" : "translateY(8px)",
+                transition: "opacity 0.25s ease, transform 0.25s ease",
+              }}
             >
               {mode === "staff" ? (
-                <>
-                  <CreditCard size={16} className="text-gray-400" />
-                  Login with National ID &amp; Phone Number
-                </>
+                <StaffLoginForm onSuccess={handleLoginSuccess} />
               ) : (
-                <>
-                  <Mail size={16} className="text-gray-400" />
-                  Login with Email &amp; Password
-                </>
+                <ChwLoginForm onSuccess={handleLoginSuccess} />
               )}
-            </button>
+
+              {/* Alternative login method */}
+              <div className="mt-6 flex items-center gap-3">
+                <div className="flex-1 h-px bg-white/[0.07]" />
+                <span className="text-xs text-gray-600">or</span>
+                <div className="flex-1 h-px bg-white/[0.07]" />
+              </div>
+
+              <button
+                onClick={() => switchMode(mode === "staff" ? "chw" : "staff")}
+                className="mt-4 w-full flex items-center justify-center gap-2.5 py-3.5 rounded-xl border border-white/[0.10] bg-[#1c1f2e] hover:border-white/25 hover:bg-[#22263a] text-sm font-medium text-gray-300 transition-all"
+              >
+                {mode === "staff" ? (
+                  <>
+                    <CreditCard size={16} className="text-gray-400" />
+                    Login with National ID &amp; Phone Number
+                  </>
+                ) : (
+                  <>
+                    <Mail size={16} className="text-gray-400" />
+                    Login with Email &amp; Password
+                  </>
+                )}
+              </button>
+            </div>
 
             {/* Footer links */}
             <div className="mt-6 pt-5 border-t border-white/[0.05] text-center">
