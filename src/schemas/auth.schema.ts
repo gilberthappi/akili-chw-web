@@ -18,7 +18,7 @@ export const LoginSchema: ZodType<ILoginFormData> = z.object({
 });
 
 export const StudentLoginSchema: ZodType<IStudentLoginFormData> = z.object({
-  NID: z
+  nid: z
     .string({ required_error: "National ID is required" })
     .min(16, "National ID must be 16 characters")
     .max(16, "National ID must be 16 characters"),

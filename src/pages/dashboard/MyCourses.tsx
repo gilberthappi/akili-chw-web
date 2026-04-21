@@ -29,19 +29,20 @@ export const MyCourses: React.FC = () => {
   // const [selectedCourse, setSelectedCourse] = useState<ICourse | null>(null); // For future use
 
   useEffect(() => {
-    const userData = localStorage.getItem("user");
+    const userData = localStorage.getItem("chw");
     const token = localStorage.getItem("accessToken");
-    
+
     if (!userData || !token) {
       navigate("/auth/login");
       return;
     }
-    
+
     try {
       setUser(JSON.parse(userData));
     } catch (error) {
       console.error("Failed to parse user data:", error);
-      localStorage.clear();
+      localStorage.removeItem("chw");
+      localStorage.removeItem("accessToken");
       navigate("/auth/login");
       return;
     }

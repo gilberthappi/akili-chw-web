@@ -427,7 +427,8 @@ const DashboardLayout = ({
     {
       label: "Hospitals",
       path: "/hospitals",
-      roles: ["ADMIN", "TRAINER", "TRAINEE"],
+      roles: ["ADMIN", "TRAINER"],
+      industries: ["SFH", "RBC"],
       icon: <Building2 className='w-5 h-5' />,
     },
     {

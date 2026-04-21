@@ -4,7 +4,7 @@ export interface ILoginFormData {
 }
 
 export interface IStudentLoginFormData {
-  NID: string;
+  nid: string;
   phoneNumber: string;
 }
 

@@ -301,8 +301,8 @@ const ChwLoginForm: React.FC<{
         placeholder="16-digit National ID number"
         type="text"
         icon={<CreditCard size={16} />}
-        error={errors.NID?.message}
-        reg={register("NID")}
+        error={errors.nid?.message}
+        reg={register("nid")}
       />
       <DarkField
         label="Phone Number"
