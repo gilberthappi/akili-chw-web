@@ -31,82 +31,89 @@ import Help from "@/pages/dashboard/Help";
 import Hospitals from "@/pages/dashboard/Hospitals";
 import Announcement from "@/pages/dashboard/Announcement";
 
+// Convenience role groups — keep in sync with ROLE_PERMISSIONS in permissions.ts
+const MANAGEMENT_ROLES  = ["ADMIN", "DEVELOPER"] as const;
+const CONTENT_ROLES     = ["ADMIN", "TRAINER", "DEVELOPER"] as const;
+const ALL_STAFF_ROLES   = ["ADMIN", "TRAINER", "DEVELOPER", "SUPERVISOR"] as const;
+const ALL_ROLES         = ["ADMIN", "TRAINER", "TRAINEE", "DEVELOPER", "SUPERVISOR"] as const;
+const MESSAGING_INDUSTRIES = ["SFH", "RBC", "WELTEL"] as const;
+
 const RoutesProvider = () => {
   const router = createBrowserRouter([
     {
       path: "/",
       element: (
-        <ProtectedRoute allowedRoles={["ADMIN", "TRAINEE", "TRAINER", "DEVELOPER"]}>
+        <ProtectedRoute allowedRoles={[...ALL_ROLES]}>
           <AdminLayout />
         </ProtectedRoute>
       ),
       errorElement: <ErrorPage />,
       children: [
+        // ── Dashboard ──────────────────────────────────────────────────────
         {
           index: true,
           element: <Dashboard />,
         },
+
+        // ── Analytics (all staff; TRAINEE blocked) ─────────────────────────
         {
           path: "analytics",
-          element: <Analytics />,
+          element: (
+            <ProtectedRoute allowedRoles={[...ALL_STAFF_ROLES]}>
+              <Analytics />
+            </ProtectedRoute>
+          ),
           children: [
-            {
-              path: "courses",
-              element: <CourseAnalytics />,
-            },
-            {
-              path: "student",
-              element: <StudentAnalytics />,
-            },
+            { path: "courses",  element: <CourseAnalytics /> },
+            { path: "student",  element: <StudentAnalytics /> },
           ],
         },
+
+        // ── Courses ────────────────────────────────────────────────────────
         {
           path: "courses",
-          element: <CoursesPage />,
+          element: <CoursesPage />, // visible to all; create/edit buttons gated in UI
         },
         {
           path: "courses/new",
-          element: <NewCoursePage />,
+          element: (
+            <ProtectedRoute allowedRoles={[...CONTENT_ROLES]}>
+              <NewCoursePage />
+            </ProtectedRoute>
+          ),
+        },
+        {
+          path: "courses/edit/:id",
+          element: (
+            <ProtectedRoute allowedRoles={[...CONTENT_ROLES]}>
+              <NewCoursePage />
+            </ProtectedRoute>
+          ),
         },
         {
           path: "courses/builder",
           element: (
-            <ProtectedRoute allowedRoles={["ADMIN", "TRAINER", "DEVELOPER"]}>
+            <ProtectedRoute allowedRoles={[...CONTENT_ROLES]}>
               <NewCoursesBuilder />
             </ProtectedRoute>
           ),
         },
-         {
-          path: "courses/edit/:id",
-          element: <NewCoursePage />,
-        },
+
+        // ── My Learning (TRAINEE only) ─────────────────────────────────────
         {
-          path: "messaging",
-          element: (
-            <ProtectedRoute
-              allowedRoles={["ADMIN", "TRAINEE", "TRAINER","DEVELOPER"]}
-              allowedIndustries={["SFH","RBC","WELTEL"]}
-            >
-              <Messaging />
-            </ProtectedRoute>
-          ),
-        },
-          {
           path: "my-learning",
           element: (
-            <ProtectedRoute
-              allowedRoles={["TRAINEE"]}
-            >
+            <ProtectedRoute allowedRoles={["TRAINEE"]}>
               <MyCourses />
             </ProtectedRoute>
           ),
         },
+
+        // ── Students ───────────────────────────────────────────────────────
         {
           path: "students",
           element: (
-            <ProtectedRoute
-              allowedRoles={["ADMIN", "TRAINER","DEVELOPER"]}
-            >
+            <ProtectedRoute allowedRoles={[...ALL_STAFF_ROLES]}>
               <StudentsPage />
             </ProtectedRoute>
           ),
@@ -114,39 +121,37 @@ const RoutesProvider = () => {
         {
           path: "students/:id",
           element: (
-            <ProtectedRoute
-              allowedRoles={["ADMIN", "TRAINER","DEVELOPER"]}
-            >
+            <ProtectedRoute allowedRoles={[...ALL_STAFF_ROLES]}>
               <StudentActivityPage />
             </ProtectedRoute>
           ),
         },
+
+        // ── Staff (admin + developer only) ────────────────────────────────
         {
           path: "staff",
           element: (
-            <ProtectedRoute
-              allowedRoles={["ADMIN","DEVELOPER"]}
-            >
+            <ProtectedRoute allowedRoles={[...MANAGEMENT_ROLES]}>
               <Staff />
             </ProtectedRoute>
           ),
         },
+
+        // ── Feedbacks ──────────────────────────────────────────────────────
         {
           path: "feedbacks",
           element: (
-            <ProtectedRoute
-              allowedRoles={["ADMIN", "TRAINER","DEVELOPER"]}
-            >
+            <ProtectedRoute allowedRoles={[...CONTENT_ROLES]}>
               <Feedbacks />
             </ProtectedRoute>
           ),
         },
+
+        // ── Certificates ───────────────────────────────────────────────────
         {
           path: "my-certificates",
           element: (
-            <ProtectedRoute
-              allowedRoles={["TRAINEE", "TRAINER", "ADMIN", "DEVELOPER"]}
-            >
+            <ProtectedRoute allowedRoles={["TRAINEE", "TRAINER", "ADMIN", "DEVELOPER"]}>
               <MyCertificates />
             </ProtectedRoute>
           ),
@@ -154,9 +159,7 @@ const RoutesProvider = () => {
         {
           path: "certificates",
           element: (
-            <ProtectedRoute
-              allowedRoles={["TRAINER", "ADMIN", "DEVELOPER"]}
-            >
+            <ProtectedRoute allowedRoles={["TRAINER", "ADMIN", "DEVELOPER"]}>
               <Certificates />
             </ProtectedRoute>
           ),
@@ -164,9 +167,7 @@ const RoutesProvider = () => {
         {
           path: "certificates/design",
           element: (
-            <ProtectedRoute
-              allowedRoles={["TRAINER", "ADMIN", "DEVELOPER"]}
-            >
+            <ProtectedRoute allowedRoles={["TRAINER", "ADMIN", "DEVELOPER"]}>
               <CertificateDesignEditor />
             </ProtectedRoute>
           ),
@@ -174,72 +175,63 @@ const RoutesProvider = () => {
         {
           path: "certificates/design/:id",
           element: (
-            <ProtectedRoute
-              allowedRoles={["TRAINER", "ADMIN", "DEVELOPER"]}
-            >
+            <ProtectedRoute allowedRoles={["TRAINER", "ADMIN", "DEVELOPER"]}>
               <CertificateDesignEditor />
             </ProtectedRoute>
           ),
         },
-          {
-          path: "calender",
-          element: <Calendar />,
-        },
+
+        // ── Messaging (industry-gated) ─────────────────────────────────────
         {
-          path: "settings",
-          element: <Settings />,
+          path: "messaging",
+          element: (
+            <ProtectedRoute
+              allowedRoles={[...ALL_ROLES]}
+              allowedIndustries={[...MESSAGING_INDUSTRIES]}
+            >
+              <Messaging />
+            </ProtectedRoute>
+          ),
         },
-        {
-          path: "help",
-          element: <Help />,
-        },
+
+        // ── Hospitals (all staff + supervisor; TRAINEE blocked) ────────────
         {
           path: "hospitals",
-          element: <Hospitals />,
+          element: (
+            <ProtectedRoute allowedRoles={[...ALL_STAFF_ROLES]}>
+              <Hospitals />
+            </ProtectedRoute>
+          ),
         },
+
+        // ── Announcements (all authenticated) ─────────────────────────────
         {
           path: "announcement",
-          element: <Announcement />,
+          element: (
+            <ProtectedRoute allowedRoles={[...ALL_ROLES]}>
+              <Announcement />
+            </ProtectedRoute>
+          ),
         },
+
+        // ── Calendar, Settings, Help (all authenticated) ───────────────────
+        { path: "calender",  element: <Calendar /> },
+        { path: "settings",  element: <Settings /> },
+        { path: "help",      element: <Help /> },
       ],
     },
-    {
-      path: "/auth/login",
-      element: <Login />,
-      errorElement: <ErrorPage />,
-    },
-    {
-      path: "/auth/signup",
-      element: <Signup />,
-      errorElement: <ErrorPage />,
-    },
-    {
-      path: "/auth/forgot-password",
-      element: <ForgotPassword />,
-      errorElement: <ErrorPage />,
-    },
-    {
-      path: "/auth/reset-password",
-      element: <ResetPassword />,
-      errorElement: <ErrorPage />,
-    },
-    {
-      path: "/terms",
-      element: <Terms />,
-      errorElement: <ErrorPage />,
-    },
-    {
-      path: "/auth",
-      element: <Navigate to="/auth/login" replace />,
-    },
-    {
-      path: "*",
-      element: <NotFound />,
-      errorElement: <ErrorPage />,
-    },
+
+    // ── Auth routes ──────────────────────────────────────────────────────────
+    { path: "/auth/login",           element: <Login />,          errorElement: <ErrorPage /> },
+    { path: "/auth/signup",          element: <Signup />,         errorElement: <ErrorPage /> },
+    { path: "/auth/forgot-password", element: <ForgotPassword />, errorElement: <ErrorPage /> },
+    { path: "/auth/reset-password",  element: <ResetPassword />,  errorElement: <ErrorPage /> },
+    { path: "/terms",                element: <Terms />,          errorElement: <ErrorPage /> },
+    { path: "/auth",                 element: <Navigate to="/auth/login" replace /> },
+    { path: "*",                     element: <NotFound />,       errorElement: <ErrorPage /> },
   ]);
+
   return <RouterProvider router={router} />;
 };
 
 export default RoutesProvider;
-

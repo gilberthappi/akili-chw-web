@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { ReactElement } from "react";
 
-export type UserRole = "ADMIN" | "TRAINER" | "TRAINEE"| "DEVELOPER";
+export type UserRole = "ADMIN" | "TRAINER" | "TRAINEE" | "DEVELOPER" | "SUPERVISOR";
 export type UserIndustry =
   | "WELTEL"
   | "RBC"
