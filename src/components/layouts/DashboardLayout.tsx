@@ -393,14 +393,13 @@ const DashboardLayout = ({
     {
       label: "Dashboard",
       path: "/",
-      roles: ["ADMIN", "TRAINEE", "TRAINER"],
+      roles: ["ADMIN", "TRAINEE", "TRAINER", "DEVELOPER", "SUPERVISOR"],
       icon: <Squares2X2Icon className='w-5 h-5' />,
     },
-    // Industry Dashboard - Dynamic based on user's industry
     {
       label: "Analytics",
       path: "/analytics",
-      roles: ["ADMIN", "TRAINEE", "TRAINER"],
+      roles: ["ADMIN", "TRAINER", "DEVELOPER"],
       industries: ["SFH", "WELTEL", "RBC"],
       icon: <BarChart3 className='w-5 h-5' />,
       submenus: [
@@ -427,7 +426,7 @@ const DashboardLayout = ({
     {
       label: "Hospitals",
       path: "/hospitals",
-      roles: ["ADMIN", "TRAINER"],
+      roles: ["ADMIN", "TRAINER", "DEVELOPER"],
       industries: ["SFH", "RBC"],
       icon: <Building2 className='w-5 h-5' />,
     },
@@ -442,7 +441,7 @@ const DashboardLayout = ({
       label: "My Learning",
       icon: <GraduationCap className='w-4 h-4' />,
       path: "/my-learning",
-      roles: ["TRAINEE"],
+      roles: ["TRAINEE", "SUPERVISOR"],
     },
     {
       label: "Students",
@@ -454,7 +453,7 @@ const DashboardLayout = ({
       label: "My Certificates",
       icon: <Award className='w-4 h-4' />,
       path: "/my-certificates",
-      roles: ["ADMIN", "TRAINER", "TRAINEE", "DEVELOPER"],
+      roles: ["TRAINEE", "SUPERVISOR"],
     },
     {
       label: "Certificates",
@@ -472,33 +471,33 @@ const DashboardLayout = ({
     {
       label: "Calender",
       path: "/calender",
-      roles: ["ADMIN", "TRAINER", "TRAINEE", "DEVELOPER"],
+      roles: ["ADMIN", "TRAINER", "TRAINEE", "DEVELOPER", "SUPERVISOR"],
       icon: <Calendar className='w-5 h-5' />,
     },
     {
       label: "Messaging",
       icon: <MessageSquare className='w-4 h-4' />,
       path: "/messaging",
-      roles: ["ADMIN", "TRAINER", "TRAINEE", "DEVELOPER"],
+      roles: ["ADMIN", "TRAINER", "TRAINEE", "DEVELOPER", "SUPERVISOR"],
       industries: ["SFH", "WELTEL", "RBC"],
     },
     {
       label: "Announcement",
       path: "/announcement",
-      roles: ["ADMIN", "TRAINER", "TRAINEE", "DEVELOPER"],
+      roles: ["ADMIN", "TRAINER", "TRAINEE", "DEVELOPER", "SUPERVISOR"],
       icon: <Megaphone className='w-5 h-5' />,
     },
 
     {
       label: "Help",
       path: "/help",
-      roles: ["ADMIN", "TRAINER", "TRAINEE"],
+      roles: ["ADMIN", "TRAINER", "TRAINEE", "DEVELOPER", "SUPERVISOR"],
       icon: <HelpCircle className='w-5 h-5' />,
     },
     {
       label: "Settings",
       path: "/settings",
-      roles: ["ADMIN", "TRAINER", "TRAINEE", "DEVELOPER"],
+      roles: ["ADMIN", "TRAINER", "TRAINEE", "DEVELOPER", "SUPERVISOR"],
       icon: <Cog8ToothIcon className='w-5 h-5' />,
     },
   ];

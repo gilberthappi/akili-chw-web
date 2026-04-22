@@ -129,7 +129,7 @@ export const Dashboard: React.FC = () => {
           </PermissionGuard> */}
 
           {/* All roles - Active Users */}
-          <PermissionGuard allowedRoles={["ADMIN", "TRAINER", "TRAINEE"]}>
+          <PermissionGuard allowedRoles={["ADMIN", "TRAINER"]}>
             <StatCard
               title="Active Users"
               value={stats?.activeUsers?.value || 0}

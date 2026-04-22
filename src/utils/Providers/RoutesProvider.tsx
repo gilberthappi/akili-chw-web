@@ -36,7 +36,7 @@ const RoutesProvider = () => {
     {
       path: "/",
       element: (
-        <ProtectedRoute allowedRoles={["ADMIN", "TRAINEE", "TRAINER", "DEVELOPER"]}>
+        <ProtectedRoute allowedRoles={["ADMIN", "TRAINEE", "TRAINER", "DEVELOPER", "SUPERVISOR"]}>
           <AdminLayout />
         </ProtectedRoute>
       ),
@@ -48,7 +48,14 @@ const RoutesProvider = () => {
         },
         {
           path: "analytics",
-          element: <Analytics />,
+          element: (
+            <ProtectedRoute
+              allowedRoles={["ADMIN", "TRAINER", "DEVELOPER"]}
+              allowedIndustries={["SFH", "WELTEL", "RBC"]}
+            >
+              <Analytics />
+            </ProtectedRoute>
+          ),
           children: [
             {
               path: "courses",
@@ -62,11 +69,22 @@ const RoutesProvider = () => {
         },
         {
           path: "courses",
-          element: <CoursesPage />,
+          element: (
+            <ProtectedRoute
+              allowedRoles={["ADMIN", "TRAINER", "DEVELOPER"]}
+              allowedIndustries={["SFH", "WELTEL", "RBC"]}
+            >
+              <CoursesPage />
+            </ProtectedRoute>
+          ),
         },
         {
           path: "courses/new",
-          element: <NewCoursePage />,
+          element: (
+            <ProtectedRoute allowedRoles={["ADMIN", "TRAINER", "DEVELOPER"]}>
+              <NewCoursePage />
+            </ProtectedRoute>
+          ),
         },
         {
           path: "courses/builder",
@@ -76,9 +94,13 @@ const RoutesProvider = () => {
             </ProtectedRoute>
           ),
         },
-         {
+        {
           path: "courses/edit/:id",
-          element: <NewCoursePage />,
+          element: (
+            <ProtectedRoute allowedRoles={["ADMIN", "TRAINER", "DEVELOPER"]}>
+              <NewCoursePage />
+            </ProtectedRoute>
+          ),
         },
         {
           path: "messaging",
@@ -94,9 +116,7 @@ const RoutesProvider = () => {
           {
           path: "my-learning",
           element: (
-            <ProtectedRoute
-              allowedRoles={["TRAINEE"]}
-            >
+            <ProtectedRoute allowedRoles={["TRAINEE", "SUPERVISOR"]}>
               <MyCourses />
             </ProtectedRoute>
           ),
@@ -144,9 +164,7 @@ const RoutesProvider = () => {
         {
           path: "my-certificates",
           element: (
-            <ProtectedRoute
-              allowedRoles={["TRAINEE", "TRAINER", "ADMIN", "DEVELOPER"]}
-            >
+            <ProtectedRoute allowedRoles={["TRAINEE", "SUPERVISOR"]}>
               <MyCertificates />
             </ProtectedRoute>
           ),
@@ -195,7 +213,14 @@ const RoutesProvider = () => {
         },
         {
           path: "hospitals",
-          element: <Hospitals />,
+          element: (
+            <ProtectedRoute
+              allowedRoles={["ADMIN", "TRAINER", "DEVELOPER"]}
+              allowedIndustries={["SFH", "RBC"]}
+            >
+              <Hospitals />
+            </ProtectedRoute>
+          ),
         },
         {
           path: "announcement",
