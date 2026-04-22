@@ -1,129 +1,192 @@
 import React, { useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Mail, Lock, User, Phone, Calendar, MapPin, Building2, Briefcase, Users as UsersIcon } from "lucide-react";
-import { useForm, FormProvider } from "react-hook-form";
+import {
+  Mail, Lock, User, Phone, Calendar, MapPin,
+  Building2, Briefcase, Users as UsersIcon,
+  Eye, EyeOff, CreditCard,
+} from "lucide-react";
+import { useForm } from "react-hook-form";
 import { AuthDecorativePanel } from "@/components/auth/AuthDecorativePanel";
 import { zodResolver } from "@hookform/resolvers/zod";
 import toast from "react-hot-toast";
-import TextField from "@/components/common/form/TextField";
-import PasswordField from "@/components/common/form/PasswordField";
-import OptionsField from "@/components/common/form/OptionsField";
-import Button from "@/components/common/form/Button";
 import { signup } from "@/services/auth.service";
 import { ISignUp } from "@/types/auth";
 import { signupSchema } from "@/schemas/users.schema";
 import { locations } from "@/hooks/locations";
 
+// ─── Dark-themed field components ────────────────────────────────────────────
+
+const DarkField: React.FC<{
+  label: string;
+  placeholder?: string;
+  type?: string;
+  icon: React.ReactNode;
+  error?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  reg: any;
+  disabled?: boolean;
+}> = ({ label, placeholder, type = "text", icon, error, reg, disabled }) => {
+  const [show, setShow] = useState(false);
+  const isPassword = type === "password";
+  const inputType = isPassword ? (show ? "text" : "password") : type;
+
+  return (
+    <div className="space-y-1.5">
+      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">
+        {label}
+      </label>
+      <div
+        className={`flex items-center gap-3 border rounded-xl px-4 py-3 transition-colors ${
+          disabled
+            ? "bg-[#161922] border-white/[0.04] opacity-50 cursor-not-allowed"
+            : error
+            ? "border-red-500/50 bg-[#1f1535]"
+            : "bg-[#1c1f2e] border-white/[0.08] focus-within:border-[#3363AD]/70"
+        }`}
+      >
+        <span className={`flex-shrink-0 ${error ? "text-red-400" : "text-gray-500"}`}>
+          {icon}
+        </span>
+        <input
+          {...reg}
+          type={inputType}
+          placeholder={placeholder}
+          disabled={disabled}
+          className="flex-1 bg-transparent text-white text-sm placeholder:text-gray-600 outline-none min-w-0 disabled:cursor-not-allowed"
+        />
+        {isPassword && (
+          <button
+            type="button"
+            onClick={() => setShow((s) => !s)}
+            className="flex-shrink-0 text-gray-500 hover:text-gray-300 transition-colors"
+          >
+            {show ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
+        )}
+      </div>
+      {error && <p className="text-xs text-red-400 pl-1">{error}</p>}
+    </div>
+  );
+};
+
+const DarkSelect: React.FC<{
+  label: string;
+  icon: React.ReactNode;
+  error?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  reg: any;
+  options: { value: string; label: string }[];
+  defaultLabel: string;
+  disabled?: boolean;
+  onChange?: (value: string) => void;
+}> = ({ label, icon, error, reg, options, defaultLabel, disabled, onChange }) => {
+  const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    reg.onChange(e);
+    onChange?.(e.target.value);
+  };
+
+  return (
+    <div className="space-y-1.5">
+      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">
+        {label}
+      </label>
+      <div
+        className={`flex items-center gap-3 border rounded-xl px-4 py-3 transition-colors ${
+          disabled
+            ? "bg-[#161922] border-white/[0.04] opacity-50 cursor-not-allowed"
+            : error
+            ? "border-red-500/50 bg-[#1f1535]"
+            : "bg-[#1c1f2e] border-white/[0.08] focus-within:border-[#3363AD]/70"
+        }`}
+      >
+        <span className={`flex-shrink-0 ${error ? "text-red-400" : "text-gray-500"}`}>
+          {icon}
+        </span>
+        <select
+          {...reg}
+          onChange={handleChange}
+          disabled={disabled}
+          className="flex-1 bg-transparent text-white text-sm outline-none min-w-0 disabled:cursor-not-allowed appearance-none [&>option]:bg-[#1c1f2e] [&>option]:text-white"
+        >
+          <option value="" className="text-gray-600">{defaultLabel}</option>
+          {options.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+      </div>
+      {error && <p className="text-xs text-red-400 pl-1">{error}</p>}
+    </div>
+  );
+};
+
+const SectionHeading: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+    <span className="flex-1 h-px bg-white/[0.06]" />
+    {children}
+    <span className="flex-1 h-px bg-white/[0.06]" />
+  </h3>
+);
+
+// ─── Main Signup Component ────────────────────────────────────────────────────
+
 export const Signup: React.FC = () => {
   const navigate = useNavigate();
-  const [selectedDistrict, setSelectedDistrict] = useState<string>("");
-  const [selectedSector, setSelectedSector] = useState<string>("");
-  const [selectedCell, setSelectedCell] = useState<string>("");
-
-  const methods = useForm<ISignUp>({
-    resolver: zodResolver(signupSchema),
-    defaultValues: {
-      email: "",
-      fullNames: "",
-      phoneNumber: "",
-      district: "",
-      sector: "",
-      cell: "",
-      village: "",
-      NID: "",
-      birthdate: "",
-      gender: "",
-      role: "",
-      industry: "",
-      password: "",
-      confirmPassword: "",
-    },
-  });
+  const [selectedDistrict, setSelectedDistrict] = useState("");
+  const [selectedSector, setSelectedSector]     = useState("");
+  const [selectedCell, setSelectedCell]         = useState("");
 
   const {
     handleSubmit,
     register,
     formState: { errors, isSubmitting },
     setValue,
-  } = methods;
+  } = useForm<ISignUp>({
+    resolver: zodResolver(signupSchema),
+    defaultValues: {
+      email: "", fullNames: "", phoneNumber: "",
+      district: "", sector: "", cell: "", village: "",
+      NID: "", birthdate: "", gender: "", role: "",
+      industry: "", password: "", confirmPassword: "",
+    },
+  });
 
-  // Get districts from locations data
-  const districts = useMemo(() => {
-    return locations.provinces.flatMap((province) =>
-      province.districts.map((district) => ({
-        value: district.name,
-        label: district.name,
-      }))
-    );
-  }, []);
+  const districts = useMemo(() =>
+    locations.provinces.flatMap((p) =>
+      p.districts.map((d) => ({ value: d.name, label: d.name }))
+    ), []);
 
-  // Get sectors for selected district
   const sectors = useMemo(() => {
     if (!selectedDistrict) return [];
-    const district = locations.provinces
-      .flatMap((p) => p.districts)
-      .find((d) => d.name === selectedDistrict);
-    if (!district) return [];
-    return district.sectors.map((sector) => ({
-      value: sector.name,
-      label: sector.name,
-    }));
+    const d = locations.provinces.flatMap((p) => p.districts).find((d) => d.name === selectedDistrict);
+    return d ? d.sectors.map((s) => ({ value: s.name, label: s.name })) : [];
   }, [selectedDistrict]);
 
-  // Get cells for selected sector
   const cells = useMemo(() => {
     if (!selectedDistrict || !selectedSector) return [];
-    const district = locations.provinces
-      .flatMap((p) => p.districts)
-      .find((d) => d.name === selectedDistrict);
-    if (!district) return [];
-    const sector = district.sectors.find((s) => s.name === selectedSector);
-    if (!sector) return [];
-    return sector.cells.map((cell) => ({
-      value: cell.name,
-      label: cell.name,
-    }));
+    const d = locations.provinces.flatMap((p) => p.districts).find((d) => d.name === selectedDistrict);
+    const s = d?.sectors.find((s) => s.name === selectedSector);
+    return s ? s.cells.map((c) => ({ value: c.name, label: c.name })) : [];
   }, [selectedDistrict, selectedSector]);
 
-  // Get villages for selected cell
   const villages = useMemo(() => {
     if (!selectedDistrict || !selectedSector || !selectedCell) return [];
-    const district = locations.provinces
-      .flatMap((p) => p.districts)
-      .find((d) => d.name === selectedDistrict);
-    if (!district) return [];
-    const sector = district.sectors.find((s) => s.name === selectedSector);
-    if (!sector) return [];
-    const cell = sector.cells.find((c) => c.name === selectedCell);
-    if (!cell) return [];
-    return cell.villages.map((village) => ({
-      value: village.name,
-      label: village.name,
-    }));
+    const d = locations.provinces.flatMap((p) => p.districts).find((d) => d.name === selectedDistrict);
+    const s = d?.sectors.find((s) => s.name === selectedSector);
+    const c = s?.cells.find((c) => c.name === selectedCell);
+    return c ? c.villages.map((v) => ({ value: v.name, label: v.name })) : [];
   }, [selectedDistrict, selectedSector, selectedCell]);
 
   const handleDistrictChange = (value: string) => {
-    setSelectedDistrict(value);
-    setSelectedSector("");
-    setSelectedCell("");
-    setValue("district", value);
-    setValue("sector", "");
-    setValue("cell", "");
-    setValue("village", "");
+    setSelectedDistrict(value); setSelectedSector(""); setSelectedCell("");
+    setValue("district", value); setValue("sector", ""); setValue("cell", ""); setValue("village", "");
   };
-
   const handleSectorChange = (value: string) => {
-    setSelectedSector(value);
-    setSelectedCell("");
-    setValue("sector", value);
-    setValue("cell", "");
-    setValue("village", "");
+    setSelectedSector(value); setSelectedCell("");
+    setValue("sector", value); setValue("cell", ""); setValue("village", "");
   };
-
   const handleCellChange = (value: string) => {
     setSelectedCell(value);
-    setValue("cell", value);
-    setValue("village", "");
+    setValue("cell", value); setValue("village", "");
   };
 
   const onSubmit = async (data: ISignUp) => {
@@ -132,276 +195,140 @@ export const Signup: React.FC = () => {
       toast.success("Registration successful! Please login.");
       navigate("/auth/login");
     } catch (error) {
-      const msg = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || "Registration failed";
+      const msg =
+        (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        "Registration failed";
       toast.error(msg);
     }
   };
 
-  const genderOptions = ["Female", "Male", "Other"];
-  const roleOptions = ["TRAINEE", "TRAINER", "ADMIN"];
-  const industryOptions = ["WELTEL", "RBC", "SFH", "CIIC-HIN"];
+  const genderOptions   = [{ value: "Female", label: "Female" }, { value: "Male", label: "Male" }, { value: "Other", label: "Other" }];
+  const roleOptions     = [{ value: "TRAINEE", label: "Trainee (CHW)" }, { value: "TRAINER", label: "Trainer (Supervisor)" }, { value: "ADMIN", label: "Admin" }];
+  const industryOptions = [
+    { value: "WELTEL",   label: "WELTEL Rwanda" },
+    { value: "RBC",      label: "RBC" },
+    { value: "SFH",      label: "SFH Rwanda" },
+    { value: "CIIC-HIN", label: "CIIC-HIN Rwanda" },
+  ];
 
   return (
-    <div className="min-h-screen flex bg-gradient-to-br from-[#3363AD]/10 via-white to-[#3363AD]/5">
-      <AuthDecorativePanel />
+    <div className="h-screen flex items-center justify-center p-3" style={{ background: "#0e0a1f" }}>
+      <div
+        className="w-full h-full flex overflow-hidden"
+        style={{
+          borderRadius: 18,
+          background: "#111827",
+          boxShadow: "0 40px 80px rgba(0,0,0,0.8), 0 0 0 1px rgba(51,99,173,0.12)",
+        }}
+      >
+        <AuthDecorativePanel />
 
-      {/* Right Side - Signup Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-4 overflow-y-auto">
-        <div className="w-full py-6">
-          {/* Logo & Title (Mobile only) */}
-          <div className="text-center mb-6 lg:hidden">
-            <div className="flex items-center justify-center mb-3">
-              <div className="flex items-center justify-center w-16 h-16 rounded-full bg-white">
-                <img
-                  src="/chw.png"
-                  alt="eBumenyi"
-                  className="w-40 h-40 object-contain"
-                />
-              </div>
+        {/* Right panel — scrollable */}
+        <div
+          className="flex-1 overflow-y-auto px-6 py-10"
+          style={{ background: "#111827" }}
+        >
+          <div className="w-full max-w-[560px] mx-auto">
+
+            {/* Header */}
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold text-white mb-1.5">Create Account</h1>
+              <p className="text-base text-gray-500">Join the eBumenyi learning platform</p>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
-              Create Account
-            </h1>
-            <p className="text-sm text-gray-600">Welcome to eBumenyi</p>
-          </div>
 
-          {/* Desktop Title */}
-          <div className="hidden lg:block text-center mb-6">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
-              Create Your Account
-            </h1>
-            <p className="text-sm text-gray-600">Join the eBumenyi learning platform</p>
-          </div>
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-7">
 
-          {/* Signup Form */}
-          <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-6">
-          <FormProvider {...methods}>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
               {/* Personal Information */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  Personal Information
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <TextField
-                    label="Full Names"
-                    type="text"
-                    placeholder="John Doe"
-                    icon={<User size={20} />}
-                    register={register("fullNames")}
-                    error={errors.fullNames?.message}
-                  />
-
-                  <OptionsField
-                    label="Gender"
-                    register={register("gender")}
-                    required={true}
-                    defaultLabel="Select Gender"
-                    icon={<UsersIcon size={20} />}
-                    error={errors.gender?.message}
-                    options={genderOptions.map((gender) => ({
-                      value: gender,
-                      label: gender,
-                    }))}
-                  />
-
-                  <TextField
-                    label="Phone Number"
-                    type="tel"
-                    placeholder="+250 XXX XXX XXX"
-                    icon={<Phone size={20} />}
-                    register={register("phoneNumber")}
-                    error={errors.phoneNumber?.message}
-                  />
-
-                  <TextField
-                    label="Email Address"
-                    type="email"
-                    placeholder="john.doe@example.com"
-                    icon={<Mail size={20} />}
-                    register={register("email")}
-                    error={errors.email?.message}
-                  />
-
-                  <TextField
-                    label="National ID (NID)"
-                    type="text"
-                    placeholder="1XXXXXXXXXXXXXXXX"
-                    icon={<User size={20} />}
-                    register={register("NID")}
-                    error={errors.NID?.message}
-                  />
-
-                  <TextField
-                    label="Date of Birth"
-                    type="date"
-                    icon={<Calendar size={20} />}
-                    register={register("birthdate")}
-                    error={errors.birthdate?.message}
-                  />
+              <div className="space-y-4">
+                <SectionHeading>Personal Information</SectionHeading>
+                <div className="grid grid-cols-2 gap-4">
+                  <DarkField label="Full Names" placeholder="John Doe" icon={<User size={16} />} error={errors.fullNames?.message} reg={register("fullNames")} />
+                  <DarkSelect label="Gender" icon={<UsersIcon size={16} />} error={errors.gender?.message} reg={register("gender")} options={genderOptions} defaultLabel="Select Gender" />
+                  <DarkField label="Phone Number" placeholder="+250 7XX XXX XXX" type="tel" icon={<Phone size={16} />} error={errors.phoneNumber?.message} reg={register("phoneNumber")} />
+                  <DarkField label="Email Address" placeholder="john.doe@example.com" type="email" icon={<Mail size={16} />} error={errors.email?.message} reg={register("email")} />
+                  <DarkField label="National ID (NID)" placeholder="1XXXXXXXXXXXXXXXX" icon={<CreditCard size={16} />} error={errors.NID?.message} reg={register("NID")} />
+                  <DarkField label="Date of Birth" type="date" icon={<Calendar size={16} />} error={errors.birthdate?.message} reg={register("birthdate")} />
                 </div>
               </div>
 
-              {/* Role & Industry */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                   Organization  & Role
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-                  <OptionsField
-                    label="Industry/Organization"
-                    register={register("industry")}
-                    required={true}
-                    defaultLabel="Select Industry"
-                    icon={<Building2 size={20} />}
-                    error={errors.industry?.message}
-                    options={industryOptions.map((industry) => ({
-                      value: industry,
-                      label: industry === "SFH" ? "SFH Rwanda" : industry === "CIIC-HIN" ? "CIIC-HIN Rwanda": industry === "WELTEL" ? "WELTEL Rwanda" : "RBC",
-                    }))}
-                  />
-
-                   <OptionsField
-                    label="Role"
-                    register={register("role")}
-                    required={true}
-                    defaultLabel="Select Role"
-                    icon={<Briefcase size={20} />}
-                    error={errors.role?.message}
-                    options={roleOptions.map((role) => ({
-                      value: role,
-                      label: role === "TRAINEE" ? "Trainee (CHW)" : role === "TRAINER" ? "Trainer (Supervisor)" : "Admin",
-                    }))}
-                  />
-
+              {/* Organization & Role */}
+              <div className="space-y-4">
+                <SectionHeading>Organization &amp; Role</SectionHeading>
+                <div className="grid grid-cols-2 gap-4">
+                  <DarkSelect label="Industry / Organization" icon={<Building2 size={16} />} error={errors.industry?.message} reg={register("industry")} options={industryOptions} defaultLabel="Select Industry" />
+                  <DarkSelect label="Role" icon={<Briefcase size={16} />} error={errors.role?.message} reg={register("role")} options={roleOptions} defaultLabel="Select Role" />
                 </div>
               </div>
 
-              {/* Location Information */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  Location Information
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <OptionsField
-                    label="District"
-                    register={register("district")}
-                    required={false}
-                    defaultLabel="Select District"
-                    icon={<MapPin size={20} />}
-                    error={errors.district?.message}
-                    options={districts}
-                    onChange={handleDistrictChange}
-                  />
-
-                  <OptionsField
-                    label="Sector"
-                    register={register("sector")}
-                    required={false}
-                    defaultLabel={selectedDistrict ? "Select Sector" : "Select District first"}
-                    icon={<MapPin size={20} />}
-                    error={errors.sector?.message}
-                    options={sectors}
-                    onChange={handleSectorChange}
-                    disabled={!selectedDistrict}
-                  />
-
-                  <OptionsField
-                    label="Cell"
-                    register={register("cell")}
-                    required={false}
-                    defaultLabel={selectedSector ? "Select Cell" : "Select Sector first"}
-                    icon={<MapPin size={20} />}
-                    error={errors.cell?.message}
-                    options={cells}
-                    onChange={handleCellChange}
-                    disabled={!selectedSector}
-                  />
-
-                  <OptionsField
-                    label="Village"
-                    register={register("village")}
-                    required={false}
-                    defaultLabel={selectedCell ? "Select Village" : "Select Cell first"}
-                    icon={<MapPin size={20} />}
-                    error={errors.village?.message}
-                    options={villages}
-                    disabled={!selectedCell}
-                  />
+              {/* Location */}
+              <div className="space-y-4">
+                <SectionHeading>Location</SectionHeading>
+                <div className="grid grid-cols-2 gap-4">
+                  <DarkSelect label="District" icon={<MapPin size={16} />} error={errors.district?.message} reg={register("district")} options={districts} defaultLabel="Select District" onChange={handleDistrictChange} />
+                  <DarkSelect label="Sector" icon={<MapPin size={16} />} error={errors.sector?.message} reg={register("sector")} options={sectors} defaultLabel={selectedDistrict ? "Select Sector" : "Select District first"} onChange={handleSectorChange} disabled={!selectedDistrict} />
+                  <DarkSelect label="Cell" icon={<MapPin size={16} />} error={errors.cell?.message} reg={register("cell")} options={cells} defaultLabel={selectedSector ? "Select Cell" : "Select Sector first"} onChange={handleCellChange} disabled={!selectedSector} />
+                  <DarkSelect label="Village" icon={<MapPin size={16} />} error={errors.village?.message} reg={register("village")} options={villages} defaultLabel={selectedCell ? "Select Village" : "Select Cell first"} disabled={!selectedCell} />
                 </div>
               </div>
 
-              {/* Password */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  Security
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <PasswordField
-                    label="Password"
-                    placeholder="••••••••"
-                    icon={<Lock size={20} />}
-                    error={errors.password?.message}
-                    {...register("password")}
-                  />
-
-                  <PasswordField
-                    label="Confirm Password"
-                    placeholder="••••••••"
-                    icon={<Lock size={20} />}
-                    error={errors.confirmPassword?.message}
-                    {...register("confirmPassword")}
-                  />
+              {/* Security */}
+              <div className="space-y-4">
+                <SectionHeading>Security</SectionHeading>
+                <div className="grid grid-cols-2 gap-4">
+                  <DarkField label="Password" placeholder="••••••••" type="password" icon={<Lock size={16} />} error={errors.password?.message} reg={register("password")} />
+                  <DarkField label="Confirm Password" placeholder="••••••••" type="password" icon={<Lock size={16} />} error={errors.confirmPassword?.message} reg={register("confirmPassword")} />
                 </div>
               </div>
 
               {/* Terms */}
-              <div className="flex items-center">
+              <label className="flex items-center gap-3 cursor-pointer">
                 <input
                   type="checkbox"
-                  className="w-4 h-4 text-[#3363AD] border-gray-300 rounded focus:ring-[#3363AD]"
                   required
+                  className="w-4 h-4 rounded border-white/20 bg-[#1a2235] accent-[#3363AD]"
                 />
-                <span className="ml-2 text-sm text-gray-600">
+                <span className="text-sm text-gray-500">
                   I agree to the{" "}
-                  <Link to="/terms" className="text-[#3363AD] hover:underline">
+                  <Link to="/terms" className="text-[#4a90d9] hover:text-[#6aaae8] transition-colors">
                     Terms and Conditions
                   </Link>
                 </span>
-              </div>
+              </label>
 
-              {/* Submit Button */}
-              <div className="pt-2">
-                <Button
-                  type="submit"
-                  label="Create Account"
-                  isLoading={isSubmitting}
-                  className="bg-primary text-white w-full py-3 rounded-lg"
-                />
-              </div>
-            </form>
-          </FormProvider>
-
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              Already have an account?{" "}
-              <Link
-                to="/auth/login"
-                className="text-[#3363AD] font-medium hover:underline"
+              {/* Submit */}
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full bg-[#3363AD] hover:bg-[#2a52a0] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold py-4 text-base rounded-xl transition-colors flex items-center justify-center gap-2"
               >
-                Sign in
-              </Link>
-            </p>
+                {isSubmitting ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Creating account…
+                  </>
+                ) : (
+                  "Create Account"
+                )}
+              </button>
+
+              {/* Footer */}
+              <div className="pt-2 border-t border-white/[0.05] text-center">
+                <p className="text-sm text-gray-600">
+                  Already have an account?{" "}
+                  <Link to="/auth/login" className="text-[#4a90d9] hover:text-[#6aaae8] font-medium transition-colors">
+                    Sign in
+                  </Link>
+                </p>
+              </div>
+
+            </form>
           </div>
         </div>
-
-          {/* Footer */}
-          <p className="text-center text-sm text-gray-500 mt-6">
-            © {new Date().getFullYear()} eBumenyi. All rights reserved.
-          </p>
-        </div>
       </div>
+
+      <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-xs text-gray-700 whitespace-nowrap">
+        © {new Date().getFullYear()} eBumenyi · Ministry of Health, Rwanda
+      </p>
     </div>
   );
 };

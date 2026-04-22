@@ -1,71 +1,107 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { ArrowRight } from "lucide-react";
+
+const slides = [
+  {
+    image: "/slide1.png",
+    title: "Empowering Rwanda's CHWs",
+    subtitle: "Comprehensive digital training for Community Health Workers nationwide — learn at your own pace, anywhere.",
+  },
+  {
+    image: "/slide2.png",
+    title: "Learn. Grow. Heal.",
+    subtitle: "Access courses, track your progress, and earn certificates on your healthcare journey with eBumenyi.",
+  },
+  {
+    image: "/slide3.png",
+    title: "Building Healthier Communities",
+    subtitle: "A Government of Rwanda initiative transforming frontline healthcare delivery through technology.",
+  },
+];
 
 export const AuthDecorativePanel: React.FC = () => {
+  const [activeSlide, setActiveSlide] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setActiveSlide((prev) => (prev + 1) % slides.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, []);
+
   return (
-    <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-[#1e3a5f] via-[#2952] to-[#1a2f4a] p-12 items-center justify-center relative overflow-hidden">
-      {/* Background Pattern */}
-      <div className="absolute inset-0 opacity-5">
-        <div className="absolute top-0 left-0 w-64 h-64 bg-white rounded-full -translate-x-32 -translate-y-32"></div>
-        {/* <div className="absolute bottom-0 right-0 w-96 h-96 bg-white rounded-full translate-x-32 translate-y-32"></div>
-        <div className="absolute top-1/2 left-1/2 w-72 h-72 bg-white rounded-full -translate-x-1/2 -translate-y-1/2"></div> */}
-      </div>
+    <div className="w-[46%] flex-shrink-0 p-3 self-stretch">
+      <div className="relative w-full h-full rounded-2xl overflow-hidden flex flex-col">
 
-      {/* Semi-transparent overlay for better text contrast */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/30"></div>
-
-      {/* Content */}
-      <div className="relative z-10 text-white w-full drop-shadow-lg">
-        <div className="mb-6 flex items-center gap-4 justify-center">
+        {/* Photos — pure CSS crossfade via opacity transition */}
+        {slides.map((s, i) => (
           <img
-            src="/chw.png"
-            alt="eBumenyi"
-            className="w-40 h-40 object-contain"
+            key={s.image}
+            src={s.image}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover"
+            style={{
+              opacity: i === activeSlide ? 1 : 0,
+              transition: "opacity 1.2s ease-in-out",
+            }}
           />
-          <img
-            src="/rbc-logo.png"
-            alt="RBC"
-            className="w-50 h-50 object-contain"
-          />
-        </div>
-        
-        <h2 className="text-3xl font-bold mb-4 text-center text-shadow">
-          Welcome to eBumenyi
-        </h2>
-        
-        <p className="text-base text-white mb-6 text-center font-medium">
-          A Government of Rwanda initiative by the Ministry of Health for empowering Community Health Workers (CHWs) across the nation.
-        </p>
+        ))}
 
-        <div className="space-y-6">
-          <div className="bg-white/20 backdrop-blur-sm rounded-lg p-4 border border-white/30 shadow-lg">
-            <h3 className="font-semibold mb-3 text-white">Partner Organizations:</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="text-white text-sm">
-                <span className="font-medium">RBC</span> - Coordination
-              </div>
-              <div className="text-white text-sm">
-                <span className="font-medium">WELTEL</span> - Development
-              </div>
-              <div className="text-white text-sm">
-                <span className="font-medium">CIIC-HIN</span> - Content
-              </div>
-              <div className="text-white text-sm">
-                <span className="font-medium">SFH</span> - Monitoring
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* Dark gradient overlay */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.15) 40%, rgba(0,0,0,0.15) 55%, rgba(0,0,0,0.75) 100%)",
+          }}
+        />
 
-        <div className="mt-12 pt-8 border-t border-white/30">
-          <p className="text-white/95 text-sm mb-4 font-medium">
-            Transforming healthcare delivery at the community level through comprehensive training and digital learning for Community Health Workers (CHWs) nationwide.
-          </p>
-          <div className="mt-4">
+        {/* Top bar */}
+        <div className="relative z-10 flex items-center justify-between px-8 pt-7">
+          <div className="flex items-center gap-3">
+            <img src="/chw.png" alt="eBumenyi" className="w-10 h-10 object-contain drop-shadow" />
+            <span className="text-white font-bold text-base tracking-tight drop-shadow">eBumenyi</span>
+            <div className="w-px h-5 bg-white/35 mx-1" />
             <img
-              src="/partners.png"
-              alt="Partner Organizations"
-              className="w-full h-20 object-contain opacity-90"
+              src="/rbc-logo.png"
+              alt="RBC"
+              className="h-8 object-contain drop-shadow"
+              style={{ filter: "brightness(1.1)" }}
+              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
             />
+          </div>
+          <a
+            href="https://ebumenyi.online"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 text-xs text-white/80 hover:text-white bg-black/30 hover:bg-black/50 backdrop-blur-sm px-4 py-2 rounded-full transition-all border border-white/20"
+          >
+            Back to website <ArrowRight size={12} />
+          </a>
+        </div>
+
+        <div className="flex-1" />
+
+        {/* Slide text — keyed so React remounts it, CSS animation plays fresh */}
+        <div key={activeSlide} className="relative z-10 px-8 pb-8 text-center animate-fade-up-in">
+          <h2 className="text-2xl font-bold text-white mb-2.5 leading-snug drop-shadow-lg">
+            {slides[activeSlide].title}
+          </h2>
+          <p className="text-white/75 text-sm leading-relaxed mx-auto max-w-[300px]">
+            {slides[activeSlide].subtitle}
+          </p>
+
+          {/* Dots */}
+          <div className="flex items-center justify-center gap-2.5 mt-5">
+            {slides.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setActiveSlide(i)}
+                className={`h-[3px] rounded-full transition-all duration-500 ${
+                  i === activeSlide ? "w-8 bg-white" : "w-3 bg-white/35 hover:bg-white/60"
+                }`}
+              />
+            ))}
           </div>
         </div>
       </div>
