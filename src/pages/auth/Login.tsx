@@ -334,7 +334,7 @@ const ChwLoginForm: React.FC<{
             Verifying…
           </>
         ) : (
-          "Sign In as CHW"
+          "Sign In"
         )}
       </button>
     </form>
