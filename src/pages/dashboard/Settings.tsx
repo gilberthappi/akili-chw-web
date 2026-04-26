@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { getProfile, updateAvatar } from "@/services/profile.api";
 import api from "@/services/api";
+import { useTheme } from "@/contexts/ThemeContext";
 
 // ── Schemas ──────────────────────────────────────────────────────────────────
 
@@ -74,7 +75,7 @@ function Toggle({
       type="button"
       onClick={() => onChange(!checked)}
       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
-        checked ? "bg-blue-600" : "bg-gray-200"
+        checked ? "bg-blue-600" : "bg-gray-300 dark:bg-slate-600"
       }`}
     >
       <span
@@ -87,7 +88,7 @@ function Toggle({
 }
 
 const inputCls =
-  "w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm";
+  "w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-400 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-400";
 const errCls = "text-xs text-red-500 mt-1";
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -100,6 +101,9 @@ export const Settings: React.FC = () => {
   const fileRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
+  // Theme from context (reactive, applies dark class to <html>)
+  const { theme, setTheme } = useTheme();
+
   // Local-only preferences (localStorage-backed)
   const [emailNotif, setEmailNotif] = useState(() =>
     JSON.parse(localStorage.getItem("st_email") ?? "true"),
@@ -109,9 +113,6 @@ export const Settings: React.FC = () => {
   );
   const [smsNotif, setSmsNotif] = useState(() =>
     JSON.parse(localStorage.getItem("st_sms") ?? "false"),
-  );
-  const [theme, setTheme] = useState(
-    () => localStorage.getItem("st_theme") ?? "light",
   );
   const [language, setLanguage] = useState(
     () => localStorage.getItem("st_lang") ?? "en",
@@ -230,14 +231,14 @@ export const Settings: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Settings</h1>
-        <p className="text-gray-600">Manage your account settings and preferences</p>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100 mb-2">Settings</h1>
+        <p className="text-gray-600 dark:text-slate-400">Manage your account settings and preferences</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Sidebar */}
         <div className="lg:col-span-1">
-          <div className="bg-white rounded-lg shadow p-4">
+          <div className="bg-white dark:bg-card-bg rounded-lg shadow p-4">
             <nav className="space-y-1">
               {tabs.map(({ id, label, icon: Icon }) => (
                 <button
@@ -245,8 +246,8 @@ export const Settings: React.FC = () => {
                   onClick={() => setActiveTab(id)}
                   className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-colors ${
                     activeTab === id
-                      ? "bg-blue-50 text-blue-700 border-r-2 border-blue-700"
-                      : "text-gray-700 hover:bg-gray-50"
+                      ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-r-2 border-blue-700 dark:border-blue-400"
+                      : "text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700"
                   }`}
                 >
                   <Icon className="w-5 h-5" />
@@ -260,14 +261,14 @@ export const Settings: React.FC = () => {
 
         {/* Content */}
         <div className="lg:col-span-3">
-          <div className="bg-white rounded-lg shadow">
+          <div className="bg-white dark:bg-card-bg rounded-lg shadow">
 
             {/* ── PROFILE ────────────────────────────────────────────────── */}
             {activeTab === "profile" && (
               <div className="p-6">
-                <div className="flex items-center gap-3 mb-6 pb-4 border-b">
-                  <User className="w-5 h-5 text-gray-400" />
-                  <h2 className="text-xl font-semibold text-gray-900">Profile Settings</h2>
+                <div className="flex items-center gap-3 mb-6 pb-4 border-b dark:border-slate-700">
+                  <User className="w-5 h-5 text-gray-400 dark:text-slate-500" />
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100">Profile Settings</h2>
                 </div>
 
                 {isLoading ? (
@@ -278,7 +279,7 @@ export const Settings: React.FC = () => {
                   <form onSubmit={hsp((data) => profileMut.mutate(data))}>
                     {/* Avatar */}
                     <div className="mb-8">
-                      <label className="block text-sm font-medium text-gray-700 mb-3">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">
                         Profile Photo
                       </label>
                       <div className="flex items-center gap-4">
@@ -310,7 +311,7 @@ export const Settings: React.FC = () => {
                             type="button"
                             onClick={() => fileRef.current?.click()}
                             disabled={avatarMut.isPending}
-                            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm disabled:opacity-50"
+                            className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 dark:text-slate-300 text-sm disabled:opacity-50"
                           >
                             {avatarMut.isPending ? (
                               <Loader2 className="w-4 h-4 animate-spin" />
@@ -319,7 +320,7 @@ export const Settings: React.FC = () => {
                             )}
                             Change Photo
                           </button>
-                          <p className="text-xs text-gray-500 mt-1">
+                          <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                             JPG, PNG up to 10 MB
                           </p>
                         </div>
@@ -329,7 +330,7 @@ export const Settings: React.FC = () => {
                     {/* Personal info */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                           Full Name *
                         </label>
                         <input {...rp("fullNames")} className={inputCls} />
@@ -338,7 +339,7 @@ export const Settings: React.FC = () => {
                         )}
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                           Email
                         </label>
                         <input {...rp("email")} type="email" className={inputCls} />
@@ -347,7 +348,7 @@ export const Settings: React.FC = () => {
                         )}
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                           Phone Number *
                         </label>
                         <input {...rp("phoneNumber")} type="tel" className={inputCls} />
@@ -356,7 +357,7 @@ export const Settings: React.FC = () => {
                         )}
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                           Gender
                         </label>
                         <select {...rp("gender")} className={inputCls}>
@@ -366,7 +367,7 @@ export const Settings: React.FC = () => {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                           Date of Birth
                         </label>
                         <input
@@ -376,7 +377,7 @@ export const Settings: React.FC = () => {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                           National ID (NID)
                         </label>
                         <input
@@ -389,7 +390,7 @@ export const Settings: React.FC = () => {
 
                     {/* Location */}
                     <div className="mb-6">
-                      <h3 className="text-sm font-medium text-gray-700 mb-3">
+                      <h3 className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">
                         Location
                       </h3>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -402,7 +403,7 @@ export const Settings: React.FC = () => {
                           ] as const
                         ).map(({ name, label }) => (
                           <div key={name}>
-                            <label className="block text-xs text-gray-600 mb-1">
+                            <label className="block text-xs text-gray-600 dark:text-slate-400 mb-1">
                               {label}
                             </label>
                             <input
@@ -415,7 +416,7 @@ export const Settings: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="flex justify-end pt-4 border-t">
+                    <div className="flex justify-end pt-4 border-t dark:border-slate-700">
                       <button
                         type="submit"
                         disabled={profileMut.isPending}
@@ -437,9 +438,9 @@ export const Settings: React.FC = () => {
             {/* ── NOTIFICATIONS ──────────────────────────────────────────── */}
             {activeTab === "notifications" && (
               <div className="p-6">
-                <div className="flex items-center gap-3 mb-6 pb-4 border-b">
-                  <Bell className="w-5 h-5 text-gray-400" />
-                  <h2 className="text-xl font-semibold text-gray-900">
+                <div className="flex items-center gap-3 mb-6 pb-4 border-b dark:border-slate-700">
+                  <Bell className="w-5 h-5 text-gray-400 dark:text-slate-500" />
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100">
                     Notification Preferences
                   </h2>
                 </div>
@@ -478,15 +479,15 @@ export const Settings: React.FC = () => {
                   ].map(({ label, desc, icon: Icon, value, onChange }) => (
                     <div
                       key={label}
-                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                      className="flex items-center justify-between p-4 bg-gray-50 dark:bg-slate-700/40 rounded-lg"
                     >
                       <div className="flex items-center gap-3">
-                        <Icon className="w-5 h-5 text-gray-500" />
+                        <Icon className="w-5 h-5 text-gray-500 dark:text-slate-400" />
                         <div>
-                          <p className="text-sm font-medium text-gray-900">
+                          <p className="text-sm font-medium text-gray-900 dark:text-slate-100">
                             {label}
                           </p>
-                          <p className="text-xs text-gray-500">{desc}</p>
+                          <p className="text-xs text-gray-500 dark:text-slate-400">{desc}</p>
                         </div>
                       </div>
                       <Toggle checked={value} onChange={onChange} />
@@ -495,7 +496,7 @@ export const Settings: React.FC = () => {
                 </div>
 
                 <div className="mt-6">
-                  <h3 className="text-sm font-medium text-gray-900 mb-3">
+                  <h3 className="text-sm font-medium text-gray-900 dark:text-slate-100 mb-3">
                     Notification Categories
                   </h3>
                   <div className="space-y-2">
@@ -523,13 +524,13 @@ export const Settings: React.FC = () => {
                     ].map((item) => (
                       <div
                         key={item.label}
-                        className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0"
+                        className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-slate-700 last:border-0"
                       >
                         <div>
-                          <p className="text-sm font-medium text-gray-900">
+                          <p className="text-sm font-medium text-gray-900 dark:text-slate-100">
                             {item.label}
                           </p>
-                          <p className="text-xs text-gray-500">{item.desc}</p>
+                          <p className="text-xs text-gray-500 dark:text-slate-400">{item.desc}</p>
                         </div>
                         <input
                           type="checkbox"
@@ -546,9 +547,9 @@ export const Settings: React.FC = () => {
             {/* ── SECURITY ───────────────────────────────────────────────── */}
             {activeTab === "security" && (
               <div className="p-6">
-                <div className="flex items-center gap-3 mb-6 pb-4 border-b">
-                  <Shield className="w-5 h-5 text-gray-400" />
-                  <h2 className="text-xl font-semibold text-gray-900">
+                <div className="flex items-center gap-3 mb-6 pb-4 border-b dark:border-slate-700">
+                  <Shield className="w-5 h-5 text-gray-400 dark:text-slate-500" />
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100">
                     Security & Privacy
                   </h2>
                 </div>
@@ -560,14 +561,14 @@ export const Settings: React.FC = () => {
                       newPassword: data.newPassword,
                     }),
                   )}
-                  className="border border-gray-200 rounded-lg p-4 mb-6"
+                  className="border border-gray-200 dark:border-slate-700 rounded-lg p-4 mb-6"
                 >
-                  <h3 className="font-medium text-gray-900 mb-4">
+                  <h3 className="font-medium text-gray-900 dark:text-slate-100 mb-4">
                     Change Password
                   </h3>
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                         Current Password
                       </label>
                       <div className="relative">
@@ -579,7 +580,7 @@ export const Settings: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => setShowCurrent(!showCurrent)}
-                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400"
+                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 dark:text-slate-500"
                         >
                           {showCurrent ? (
                             <EyeOff className="w-4 h-4" />
@@ -595,7 +596,7 @@ export const Settings: React.FC = () => {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                           New Password
                         </label>
                         <div className="relative">
@@ -607,7 +608,7 @@ export const Settings: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => setShowNew(!showNew)}
-                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400"
+                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 dark:text-slate-500"
                           >
                             {showNew ? (
                               <EyeOff className="w-4 h-4" />
@@ -621,7 +622,7 @@ export const Settings: React.FC = () => {
                         )}
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                           Confirm Password
                         </label>
                         <div className="relative">
@@ -633,7 +634,7 @@ export const Settings: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => setShowConfirm(!showConfirm)}
-                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400"
+                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 dark:text-slate-500"
                           >
                             {showConfirm ? (
                               <EyeOff className="w-4 h-4" />
@@ -663,18 +664,18 @@ export const Settings: React.FC = () => {
                   </div>
                 </form>
 
-                <div className="border border-gray-200 rounded-lg p-4">
-                  <h3 className="font-medium text-gray-900 mb-4">
+                <div className="border border-gray-200 dark:border-slate-700 rounded-lg p-4">
+                  <h3 className="font-medium text-gray-900 dark:text-slate-100 mb-4">
                     Active Sessions
                   </h3>
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-700/40 rounded-lg">
                     <div className="flex items-center gap-3">
-                      <Monitor className="w-5 h-5 text-gray-500" />
+                      <Monitor className="w-5 h-5 text-gray-500 dark:text-slate-400" />
                       <div>
-                        <p className="text-sm font-medium text-gray-900">
+                        <p className="text-sm font-medium text-gray-900 dark:text-slate-100">
                           Current Browser
                         </p>
-                        <p className="text-xs text-gray-500">Active now</p>
+                        <p className="text-xs text-gray-500 dark:text-slate-400">Active now</p>
                       </div>
                     </div>
                     <span className="text-xs text-green-600 font-medium">
@@ -688,44 +689,49 @@ export const Settings: React.FC = () => {
             {/* ── APPEARANCE ─────────────────────────────────────────────── */}
             {activeTab === "appearance" && (
               <div className="p-6">
-                <div className="flex items-center gap-3 mb-6 pb-4 border-b">
-                  <Palette className="w-5 h-5 text-gray-400" />
-                  <h2 className="text-xl font-semibold text-gray-900">
+                <div className="flex items-center gap-3 mb-6 pb-4 border-b dark:border-slate-700">
+                  <Palette className="w-5 h-5 text-gray-400 dark:text-slate-500" />
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100">
                     Appearance
                   </h2>
                 </div>
                 <div>
-                  <h3 className="text-sm font-medium text-gray-900 mb-3">
+                  <h3 className="text-sm font-medium text-gray-900 dark:text-slate-100 mb-3">
                     Theme
                   </h3>
                   <div className="grid grid-cols-3 gap-4">
                     {(
                       [
-                        { value: "light", label: "Light", icon: Sun, preview: "bg-white" },
+                        { value: "light", label: "Light", icon: Sun, preview: "bg-white border" },
                         { value: "dark", label: "Dark", icon: Moon, preview: "bg-gray-800" },
                         { value: "auto", label: "Auto", icon: Monitor, preview: "bg-gradient-to-r from-white to-gray-800" },
                       ] as const
                     ).map(({ value, label, icon: Icon, preview }) => (
                       <button
                         key={value}
-                        onClick={() => {
-                          setTheme(value);
-                          localStorage.setItem("st_theme", value);
-                        }}
+                        onClick={() => setTheme(value)}
                         className={`border-2 rounded-lg p-4 text-left transition-colors ${
                           theme === value
-                            ? "border-blue-500 bg-blue-50"
-                            : "border-gray-200 hover:border-gray-300"
+                            ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+                            : "border-gray-200 dark:border-slate-600 hover:border-gray-300 dark:hover:border-gray-500"
                         }`}
                       >
                         <div className="flex items-center gap-2 mb-2">
-                          <Icon className="w-4 h-4" />
-                          <span className="text-sm font-medium">{label}</span>
+                          <Icon className="w-4 h-4 dark:text-slate-300" />
+                          <span className="text-sm font-medium dark:text-slate-300">{label}</span>
                         </div>
-                        <div className={`w-full h-12 ${preview} border rounded`} />
+                        <div className={`w-full h-12 ${preview} rounded`} />
                       </button>
                     ))}
                   </div>
+
+                  <p className="mt-4 text-xs text-gray-500 dark:text-slate-400">
+                    {theme === "auto"
+                      ? "Theme follows your system preference."
+                      : theme === "dark"
+                      ? "Dark theme is active."
+                      : "Light theme is active."}
+                  </p>
                 </div>
               </div>
             )}
@@ -733,15 +739,15 @@ export const Settings: React.FC = () => {
             {/* ── LANGUAGE ───────────────────────────────────────────────── */}
             {activeTab === "language" && (
               <div className="p-6">
-                <div className="flex items-center gap-3 mb-6 pb-4 border-b">
-                  <Globe className="w-5 h-5 text-gray-400" />
-                  <h2 className="text-xl font-semibold text-gray-900">
+                <div className="flex items-center gap-3 mb-6 pb-4 border-b dark:border-slate-700">
+                  <Globe className="w-5 h-5 text-gray-400 dark:text-slate-500" />
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100">
                     Language & Region
                   </h2>
                 </div>
                 <div className="space-y-5">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                       Language
                     </label>
                     <select
@@ -759,7 +765,7 @@ export const Settings: React.FC = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                       Time Zone
                     </label>
                     <select
@@ -778,7 +784,7 @@ export const Settings: React.FC = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                       Date Format
                     </label>
                     <select className={inputCls} defaultValue="DD/MM/YYYY">
@@ -794,18 +800,18 @@ export const Settings: React.FC = () => {
             {/* ── DATA & STORAGE ─────────────────────────────────────────── */}
             {activeTab === "data" && (
               <div className="p-6">
-                <div className="flex items-center gap-3 mb-6 pb-4 border-b">
-                  <Download className="w-5 h-5 text-gray-400" />
-                  <h2 className="text-xl font-semibold text-gray-900">
+                <div className="flex items-center gap-3 mb-6 pb-4 border-b dark:border-slate-700">
+                  <Download className="w-5 h-5 text-gray-400 dark:text-slate-500" />
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100">
                     Data & Storage
                   </h2>
                 </div>
                 <div className="space-y-4">
-                  <div className="border border-gray-200 rounded-lg p-4">
-                    <h3 className="font-medium text-gray-900 mb-2">
+                  <div className="border border-gray-200 dark:border-slate-700 rounded-lg p-4">
+                    <h3 className="font-medium text-gray-900 dark:text-slate-100 mb-2">
                       Clear Cache
                     </h3>
-                    <p className="text-sm text-gray-600 mb-3">
+                    <p className="text-sm text-gray-600 dark:text-slate-400 mb-3">
                       Remove locally cached preferences to free up storage.
                     </p>
                     <button
@@ -815,18 +821,18 @@ export const Settings: React.FC = () => {
                         );
                         toast.success("Cache cleared");
                       }}
-                      className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm"
+                      className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 dark:text-slate-300 text-sm"
                     >
                       <RefreshCw className="w-4 h-4" />
                       Clear Cache
                     </button>
                   </div>
 
-                  <div className="border border-red-200 rounded-lg p-4 bg-red-50">
-                    <h3 className="font-medium text-red-900 mb-2">
+                  <div className="border border-red-200 dark:border-red-900/50 rounded-lg p-4 bg-red-50 dark:bg-red-900/10">
+                    <h3 className="font-medium text-red-900 dark:text-red-400 mb-2">
                       Delete Account
                     </h3>
-                    <p className="text-sm text-red-700 mb-3">
+                    <p className="text-sm text-red-700 dark:text-red-400/80 mb-3">
                       Permanently delete your account and all associated data.
                       This action cannot be undone.
                     </p>
