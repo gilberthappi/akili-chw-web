@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -26,10 +26,15 @@ import {
   Download,
   Trash2,
   Loader2,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
 } from "lucide-react";
 import { getProfile, updateAvatar } from "@/services/profile.api";
 import api from "@/services/api";
 import { useTheme } from "@/contexts/ThemeContext";
+import { registerPushToken } from "@/hooks/usePushNotifications";
+import { getSettings, updateSettings, type UpdateSettingsPayload, type NotificationCategories } from "@/services/settings.api";
 
 // ── Schemas ──────────────────────────────────────────────────────────────────
 
@@ -104,22 +109,112 @@ export const Settings: React.FC = () => {
   // Theme from context (reactive, applies dark class to <html>)
   const { theme, setTheme } = useTheme();
 
-  // Local-only preferences (localStorage-backed)
-  const [emailNotif, setEmailNotif] = useState(() =>
-    JSON.parse(localStorage.getItem("st_email") ?? "true"),
+  // Preferences — seeded from localStorage for instant paint, overridden when API loads
+  const [emailNotif, setEmailNotif] = useState(() => JSON.parse(localStorage.getItem("st_email") ?? "true"));
+  const [pushNotif, setPushNotif] = useState(() => JSON.parse(localStorage.getItem("st_push") ?? "true"));
+  const [smsNotif, setSmsNotif] = useState(() => JSON.parse(localStorage.getItem("st_sms") ?? "false"));
+  const [language, setLanguage] = useState(() => localStorage.getItem("st_lang") ?? "en");
+  const [timezone, setTimezone] = useState(() => localStorage.getItem("st_tz") ?? "Africa/Kigali");
+  const [dateFormat, setDateFormat] = useState(() => localStorage.getItem("st_datefmt") ?? "DD/MM/YYYY");
+  const [categories, setCategories] = useState<NotificationCategories>(() => {
+    const stored = localStorage.getItem("st_notif_categories");
+    return stored
+      ? JSON.parse(stored)
+      : { courseUpdates: true, assignmentReminders: true, certificates: true, systemUpdates: false };
+  });
+
+  // ── Load settings from API ──────────────────────────────────────────────────
+
+  const { data: settingsData, isLoading: settingsLoading } = useQuery({
+    queryKey: ["userSettings"],
+    queryFn: getSettings,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // When API settings arrive, sync all local state + localStorage
+  useEffect(() => {
+    if (!settingsData) return;
+    const s = settingsData;
+    setTheme(s.theme as "light" | "dark" | "auto");
+    setEmailNotif(s.emailNotif);
+    setPushNotif(s.pushNotif);
+    setSmsNotif(s.smsNotif);
+    setLanguage(s.language);
+    setTimezone(s.timezone);
+    setDateFormat(s.dateFormat);
+    setCategories(s.categories);
+    // Keep localStorage in sync as cache
+    localStorage.setItem("st_theme", s.theme);
+    localStorage.setItem("st_email", JSON.stringify(s.emailNotif));
+    localStorage.setItem("st_push", JSON.stringify(s.pushNotif));
+    localStorage.setItem("st_sms", JSON.stringify(s.smsNotif));
+    localStorage.setItem("st_lang", s.language);
+    localStorage.setItem("st_tz", s.timezone);
+    localStorage.setItem("st_datefmt", s.dateFormat);
+    localStorage.setItem("st_notif_categories", JSON.stringify(s.categories));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settingsData]);
+
+  // ── Save settings to API ────────────────────────────────────────────────────
+
+  const settingsMut = useMutation({
+    mutationFn: (payload: UpdateSettingsPayload) => updateSettings(payload),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["userSettings"] }),
+    onError: () => toast.error("Failed to save setting"),
+  });
+
+  const saveSetting = (payload: UpdateSettingsPayload) => settingsMut.mutate(payload);
+
+  // ── Notification categories helpers ─────────────────────────────────────────
+
+  const toggleCategory = (key: keyof NotificationCategories) => {
+    const next = { ...categories, [key]: !categories[key] };
+    setCategories(next);
+    localStorage.setItem("st_notif_categories", JSON.stringify(next));
+    saveSetting({ categories: next });
+  };
+
+  // ── Browser push permission status (live) ───────────────────────────────────
+
+  const [pushPermission, setPushPermission] = useState<NotificationPermission>(
+    () => (typeof Notification !== "undefined" ? Notification.permission : "default"),
   );
-  const [pushNotif, setPushNotif] = useState(() =>
-    JSON.parse(localStorage.getItem("st_push") ?? "true"),
-  );
-  const [smsNotif, setSmsNotif] = useState(() =>
-    JSON.parse(localStorage.getItem("st_sms") ?? "false"),
-  );
-  const [language, setLanguage] = useState(
-    () => localStorage.getItem("st_lang") ?? "en",
-  );
-  const [timezone, setTimezone] = useState(
-    () => localStorage.getItem("st_tz") ?? "Africa/Kigali",
-  );
+
+  useEffect(() => {
+    if (typeof Notification === "undefined") return;
+    const id = setInterval(() => setPushPermission(Notification.permission), 3000);
+    return () => clearInterval(id);
+  }, []);
+
+  const [pushLoading, setPushLoading] = useState(false);
+
+  const handlePushToggle = async (enabled: boolean) => {
+    if (!enabled) {
+      setPushNotif(false);
+      localStorage.setItem("st_push", "false");
+      saveSetting({ pushNotif: false });
+      toast("Push notifications disabled.", { icon: "ℹ️" });
+      return;
+    }
+    if (pushPermission === "denied") {
+      toast.error("Push notifications are blocked by your browser. Open browser settings to allow them.");
+      return;
+    }
+    setPushLoading(true);
+    const result = await registerPushToken();
+    setPushLoading(false);
+    setPushPermission(Notification.permission);
+    if (result === "granted") {
+      setPushNotif(true);
+      localStorage.setItem("st_push", "true");
+      saveSetting({ pushNotif: true });
+      toast.success("Push notifications enabled!");
+    } else if (result === "denied") {
+      toast.error("Push notifications blocked. Enable them in your browser settings.");
+    } else {
+      toast.error("Could not enable push notifications. Try again later.");
+    }
+  };
 
   // ── Profile query ───────────────────────────────────────────────────────────
 
@@ -444,100 +539,123 @@ export const Settings: React.FC = () => {
                     Notification Preferences
                   </h2>
                 </div>
+
+                {/* ── Delivery channels ── */}
                 <div className="space-y-3">
-                  {[
-                    {
-                      label: "Email Notifications",
-                      desc: "Receive updates via email",
-                      icon: Mail,
-                      value: emailNotif,
-                      onChange: (v: boolean) => {
+                  {/* Email */}
+                  <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-slate-700/40 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Mail className="w-5 h-5 text-gray-500 dark:text-slate-400" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900 dark:text-slate-100">Email Notifications</p>
+                        <p className="text-xs text-gray-500 dark:text-slate-400">Receive updates via email</p>
+                      </div>
+                    </div>
+                    <Toggle
+                      checked={emailNotif}
+                      onChange={(v) => {
                         setEmailNotif(v);
                         localStorage.setItem("st_email", JSON.stringify(v));
-                      },
-                    },
-                    {
-                      label: "Push Notifications",
-                      desc: "Browser and mobile push",
-                      icon: Smartphone,
-                      value: pushNotif,
-                      onChange: (v: boolean) => {
-                        setPushNotif(v);
-                        localStorage.setItem("st_push", JSON.stringify(v));
-                      },
-                    },
-                    {
-                      label: "SMS Notifications",
-                      desc: "Text message alerts",
-                      icon: Phone,
-                      value: smsNotif,
-                      onChange: (v: boolean) => {
-                        setSmsNotif(v);
-                        localStorage.setItem("st_sms", JSON.stringify(v));
-                      },
-                    },
-                  ].map(({ label, desc, icon: Icon, value, onChange }) => (
-                    <div
-                      key={label}
-                      className="flex items-center justify-between p-4 bg-gray-50 dark:bg-slate-700/40 rounded-lg"
-                    >
+                        saveSetting({ emailNotif: v });
+                        toast.success(v ? "Email notifications enabled" : "Email notifications disabled");
+                      }}
+                    />
+                  </div>
+
+                  {/* Push — with live browser permission badge */}
+                  <div className="p-4 bg-gray-50 dark:bg-slate-700/40 rounded-lg">
+                    <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <Icon className="w-5 h-5 text-gray-500 dark:text-slate-400" />
+                        <Smartphone className="w-5 h-5 text-gray-500 dark:text-slate-400" />
                         <div>
-                          <p className="text-sm font-medium text-gray-900 dark:text-slate-100">
-                            {label}
-                          </p>
-                          <p className="text-xs text-gray-500 dark:text-slate-400">{desc}</p>
+                          <p className="text-sm font-medium text-gray-900 dark:text-slate-100">Push Notifications</p>
+                          <p className="text-xs text-gray-500 dark:text-slate-400">Browser and device push alerts</p>
                         </div>
                       </div>
-                      <Toggle checked={value} onChange={onChange} />
+                      {pushLoading ? (
+                        <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+                      ) : (
+                        <Toggle checked={pushNotif} onChange={handlePushToggle} />
+                      )}
                     </div>
-                  ))}
+
+                    {/* Permission status banner */}
+                    <div className="mt-3 flex items-center gap-2">
+                      {pushPermission === "granted" && (
+                        <>
+                          <CheckCircle className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
+                          <span className="text-xs text-green-600 dark:text-green-400">Browser permission granted</span>
+                        </>
+                      )}
+                      {pushPermission === "denied" && (
+                        <>
+                          <XCircle className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
+                          <span className="text-xs text-red-600 dark:text-red-400">
+                            Blocked by browser — open browser settings to allow
+                          </span>
+                        </>
+                      )}
+                      {pushPermission === "default" && (
+                        <>
+                          <AlertCircle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                          <span className="text-xs text-amber-600 dark:text-amber-400">
+                            Permission not yet requested — enable the toggle to ask
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* SMS */}
+                  <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-slate-700/40 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Phone className="w-5 h-5 text-gray-500 dark:text-slate-400" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900 dark:text-slate-100">SMS Notifications</p>
+                        <p className="text-xs text-gray-500 dark:text-slate-400">Text message alerts</p>
+                      </div>
+                    </div>
+                    <Toggle
+                      checked={smsNotif}
+                      onChange={(v) => {
+                        setSmsNotif(v);
+                        localStorage.setItem("st_sms", JSON.stringify(v));
+                        saveSetting({ smsNotif: v });
+                        toast.success(v ? "SMS notifications enabled" : "SMS notifications disabled");
+                      }}
+                    />
+                  </div>
                 </div>
 
+                {/* ── Notification categories ── */}
                 <div className="mt-6">
                   <h3 className="text-sm font-medium text-gray-900 dark:text-slate-100 mb-3">
                     Notification Categories
                   </h3>
-                  <div className="space-y-2">
-                    {[
-                      {
-                        label: "Course Updates",
-                        desc: "New courses and content updates",
-                        defaultChecked: true,
-                      },
-                      {
-                        label: "Assignment Reminders",
-                        desc: "Deadline and submission reminders",
-                        defaultChecked: true,
-                      },
-                      {
-                        label: "Certificates",
-                        desc: "Certificate completion notifications",
-                        defaultChecked: true,
-                      },
-                      {
-                        label: "System Updates",
-                        desc: "Platform maintenance and updates",
-                        defaultChecked: false,
-                      },
-                    ].map((item) => (
-                      <div
-                        key={item.label}
-                        className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-slate-700 last:border-0"
+                  <div className="space-y-1 border border-gray-200 dark:border-slate-700 rounded-lg overflow-hidden">
+                    {(
+                      [
+                        { key: "courseUpdates",        label: "Course Updates",        desc: "New courses and content updates" },
+                        { key: "assignmentReminders",  label: "Assignment Reminders",  desc: "Deadline and submission reminders" },
+                        { key: "certificates",         label: "Certificates",          desc: "Certificate completion notifications" },
+                        { key: "systemUpdates",        label: "System Updates",        desc: "Platform maintenance and updates" },
+                      ] as const
+                    ).map(({ key, label, desc }) => (
+                      <label
+                        key={key}
+                        className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/40 border-b border-gray-100 dark:border-slate-700 last:border-0 transition-colors"
                       >
                         <div>
-                          <p className="text-sm font-medium text-gray-900 dark:text-slate-100">
-                            {item.label}
-                          </p>
-                          <p className="text-xs text-gray-500 dark:text-slate-400">{item.desc}</p>
+                          <p className="text-sm font-medium text-gray-900 dark:text-slate-100">{label}</p>
+                          <p className="text-xs text-gray-500 dark:text-slate-400">{desc}</p>
                         </div>
                         <input
                           type="checkbox"
-                          defaultChecked={item.defaultChecked}
-                          className="w-4 h-4 text-blue-600 rounded"
+                          checked={categories[key]}
+                          onChange={() => toggleCategory(key)}
+                          className="w-4 h-4 text-blue-600 rounded accent-blue-600"
                         />
-                      </div>
+                      </label>
                     ))}
                   </div>
                 </div>
@@ -709,7 +827,7 @@ export const Settings: React.FC = () => {
                     ).map(({ value, label, icon: Icon, preview }) => (
                       <button
                         key={value}
-                        onClick={() => setTheme(value)}
+                        onClick={() => { setTheme(value); saveSetting({ theme: value }); }}
                         className={`border-2 rounded-lg p-4 text-left transition-colors ${
                           theme === value
                             ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
@@ -755,6 +873,7 @@ export const Settings: React.FC = () => {
                       onChange={(e) => {
                         setLanguage(e.target.value);
                         localStorage.setItem("st_lang", e.target.value);
+                        saveSetting({ language: e.target.value });
                       }}
                       className={inputCls}
                     >
@@ -773,6 +892,7 @@ export const Settings: React.FC = () => {
                       onChange={(e) => {
                         setTimezone(e.target.value);
                         localStorage.setItem("st_tz", e.target.value);
+                        saveSetting({ timezone: e.target.value });
                       }}
                       className={inputCls}
                     >
@@ -787,7 +907,15 @@ export const Settings: React.FC = () => {
                     <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                       Date Format
                     </label>
-                    <select className={inputCls} defaultValue="DD/MM/YYYY">
+                    <select
+                      className={inputCls}
+                      value={dateFormat}
+                      onChange={(e) => {
+                        setDateFormat(e.target.value);
+                        localStorage.setItem("st_datefmt", e.target.value);
+                        saveSetting({ dateFormat: e.target.value });
+                      }}
+                    >
                       <option>DD/MM/YYYY</option>
                       <option>MM/DD/YYYY</option>
                       <option>YYYY-MM-DD</option>
