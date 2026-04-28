@@ -36,11 +36,11 @@ export default {
 					DEFAULT: '#69695D',
 					60: 'rgba(105, 105, 93, 0.6)'
 				},
-				'page-bg': '#EFF1F8',
-				'card-bg': '#FFFFFF',
-				'card-text': '#111827',
-				'card-subtitle': '#595F74',
-				'card-shadow': 'rgba(16, 24, 40, 0.06)',
+				'page-bg': 'var(--page-bg)',
+				'card-bg': 'var(--card-bg)',
+				'card-text': 'var(--card-text)',
+				'card-subtitle': 'var(--card-subtitle)',
+				'card-shadow': 'var(--card-shadow)',
 				// Standard Tailwind-compatible colors
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',

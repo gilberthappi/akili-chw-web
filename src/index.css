@@ -27,23 +27,23 @@
   }
 
   .dark {
-    /* Dark mode */
-    --primary: #3363AD;
-    --primary-70: rgba(51, 99, 173, 0.7);
-    --secondary: #595F74;
-    --dark: #373449;
-    --neutral: #69695D;
-    --neutral-60: rgba(105, 105, 93, 0.6);
-    --page-bg: #1f1146;
-    --card-bg: #111827;
-    --card-text: #f8fafc;
-    --card-subtitle: rgba(255, 255, 255, 0.75);
-    --card-shadow: rgba(0, 0, 0, 0.6);
-    
-    --background: 31 17 70; /* #1f1146 */
-    --foreground: 248 250 252; /* #f8fafc */
-    --border: 55 52 73;
-    --input: 55 52 73;
+    /* Dark mode — slate palette */
+    --primary: #4f8ef7;
+    --primary-70: rgba(79, 142, 247, 0.7);
+    --secondary: #94a3b8;
+    --dark: #0f172a;
+    --neutral: #64748b;
+    --neutral-60: rgba(100, 116, 139, 0.6);
+    --page-bg: #0f172a;
+    --card-bg: #1e293b;
+    --card-text: #f1f5f9;
+    --card-subtitle: #94a3b8;
+    --card-shadow: rgba(0, 0, 0, 0.4);
+
+    --background: 15 23 42;   /* #0f172a slate-900 */
+    --foreground: 241 245 249; /* #f1f5f9 slate-100 */
+    --border: 51 65 85;        /* slate-700 */
+    --input: 51 65 85;
     --ring: 217 65% 44%;
   }
 }

@@ -115,15 +115,6 @@ const TemporaryIssueScreen: React.FC<{
 
 // ─── Shared input component (dark-themed) ────────────────────────────────────
 
-interface DarkInputProps {
-  label: string;
-  placeholder: string;
-  type?: string;
-  icon: React.ReactNode;
-  error?: string;
-  registration: ReturnType<typeof useForm>["register"] extends (name: string, ...args: unknown[]) => infer R ? R : never;
-}
-
 const DarkField: React.FC<{
   label: string;
   placeholder: string;
@@ -334,7 +325,7 @@ const ChwLoginForm: React.FC<{
             Verifying…
           </>
         ) : (
-          "Sign In as CHW"
+          "Sign In"
         )}
       </button>
     </form>

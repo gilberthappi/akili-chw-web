@@ -3,6 +3,23 @@ import { useAuth } from "./useAuth";
 import { requestFcmToken } from "@/lib/firebase";
 import ApiClient from "@/services/api";
 
+export async function registerPushToken(): Promise<"granted" | "denied" | "default" | "error"> {
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") return permission;
+
+    const registration = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
+    const fcmToken = await requestFcmToken(registration);
+    if (!fcmToken) return "error";
+
+    await ApiClient.post("/notifications/push-token", { token: fcmToken, platform: "web" });
+    return "granted";
+  } catch (err) {
+    console.error("[PushNotifications] Registration failed", err);
+    return "error";
+  }
+}
+
 export const usePushNotifications = () => {
   const { user } = useAuth();
   const [token, setToken] = useState<string | null>(null);
@@ -11,41 +28,24 @@ export const usePushNotifications = () => {
   useEffect(() => {
     if (!user || typeof window === "undefined") return;
 
+    // Respect the user's push notification preference
+    const pushEnabled = JSON.parse(localStorage.getItem("st_push") ?? "true");
+    if (!pushEnabled) return;
+
     let active = true;
 
     const register = async () => {
-      try {
-        const permission = await Notification.requestPermission();
-        if (permission === "denied") {
-          // Silently fail — user explicitly blocked notifications
-          console.warn("[PushNotifications] Permission denied by user");
-          return;
-        }
-        if (permission !== "granted") {
-          console.warn("[PushNotifications] Permission not granted:", permission);
-          return;
-        }
+      const result = await registerPushToken();
+      if (!active) return;
 
-        const registration = await navigator.serviceWorker.register(
-          "/firebase-messaging-sw.js",
-        );
-
-        const fcmToken = await requestFcmToken(registration);
-        if (!fcmToken) {
-          setError("Unable to get FCM token");
-          return;
-        }
-
-        if (!active) return;
-        setToken(fcmToken);
-
-        await ApiClient.post("/notifications/push-token", {
-          token: fcmToken,
-          platform: "web",
-        });
-      } catch (err: any) {
-        console.error("Push registration failed", err);
-        setError(err?.message || "Push registration failed");
+      if (result === "granted") {
+        // Token is registered — nothing more to do here
+      } else if (result === "denied") {
+        console.warn("[PushNotifications] Permission denied by user");
+      } else if (result === "error") {
+        setError("Unable to get FCM token");
+      } else {
+        console.warn("[PushNotifications] Permission not granted:", result);
       }
     };
 
