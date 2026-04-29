@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { ReactElement } from "react";
 
-export type UserRole = "ADMIN" | "TRAINER" | "TRAINEE" | "DEVELOPER" | "SUPERVISOR";
+export type UserRole = "ADMIN" | "TRAINER" | "TRAINEE" | "DEVELOPER" | "SUPERVISOR" | "STAFF";
 export type UserIndustry =
   | "WELTEL"
   | "RBC"
@@ -14,7 +14,7 @@ export interface User {
   fullNames: string;
   email: string;
   phoneNumber?: string;
-  roles: UserRole;
+  roles: UserRole | UserRole[];
   permissions: string[];
   photo?: string;
   industry?: UserIndustry;
@@ -51,7 +51,7 @@ export interface UserData {
   email: string;
   phoneNumber: string;
   id: string;
-  role: UserRole;
+  roles: string[];
   photo: string;
 }
 
@@ -488,102 +488,11 @@ export interface ISettings {
   };
 }
 
-// Dashboard Statistics
-export interface RecentCourse {
-  id: string;
-  name: string;
-  enrolled: number;
-  rating: number;
-}
-
-export interface DashboardStatistics {
-  totalCourses: number;
-  unpublishedCourses: number;
-  totalStudents: number;
-  fiveRecentCourses: RecentCourse[];
-}
-
-export interface TDashboardStatisticsResponse {
-  message: string;
-  statusCode: number;
-  data: DashboardStatistics;
-}
-
-
 export interface Post {
   userId: number;
   id: number;
   title: string;
   body: string;
-}
-
-export interface SidebarLinkProps {
-  text: string;
-  Icon: ReactElement;
-  to: string;
-}
-
-export interface Notification {
-  id: string;
-  userId: string;
-  title: string;
-  message: string;
-  type: "info" | "success" | "warning" | "error";
-  isRead: boolean;
-  actionUrl?: string;
-  createdAt: Date;
-  updatedAt: Date;
-  entityType?: string;
-  entityId?: string;
-  metadata?: Record<string, unknown>;
-}
-
-
-export interface User {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  roles: UserRole;
-  photo?: string;
-  // isActive: boolean;
-  // lastLogin?: Date;
-}
-
-
-
-export interface IPasswordLogin {
-  email: string;
-  password: string;
-}
-
-export interface UserData {
-  token: string;
-  fullNames: string;
-  email: string;
-  phoneNumber: string;
-  id: string;
-  roles: string[];
-  photo: string;
-}
-
-export interface LoginResponse {
-  message: string;
-  statusCode: number;
-  data: UserData;
-}
-
-export interface IResponse<T> {
-  statusCode: number;
-  message: string;
-  data?: T;
-}
-
-export interface IPaged<T> {
-  data: T;
-  currentPage: number;
-  totalItems: number;
-  itemsPerPage: number;
 }
 
 export interface ICourse {
@@ -738,25 +647,13 @@ export interface IOption {
 }
 
 
-// Dashboard Statistics
-export interface RecentCourse {
-  id: string;
-  name: string;
-  enrolled: number;
-  rating: number;
-}
 
-export interface DashboardStatistics {
-  totalCourses: number;
-  unpublishedCourses: number;
-  totalStudents: number;
-  fiveRecentCourses: RecentCourse[];
-}
 
-export interface TDashboardStatisticsResponse {
-  message: string;
-  statusCode: number;
-  data: DashboardStatistics;
+export interface Post {
+  userId: number;
+  id: number;
+  title: string;
+  body: string;
 }
 
 // / Slide Feedback Types
@@ -1243,4 +1140,96 @@ export interface IEvent {
   locationOverride?: string;
   isCancelled?: boolean;
   originalEventId?: string;
+}
+
+export interface IMyCertificate {
+  id: string;
+  courseId: string;
+  courseTitle: string;
+  pdf: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface IMyCertificatesResponse {
+  message: string;
+  statusCode: number;
+  data: IMyCertificate[];
+}
+
+export interface IMyCoursesResponse {
+  message: string;
+  statusCode: number;
+  data: {
+    totalCoursesEnrolled: number;
+    overallProgress: string;
+    enrolledCourses: EnrolledCourse[];
+  };
+}
+
+// ── Test score analytics ──────────────────────────────────────────
+export interface ITestScoreByCourse {
+  courseId: string;
+  courseTitle: string;
+  meanPreTest: number | null;
+  meanFinalTest: number | null;
+  knowledgeGain: number | null;
+  preTestAttempts: number;
+  finalTestAttempts: number;
+}
+
+export interface ITestScoreAnalytics {
+  overallMeanPreTest: number;
+  overallMeanFinalTest: number;
+  overallKnowledgeGain: number;
+  byCourse: ITestScoreByCourse[];
+}
+
+// ── Communications analytics ─────────────────────────────────────
+export interface ICommType {
+  type: string;
+  label: string;
+  count: number;
+  thisMonth: number;
+}
+
+export interface ICommMonthlyTrend {
+  month: string;
+  direct: number;
+  group: number;
+  community: number;
+  total: number;
+}
+
+export interface ICommunicationsAnalytics {
+  total: number;
+  thisMonth: number;
+  byType: ICommType[];
+  monthlyTrend: ICommMonthlyTrend[];
+}
+
+// ── Demographics analytics ────────────────────────────────────────
+export interface IDemographicRow {
+  district?: string;
+  gender?: string;
+  ageGroup?: string;
+  total: number;
+  completedAtLeastOne: number;
+  completionRate: number;
+  certificationRate: number;
+}
+
+export interface IDemographicsAnalytics {
+  totalStudents: number;
+  byDistrict: IDemographicRow[];
+  byGender: IDemographicRow[];
+  byAgeGroup: IDemographicRow[];
+}
+
+export interface IDashboardFilters {
+  province: string;   // "" means all
+  district: string;   // "" means all
+  gender: string;     // "" means all
+  year: string;       // "" means all, e.g. "2025" | "2026"
+  month: string;      // "" means all, e.g. "Jan" | "Feb" ... "Dec"
 }

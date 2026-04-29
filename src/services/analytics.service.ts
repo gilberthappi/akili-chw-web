@@ -1,5 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { IAnalytics, IResponse, IDashboardStatsResponse, ICourseAnalyticsResponse, IStudentAnalyticsResponse } from "@/types";
+import {
+  IAnalytics,
+  IResponse,
+  IDashboardStatsResponse,
+  ICourseAnalyticsResponse,
+  IStudentAnalyticsResponse,
+  ITestScoreAnalytics,
+  ICommunicationsAnalytics,
+  IDemographicsAnalytics,
+} from "@/types";
 import api from "./api";
 
 export const getDashboardStats = async (): Promise<IDashboardStatsResponse> => {
@@ -21,4 +30,16 @@ export const getStudentAnalytics = async (): Promise<IStudentAnalyticsResponse> 
 
 export const getTrainerAnalytics = async (trainerId: string): Promise<IResponse<any>> => {
   return (await api.get(`/analytics/trainers/${trainerId}`)).data;
+};
+
+export const getTestScoreAnalytics = async (): Promise<IResponse<ITestScoreAnalytics>> => {
+  return (await api.get("/export/dashboard/test-score/analytics")).data;
+};
+
+export const getCommunicationsAnalytics = async (): Promise<IResponse<ICommunicationsAnalytics>> => {
+  return (await api.get("/export/dashboard/communications/analytics")).data;
+};
+
+export const getDemographicsAnalytics = async (): Promise<IResponse<IDemographicsAnalytics>> => {
+  return (await api.get("/export/dashboard/demographics/analytics")).data;
 };

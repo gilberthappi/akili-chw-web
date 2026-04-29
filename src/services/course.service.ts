@@ -103,3 +103,51 @@ export const uploadSlideFile = async (file: File): Promise<string> => {
 
   return url;
 };
+
+import { IMyCoursesResponse, IMyCertificatesResponse, IMyCertificate, EnrolledCourse } from "@/types";
+
+export const getMyCourses = async (): Promise<IMyCoursesResponse> => {
+  return (await api.get("/courses/myall")).data;
+};
+
+export const getMyCertificates = async (): Promise<IMyCertificatesResponse> => {
+  // Step 1: get enrolled courses
+  const coursesRes = await api.get("/courses/myall");
+  const enrolledCourses: EnrolledCourse[] =
+    coursesRes.data?.data?.enrolledCourses ?? [];
+
+  // Step 2: for each completed course, fetch its certificate
+  const completedCourses = enrolledCourses.filter((c) => c.isCompleted);
+  const certResults = await Promise.allSettled(
+    completedCourses.map((c) =>
+      api.get(`/certificate/my-certificate/course/${c.courseId}`)
+    )
+  );
+
+  const certificates: IMyCertificate[] = certResults
+    .filter((r) => r.status === "fulfilled")
+    .map((r) => {
+      const res = (r as PromiseFulfilledResult<{ data: { data: IMyCertificate & { course?: { title?: string } } } }>).value;
+      const raw = res.data?.data;
+      return {
+        id: raw?.id ?? "",
+        courseId: raw?.courseId ?? "",
+        // Backend returns course title inside a nested course object or not at all.
+        // Fall back to matching against enrolledCourses by courseId.
+        courseTitle:
+          raw?.course?.title ??
+          enrolledCourses.find((c) => c.courseId === raw?.courseId)?.courseTitle ??
+          "Isomo",
+        pdf: raw?.pdf ?? "",
+        createdAt: raw?.createdAt ?? "",
+        updatedAt: raw?.updatedAt ?? "",
+      };
+    })
+    .filter((c) => c.id !== "");
+
+  return {
+    message: "ok",
+    statusCode: 200,
+    data: certificates,
+  };
+};

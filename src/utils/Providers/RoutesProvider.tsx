@@ -36,7 +36,7 @@ const RoutesProvider = () => {
     {
       path: "/",
       element: (
-        <ProtectedRoute allowedRoles={["ADMIN", "TRAINEE", "TRAINER", "DEVELOPER", "SUPERVISOR"]}>
+        <ProtectedRoute allowedRoles={["ADMIN", "TRAINEE", "TRAINER", "DEVELOPER", "SUPERVISOR", "STAFF"]}>
           <AdminLayout />
         </ProtectedRoute>
       ),

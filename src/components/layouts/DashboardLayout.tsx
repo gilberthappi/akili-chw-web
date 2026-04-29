@@ -399,7 +399,7 @@ const DashboardLayout = ({
     {
       label: "Analytics",
       path: "/analytics",
-      roles: ["ADMIN", "TRAINER", "DEVELOPER"],
+      roles: ["ADMIN", "TRAINER", "DEVELOPER", "STAFF"],
       industries: ["SFH", "WELTEL", "RBC"],
       icon: <BarChart3 className='w-5 h-5' />,
       submenus: [
@@ -433,7 +433,7 @@ const DashboardLayout = ({
     {
       label: "Courses",
       path: "/courses",
-      roles: ["ADMIN", "TRAINER", "DEVELOPER"],
+      roles: ["ADMIN", "TRAINER", "DEVELOPER", "STAFF"],
       industries: ["SFH", "WELTEL", "RBC"],
       icon: <ClipboardDocumentListIcon className='w-5 h-5' />,
     },
@@ -447,7 +447,7 @@ const DashboardLayout = ({
       label: "Students",
       icon: <Users className='w-4 h-4' />,
       path: "/students",
-      roles: ["ADMIN","DEVELOPER" ,"TRAINER"],
+      roles: ["ADMIN","DEVELOPER" ,"TRAINER", "STAFF"],
     },
     {
       label: "My Certificates",
@@ -459,13 +459,13 @@ const DashboardLayout = ({
       label: "Certificates",
       icon: <Award className='w-4 h-4' />,
       path: "/certificates",
-      roles: ["ADMIN", "TRAINER", "DEVELOPER"],
+      roles: ["ADMIN", "TRAINER", "DEVELOPER", "STAFF"],
     },
     {
       label: "Feedbacks",
       icon: <MessageCircle className='w-4 h-4' />,
       path: "/feedbacks",
-      roles: ["ADMIN", "TRAINER", "DEVELOPER"],
+      roles: ["ADMIN", "TRAINER", "DEVELOPER", "STAFF"],
     },
 
     {
