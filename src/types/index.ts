@@ -39,10 +39,6 @@ export interface ISignup {
   NID?: string;
   birthdate?: string;
   gender?: string;
-  role: string;
-  industry: string;
-  password: string;
-  confirmPassword: string;
 }
 
 export interface UserData {

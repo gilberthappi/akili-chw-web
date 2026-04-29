@@ -40,8 +40,4 @@ export interface ISignUp {
   NID?: string;
   birthdate?: string;
   gender?: string;
-  role: string;
-  industry: string;
-  password: string;
-  confirmPassword: string;
 }
