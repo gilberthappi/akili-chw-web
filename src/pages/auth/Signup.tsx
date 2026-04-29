@@ -1,9 +1,8 @@
 import React, { useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  Mail, Lock, User, Phone, Calendar, MapPin,
-  Building2, Briefcase, Users as UsersIcon,
-  Eye, EyeOff, CreditCard,
+  Mail, User, Phone, Calendar, MapPin,
+  Users as UsersIcon, CreditCard,
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { AuthDecorativePanel } from "@/components/auth/AuthDecorativePanel";
@@ -145,8 +144,7 @@ export const Signup: React.FC = () => {
     defaultValues: {
       email: "", fullNames: "", phoneNumber: "",
       district: "", sector: "", cell: "", village: "",
-      NID: "", birthdate: "", gender: "", role: "",
-      industry: "", password: "", confirmPassword: "",
+      NID: "", birthdate: "", gender: "",
     },
   });
 
@@ -202,14 +200,7 @@ export const Signup: React.FC = () => {
     }
   };
 
-  const genderOptions   = [{ value: "Female", label: "Female" }, { value: "Male", label: "Male" }, { value: "Other", label: "Other" }];
-  const roleOptions     = [{ value: "TRAINEE", label: "Trainee (CHW)" }, { value: "TRAINER", label: "Trainer (Supervisor)" }, { value: "ADMIN", label: "Admin" }];
-  const industryOptions = [
-    { value: "WELTEL",   label: "WELTEL Rwanda" },
-    { value: "RBC",      label: "RBC" },
-    { value: "SFH",      label: "SFH Rwanda" },
-    { value: "CIIC-HIN", label: "CIIC-HIN Rwanda" },
-  ];
+  const genderOptions = [{ value: "Female", label: "Female" }, { value: "Male", label: "Male" }, { value: "Other", label: "Other" }];
 
   return (
     <div className="h-screen flex items-center justify-center p-3" style={{ background: "#0e0a1f" }}>
@@ -251,15 +242,6 @@ export const Signup: React.FC = () => {
                 </div>
               </div>
 
-              {/* Organization & Role */}
-              <div className="space-y-4">
-                <SectionHeading>Organization &amp; Role</SectionHeading>
-                <div className="grid grid-cols-2 gap-4">
-                  <DarkSelect label="Industry / Organization" icon={<Building2 size={16} />} error={errors.industry?.message} reg={register("industry")} options={industryOptions} defaultLabel="Select Industry" />
-                  <DarkSelect label="Role" icon={<Briefcase size={16} />} error={errors.role?.message} reg={register("role")} options={roleOptions} defaultLabel="Select Role" />
-                </div>
-              </div>
-
               {/* Location */}
               <div className="space-y-4">
                 <SectionHeading>Location</SectionHeading>
@@ -268,15 +250,6 @@ export const Signup: React.FC = () => {
                   <DarkSelect label="Sector" icon={<MapPin size={16} />} error={errors.sector?.message} reg={register("sector")} options={sectors} defaultLabel={selectedDistrict ? "Select Sector" : "Select District first"} onChange={handleSectorChange} disabled={!selectedDistrict} />
                   <DarkSelect label="Cell" icon={<MapPin size={16} />} error={errors.cell?.message} reg={register("cell")} options={cells} defaultLabel={selectedSector ? "Select Cell" : "Select Sector first"} onChange={handleCellChange} disabled={!selectedSector} />
                   <DarkSelect label="Village" icon={<MapPin size={16} />} error={errors.village?.message} reg={register("village")} options={villages} defaultLabel={selectedCell ? "Select Village" : "Select Cell first"} disabled={!selectedCell} />
-                </div>
-              </div>
-
-              {/* Security */}
-              <div className="space-y-4">
-                <SectionHeading>Security</SectionHeading>
-                <div className="grid grid-cols-2 gap-4">
-                  <DarkField label="Password" placeholder="••••••••" type="password" icon={<Lock size={16} />} error={errors.password?.message} reg={register("password")} />
-                  <DarkField label="Confirm Password" placeholder="••••••••" type="password" icon={<Lock size={16} />} error={errors.confirmPassword?.message} reg={register("confirmPassword")} />
                 </div>
               </div>
 

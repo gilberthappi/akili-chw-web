@@ -11,29 +11,20 @@ export const userSchema = z.object({
 });
 
 
-export const signupSchema = z
-  .object({
-    email: z.string().email("Invalid email"),
-    fullNames: z.string().min(1, "Full name is required"),
-    phoneNumber: z.string().min(10, "Invalid phone number"),
-    district: z.string().optional(),
-    sector: z.string().optional(),
-    cell: z.string().optional(),
-    village: z.string().optional(),
-    NID: z.string().optional(),
-    birthdate: z
-      .string()
-      .optional()
-      .refine((val) => !val || !Number.isNaN(Date.parse(val)), {
-        message: "Invalid birthdate",
-      }),
-    gender: z.string().min(1, "Gender is required"),
-    role: z.string().min(1, "Role is required"),
-    industry: z.string().min(1, "Industry is required"),
-    password: z.string().min(6, "Password must be at least 6 characters"),
-    confirmPassword: z.string().min(1, "Confirm password is required"),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords do not match",
-    path: ["confirmPassword"],
-  });
+export const signupSchema = z.object({
+  email: z.string().email("Invalid email"),
+  fullNames: z.string().min(1, "Full name is required"),
+  phoneNumber: z.string().min(10, "Invalid phone number"),
+  district: z.string().optional(),
+  sector: z.string().optional(),
+  cell: z.string().optional(),
+  village: z.string().optional(),
+  NID: z.string().optional(),
+  birthdate: z
+    .string()
+    .optional()
+    .refine((val) => !val || !Number.isNaN(Date.parse(val)), {
+      message: "Invalid birthdate",
+    }),
+  gender: z.string().min(1, "Gender is required"),
+});
