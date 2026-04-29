@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import i18n from "@/i18n";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -99,6 +101,7 @@ const errCls = "text-xs text-red-500 mt-1";
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export const Settings: React.FC = () => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState("profile");
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
@@ -143,6 +146,7 @@ export const Settings: React.FC = () => {
     setTimezone(s.timezone);
     setDateFormat(s.dateFormat);
     setCategories(s.categories);
+    i18n.changeLanguage(s.language);
     // Keep localStorage in sync as cache
     localStorage.setItem("st_theme", s.theme);
     localStorage.setItem("st_email", JSON.stringify(s.emailNotif));
@@ -160,7 +164,7 @@ export const Settings: React.FC = () => {
   const settingsMut = useMutation({
     mutationFn: (payload: UpdateSettingsPayload) => updateSettings(payload),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["userSettings"] }),
-    onError: () => toast.error("Failed to save setting"),
+    onError: () => toast.error(t("notifications.failedToSave")),
   });
 
   const saveSetting = (payload: UpdateSettingsPayload) => settingsMut.mutate(payload);
@@ -193,11 +197,11 @@ export const Settings: React.FC = () => {
       setPushNotif(false);
       localStorage.setItem("st_push", "false");
       saveSetting({ pushNotif: false });
-      toast("Push notifications disabled.", { icon: "ℹ️" });
+      toast(t("notifications.pushDisabled"), { icon: "ℹ️" });
       return;
     }
     if (pushPermission === "denied") {
-      toast.error("Push notifications are blocked by your browser. Open browser settings to allow them.");
+      toast.error(t("notifications.pushBlocked"));
       return;
     }
     setPushLoading(true);
@@ -208,11 +212,11 @@ export const Settings: React.FC = () => {
       setPushNotif(true);
       localStorage.setItem("st_push", "true");
       saveSetting({ pushNotif: true });
-      toast.success("Push notifications enabled!");
+      toast.success(t("notifications.pushEnabled"));
     } else if (result === "denied") {
-      toast.error("Push notifications blocked. Enable them in your browser settings.");
+      toast.error(t("notifications.pushBlockedShort"));
     } else {
-      toast.error("Could not enable push notifications. Try again later.");
+      toast.error(t("notifications.pushError"));
     }
   };
 
@@ -313,12 +317,12 @@ export const Settings: React.FC = () => {
   // ── Tabs ────────────────────────────────────────────────────────────────────
 
   const tabs = [
-    { id: "profile", label: "Profile", icon: User },
-    { id: "notifications", label: "Notifications", icon: Bell },
-    { id: "security", label: "Security & Privacy", icon: Shield },
-    { id: "appearance", label: "Appearance", icon: Palette },
-    { id: "language", label: "Language & Region", icon: Globe },
-    { id: "data", label: "Data & Storage", icon: Download },
+    { id: "profile", label: t("tabs.profile"), icon: User },
+    { id: "notifications", label: t("tabs.notifications"), icon: Bell },
+    { id: "security", label: t("tabs.security"), icon: Shield },
+    { id: "appearance", label: t("tabs.appearance"), icon: Palette },
+    { id: "language", label: t("tabs.language"), icon: Globe },
+    { id: "data", label: t("tabs.data"), icon: Download },
   ];
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -326,8 +330,8 @@ export const Settings: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100 mb-2">Settings</h1>
-        <p className="text-gray-600 dark:text-slate-400">Manage your account settings and preferences</p>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100 mb-2">{t("settings.title")}</h1>
+        <p className="text-gray-600 dark:text-slate-400">{t("settings.subtitle")}</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -363,7 +367,7 @@ export const Settings: React.FC = () => {
               <div className="p-6">
                 <div className="flex items-center gap-3 mb-6 pb-4 border-b dark:border-slate-700">
                   <User className="w-5 h-5 text-gray-400 dark:text-slate-500" />
-                  <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100">Profile Settings</h2>
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100">{t("profile.title")}</h2>
                 </div>
 
                 {isLoading ? (
@@ -375,7 +379,7 @@ export const Settings: React.FC = () => {
                     {/* Avatar */}
                     <div className="mb-8">
                       <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">
-                        Profile Photo
+                        {t("profile.photo")}
                       </label>
                       <div className="flex items-center gap-4">
                         <div className="w-20 h-20 rounded-full overflow-hidden bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl flex-shrink-0">
@@ -413,10 +417,10 @@ export const Settings: React.FC = () => {
                             ) : (
                               <Camera className="w-4 h-4" />
                             )}
-                            Change Photo
+                            {t("profile.changePhoto")}
                           </button>
                           <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
-                            JPG, PNG up to 10 MB
+                            {t("profile.photoHint")}
                           </p>
                         </div>
                       </div>
@@ -426,7 +430,7 @@ export const Settings: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
-                          Full Name *
+                          {t("profile.fullName")} *
                         </label>
                         <input {...rp("fullNames")} className={inputCls} />
                         {ep.fullNames && (
@@ -435,7 +439,7 @@ export const Settings: React.FC = () => {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
-                          Email
+                          {t("profile.email")}
                         </label>
                         <input {...rp("email")} type="email" className={inputCls} />
                         {ep.email && (
@@ -444,7 +448,7 @@ export const Settings: React.FC = () => {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
-                          Phone Number *
+                          {t("profile.phone")} *
                         </label>
                         <input {...rp("phoneNumber")} type="tel" className={inputCls} />
                         {ep.phoneNumber && (
@@ -453,17 +457,17 @@ export const Settings: React.FC = () => {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
-                          Gender
+                          {t("profile.gender")}
                         </label>
                         <select {...rp("gender")} className={inputCls}>
-                          <option value="">Select gender</option>
-                          <option value="Male">Male</option>
-                          <option value="Female">Female</option>
+                          <option value="">{t("profile.genderSelect")}</option>
+                          <option value="Male">{t("profile.male")}</option>
+                          <option value="Female">{t("profile.female")}</option>
                         </select>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
-                          Date of Birth
+                          {t("profile.dob")}
                         </label>
                         <input
                           {...rp("birthdate")}
@@ -473,12 +477,12 @@ export const Settings: React.FC = () => {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
-                          National ID (NID)
+                          {t("profile.nid")}
                         </label>
                         <input
                           {...rp("NID")}
                           className={inputCls}
-                          placeholder="National ID number"
+                          placeholder={t("profile.nidPlaceholder")}
                         />
                       </div>
                     </div>
@@ -486,25 +490,25 @@ export const Settings: React.FC = () => {
                     {/* Location */}
                     <div className="mb-6">
                       <h3 className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">
-                        Location
+                        {t("profile.location")}
                       </h3>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                         {(
                           [
-                            { name: "district", label: "District" },
-                            { name: "sector", label: "Sector" },
-                            { name: "cell", label: "Cell" },
-                            { name: "village", label: "Village" },
+                            { name: "district", key: "profile.district" },
+                            { name: "sector",   key: "profile.sector" },
+                            { name: "cell",     key: "profile.cell" },
+                            { name: "village",  key: "profile.village" },
                           ] as const
-                        ).map(({ name, label }) => (
+                        ).map(({ name, key }) => (
                           <div key={name}>
                             <label className="block text-xs text-gray-600 dark:text-slate-400 mb-1">
-                              {label}
+                              {t(key)}
                             </label>
                             <input
                               {...rp(name)}
                               className={inputCls}
-                              placeholder={label}
+                              placeholder={t(key)}
                             />
                           </div>
                         ))}
@@ -522,7 +526,7 @@ export const Settings: React.FC = () => {
                         ) : (
                           <Save className="w-4 h-4" />
                         )}
-                        Save Changes
+                        {t("profile.saveChanges")}
                       </button>
                     </div>
                   </form>
@@ -536,7 +540,7 @@ export const Settings: React.FC = () => {
                 <div className="flex items-center gap-3 mb-6 pb-4 border-b dark:border-slate-700">
                   <Bell className="w-5 h-5 text-gray-400 dark:text-slate-500" />
                   <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100">
-                    Notification Preferences
+                    {t("notifications.title")}
                   </h2>
                 </div>
 
@@ -547,8 +551,8 @@ export const Settings: React.FC = () => {
                     <div className="flex items-center gap-3">
                       <Mail className="w-5 h-5 text-gray-500 dark:text-slate-400" />
                       <div>
-                        <p className="text-sm font-medium text-gray-900 dark:text-slate-100">Email Notifications</p>
-                        <p className="text-xs text-gray-500 dark:text-slate-400">Receive updates via email</p>
+                        <p className="text-sm font-medium text-gray-900 dark:text-slate-100">{t("notifications.email")}</p>
+                        <p className="text-xs text-gray-500 dark:text-slate-400">{t("notifications.emailDesc")}</p>
                       </div>
                     </div>
                     <Toggle
@@ -557,7 +561,7 @@ export const Settings: React.FC = () => {
                         setEmailNotif(v);
                         localStorage.setItem("st_email", JSON.stringify(v));
                         saveSetting({ emailNotif: v });
-                        toast.success(v ? "Email notifications enabled" : "Email notifications disabled");
+                        toast.success(`${t("notifications.email")} ${v ? t("notifications.enabled") : t("notifications.disabled")}`);
                       }}
                     />
                   </div>
@@ -568,8 +572,8 @@ export const Settings: React.FC = () => {
                       <div className="flex items-center gap-3">
                         <Smartphone className="w-5 h-5 text-gray-500 dark:text-slate-400" />
                         <div>
-                          <p className="text-sm font-medium text-gray-900 dark:text-slate-100">Push Notifications</p>
-                          <p className="text-xs text-gray-500 dark:text-slate-400">Browser and device push alerts</p>
+                          <p className="text-sm font-medium text-gray-900 dark:text-slate-100">{t("notifications.push")}</p>
+                          <p className="text-xs text-gray-500 dark:text-slate-400">{t("notifications.pushDesc")}</p>
                         </div>
                       </div>
                       {pushLoading ? (
@@ -584,14 +588,14 @@ export const Settings: React.FC = () => {
                       {pushPermission === "granted" && (
                         <>
                           <CheckCircle className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
-                          <span className="text-xs text-green-600 dark:text-green-400">Browser permission granted</span>
+                          <span className="text-xs text-green-600 dark:text-green-400">{t("notifications.permGranted")}</span>
                         </>
                       )}
                       {pushPermission === "denied" && (
                         <>
                           <XCircle className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
                           <span className="text-xs text-red-600 dark:text-red-400">
-                            Blocked by browser — open browser settings to allow
+                            {t("notifications.permDenied")}
                           </span>
                         </>
                       )}
@@ -599,7 +603,7 @@ export const Settings: React.FC = () => {
                         <>
                           <AlertCircle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
                           <span className="text-xs text-amber-600 dark:text-amber-400">
-                            Permission not yet requested — enable the toggle to ask
+                            {t("notifications.permDefault")}
                           </span>
                         </>
                       )}
@@ -611,8 +615,8 @@ export const Settings: React.FC = () => {
                     <div className="flex items-center gap-3">
                       <Phone className="w-5 h-5 text-gray-500 dark:text-slate-400" />
                       <div>
-                        <p className="text-sm font-medium text-gray-900 dark:text-slate-100">SMS Notifications</p>
-                        <p className="text-xs text-gray-500 dark:text-slate-400">Text message alerts</p>
+                        <p className="text-sm font-medium text-gray-900 dark:text-slate-100">{t("notifications.sms")}</p>
+                        <p className="text-xs text-gray-500 dark:text-slate-400">{t("notifications.smsDesc")}</p>
                       </div>
                     </div>
                     <Toggle
@@ -621,7 +625,8 @@ export const Settings: React.FC = () => {
                         setSmsNotif(v);
                         localStorage.setItem("st_sms", JSON.stringify(v));
                         saveSetting({ smsNotif: v });
-                        toast.success(v ? "SMS notifications enabled" : "SMS notifications disabled");
+                        toast.success(`${t("notifications.sms")} ${v ? t("notifications.enabled") : t("notifications.disabled")}`);
+
                       }}
                     />
                   </div>
@@ -630,24 +635,24 @@ export const Settings: React.FC = () => {
                 {/* ── Notification categories ── */}
                 <div className="mt-6">
                   <h3 className="text-sm font-medium text-gray-900 dark:text-slate-100 mb-3">
-                    Notification Categories
+                    {t("notifications.categories")}
                   </h3>
                   <div className="space-y-1 border border-gray-200 dark:border-slate-700 rounded-lg overflow-hidden">
                     {(
                       [
-                        { key: "courseUpdates",        label: "Course Updates",        desc: "New courses and content updates" },
-                        { key: "assignmentReminders",  label: "Assignment Reminders",  desc: "Deadline and submission reminders" },
-                        { key: "certificates",         label: "Certificates",          desc: "Certificate completion notifications" },
-                        { key: "systemUpdates",        label: "System Updates",        desc: "Platform maintenance and updates" },
+                        { key: "courseUpdates",       labelKey: "notifications.courseUpdates",       descKey: "notifications.courseUpdatesDesc" },
+                        { key: "assignmentReminders", labelKey: "notifications.assignmentReminders", descKey: "notifications.assignmentRemindersDesc" },
+                        { key: "certificates",        labelKey: "notifications.certificates",        descKey: "notifications.certificatesDesc" },
+                        { key: "systemUpdates",       labelKey: "notifications.systemUpdates",       descKey: "notifications.systemUpdatesDesc" },
                       ] as const
-                    ).map(({ key, label, desc }) => (
+                    ).map(({ key, labelKey, descKey }) => (
                       <label
                         key={key}
                         className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/40 border-b border-gray-100 dark:border-slate-700 last:border-0 transition-colors"
                       >
                         <div>
-                          <p className="text-sm font-medium text-gray-900 dark:text-slate-100">{label}</p>
-                          <p className="text-xs text-gray-500 dark:text-slate-400">{desc}</p>
+                          <p className="text-sm font-medium text-gray-900 dark:text-slate-100">{t(labelKey)}</p>
+                          <p className="text-xs text-gray-500 dark:text-slate-400">{t(descKey)}</p>
                         </div>
                         <input
                           type="checkbox"
@@ -668,7 +673,7 @@ export const Settings: React.FC = () => {
                 <div className="flex items-center gap-3 mb-6 pb-4 border-b dark:border-slate-700">
                   <Shield className="w-5 h-5 text-gray-400 dark:text-slate-500" />
                   <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100">
-                    Security & Privacy
+                    {t("security.title")}
                   </h2>
                 </div>
 
@@ -682,12 +687,12 @@ export const Settings: React.FC = () => {
                   className="border border-gray-200 dark:border-slate-700 rounded-lg p-4 mb-6"
                 >
                   <h3 className="font-medium text-gray-900 dark:text-slate-100 mb-4">
-                    Change Password
+                    {t("security.changePassword")}
                   </h3>
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
-                        Current Password
+                        {t("security.currentPassword")}
                       </label>
                       <div className="relative">
                         <input
@@ -715,7 +720,7 @@ export const Settings: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
-                          New Password
+                          {t("security.newPassword")}
                         </label>
                         <div className="relative">
                           <input
@@ -741,7 +746,7 @@ export const Settings: React.FC = () => {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
-                          Confirm Password
+                          {t("security.confirmPassword")}
                         </label>
                         <div className="relative">
                           <input
@@ -777,27 +782,27 @@ export const Settings: React.FC = () => {
                       ) : (
                         <Lock className="w-4 h-4" />
                       )}
-                      Update Password
+                      {t("security.updatePassword")}
                     </button>
                   </div>
                 </form>
 
                 <div className="border border-gray-200 dark:border-slate-700 rounded-lg p-4">
                   <h3 className="font-medium text-gray-900 dark:text-slate-100 mb-4">
-                    Active Sessions
+                    {t("security.activeSessions")}
                   </h3>
                   <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-700/40 rounded-lg">
                     <div className="flex items-center gap-3">
                       <Monitor className="w-5 h-5 text-gray-500 dark:text-slate-400" />
                       <div>
                         <p className="text-sm font-medium text-gray-900 dark:text-slate-100">
-                          Current Browser
+                          {t("security.currentBrowser")}
                         </p>
-                        <p className="text-xs text-gray-500 dark:text-slate-400">Active now</p>
+                        <p className="text-xs text-gray-500 dark:text-slate-400">{t("security.activeNow")}</p>
                       </div>
                     </div>
                     <span className="text-xs text-green-600 font-medium">
-                      Current Session
+                      {t("security.currentSession")}
                     </span>
                   </div>
                 </div>
@@ -810,19 +815,19 @@ export const Settings: React.FC = () => {
                 <div className="flex items-center gap-3 mb-6 pb-4 border-b dark:border-slate-700">
                   <Palette className="w-5 h-5 text-gray-400 dark:text-slate-500" />
                   <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100">
-                    Appearance
+                    {t("appearance.title")}
                   </h2>
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-900 dark:text-slate-100 mb-3">
-                    Theme
+                    {t("appearance.theme")}
                   </h3>
                   <div className="grid grid-cols-3 gap-4">
                     {(
                       [
-                        { value: "light", label: "Light", icon: Sun, preview: "bg-white border" },
-                        { value: "dark", label: "Dark", icon: Moon, preview: "bg-gray-800" },
-                        { value: "auto", label: "Auto", icon: Monitor, preview: "bg-gradient-to-r from-white to-gray-800" },
+                        { value: "light", label: t("appearance.light"), icon: Sun, preview: "bg-white border" },
+                        { value: "dark",  label: t("appearance.dark"),  icon: Moon, preview: "bg-gray-800" },
+                        { value: "auto",  label: t("appearance.auto"),  icon: Monitor, preview: "bg-gradient-to-r from-white to-gray-800" },
                       ] as const
                     ).map(({ value, label, icon: Icon, preview }) => (
                       <button
@@ -845,10 +850,10 @@ export const Settings: React.FC = () => {
 
                   <p className="mt-4 text-xs text-gray-500 dark:text-slate-400">
                     {theme === "auto"
-                      ? "Theme follows your system preference."
+                      ? t("appearance.autoDesc")
                       : theme === "dark"
-                      ? "Dark theme is active."
-                      : "Light theme is active."}
+                      ? t("appearance.darkDesc")
+                      : t("appearance.lightDesc")}
                   </p>
                 </div>
               </div>
@@ -860,32 +865,34 @@ export const Settings: React.FC = () => {
                 <div className="flex items-center gap-3 mb-6 pb-4 border-b dark:border-slate-700">
                   <Globe className="w-5 h-5 text-gray-400 dark:text-slate-500" />
                   <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100">
-                    Language & Region
+                    {t("language.title")}
                   </h2>
                 </div>
                 <div className="space-y-5">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                      Language
+                      {t("language.language")}
                     </label>
                     <select
                       value={language}
                       onChange={(e) => {
-                        setLanguage(e.target.value);
-                        localStorage.setItem("st_lang", e.target.value);
-                        saveSetting({ language: e.target.value });
+                        const lang = e.target.value;
+                        setLanguage(lang);
+                        i18n.changeLanguage(lang);
+                        localStorage.setItem("st_lang", lang);
+                        saveSetting({ language: lang });
                       }}
                       className={inputCls}
                     >
                       <option value="en">English</option>
                       <option value="rw">Kinyarwanda</option>
-                      <option value="fr">Français</option>
-                      <option value="sw">Kiswahili</option>
+                      {/* <option value="fr">Français</option> */}
+                      {/* <option value="sw">Kiswahili</option> */}
                     </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                      Time Zone
+                      {t("language.timezone")}
                     </label>
                     <select
                       value={timezone}
@@ -905,7 +912,7 @@ export const Settings: React.FC = () => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                      Date Format
+                      {t("language.dateFormat")}
                     </label>
                     <select
                       className={inputCls}
@@ -931,49 +938,44 @@ export const Settings: React.FC = () => {
                 <div className="flex items-center gap-3 mb-6 pb-4 border-b dark:border-slate-700">
                   <Download className="w-5 h-5 text-gray-400 dark:text-slate-500" />
                   <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100">
-                    Data & Storage
+                    {t("data.title")}
                   </h2>
                 </div>
                 <div className="space-y-4">
                   <div className="border border-gray-200 dark:border-slate-700 rounded-lg p-4">
                     <h3 className="font-medium text-gray-900 dark:text-slate-100 mb-2">
-                      Clear Cache
+                      {t("data.clearCache")}
                     </h3>
                     <p className="text-sm text-gray-600 dark:text-slate-400 mb-3">
-                      Remove locally cached preferences to free up storage.
+                      {t("data.clearCacheDesc")}
                     </p>
                     <button
                       onClick={() => {
                         ["st_email", "st_push", "st_sms", "st_theme", "st_lang", "st_tz"].forEach((k) =>
                           localStorage.removeItem(k),
                         );
-                        toast.success("Cache cleared");
+                        toast.success(t("data.cacheCleared"));
                       }}
                       className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 dark:text-slate-300 text-sm"
                     >
                       <RefreshCw className="w-4 h-4" />
-                      Clear Cache
+                      {t("data.clearCacheBtn")}
                     </button>
                   </div>
 
                   <div className="border border-red-200 dark:border-red-900/50 rounded-lg p-4 bg-red-50 dark:bg-red-900/10">
                     <h3 className="font-medium text-red-900 dark:text-red-400 mb-2">
-                      Delete Account
+                      {t("data.deleteAccount")}
                     </h3>
                     <p className="text-sm text-red-700 dark:text-red-400/80 mb-3">
-                      Permanently delete your account and all associated data.
-                      This action cannot be undone.
+                      {t("data.deleteAccountDesc")}
                     </p>
                     <button
-                      onClick={() =>
-                        toast.error(
-                          "Please contact an administrator to delete your account",
-                        )
-                      }
+                      onClick={() => toast.error(t("data.deleteAccountContact"))}
                       className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm"
                     >
                       <Trash2 className="w-4 h-4" />
-                      Delete Account
+                      {t("data.deleteAccountBtn")}
                     </button>
                   </div>
                 </div>
