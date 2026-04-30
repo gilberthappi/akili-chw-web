@@ -15,6 +15,7 @@ interface Phase3SectionProps {
   studentAnalytics: IStudentAnalytics | null;
   isLoading: boolean;
   isSupervisorView: boolean;
+  hideKpis?: boolean;
 }
 
 export const Phase3Section: React.FC<Phase3SectionProps> = ({
@@ -23,6 +24,7 @@ export const Phase3Section: React.FC<Phase3SectionProps> = ({
   studentAnalytics,
   isLoading,
   isSupervisorView,
+  hideKpis = false,
 }) => {
   if (isLoading) return <SectionSkeleton cards={4} rows={2} />;
 
@@ -34,41 +36,43 @@ export const Phase3Section: React.FC<Phase3SectionProps> = ({
       />
 
       {/* KPI row — 4 stat cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard
-          title="Total Students"
-          value={dashboardStats?.totalStudents?.value ?? 0}
-          icon={<Users size={20} />}
-          iconBg="bg-blue-50"
-          iconColor="text-[#3363AD]"
-          trend={dashboardStats?.totalStudents?.trend}
-          description={`${dashboardStats?.newEnrollments ?? 0} new this month`}
-        />
-        <KpiCard
-          title="Active Users"
-          value={dashboardStats?.activeUsers?.value ?? 0}
-          icon={<Activity size={20} />}
-          iconBg="bg-indigo-50"
-          iconColor="text-indigo-600"
-          trend={dashboardStats?.activeUsers?.trend}
-        />
-        <KpiCard
-          title="Completion Rate"
-          value={`${dashboardStats?.completionRate?.value ?? 0}%`}
-          icon={<CheckCircle size={20} />}
-          iconBg="bg-green-50"
-          iconColor="text-green-600"
-          trend={dashboardStats?.completionRate?.trend}
-        />
-        <KpiCard
-          title="Certificates"
-          value={courseAnalytics?.certificatesIssued?.value ?? 0}
-          icon={<Award size={20} />}
-          iconBg="bg-amber-50"
-          iconColor="text-amber-500"
-          trend={courseAnalytics?.certificatesIssued?.trend}
-        />
-      </div>
+      {!hideKpis && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <KpiCard
+            title="Total Students"
+            value={dashboardStats?.totalStudents?.value ?? 0}
+            icon={<Users size={20} />}
+            iconBg="bg-blue-50"
+            iconColor="text-[#3363AD]"
+            trend={dashboardStats?.totalStudents?.trend}
+            description={`${dashboardStats?.newEnrollments ?? 0} new this month`}
+          />
+          <KpiCard
+            title="Active Users"
+            value={dashboardStats?.activeUsers?.value ?? 0}
+            icon={<Activity size={20} />}
+            iconBg="bg-indigo-50"
+            iconColor="text-indigo-600"
+            trend={dashboardStats?.activeUsers?.trend}
+          />
+          <KpiCard
+            title="Completion Rate"
+            value={`${dashboardStats?.completionRate?.value ?? 0}%`}
+            icon={<CheckCircle size={20} />}
+            iconBg="bg-green-50"
+            iconColor="text-green-600"
+            trend={dashboardStats?.completionRate?.trend}
+          />
+          <KpiCard
+            title="Certificates"
+            value={courseAnalytics?.certificatesIssued?.value ?? 0}
+            icon={<Award size={20} />}
+            iconBg="bg-amber-50"
+            iconColor="text-amber-500"
+            trend={courseAnalytics?.certificatesIssued?.trend}
+          />
+        </div>
+      )}
 
       {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -79,15 +83,17 @@ export const Phase3Section: React.FC<Phase3SectionProps> = ({
       </div>
 
       {/* Certification + Activity row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <CertificationCard courseAnalytics={courseAnalytics} />
-        <div className="lg:col-span-2">
-          <RecentLearnerActivity
-            activities={studentAnalytics?.recentActivity ?? []}
-            isSupervisorView={isSupervisorView}
-          />
+      {!hideKpis && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <CertificationCard courseAnalytics={courseAnalytics} />
+          <div className="lg:col-span-2">
+            <RecentLearnerActivity
+              activities={studentAnalytics?.recentActivity ?? []}
+              isSupervisorView={isSupervisorView}
+            />
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

@@ -45,7 +45,12 @@ export const Dashboard: React.FC = () => {
         </p>
       </div>
 
-      {isAnyOf("ADMIN", "STAFF", "DEVELOPER") && <AdoptionSection />}
+      {isAnyOf("ADMIN", "STAFF", "DEVELOPER") && (
+        <AdoptionSection
+          dashboardStats={dashboardStats}
+          courseAnalytics={courseAnalytics}
+        />
+      )}
 
       {isAnyOf("ADMIN", "TRAINER", "SUPERVISOR", "STAFF", "DEVELOPER") && (
         <Phase3Section
@@ -54,6 +59,7 @@ export const Dashboard: React.FC = () => {
           studentAnalytics={studentAnalytics}
           isLoading={isLoading}
           isSupervisorView={is("SUPERVISOR")}
+          hideKpis={isAnyOf("ADMIN", "DEVELOPER")}
         />
       )}
 

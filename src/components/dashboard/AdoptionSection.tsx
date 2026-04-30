@@ -1,5 +1,6 @@
 import React from "react";
-import { Users, Activity, Building2, TrendingUp, Clock } from "lucide-react";
+import { Users, Activity, Building2, TrendingUp, CheckCircle, Award } from "lucide-react";
+import { IDashboardStats, ICourseAnalytics } from "@/types";
 import { useAdoptionStats } from "@/hooks/useAdoptionStats";
 import { useDashboardFilters } from "@/hooks/useDashboardFilters";
 import { GlobalFilterBar } from "./GlobalFilterBar";
@@ -12,10 +13,17 @@ import { TestScoreAnalyticsCard } from "./TestScoreAnalyticsCard";
 import { DemographicsSection } from "./DemographicsSection";
 import { RwandaDistrictMap } from "./RwandaDistrictMap";
 
-export const AdoptionSection: React.FC = () => {
+interface AdoptionSectionProps {
+  dashboardStats: IDashboardStats | null;
+  courseAnalytics: ICourseAnalytics | null;
+}
+
+export const AdoptionSection: React.FC<AdoptionSectionProps> = ({
+  dashboardStats,
+  courseAnalytics,
+}) => {
   const {
-    totalChws, activeChws, registrationRate, activeRate,
-    hospitals, enrollmentTrends, avgStudyTime,
+    hospitals, enrollmentTrends,
     byProvince, testScores, communications, demographics,
     isLoading, error,
   } = useAdoptionStats();
@@ -63,27 +71,40 @@ export const AdoptionSection: React.FC = () => {
       {/* KPI row */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <KpiCard
-          title="Registered (%)"
-          value={`${registrationRate}%`}
+          title="Total Learners"
+          value={dashboardStats?.totalStudents?.value ?? 0}
           icon={<Users size={20} />}
           iconBg="bg-blue-50"
           iconColor="text-[#3363AD]"
-          description={`${totalChws.toLocaleString()} / 58,567`}
+          trend={dashboardStats?.totalStudents?.trend}
+          description="Registered"
         />
         <KpiCard
-          title="Active This Month (%)"
-          value={`${activeRate}%`}
+          title="Active Users"
+          value={dashboardStats?.activeUsers?.value ?? 0}
           icon={<Activity size={20} />}
           iconBg="bg-green-50"
           iconColor="text-green-600"
-          description={`${activeChws.toLocaleString()} active`}
+          trend={dashboardStats?.activeUsers?.trend}
+          description="Last 30 days"
         />
         <KpiCard
-          title="Total CHWs"
-          value={totalChws.toLocaleString()}
-          icon={<Users size={20} />}
+          title="Completion Rate"
+          value={`${Math.round(dashboardStats?.completionRate?.value ?? 0)}%`}
+          icon={<CheckCircle size={20} />}
           iconBg="bg-indigo-50"
           iconColor="text-indigo-600"
+          trend={dashboardStats?.completionRate?.trend}
+          description="Courses completed"
+        />
+        <KpiCard
+          title="Certificates"
+          value={courseAnalytics?.certificatesIssued?.value ?? 0}
+          icon={<Award size={20} />}
+          iconBg="bg-amber-50"
+          iconColor="text-amber-500"
+          trend={courseAnalytics?.certificatesIssued?.trend}
+          description="Issued"
         />
         <KpiCard
           title="Hospitals"
@@ -91,14 +112,7 @@ export const AdoptionSection: React.FC = () => {
           icon={<Building2 size={20} />}
           iconBg="bg-purple-50"
           iconColor="text-purple-600"
-        />
-        <KpiCard
-          title="Avg Study Time (min)"
-          value={avgStudyTime > 0 ? `${Math.round(avgStudyTime)}` : "—"}
-          icon={<Clock size={20} />}
-          iconBg="bg-amber-50"
-          iconColor="text-amber-600"
-          description="Per learner"
+          description="Registered"
         />
       </div>
 
