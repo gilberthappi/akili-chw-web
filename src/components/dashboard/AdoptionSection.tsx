@@ -1,39 +1,48 @@
 import React from "react";
-import { Users, Activity, Building2, TrendingUp, CheckCircle, Award } from "lucide-react";
-import { IDashboardStats, ICourseAnalytics } from "@/types";
+import { TrendingUp } from "lucide-react";
 import { useAdoptionStats } from "@/hooks/useAdoptionStats";
 import { useDashboardFilters } from "@/hooks/useDashboardFilters";
 import { GlobalFilterBar } from "./GlobalFilterBar";
-import { KpiCard } from "./shared/KpiCard";
 import { DashboardSectionHeader } from "./shared/DashboardSectionHeader";
 import { SectionSkeleton } from "./shared/SectionSkeleton";
 import { EnrollmentTrendChart } from "./EnrollmentTrendChart";
 import { CommunicationsCard } from "./CommunicationsCard";
 import { TestScoreAnalyticsCard } from "./TestScoreAnalyticsCard";
+import { CourseChartsCard } from "./CourseChartsCard";
+import { RecentActivityCard } from "./RecentActivityCard";
+import { CourseEngagementTable } from "./CourseEngagementTable";
+import { AssessmentOverviewCard } from "./AssessmentOverviewCard";
 import { DemographicsSection } from "./DemographicsSection";
 import { RwandaDistrictMap } from "./RwandaDistrictMap";
+import { CHWStatsCards } from "./CHWStatsCards";
 
-interface AdoptionSectionProps {
-  dashboardStats: IDashboardStats | null;
-  courseAnalytics: ICourseAnalytics | null;
-}
-
-export const AdoptionSection: React.FC<AdoptionSectionProps> = ({
-  dashboardStats,
-  courseAnalytics,
-}) => {
+export const AdoptionSection: React.FC = () => {
   const {
-    hospitals, enrollmentTrends,
-    byProvince, testScores, communications, demographics,
-    isLoading, error,
+    enrollmentTrends,
+    byProvince,
+    courseAnalytics,
+    testScores,
+    communications,
+    demographics,
+    chwStats,
+    courseDuration,
+    recentActivity,
+    isLoading,
+    error,
   } = useAdoptionStats();
 
   const {
-    filters, setFilters,
-    availableProvinces, availableDistricts, availableGenders,
-    availableYears, availableMonths,
-    filteredByDistrict, filteredByGender,
-    filteredEnrollmentTrends, filteredCommTrend,
+    filters,
+    setFilters,
+    availableProvinces,
+    availableDistricts,
+    availableGenders,
+    availableYears,
+    availableMonths,
+    filteredByDistrict,
+    filteredByGender,
+    filteredEnrollmentTrends,
+    filteredCommTrend,
   } = useDashboardFilters({
     byProvince,
     demographics,
@@ -44,15 +53,17 @@ export const AdoptionSection: React.FC<AdoptionSectionProps> = ({
   if (isLoading) return <SectionSkeleton cards={5} rows={2} />;
 
   return (
-    <div className="space-y-5">
+    <div className='space-y-5'>
       <DashboardSectionHeader
         icon={<TrendingUp size={18} />}
-        title="Platform Adoption"
+        title='Platform Adoption'
       />
 
       {error && (
-        <div className="text-sm text-red-500 bg-red-50 border border-red-100
-          rounded-lg px-4 py-3">
+        <div
+          className='text-sm text-red-500 bg-red-50 border border-red-100
+          rounded-lg px-4 py-3'
+        >
           {error}
         </div>
       )}
@@ -69,55 +80,29 @@ export const AdoptionSection: React.FC<AdoptionSectionProps> = ({
       />
 
       {/* KPI row */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        <KpiCard
-          title="Total Learners"
-          value={dashboardStats?.totalStudents?.value ?? 0}
-          icon={<Users size={20} />}
-          iconBg="bg-blue-50"
-          iconColor="text-[#3363AD]"
-          trend={dashboardStats?.totalStudents?.trend}
-          description="Registered"
+      <CHWStatsCards data={chwStats} isLoading={isLoading} />
+
+      {/* Course Charts + Recent Activity */}
+      <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
+        <CourseChartsCard
+          courseAnalytics={courseAnalytics}
+          testScores={testScores}
+          courseDuration={courseDuration}
         />
-        <KpiCard
-          title="Active Users"
-          value={dashboardStats?.activeUsers?.value ?? 0}
-          icon={<Activity size={20} />}
-          iconBg="bg-green-50"
-          iconColor="text-green-600"
-          trend={dashboardStats?.activeUsers?.trend}
-          description="Last 30 days"
+        <RecentActivityCard data={recentActivity} isLoading={isLoading} />
+      </div>
+
+      {/* Course engagement table + Assessment overview */}
+      <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
+        <CourseEngagementTable
+          courseAnalytics={courseAnalytics}
+          testScores={testScores}
         />
-        <KpiCard
-          title="Completion Rate"
-          value={`${Math.round(dashboardStats?.completionRate?.value ?? 0)}%`}
-          icon={<CheckCircle size={20} />}
-          iconBg="bg-indigo-50"
-          iconColor="text-indigo-600"
-          trend={dashboardStats?.completionRate?.trend}
-          description="Courses completed"
-        />
-        <KpiCard
-          title="Certificates"
-          value={courseAnalytics?.certificatesIssued?.value ?? 0}
-          icon={<Award size={20} />}
-          iconBg="bg-amber-50"
-          iconColor="text-amber-500"
-          trend={courseAnalytics?.certificatesIssued?.trend}
-          description="Issued"
-        />
-        <KpiCard
-          title="Hospitals"
-          value={hospitals.length}
-          icon={<Building2 size={20} />}
-          iconBg="bg-purple-50"
-          iconColor="text-purple-600"
-          description="Registered"
-        />
+        <AssessmentOverviewCard chwStats={chwStats} testScores={testScores} />
       </div>
 
       {/* Enrollment trend (filtered) + District map */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
         <EnrollmentTrendChart trends={filteredEnrollmentTrends} />
         <RwandaDistrictMap
           byDistrict={demographics?.byDistrict ?? []}
@@ -127,7 +112,7 @@ export const AdoptionSection: React.FC<AdoptionSectionProps> = ({
       </div>
 
       {/* Communications (filtered trend) + Test scores */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
         <CommunicationsCard
           data={communications}
           filteredTrend={filteredCommTrend}
