@@ -475,7 +475,7 @@ export const RwandaDistrictMap: React.FC<RwandaDistrictMapProps> = ({
   };
 
   return (
-    <Card padding={false}>
+    <Card padding={false} className="overflow-hidden">
       <div className="px-4 pt-4 pb-3 border-b border-gray-100">
         <DashboardSectionHeader icon={<MapPin size={16} />} title="Service Coverage Map" />
         <div className="mt-3 flex items-center gap-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
@@ -503,8 +503,16 @@ export const RwandaDistrictMap: React.FC<RwandaDistrictMapProps> = ({
       ) : !geoData ? (
         <div className="h-48 flex items-center justify-center text-sm text-gray-400">Failed to load map</div>
       ) : (
-        <div ref={containerRef} className="relative w-full overflow-hidden rounded-b-xl">
-          <svg ref={svgRef} style={{ width: "100%", height: "auto", display: "block" }} />
+        <div ref={containerRef} className="relative w-full overflow-hidden rounded-b-xl" style={{ maxHeight: "520px" }}>
+          <svg
+            ref={svgRef}
+            style={{
+              width: "100%",
+              height: "auto",
+              maxHeight: "520px",
+              display: "block",
+            }}
+          />
 
           <div className="absolute bottom-4 right-4 flex flex-col bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden z-10">
             <button onClick={handleRecenter} className="p-2 hover:bg-gray-50 text-gray-600 border-b border-gray-100 transition-colors" title="Recenter Map">
