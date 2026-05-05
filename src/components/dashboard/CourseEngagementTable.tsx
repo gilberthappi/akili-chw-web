@@ -36,10 +36,10 @@ export const CourseEngagementTable: React.FC<CourseEngagementTableProps> = ({
         c.meanPreTest !== null && c.meanFinalTest !== null
           ? Math.round((c.meanPreTest + c.meanFinalTest) / 2)
           : c.meanPreTest !== null
-          ? Math.round(c.meanPreTest)
-          : c.meanFinalTest !== null
-          ? Math.round(c.meanFinalTest)
-          : null;
+            ? Math.round(c.meanPreTest)
+            : c.meanFinalTest !== null
+              ? Math.round(c.meanFinalTest)
+              : null;
       if (avg !== null) scoreMap.set(c.courseId, avg);
     }
   }
@@ -67,8 +67,8 @@ export const CourseEngagementTable: React.FC<CourseEngagementTableProps> = ({
   const SortHeader: React.FC<{ label: string; k: SortKey }> = ({ label, k }) => (
     <button
       onClick={() => handleSort(k)}
-      className="flex items-center gap-1 text-xs font-medium uppercase
-                 tracking-wide text-gray-500 hover:text-[rgba(51,99,173,0.9)] transition-colors"
+      className='flex items-center gap-1 text-xs font-medium uppercase
+                 tracking-wide text-gray-500 hover:text-[rgba(51,99,173,0.9)] transition-colors'
     >
       {label}
       <ArrowUpDown
@@ -82,32 +82,32 @@ export const CourseEngagementTable: React.FC<CourseEngagementTableProps> = ({
     <Card>
       <DashboardSectionHeader
         icon={<BookOpen size={16} />}
-        title="Course Engagement"
+        title='Course Engagement'
       />
 
       {rows.length === 0 ? (
-        <div className="flex items-center justify-center h-32 text-sm text-gray-400">
+        <div className='flex items-center justify-center h-32 text-sm text-gray-400'>
           No course data available
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className='overflow-x-auto'>
+          <table className='w-full text-sm'>
             <thead>
-              <tr className="border-b border-gray-100">
-                <th className="text-left py-3 pr-4">
-                  <SortHeader label="Course" k="name" />
+              <tr className='border-b border-gray-100'>
+                <th className='text-left py-2 pr-4'>
+                  <SortHeader label='Course' k='name' />
                 </th>
-                <th className="text-right py-3 px-3">
-                  <SortHeader label="Enrollments" k="students" />
+                <th className='text-right py-2 px-3'>
+                  <SortHeader label='Enrollments' k='students' />
                 </th>
-                <th className="text-right py-3 px-3">
-                  <SortHeader label="Completed" k="completed" />
+                <th className='text-right py-2 px-3'>
+                  <SortHeader label='Completed' k='completed' />
                 </th>
-                <th className="py-3 px-3">
-                  <SortHeader label="Completion Rate" k="rate" />
+                <th className='py-2 px-3'>
+                  <SortHeader label='Completion Rate' k='rate' />
                 </th>
-                <th className="text-right py-3 pl-3">
-                  <SortHeader label="Avg Quiz Score" k="avgScore" />
+                <th className='text-right py-2 pl-3'>
+                  <SortHeader label='Avg Quiz Score' k='avgScore' />
                 </th>
               </tr>
             </thead>
@@ -115,55 +115,56 @@ export const CourseEngagementTable: React.FC<CourseEngagementTableProps> = ({
               {sorted.map((row) => (
                 <tr
                   key={row.id}
-                  className="border-b border-gray-50 hover:bg-gray-50
-                             transition-colors last:border-0"
+                  className='border-b border-gray-50 hover:bg-gray-50
+                             transition-colors last:border-0'
                 >
-                  <td className="py-3 pr-4 font-medium text-gray-800 max-w-[200px] truncate">
+                  <td className='py-2 pr-4 font-medium text-gray-800 max-w-[140px] truncate'>
                     {row.name}
                   </td>
-                  <td className="py-3 px-3 text-right text-gray-600">
+                  <td className='py-2 px-3 text-right text-gray-600'>
                     {row.students.toLocaleString()}
                   </td>
-                  <td className="py-3 px-3 text-right text-gray-600">
+                  <td className='py-2 px-3 text-right text-gray-600'>
                     {row.completed.toLocaleString()}
                   </td>
-                  <td className="py-3 px-3">
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 bg-gray-100 rounded-full h-1.5 min-w-[60px]">
+                  <td className='py-2 px-3'>
+                    <div className='flex items-center gap-2'>
+                      <div className='flex-1 bg-gray-100 rounded-full h-1.5 min-w-[60px]'>
                         <div
-                          className="h-1.5 rounded-full transition-all duration-500"
+                          className='h-1.5 rounded-full transition-all duration-500'
                           style={{
                             width: `${row.rate}%`,
                             background:
                               row.rate >= 70
                                 ? "rgba(51,99,173,1)"
                                 : row.rate >= 50
-                                ? "rgba(51,99,173,0.7)"
-                                : "rgba(51,99,173,0.4)",
+                                  ? "rgba(51,99,173,0.7)"
+                                  : "rgba(51,99,173,0.4)",
                           }}
                         />
                       </div>
-                      <span className="text-xs text-gray-600 w-9 text-right shrink-0">
+                      <span className='text-xs text-gray-600 w-9 text-right shrink-0'>
                         {row.rate}%
                       </span>
                     </div>
                   </td>
-                  <td className="py-3 pl-3 text-right">
+                  <td className='py-2 pl-3 text-right'>
                     {row.avgScore !== null ? (
                       <span
-                        className="text-sm font-semibold"
+                        className='text-sm font-semibold'
                         style={{
-                          color: row.avgScore >= 70
-                            ? "rgba(51, 99, 173, 1)"
-                            : row.avgScore >= 50
-                            ? "rgba(51, 99, 173, 0.7)"
-                            : "rgba(51, 99, 173, 0.4)",
+                          color:
+                            row.avgScore >= 70
+                              ? "rgba(51, 99, 173, 1)"
+                              : row.avgScore >= 50
+                                ? "rgba(51, 99, 173, 0.7)"
+                                : "rgba(51, 99, 173, 0.4)",
                         }}
                       >
                         {row.avgScore}%
                       </span>
                     ) : (
-                      <span className="text-gray-300 text-sm">—</span>
+                      <span className='text-gray-300 text-sm'>—</span>
                     )}
                   </td>
                 </tr>

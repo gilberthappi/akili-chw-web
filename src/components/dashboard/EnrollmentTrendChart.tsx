@@ -1,9 +1,7 @@
 import React from "react";
-import { Card } from "@/components/common/Card";
-import { IEnrollmentTrend } from "@/types";
 import {
-  LineChart,
-  Line,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -11,7 +9,9 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { TrendingUp } from "lucide-react";
+import { Card } from "@/components/common/Card";
 import { DashboardSectionHeader } from "./shared/DashboardSectionHeader";
+import { IEnrollmentTrend } from "@/types";
 
 interface EnrollmentTrendChartProps {
   trends: IEnrollmentTrend[];
@@ -35,15 +35,16 @@ export const EnrollmentTrendChart: React.FC<EnrollmentTrendChartProps> = ({
   }
 
   return (
-    <Card className='h-full flex flex-col'>
+    <Card>
       <DashboardSectionHeader
         icon={<TrendingUp size={16} />}
         title='Enrollment Trends'
       />
-      <div className='flex-1 min-h-[200px]'>
+      <div style={{ height: 260 }}>
         <ResponsiveContainer width='100%' height='100%'>
-          <LineChart
+          <BarChart
             data={trends}
+            barSize={40}
             margin={{ top: 4, right: 8, left: 20, bottom: 32 }}
           >
             <CartesianGrid strokeDasharray='3 3' stroke='#f0f0f0' vertical={false} />
@@ -68,7 +69,11 @@ export const EnrollmentTrendChart: React.FC<EnrollmentTrendChartProps> = ({
                 angle: -90,
                 position: "insideLeft",
                 dx: -12,
-                style: { fontSize: 10, fill: "#9ca3af", textAnchor: "middle" },
+                style: {
+                  fontSize: 10,
+                  fill: "#9ca3af",
+                  textAnchor: "middle",
+                },
               }}
             />
             <Tooltip
@@ -78,17 +83,18 @@ export const EnrollmentTrendChart: React.FC<EnrollmentTrendChartProps> = ({
                 border: "1px solid #e5e7eb",
                 boxShadow: "none",
               }}
-              formatter={(v: number) => [v, "Enrollments"]}
+              formatter={(value: number, name: string) => [
+                value.toLocaleString(),
+                name,
+              ]}
             />
-            <Line
-              type='monotone'
+            <Bar
               dataKey='enrollments'
-              stroke='#3363AD'
-              strokeWidth={2}
-              dot={{ r: 3, fill: "#3363AD", strokeWidth: 0 }}
-              activeDot={{ r: 5 }}
+              fill='#3363AD'
+              radius={[4, 4, 0, 0]}
+              name='Enrollments'
             />
-          </LineChart>
+          </BarChart>
         </ResponsiveContainer>
       </div>
     </Card>

@@ -8,7 +8,6 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  Cell,
 } from "recharts";
 import { ChevronDown } from "lucide-react";
 import { Card } from "@/components/common/Card";
@@ -59,7 +58,7 @@ export const CourseChartsCard: React.FC<CourseChartsCardProps> = ({
   const completionData = (courseAnalytics?.coursePerformanceMetrics ?? []).map(
     (c) => ({
       name: truncate(c.name),
-      Students: c.students,
+      Enrolled: c.students,
       Completed: c.completed,
     }),
   );
@@ -178,19 +177,20 @@ export const CourseChartsCard: React.FC<CourseChartsCardProps> = ({
                     style: { fontSize: 10, fill: "#9ca3af", textAnchor: "middle" },
                   }}
                 />
-                <Tooltip contentStyle={tooltipStyle} />
+                <Tooltip
+                  contentStyle={tooltipStyle}
+                  formatter={(value: number, name: string) => [
+                    value.toLocaleString(),
+                    name,
+                  ]}
+                />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey='Students' fill='#bfdbfe' radius={[4, 4, 0, 0]} />
                 <Bar
-                  dataKey='Completed'
-                  fill='rgba(51, 99, 173, 1)'
+                  dataKey='Enrolled'
+                  fill='rgba(51, 99, 173, 0.25)'
                   radius={[4, 4, 0, 0]}
                 />
-                <Bar
-                  dataKey='Students'
-                  fill='rgba(51, 99, 173, 0.3)'
-                  radius={[4, 4, 0, 0]}
-                />
+                <Bar dataKey='Completed' fill='#3363AD' radius={[4, 4, 0, 0]} />
               </BarChart>
             ) : activeChart === "duration" ? (
               <BarChart
@@ -229,16 +229,13 @@ export const CourseChartsCard: React.FC<CourseChartsCardProps> = ({
                 />
                 <Tooltip
                   contentStyle={tooltipStyle}
-                  formatter={(v: number) => [`${v} min`]}
+                  formatter={(value: number, name: string) => [`${value} min`, name]}
                 />
-                <Bar dataKey='Avg Duration (min)' radius={[4, 4, 0, 0]}>
-                  {durationData.map((_, i) => (
-                    <Cell
-                      key={i}
-                      fill={`rgba(51, 99, 173, ${Math.max(1 - i * 0.15, 0.3)})`}
-                    />
-                  ))}
-                </Bar>
+                <Bar
+                  dataKey='Avg Duration (min)'
+                  fill='#3363AD'
+                  radius={[4, 4, 0, 0]}
+                />
               </BarChart>
             ) : (
               <BarChart
@@ -279,14 +276,18 @@ export const CourseChartsCard: React.FC<CourseChartsCardProps> = ({
                 />
                 <Tooltip
                   contentStyle={tooltipStyle}
-                  formatter={(v: number) => [`${v}%`]}
+                  formatter={(value: number, name: string) => [`${value}%`, name]}
                 />
                 <Legend wrapperStyle={{ fontSize: 11, marginTop: 8 }} />
-                <Bar dataKey='Pre-Test' fill='#94a3b8' radius={[4, 4, 0, 0]} />
+                <Bar
+                  dataKey='Pre-Test'
+                  fill='rgba(51, 99, 173, 0.30)'
+                  radius={[4, 4, 0, 0]}
+                />
                 <Bar dataKey='Post-Test' fill='#3363AD' radius={[4, 4, 0, 0]} />
                 <Bar
                   dataKey='Knowledge Gain'
-                  fill='rgba(51, 99, 173, 0.7)'
+                  fill='rgba(51, 99, 173, 0.60)'
                   radius={[4, 4, 0, 0]}
                 />
               </BarChart>

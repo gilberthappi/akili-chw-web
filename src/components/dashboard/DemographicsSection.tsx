@@ -48,7 +48,7 @@ export const DemographicsSection: React.FC<DemographicsSectionProps> = ({ data, 
     if (activeView === "gender")
       return filteredByGender ?? data.byGender;
     return data.byAgeGroup;
-  }, [activeView, data]);
+  }, [activeView, data, filteredByDistrict, filteredByGender]);
 
   // Client-side search filter (district only)
   const rows = useMemo(() => {

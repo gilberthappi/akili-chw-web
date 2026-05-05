@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback } from "react";
 import { TrendingUp } from "lucide-react";
 import { useAdoptionStats } from "@/hooks/useAdoptionStats";
 import { useDashboardFilters } from "@/hooks/useDashboardFilters";
@@ -18,6 +18,7 @@ import { CHWStatsCards } from "./CHWStatsCards";
 
 export const AdoptionSection: React.FC = () => {
   const {
+    hospitals,
     enrollmentTrends,
     byProvince,
     courseAnalytics,
@@ -49,6 +50,11 @@ export const AdoptionSection: React.FC = () => {
     enrollmentTrends,
     communications,
   });
+
+  const handleDistrictClick = useCallback(
+    (district: string) => setFilters({ ...filters, district }),
+    [filters, setFilters],
+  );
 
   if (isLoading) return <SectionSkeleton cards={5} rows={2} />;
 
@@ -101,13 +107,13 @@ export const AdoptionSection: React.FC = () => {
         <AssessmentOverviewCard chwStats={chwStats} testScores={testScores} />
       </div>
 
-      {/* Enrollment trend (filtered) + District map */}
-      <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
-        <EnrollmentTrendChart trends={filteredEnrollmentTrends} />
+      {/* District map */}
+      <div className='max-w-4xl mx-auto w-full'>
         <RwandaDistrictMap
           byDistrict={demographics?.byDistrict ?? []}
+          hospitals={hospitals}
           activeDistrict={filters.district}
-          onDistrictClick={(district) => setFilters({ ...filters, district })}
+          onDistrictClick={handleDistrictClick}
         />
       </div>
 
@@ -121,11 +127,14 @@ export const AdoptionSection: React.FC = () => {
       </div>
 
       {/* Demographics (filtered by district and gender) */}
-      <DemographicsSection
-        data={demographics}
-        filteredByDistrict={filteredByDistrict}
-        filteredByGender={filteredByGender}
-      />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <DemographicsSection
+          data={demographics}
+          filteredByDistrict={filteredByDistrict}
+          filteredByGender={filteredByGender}
+        />
+        <EnrollmentTrendChart trends={filteredEnrollmentTrends} />
+      </div>
     </div>
   );
 };
