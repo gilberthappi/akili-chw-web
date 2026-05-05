@@ -29,10 +29,10 @@ export const TrainingFunnelCard: React.FC<TrainingFunnelCardProps> = ({ courses 
   const selectedCourse = courses.find(c => c.id === selectedCourseId) || courses[0];
 
   const steps = [
-    { label: "Enrolled", value: selectedCourse.enrolled, color: "bg-blue-500" },
-    { label: "In Progress", value: selectedCourse.inProgress, color: "bg-indigo-500" },
-    { label: "Completed", value: selectedCourse.completed, color: "bg-green-500" },
-    { label: "Certificates", value: Math.round(selectedCourse.rate), color: "bg-amber-500" },
+    { label: "Enrolled", value: selectedCourse.enrolled, color: "#3363AD" },
+    { label: "In Progress", value: selectedCourse.inProgress, color: "rgba(51, 99, 173, 0.70)" },
+    { label: "Completed", value: selectedCourse.completed, color: "rgba(51, 99, 173, 0.45)" },
+    { label: "Certificates", value: Math.round(selectedCourse.rate), color: "rgba(51, 99, 173, 0.25)" },
   ];
 
   return (
@@ -66,8 +66,8 @@ export const TrainingFunnelCard: React.FC<TrainingFunnelCardProps> = ({ courses 
               <span className="w-28 text-sm text-gray-600 shrink-0">{step.label}</span>
               <div className="flex-1 bg-gray-100 rounded-full h-2.5">
                 <div
-                  className={`h-2.5 rounded-full ${step.color} transition-all duration-500`}
-                  style={{ width: `${percentage}%` }}
+                  className="h-2.5 rounded-full transition-all duration-500"
+                  style={{ width: `${percentage}%`, background: step.color }}
                 />
               </div>
               <span className="w-10 text-sm font-medium text-gray-700 text-right shrink-0">
@@ -80,3 +80,4 @@ export const TrainingFunnelCard: React.FC<TrainingFunnelCardProps> = ({ courses 
     </Card>
   );
 };
+
