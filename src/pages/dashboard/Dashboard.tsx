@@ -46,10 +46,7 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {isAnyOf("ADMIN", "STAFF", "DEVELOPER") && (
-        <AdoptionSection
-          dashboardStats={dashboardStats}
-          courseAnalytics={courseAnalytics}
-        />
+        <AdoptionSection />
       )}
 
       {isAnyOf("ADMIN", "TRAINER", "SUPERVISOR", "STAFF", "DEVELOPER") && (

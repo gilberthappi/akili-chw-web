@@ -1,12 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { ReactElement } from "react";
 
-export type UserRole = "ADMIN" | "TRAINER" | "TRAINEE" | "DEVELOPER" | "SUPERVISOR" | "STAFF";
-export type UserIndustry =
-  | "WELTEL"
-  | "RBC"
-  | "SFH"
-  | "CIIC-HIN";
+export type UserRole =
+  | "ADMIN"
+  | "TRAINER"
+  | "TRAINEE"
+  | "DEVELOPER"
+  | "SUPERVISOR"
+  | "STAFF";
+export type UserIndustry = "WELTEL" | "RBC" | "SFH" | "CIIC-HIN";
 export type Permission = "ALL" | "DEFAULT";
 
 export interface User {
@@ -199,17 +201,16 @@ export interface IHospital {
   village?: string;
   contact?: string;
   chwSupervisor?: string;
-   chwSupervisorContact?: string;
-   totalChws: number,
-    activeChws: number,
-    catchmentArea: string[];
+  chwSupervisorContact?: string;
+  totalChws: number;
+  activeChws: number;
+  catchmentArea: string[];
   email?: string;
   website?: string;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
-
 
 export interface IProgress {
   id: string;
@@ -294,7 +295,7 @@ export interface ICommentThread {
 
 export interface IAttachment {
   url: string;
-  type: 'image' | 'video' | 'audio' | 'file';
+  type: "image" | "video" | "audio" | "file";
 }
 
 export interface IMessage {
@@ -302,7 +303,7 @@ export interface IMessage {
   conversationId: string;
   senderId: string;
   sender?: ISender;
-  type: 'text' | 'image' | 'video' | 'audio' | 'file' | 'blog';
+  type: "text" | "image" | "video" | "audio" | "file" | "blog";
   title?: string;
   content?: string;
   attachments?: IAttachment[] | null;
@@ -314,7 +315,7 @@ export interface IMessage {
   comments?: ICommentThread[];
 }
 
-export type ConversationType = 'direct' | 'group' | 'community';
+export type ConversationType = "direct" | "group" | "community";
 
 export interface IConversationParticipant {
   conversationId: string;
@@ -345,7 +346,7 @@ export interface IParticipant {
 
 export interface IGroup {
   id: string;
-  type: 'group';
+  type: "group";
   name: string;
   description?: string;
   isPublic: boolean;
@@ -357,7 +358,7 @@ export interface IGroup {
 
 export interface ICommunity {
   id: string;
-  type: 'community';
+  type: "community";
   name: string;
   description?: string;
   isPublic: boolean;
@@ -415,7 +416,6 @@ export interface IDashboardStatsResponse {
   data: IDashboardStats;
 }
 
-
 export interface IDashboardStats {
   totalCourses: IStatWithTrend<number>;
   unpublishedCourses: IStatWithTrend<number>;
@@ -465,7 +465,6 @@ export interface IRecentActivity {
   type: "enrollment" | "completion" | string;
 }
 
-
 export interface ISettings {
   notifications: {
     email: boolean;
@@ -510,7 +509,6 @@ export interface ICourse {
   finalExam: ITest[];
   questionnaires: IQuestionnaire[];
 }
-
 
 export interface IUser {
   id: string;
@@ -641,9 +639,6 @@ export interface IOption {
   updatedAt: string;
   questionnaireId: string;
 }
-
-
-
 
 export interface Post {
   userId: number;
@@ -786,7 +781,6 @@ export interface ISystemReview {
   };
 }
 
-
 export interface ICourseAnalyticsResponse {
   message: string;
   statusCode: number;
@@ -817,19 +811,19 @@ export interface IStatWithTrend<T> {
 }
 
 export interface IEnrollmentTrend {
-  month: string;        // e.g. "Oct 2025"
+  month: string; // e.g. "Oct 2025"
   enrollments: number;
 }
 
 export interface ICoursePerformance {
   id: string;
   name: string;
-  completion: number;   // % completion
-  students: number;     // total students
-  enrolled: number;     // enrolled count
+  completion: number; // % completion
+  students: number; // total students
+  enrolled: number; // enrolled count
   inProgress: number;
   completed: number;
-  rate: number;         // completion rate
+  rate: number; // completion rate
 }
 
 export interface IStudentAnalyticsResponse {
@@ -872,7 +866,7 @@ export interface IPerformanceDistribution {
 }
 
 export interface IPerformanceCategory {
-  range: string;       // e.g. "90-100%"
+  range: string; // e.g. "90-100%"
   count: number;
   percentage: number;
 }
@@ -913,10 +907,9 @@ export interface IRecentStudentActivity {
 }
 
 export interface IEngagementTrend {
-  date: string;     // "Nov 25"
+  date: string; // "Nov 25"
   activity: number;
 }
-
 
 // Types based on your API response
 export interface StudentInfo {
@@ -1223,9 +1216,71 @@ export interface IDemographicsAnalytics {
 }
 
 export interface IDashboardFilters {
-  province: string;   // "" means all
-  district: string;   // "" means all
-  gender: string;     // "" means all
-  year: string;       // "" means all, e.g. "2025" | "2026"
-  month: string;      // "" means all, e.g. "Jan" | "Feb" ... "Dec"
+  province: string; // "" means all
+  district: string; // "" means all
+  gender: string; // "" means all
+  year: string; // "" means all, e.g. "2025" | "2026"
+  month: string; // "" means all, e.g. "Jan" | "Feb" ... "Dec"
+}
+
+export interface ICHWStats {
+  chws: {
+    total: number;
+    active: number;
+    inactive: number;
+    suspended: number;
+    graduated: number;
+  };
+  completion: {
+    rate: number;
+    total: number;
+    completed: number;
+    inProgress: number;
+  };
+  tests: {
+    total: number;
+    preTest: number;
+    midTest: number;
+    finalTest: number;
+    finalExam: number;
+  };
+  supervisors: {
+    total: number;
+    male: number;
+    female: number;
+    other: number;
+  };
+}
+
+export interface ICourseDurationByCourse {
+  courseId: string;
+  courseTitle: string;
+  totalDurationMinutes: number;
+  avgDurationMinutes: number;
+  chapterCount: number;
+}
+
+export interface ICourseDurationStats {
+  byCourse: ICourseDurationByCourse[];
+}
+
+export type ActivityType = "enrollment" | "submission" | "courseUpdate";
+
+export interface IActivityItem {
+  id: string;
+  type: ActivityType;
+  actorName: string;
+  actorPhoto: string | null;
+  title: string;
+  subject: string;
+  subjectId: string | null;
+  score: number | null;
+  timestamp: string;
+}
+
+export interface IRecentActivityFeed {
+  all: IActivityItem[];
+  enrollments: IActivityItem[];
+  submissions: IActivityItem[];
+  courseUpdates: IActivityItem[];
 }
