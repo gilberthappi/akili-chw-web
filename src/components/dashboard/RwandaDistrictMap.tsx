@@ -81,7 +81,7 @@ export const RwandaDistrictMap: React.FC<RwandaDistrictMapProps> = ({
 
   // ── Constants & Projections ───────────────────────────────────
   const VW = 480;
-  const VH = 320; // Reduced from 346 for more compact display
+  const VH = 346; // Original aspect ratio
   
   const projection = useMemo(() => d3.geoMercator().center([29.88, -1.945]).scale(9800).translate([VW / 2, VH / 2]), []);
   const pathGen    = useMemo(() => d3.geoPath().projection(projection), [projection]);
@@ -503,13 +503,13 @@ export const RwandaDistrictMap: React.FC<RwandaDistrictMapProps> = ({
       ) : !geoData ? (
         <div className="h-48 flex items-center justify-center text-sm text-gray-400">Failed to load map</div>
       ) : (
-        <div ref={containerRef} className="relative w-full overflow-hidden rounded-b-xl" style={{ maxHeight: "520px" }}>
+        <div ref={containerRef} className="relative w-full overflow-hidden rounded-b-xl" style={{ maxHeight: "450px" }}>
           <svg
             ref={svgRef}
             style={{
               width: "100%",
               height: "auto",
-              maxHeight: "520px",
+              maxHeight: "450px",
               display: "block",
             }}
           />
