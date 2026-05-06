@@ -48,10 +48,10 @@ export const StudentAnalytics: React.FC = () => {
     const isPositive = trend.direction === 'up';
     const isNegative = trend.direction === 'down';
     const sign = isPositive ? '+' : isNegative ? '-' : '';
-    const color = isPositive ? 'text-green-600' : isNegative ? 'text-red-600' : 'text-gray-600';
+    const color = isPositive ? 'text-[#3363AD]' : isNegative ? 'text-red-500' : 'text-gray-500';
     
     return (
-      <div className={`text-xs mt-1 ${color}`}>
+      <div className={`text-[10px] mt-1 ${color} font-medium`}>
         {sign}{trend.value}% from last month
       </div>
     );
@@ -82,51 +82,59 @@ export const StudentAnalytics: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Student Analytics</h1>
-        <p className="text-gray-600">Track student progress, performance, and engagement metrics</p>
+        <h1 className="text-xl font-bold text-gray-900 mb-1">Student Analytics</h1>
+        <p className="text-xs text-gray-600">Track student progress, performance, and engagement metrics</p>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-lg shadow p-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-600">Total Students</span>
-            <Users className="w-5 h-5 text-blue-500" />
+            <span className="text-xs font-medium text-gray-600">Total Students</span>
+            <div className="w-9 h-9 rounded-lg bg-[#3363AD]/10 flex items-center justify-center">
+              <Users className="w-4 h-4 text-[#3363AD]" />
+            </div>
           </div>
-          <div className="text-2xl font-bold text-gray-900">{analytics?.totalStudents?.value?.toLocaleString() || 0}</div>
+          <div className="text-xl font-bold text-gray-900">{analytics?.totalStudents?.value?.toLocaleString() || 0}</div>
           {analytics?.totalStudents && getTrendDisplay(analytics.totalStudents.trend)}
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-600">Active Students</span>
-            <TrendingUp className="w-5 h-5 text-green-500" />
+            <span className="text-xs font-medium text-gray-600">Active Students</span>
+            <div className="w-9 h-9 rounded-lg bg-[#3363AD]/10 flex items-center justify-center">
+              <TrendingUp className="w-4 h-4 text-[#3363AD]" />
+            </div>
           </div>
-          <div className="text-2xl font-bold text-gray-900">{analytics?.activeStudents?.value?.toLocaleString() || 0}</div>
+          <div className="text-xl font-bold text-gray-900">{analytics?.activeStudents?.value?.toLocaleString() || 0}</div>
           {analytics?.activeStudents && (
-            <div className="text-xs text-blue-600 mt-1">
+            <div className="text-[10px] text-[#3363AD] mt-1 font-medium">
               {analytics?.activeStudentPercentage || 0}% of total
             </div>
           )}
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-600">Avg Study Time</span>
-            <Clock className="w-5 h-5 text-purple-500" />
+            <span className="text-xs font-medium text-gray-600">Avg Study Time</span>
+            <div className="w-9 h-9 rounded-lg bg-[#3363AD]/10 flex items-center justify-center">
+              <Clock className="w-4 h-4 text-[#3363AD]" />
+            </div>
           </div>
-          <div className="text-2xl font-bold text-gray-900">
+          <div className="text-xl font-bold text-gray-900">
             {analytics?.avgStudyTime?.value?.toFixed(1) || 0}{analytics?.avgStudyTime?.unit === 'hours' ? 'h' : ''}
           </div>
           {analytics?.avgStudyTime && getTrendDisplay(analytics.avgStudyTime.trend)}
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-600">Completion Rate</span>
-            <CheckCircle className="w-5 h-5 text-orange-500" />
+            <span className="text-xs font-medium text-gray-600">Completion Rate</span>
+            <div className="w-9 h-9 rounded-lg bg-[#3363AD]/10 flex items-center justify-center">
+              <CheckCircle className="w-4 h-4 text-[#3363AD]" />
+            </div>
           </div>
-          <div className="text-2xl font-bold text-gray-900">
+          <div className="text-xl font-bold text-gray-900">
             {analytics?.completionRate?.value?.toFixed(1) || 0}%
           </div>
           {analytics?.completionRate && getTrendDisplay(analytics.completionRate.trend)}
@@ -134,32 +142,32 @@ export const StudentAnalytics: React.FC = () => {
       </div>
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Student Engagement Trends</h3>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+        <div className="bg-white rounded-lg shadow p-4">
+          <h3 className="text-sm font-semibold text-gray-900 mb-3">Student Engagement Trends</h3>
           {analytics?.engagementTrends && analytics.engagementTrends.length > 0 ? (
-            <div className="h-64">
+            <div className="h-56">
               {(() => {
                 const maxActivity = Math.max(...analytics.engagementTrends.map(t => t.activity));
                 return (
                   <div className="h-full flex items-end justify-between gap-2 px-2">
                     {analytics.engagementTrends.map((trend, index) => {
-                      const barHeight = maxActivity > 0 ? (trend.activity / maxActivity) * 200 : 0;
+                      const barHeight = maxActivity > 0 ? (trend.activity / maxActivity) * 180 : 0;
                       return (
                         <div key={index} className="flex-1 flex flex-col items-center">
                           <div className="w-full flex flex-col items-center mb-2">
-                            <span className="text-xs font-medium text-gray-900 mb-1">
+                            <span className="text-[10px] font-medium text-gray-900 mb-1">
                               {trend.activity}
                             </span>
                             <div
-                              className="w-full bg-gradient-to-t from-green-600 to-green-400 rounded-t-lg transition-all duration-700 ease-out hover:from-green-700 hover:to-green-500 cursor-pointer shadow-sm"
+                              className="w-full bg-gradient-to-t from-[#3363AD] to-[#3363AD]/70 rounded-t-lg transition-all duration-700 ease-out hover:from-[#3363AD] hover:to-[#3363AD]/90 cursor-pointer shadow-sm"
                               style={{ 
                                 height: `${barHeight}px`,
                                 minHeight: trend.activity > 0 ? '8px' : '0px'
                               }}
                             />
                           </div>
-                          <span className="text-xs text-gray-600 text-center leading-tight">
+                          <span className="text-[10px] text-gray-600 text-center leading-tight">
                             {trend.date}
                           </span>
                         </div>
@@ -170,38 +178,38 @@ export const StudentAnalytics: React.FC = () => {
               })()}
             </div>
           ) : (
-            <div className="flex items-center justify-center h-64 bg-gray-50 rounded">
+            <div className="flex items-center justify-center h-56 bg-gray-50 rounded">
               <div className="text-center text-gray-500">
-                <TrendingUp className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-                <p>No engagement trend data available</p>
+                <TrendingUp className="w-10 h-10 mx-auto mb-2 text-gray-400" />
+                <p className="text-xs">No engagement trend data available</p>
               </div>
             </div>
           )}
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Performance Distribution</h3>
+        <div className="bg-white rounded-lg shadow p-4">
+          <h3 className="text-sm font-semibold text-gray-900 mb-3">Performance Distribution</h3>
           {analytics?.performanceDistribution ? (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {Object.entries(analytics.performanceDistribution).map(([key, item]) => {
                 const colorMap: { [key: string]: string } = {
-                  excellent: "bg-green-600",
-                  good: "bg-blue-600",
-                  average: "bg-yellow-600",
-                  poor: "bg-orange-600",
-                  failing: "bg-red-600"
+                  excellent: "bg-[#3363AD]",
+                  good: "bg-[#3363AD]/80",
+                  average: "bg-[#3363AD]/60",
+                  poor: "bg-[#3363AD]/40",
+                  failing: "bg-red-500"
                 };
                 return (
                   <div key={key}>
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium text-gray-700">{item.range}</span>
-                      <span className="text-sm text-gray-500">
+                      <span className="text-xs font-medium text-gray-700">{item.range}</span>
+                      <span className="text-xs text-gray-500">
                         {item.count} ({item.percentage}%)
                       </span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="w-full bg-gray-200 rounded-full h-1.5">
                       <div
-                        className={`${colorMap[key]} h-2 rounded-full transition-all duration-500`}
+                        className={`${colorMap[key]} h-1.5 rounded-full transition-all duration-500`}
                         style={{ width: `${item.percentage}%` }}
                       ></div>
                     </div>
@@ -210,10 +218,10 @@ export const StudentAnalytics: React.FC = () => {
               })}
             </div>
           ) : (
-            <div className="flex items-center justify-center h-64 bg-gray-50 rounded">
+            <div className="flex items-center justify-center h-56 bg-gray-50 rounded">
               <div className="text-center text-gray-500">
-                <CheckCircle className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-                <p>No performance data available</p>
+                <CheckCircle className="w-10 h-10 mx-auto mb-2 text-gray-400" />
+                <p className="text-xs">No performance data available</p>
               </div>
             </div>
           )}
@@ -221,64 +229,68 @@ export const StudentAnalytics: React.FC = () => {
       </div>
 
       {/* Top Performers */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <Award className="w-5 h-5 text-yellow-500" />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+        <div className="bg-white rounded-lg shadow p-4">
+          <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-[#3363AD]/10 flex items-center justify-center">
+              <Award className="w-4 h-4 text-[#3363AD]" />
+            </div>
             Top Performers
           </h3>
-          <div className="space-y-3">
+          <div className="space-y-2">
             {analytics?.topPerformers && analytics.topPerformers.length > 0 ? (
               analytics.topPerformers.slice(0, 5).map((student, index) => (
-                <div key={student.id} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
-                  <div className="flex-shrink-0 w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center font-semibold">
+                <div key={student.id} className="flex items-center gap-3 p-2.5 bg-gray-50 rounded-lg">
+                  <div className="flex-shrink-0 w-7 h-7 bg-[#3363AD] text-white rounded-full flex items-center justify-center font-semibold text-xs">
                     {index + 1}
                   </div>
-                  <div className="flex-1">
-                    <div className="font-medium text-gray-900">{student.name}</div>
-                    <div className="text-xs text-gray-500">
-                      {student.completedCourses} completed courses • Avg: {student.avgScore.toFixed(1)}% • {student.certificates} certificates
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-gray-900 text-xs truncate">{student.name}</div>
+                    <div className="text-[10px] text-gray-500">
+                      {student.completedCourses} completed • Avg: {student.avgScore.toFixed(1)}% • {student.certificates} certs
                     </div>
-                    <div className="text-xs text-blue-600">
+                    <div className="text-[10px] text-[#3363AD]">
                       {student.district}, {student.sector}
                     </div>
                   </div>
                 </div>
               ))
             ) : (
-              <div className="text-center py-8 text-gray-500">
-                <Award className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-                <p>No top performers data available</p>
+              <div className="text-center py-6 text-gray-500">
+                <Award className="w-10 h-10 mx-auto mb-2 text-gray-400" />
+                <p className="text-xs">No top performers data available</p>
               </div>
             )}
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-blue-500" />
+        <div className="bg-white rounded-lg shadow p-4">
+          <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-[#3363AD]/10 flex items-center justify-center">
+              <BookOpen className="w-4 h-4 text-[#3363AD]" />
+            </div>
             Most Active Learners
           </h3>
-          <div className="space-y-3">
+          <div className="space-y-2">
             {analytics?.mostActiveLearners && analytics.mostActiveLearners.length > 0 ? (
               analytics.mostActiveLearners.slice(0, 5).map((student) => (
-                <div key={student.id} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
-                  <div className="flex-1">
-                    <div className="font-medium text-gray-900">{student.name}</div>
-                    <div className="text-xs text-gray-500">
-                      {student.studyHours.toFixed(1)}h study time • {student.activeCourses} active courses
+                <div key={student.id} className="flex items-center gap-3 p-2.5 bg-gray-50 rounded-lg">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-gray-900 text-xs truncate">{student.name}</div>
+                    <div className="text-[10px] text-gray-500">
+                      {student.studyHours.toFixed(1)}h study • {student.activeCourses} active courses
                     </div>
-                    <div className="text-xs text-blue-600">
+                    <div className="text-[10px] text-[#3363AD]">
                       {student.district}, {student.sector}
                     </div>
                   </div>
-                  <div className="text-xs text-gray-400">{formatLastActive(student.lastActive)}</div>
+                  <div className="text-[10px] text-gray-400 shrink-0">{formatLastActive(student.lastActive)}</div>
                 </div>
               ))
             ) : (
-              <div className="text-center py-8 text-gray-500">
-                <BookOpen className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-                <p>No active learners data available</p>
+              <div className="text-center py-6 text-gray-500">
+                <BookOpen className="w-10 h-10 mx-auto mb-2 text-gray-400" />
+                <p className="text-xs">No active learners data available</p>
               </div>
             )}
           </div>
@@ -286,59 +298,59 @@ export const StudentAnalytics: React.FC = () => {
       </div>
 
       {/* Recent Activity */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Student Activity</h3>
+      <div className="bg-white rounded-lg shadow p-4">
+        <h3 className="text-sm font-semibold text-gray-900 mb-3">Recent Student Activity</h3>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-200">
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Student Name</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Course</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Progress</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Last Activity</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Status</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Location</th>
+                <th className="text-left py-2 px-3 text-[10px] font-semibold text-gray-700 uppercase tracking-wide">Student Name</th>
+                <th className="text-left py-2 px-3 text-[10px] font-semibold text-gray-700 uppercase tracking-wide">Course</th>
+                <th className="text-left py-2 px-3 text-[10px] font-semibold text-gray-700 uppercase tracking-wide">Progress</th>
+                <th className="text-left py-2 px-3 text-[10px] font-semibold text-gray-700 uppercase tracking-wide">Last Activity</th>
+                <th className="text-left py-2 px-3 text-[10px] font-semibold text-gray-700 uppercase tracking-wide">Status</th>
+                <th className="text-left py-2 px-3 text-[10px] font-semibold text-gray-700 uppercase tracking-wide">Location</th>
               </tr>
             </thead>
             <tbody>
               {analytics?.recentActivity && analytics.recentActivity.length > 0 ? (
                 analytics.recentActivity.slice(0, 10).map((item) => (
                   <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-3 px-4 text-sm font-medium text-gray-900">{item.studentName}</td>
-                    <td className="py-3 px-4 text-sm text-gray-600" title={item.courseName}>
+                    <td className="py-2 px-3 text-xs font-medium text-gray-900">{item.studentName}</td>
+                    <td className="py-2 px-3 text-xs text-gray-600" title={item.courseName}>
                       <div className="max-w-xs truncate">{item.courseName}</div>
                     </td>
-                    <td className="py-3 px-4 text-sm text-gray-600">
-                      <div className="flex items-center gap-2">
-                        <div className="w-24 bg-gray-200 rounded-full h-2">
+                    <td className="py-2 px-3 text-xs text-gray-600">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-20 bg-gray-200 rounded-full h-1">
                           <div
-                            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                            className="bg-[#3363AD] h-1 rounded-full transition-all duration-300"
                             style={{ width: `${item.progress}%` }}
                           ></div>
                         </div>
-                        <span>{item.progress}%</span>
+                        <span className="text-[10px]">{item.progress}%</span>
                       </div>
                     </td>
-                    <td className="py-3 px-4 text-sm text-gray-600">{formatLastActive(item.lastActivity)}</td>
-                    <td className="py-3 px-4">
+                    <td className="py-2 px-3 text-xs text-gray-600">{formatLastActive(item.lastActivity)}</td>
+                    <td className="py-2 px-3">
                       <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${
                           item.status === "Completed"
-                            ? "bg-green-100 text-green-800"
-                            : "bg-blue-100 text-blue-800"
+                            ? "bg-[#3363AD]/10 text-[#3363AD]"
+                            : "bg-[#3363AD]/10 text-[#3363AD]"
                         }`}
                       >
                         {item.status}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-xs text-gray-500">
+                    <td className="py-2 px-3 text-[10px] text-gray-500">
                       {item.district}, {item.sector}
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-gray-500">
+                  <td colSpan={6} className="py-6 text-center text-gray-500 text-xs">
                     No recent activity data available
                   </td>
                 </tr>
@@ -349,15 +361,15 @@ export const StudentAnalytics: React.FC = () => {
 
         {/* Additional Summary */}
         {analytics && (
-          <div className="mt-6 pt-6 border-t border-gray-200">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="text-center">
-                <div className="text-2xl font-bold text-gray-900">{analytics.averageCoursesPerStudent}</div>
-                <div className="text-sm text-gray-600">Average Courses per Student</div>
+                <div className="text-xl font-bold text-gray-900">{analytics.averageCoursesPerStudent}</div>
+                <div className="text-xs text-gray-600">Average Courses per Student</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-gray-900">{analytics.activeStudentPercentage}%</div>
-                <div className="text-sm text-gray-600">Student Activity Rate</div>
+                <div className="text-xl font-bold text-gray-900">{analytics.activeStudentPercentage}%</div>
+                <div className="text-xs text-gray-600">Student Activity Rate</div>
               </div>
             </div>
           </div>

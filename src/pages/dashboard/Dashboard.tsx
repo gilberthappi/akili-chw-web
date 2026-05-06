@@ -35,14 +35,19 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="space-y-8 p-1">
-      {/* ── Welcome header ─────────────────────────────────────── */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">
-          Welcome, {user.fullNames}!
-        </h1>
-        <p className="text-sm text-gray-500 mt-0.5">
-          Here's what's happening on the platform
-        </p>
+      {/* ── Welcome header with filters ─────────────────────────────────────── */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">
+            Welcome, {user.fullNames}!
+          </h1>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Here's what's happening on the platform
+          </p>
+        </div>
+        
+        {/* Filters will be injected here by AdoptionSection */}
+        <div id="global-filters-container" className="flex-shrink-0" />
       </div>
 
       {isAnyOf("ADMIN", "STAFF", "DEVELOPER") && (
