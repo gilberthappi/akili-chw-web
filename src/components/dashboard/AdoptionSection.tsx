@@ -108,14 +108,12 @@ export const AdoptionSection: React.FC = () => {
       </div>
 
       {/* District map */}
-      <div className='max-w-4xl mx-auto w-full'>
-        <RwandaDistrictMap
-          byDistrict={demographics?.byDistrict ?? []}
-          hospitals={hospitals}
-          activeDistrict={filters.district}
-          onDistrictClick={handleDistrictClick}
-        />
-      </div>
+      <RwandaDistrictMap
+        byDistrict={demographics?.byDistrict ?? []}
+        hospitals={hospitals}
+        activeDistrict={filters.district}
+        onDistrictClick={handleDistrictClick}
+      />
 
       {/* Communications (filtered trend) + Test scores */}
       <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
