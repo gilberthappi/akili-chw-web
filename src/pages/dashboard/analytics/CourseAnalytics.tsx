@@ -42,10 +42,10 @@ export const CourseAnalytics: React.FC = () => {
     const isPositive = trend.direction === 'up';
     const isNegative = trend.direction === 'down';
     const sign = isPositive ? '+' : isNegative ? '-' : '';
-    const color = isPositive ? 'text-green-600' : isNegative ? 'text-red-600' : 'text-gray-600';
+    const color = isPositive ? 'text-[#3363AD]' : isNegative ? 'text-red-500' : 'text-gray-500';
     
     return (
-      <div className={`text-xs mt-1 ${color}`}>
+      <div className={`text-[10px] mt-1 ${color} font-medium`}>
         {sign}{trend.value}% from last month
       </div>
     );
@@ -65,76 +65,84 @@ export const CourseAnalytics: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Course Analytics</h1>
-        <p className="text-gray-600">Comprehensive insights into course performance and engagement</p>
+        <h1 className="text-xl font-bold text-gray-900 mb-1">Course Analytics</h1>
+        <p className="text-xs text-gray-600">Comprehensive insights into course performance and engagement</p>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-lg shadow p-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-600">Total Courses</span>
-            <BookOpen className="w-5 h-5 text-blue-500" />
+            <span className="text-xs font-medium text-gray-600">Total Courses</span>
+            <div className="w-9 h-9 rounded-lg bg-[#3363AD]/10 flex items-center justify-center">
+              <BookOpen className="w-4 h-4 text-[#3363AD]" />
+            </div>
           </div>
-          <div className="text-2xl font-bold text-gray-900">{analytics?.totalCourses?.value || 0}</div>
+          <div className="text-xl font-bold text-gray-900">{analytics?.totalCourses?.value || 0}</div>
           {analytics?.totalCourses && getTrendDisplay(analytics.totalCourses.trend)}
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-600">Active Enrollments</span>
-            <Users className="w-5 h-5 text-green-500" />
+            <span className="text-xs font-medium text-gray-600">Active Enrollments</span>
+            <div className="w-9 h-9 rounded-lg bg-[#3363AD]/10 flex items-center justify-center">
+              <Users className="w-4 h-4 text-[#3363AD]" />
+            </div>
           </div>
-          <div className="text-2xl font-bold text-gray-900">{analytics?.activeEnrollments?.value || 0}</div>
+          <div className="text-xl font-bold text-gray-900">{analytics?.activeEnrollments?.value || 0}</div>
           {analytics?.activeEnrollments && getTrendDisplay(analytics.activeEnrollments.trend)}
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-600">Avg Completion Rate</span>
-            <TrendingUp className="w-5 h-5 text-purple-500" />
+            <span className="text-xs font-medium text-gray-600">Avg Completion Rate</span>
+            <div className="w-9 h-9 rounded-lg bg-[#3363AD]/10 flex items-center justify-center">
+              <TrendingUp className="w-4 h-4 text-[#3363AD]" />
+            </div>
           </div>
-          <div className="text-2xl font-bold text-gray-900">{analytics?.avgCompletionRate?.value || 0}%</div>
+          <div className="text-xl font-bold text-gray-900">{analytics?.avgCompletionRate?.value || 0}%</div>
           {analytics?.avgCompletionRate && getTrendDisplay(analytics.avgCompletionRate.trend)}
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-600">Certificates Issued</span>
-            <Award className="w-5 h-5 text-orange-500" />
+            <span className="text-xs font-medium text-gray-600">Certificates Issued</span>
+            <div className="w-9 h-9 rounded-lg bg-[#3363AD]/10 flex items-center justify-center">
+              <Award className="w-4 h-4 text-[#3363AD]" />
+            </div>
           </div>
-          <div className="text-2xl font-bold text-gray-900">{analytics?.certificatesIssued?.value || 0}</div>
+          <div className="text-xl font-bold text-gray-900">{analytics?.certificatesIssued?.value || 0}</div>
           {analytics?.certificatesIssued && getTrendDisplay(analytics.certificatesIssued.trend)}
         </div>
       </div>
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Course Enrollment Trends</h3>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+        <div className="bg-white rounded-lg shadow p-4">
+          <h3 className="text-sm font-semibold text-gray-900 mb-3">Course Enrollment Trends</h3>
           {analytics?.enrollmentTrends && analytics.enrollmentTrends.length > 0 ? (
-            <div className="h-64">
+            <div className="h-56">
               {(() => {
                 const maxEnrollments = Math.max(...analytics.enrollmentTrends.map(t => t.enrollments));
                 return (
                   <div className="h-full flex items-end justify-between gap-2 px-2">
                     {analytics.enrollmentTrends.map((trend, index) => {
-                      const barHeight = maxEnrollments > 0 ? (trend.enrollments / maxEnrollments) * 200 : 0;
+                      const barHeight = maxEnrollments > 0 ? (trend.enrollments / maxEnrollments) * 180 : 0;
                       return (
                         <div key={index} className="flex-1 flex flex-col items-center">
                           <div className="w-full flex flex-col items-center mb-2">
-                            <span className="text-xs font-medium text-gray-900 mb-1">
+                            <span className="text-[10px] font-medium text-gray-900 mb-1">
                               {trend.enrollments}
                             </span>
                             <div
-                              className="w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-t-lg transition-all duration-700 ease-out hover:from-blue-700 hover:to-blue-500 cursor-pointer shadow-sm"
+                              className="w-full bg-gradient-to-t from-[#3363AD] to-[#3363AD]/70 rounded-t-lg transition-all duration-700 ease-out hover:from-[#3363AD] hover:to-[#3363AD]/90 cursor-pointer shadow-sm"
                               style={{ 
                                 height: `${barHeight}px`,
                                 minHeight: trend.enrollments > 0 ? '8px' : '0px'
                               }}
                             />
                           </div>
-                          <span className="text-xs text-gray-600 text-center leading-tight">
+                          <span className="text-[10px] text-gray-600 text-center leading-tight">
                             {trend.month.split(' ')[0]}<br />
                             <span className="text-gray-400">{trend.month.split(' ')[1]}</span>
                           </span>
@@ -146,42 +154,42 @@ export const CourseAnalytics: React.FC = () => {
               })()}
             </div>
           ) : (
-            <div className="flex items-center justify-center h-64 bg-gray-50 rounded">
+            <div className="flex items-center justify-center h-56 bg-gray-50 rounded">
               <div className="text-center text-gray-500">
-                <BarChart3 className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-                <p>No enrollment trend data available</p>
+                <BarChart3 className="w-10 h-10 mx-auto mb-2 text-gray-400" />
+                <p className="text-xs">No enrollment trend data available</p>
               </div>
             </div>
           )}
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Performing Courses</h3>
+        <div className="bg-white rounded-lg shadow p-4">
+          <h3 className="text-sm font-semibold text-gray-900 mb-3">Top Performing Courses</h3>
           {analytics?.topPerformingCourses && analytics.topPerformingCourses.length > 0 ? (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {analytics.topPerformingCourses.map((course) => (
-                <div key={course.id} className="flex items-center gap-4">
+                <div key={course.id} className="flex items-center gap-3">
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium text-gray-700">{course.name}</span>
-                      <span className="text-sm text-gray-500">{course.completion}%</span>
+                      <span className="text-xs font-medium text-gray-700">{course.name}</span>
+                      <span className="text-xs text-gray-500">{course.completion}%</span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="w-full bg-gray-200 rounded-full h-1.5">
                       <div
-                        className="bg-blue-600 h-2 rounded-full"
+                        className="bg-[#3363AD] h-1.5 rounded-full transition-all duration-500"
                         style={{ width: `${course.completion}%` }}
                       ></div>
                     </div>
-                    <span className="text-xs text-gray-500 mt-1">{course.students} students</span>
+                    <span className="text-[10px] text-gray-500 mt-1">{course.students} students</span>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="flex items-center justify-center h-64 bg-gray-50 rounded">
+            <div className="flex items-center justify-center h-56 bg-gray-50 rounded">
               <div className="text-center text-gray-500">
-                <BookOpen className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-                <p>No top performing courses data available</p>
+                <BookOpen className="w-10 h-10 mx-auto mb-2 text-gray-400" />
+                <p className="text-xs">No top performing courses data available</p>
               </div>
             </div>
           )}
@@ -189,29 +197,29 @@ export const CourseAnalytics: React.FC = () => {
       </div>
 
       {/* Additional Metrics */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Course Performance Metrics</h3>
+      <div className="bg-white rounded-lg shadow p-4">
+        <h3 className="text-sm font-semibold text-gray-900 mb-3">Course Performance Metrics</h3>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-200">
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Course Name</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Enrolled</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">In Progress</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Completed</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Completion Rate</th>
+                <th className="text-left py-2 px-3 text-[10px] font-semibold text-gray-700 uppercase tracking-wide">Course Name</th>
+                <th className="text-left py-2 px-3 text-[10px] font-semibold text-gray-700 uppercase tracking-wide">Enrolled</th>
+                <th className="text-left py-2 px-3 text-[10px] font-semibold text-gray-700 uppercase tracking-wide">In Progress</th>
+                <th className="text-left py-2 px-3 text-[10px] font-semibold text-gray-700 uppercase tracking-wide">Completed</th>
+                <th className="text-left py-2 px-3 text-[10px] font-semibold text-gray-700 uppercase tracking-wide">Completion Rate</th>
               </tr>
             </thead>
             <tbody>
               {analytics?.coursePerformanceMetrics && analytics.coursePerformanceMetrics.length > 0 ? (
                 analytics.coursePerformanceMetrics.map((course) => (
                   <tr key={course.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-3 px-4 text-sm text-gray-900">{course.name}</td>
-                    <td className="py-3 px-4 text-sm text-gray-600">{course.enrolled}</td>
-                    <td className="py-3 px-4 text-sm text-gray-600">{course.inProgress}</td>
-                    <td className="py-3 px-4 text-sm text-gray-600">{course.completed}</td>
-                    <td className="py-3 px-4">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    <td className="py-2 px-3 text-xs text-gray-900">{course.name}</td>
+                    <td className="py-2 px-3 text-xs text-gray-600">{course.enrolled}</td>
+                    <td className="py-2 px-3 text-xs text-gray-600">{course.inProgress}</td>
+                    <td className="py-2 px-3 text-xs text-gray-600">{course.completed}</td>
+                    <td className="py-2 px-3">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#3363AD]/10 text-[#3363AD]">
                         {course.rate}%
                       </span>
                     </td>
@@ -219,7 +227,7 @@ export const CourseAnalytics: React.FC = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="py-8 text-center text-gray-500">
+                  <td colSpan={5} className="py-6 text-center text-gray-500 text-xs">
                     No course performance data available
                   </td>
                 </tr>

@@ -81,7 +81,7 @@ export const RwandaDistrictMap: React.FC<RwandaDistrictMapProps> = ({
 
   // ── Constants & Projections ───────────────────────────────────
   const VW = 480;
-  const VH = 346;
+  const VH = 320; // Reduced from 346 for more compact display
   
   const projection = useMemo(() => d3.geoMercator().center([29.88, -1.945]).scale(9800).translate([VW / 2, VH / 2]), []);
   const pathGen    = useMemo(() => d3.geoPath().projection(projection), [projection]);
@@ -476,9 +476,9 @@ export const RwandaDistrictMap: React.FC<RwandaDistrictMapProps> = ({
 
   return (
     <Card padding={false} className="overflow-hidden">
-      <div className="px-4 pt-4 pb-3 border-b border-gray-100">
+      <div className="px-4 pt-3 pb-2 border-b border-gray-100">
         <DashboardSectionHeader icon={<MapPin size={16} />} title="Service Coverage Map" />
-        <div className="mt-3 flex items-center gap-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+        <div className="mt-2 flex items-center gap-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
           {MAP_METRICS.map((metric) => {
             const Icon    = METRIC_ICONS[metric.key];
             const isActive = activeMetric === metric.key;
@@ -486,9 +486,9 @@ export const RwandaDistrictMap: React.FC<RwandaDistrictMapProps> = ({
               <button
                 key={metric.key}
                 onClick={() => setActiveMetric(metric.key)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all border shrink-0 ${isActive ? "bg-[#3363AD] text-white border-[#3363AD] shadow-sm" : "bg-white text-gray-500 border-gray-200 hover:border-[#3363AD] hover:text-[#3363AD]"}`}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium whitespace-nowrap transition-all border shrink-0 ${isActive ? "bg-[#3363AD] text-white border-[#3363AD] shadow-sm" : "bg-white text-gray-500 border-gray-200 hover:border-[#3363AD] hover:text-[#3363AD]"}`}
               >
-                <Icon size={12} />
+                <Icon size={11} />
                 {metric.label}
               </button>
             );

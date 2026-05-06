@@ -96,15 +96,15 @@ export const CHWStatsCards: React.FC<CHWStatsCardsProps> = ({
       icon: <CheckCircle size={22} />,
       iconBg: "bg-[#3363AD]/10",
       iconColor: "text-[#3363AD]",
-      title: "Completion Rate",
+      title: "Course Completion",
       primary: `${data?.completion.rate ?? 0}%`,
       subItems: [
         {
-          label: "completed",
+          label: "courses completed",
           value: data?.completion.completed ?? 0,
         },
         {
-          label: "total",
+          label: "enrollments",
           value: data?.completion.total ?? 0,
         },
       ],
@@ -113,23 +113,23 @@ export const CHWStatsCards: React.FC<CHWStatsCardsProps> = ({
       icon: <ClipboardList size={22} />,
       iconBg: "bg-[#3363AD]/10",
       iconColor: "text-[#3363AD]",
-      title: "Total Test",
+      title: "Test Attempts",
       primary: data?.tests.total ?? 0,
       subItems: [
         {
-          label: "pre",
+          label: "pre-test",
           value: data?.tests.preTest ?? 0,
         },
         {
-          label: "mid",
+          label: "mid-test",
           value: data?.tests.midTest ?? 0,
         },
         {
-          label: "post",
+          label: "final-test",
           value: data?.tests.finalTest ?? 0,
         },
         {
-          label: "final",
+          label: "final-exam",
           value: data?.tests.finalExam ?? 0,
         },
       ],
@@ -138,7 +138,7 @@ export const CHWStatsCards: React.FC<CHWStatsCardsProps> = ({
       icon: <UserCheck size={22} />,
       iconBg: "bg-[#3363AD]/10",
       iconColor: "text-[#3363AD]",
-      title: "Total cho",
+      title: "Total CHO",
       primary: data?.supervisors.total ?? 0,
       subItems: [
         {

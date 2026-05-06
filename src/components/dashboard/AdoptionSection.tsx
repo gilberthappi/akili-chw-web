@@ -1,9 +1,8 @@
-import React, { useCallback } from "react";
-import { TrendingUp } from "lucide-react";
+import React, { useCallback, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useAdoptionStats } from "@/hooks/useAdoptionStats";
 import { useDashboardFilters } from "@/hooks/useDashboardFilters";
 import { GlobalFilterBar } from "./GlobalFilterBar";
-import { DashboardSectionHeader } from "./shared/DashboardSectionHeader";
 import { SectionSkeleton } from "./shared/SectionSkeleton";
 import { EnrollmentTrendChart } from "./EnrollmentTrendChart";
 import { CommunicationsCard } from "./CommunicationsCard";
@@ -56,34 +55,38 @@ export const AdoptionSection: React.FC = () => {
     [filters, setFilters],
   );
 
+  // Portal the filters to the top-level header
+  const filterPortal = typeof document !== 'undefined' 
+    ? document.getElementById('global-filters-container')
+    : null;
+
   if (isLoading) return <SectionSkeleton cards={5} rows={2} />;
 
   return (
-    <div className='space-y-5'>
-      <DashboardSectionHeader
-        icon={<TrendingUp size={18} />}
-        title='Platform Adoption'
-      />
-
-      {error && (
-        <div
-          className='text-sm text-red-500 bg-red-50 border border-red-100
-          rounded-lg px-4 py-3'
-        >
-          {error}
-        </div>
+    <>
+      {/* Render filters in the top header via portal */}
+      {filterPortal && createPortal(
+        <GlobalFilterBar
+          filters={filters}
+          onChange={setFilters}
+          provinces={availableProvinces}
+          districts={availableDistricts}
+          genders={availableGenders}
+          years={availableYears}
+          months={availableMonths}
+        />,
+        filterPortal
       )}
 
-      {/* Global filter bar */}
-      <GlobalFilterBar
-        filters={filters}
-        onChange={setFilters}
-        provinces={availableProvinces}
-        districts={availableDistricts}
-        genders={availableGenders}
-        years={availableYears}
-        months={availableMonths}
-      />
+      <div className='space-y-5'>
+        {error && (
+          <div
+            className='text-sm text-red-500 bg-red-50 border border-red-100
+            rounded-lg px-4 py-3'
+          >
+            {error}
+          </div>
+        )}
 
       {/* KPI row */}
       <CHWStatsCards data={chwStats} isLoading={isLoading} />
@@ -134,5 +137,6 @@ export const AdoptionSection: React.FC = () => {
         <EnrollmentTrendChart trends={filteredEnrollmentTrends} />
       </div>
     </div>
+    </>
   );
 };

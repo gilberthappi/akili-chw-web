@@ -67,12 +67,12 @@ export const CourseEngagementTable: React.FC<CourseEngagementTableProps> = ({
   const SortHeader: React.FC<{ label: string; k: SortKey }> = ({ label, k }) => (
     <button
       onClick={() => handleSort(k)}
-      className='flex items-center gap-1 text-xs font-medium uppercase
+      className='flex items-center gap-0.5 text-[10px] font-medium uppercase
                  tracking-wide text-gray-500 hover:text-[rgba(51,99,173,0.9)] transition-colors'
     >
       {label}
       <ArrowUpDown
-        size={11}
+        size={10}
         className={sortKey === k ? "text-[rgba(51,99,173,1)]" : "text-gray-300"}
       />
     </button>
@@ -91,22 +91,22 @@ export const CourseEngagementTable: React.FC<CourseEngagementTableProps> = ({
         </div>
       ) : (
         <div className='overflow-x-auto'>
-          <table className='w-full text-sm'>
+          <table className='w-full text-xs'>
             <thead>
               <tr className='border-b border-gray-100'>
-                <th className='text-left py-2 pr-4'>
+                <th className='text-left py-1.5 pr-3'>
                   <SortHeader label='Course' k='name' />
                 </th>
-                <th className='text-right py-2 px-3'>
+                <th className='text-right py-1.5 px-2'>
                   <SortHeader label='Enrollments' k='students' />
                 </th>
-                <th className='text-right py-2 px-3'>
+                <th className='text-right py-1.5 px-2'>
                   <SortHeader label='Completed' k='completed' />
                 </th>
-                <th className='py-2 px-3'>
+                <th className='py-1.5 px-2'>
                   <SortHeader label='Completion Rate' k='rate' />
                 </th>
-                <th className='text-right py-2 pl-3'>
+                <th className='text-right py-1.5 pl-2'>
                   <SortHeader label='Avg Quiz Score' k='avgScore' />
                 </th>
               </tr>
@@ -118,20 +118,20 @@ export const CourseEngagementTable: React.FC<CourseEngagementTableProps> = ({
                   className='border-b border-gray-50 hover:bg-gray-50
                              transition-colors last:border-0'
                 >
-                  <td className='py-2 pr-4 font-medium text-gray-800 max-w-[140px] truncate'>
+                  <td className='py-1.5 pr-3 font-medium text-gray-800 max-w-[120px] truncate text-xs'>
                     {row.name}
                   </td>
-                  <td className='py-2 px-3 text-right text-gray-600'>
+                  <td className='py-1.5 px-2 text-right text-gray-600 text-xs'>
                     {row.students.toLocaleString()}
                   </td>
-                  <td className='py-2 px-3 text-right text-gray-600'>
+                  <td className='py-1.5 px-2 text-right text-gray-600 text-xs'>
                     {row.completed.toLocaleString()}
                   </td>
-                  <td className='py-2 px-3'>
-                    <div className='flex items-center gap-2'>
-                      <div className='flex-1 bg-gray-100 rounded-full h-1.5 min-w-[60px]'>
+                  <td className='py-1.5 px-2'>
+                    <div className='flex items-center gap-1.5'>
+                      <div className='flex-1 bg-gray-100 rounded-full h-1 min-w-[50px]'>
                         <div
-                          className='h-1.5 rounded-full transition-all duration-500'
+                          className='h-1 rounded-full transition-all duration-500'
                           style={{
                             width: `${row.rate}%`,
                             background:
@@ -143,15 +143,15 @@ export const CourseEngagementTable: React.FC<CourseEngagementTableProps> = ({
                           }}
                         />
                       </div>
-                      <span className='text-xs text-gray-600 w-9 text-right shrink-0'>
+                      <span className='text-[10px] text-gray-600 w-7 text-right shrink-0'>
                         {row.rate}%
                       </span>
                     </div>
                   </td>
-                  <td className='py-2 pl-3 text-right'>
+                  <td className='py-1.5 pl-2 text-right'>
                     {row.avgScore !== null ? (
                       <span
-                        className='text-sm font-semibold'
+                        className='text-xs font-semibold'
                         style={{
                           color:
                             row.avgScore >= 70
@@ -164,7 +164,7 @@ export const CourseEngagementTable: React.FC<CourseEngagementTableProps> = ({
                         {row.avgScore}%
                       </span>
                     ) : (
-                      <span className='text-gray-300 text-sm'>—</span>
+                      <span className='text-gray-300 text-xs'>—</span>
                     )}
                   </td>
                 </tr>
