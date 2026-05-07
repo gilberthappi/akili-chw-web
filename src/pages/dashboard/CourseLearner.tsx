@@ -12,6 +12,7 @@ import {
   Loader2,
   Menu,
   X,
+  ClipboardList,
 } from "lucide-react";
 import { Button } from "@/components/common/Button";
 import { getCourseSectionsWithChapters, getChapterSlides } from "@/services/course.service";
@@ -233,6 +234,15 @@ const CourseLearner: React.FC = () => {
             <p className="text-xs text-gray-400 truncate">{activeChapter.title}</p>
           )}
         </div>
+        {/* Pre-Test button */}
+        <button
+          onClick={() => navigate(`/learn/${courseId}/pre-test`)}
+          className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#3363AD] border border-[#3363AD]/30 hover:bg-[#3363AD]/5 transition-colors flex-shrink-0"
+          title="Take Pre-Test"
+        >
+          <ClipboardList size={14} />
+          Pre-Test
+        </button>
         {/* Mobile outline toggle */}
         <button
           className="md:hidden p-1.5 rounded-lg hover:bg-gray-100 text-gray-600"

@@ -4,8 +4,7 @@ import { BookOpen, Search, Star, Users, ChevronRight, Loader2 } from "lucide-rea
 import { Card } from "@/components/common/Card";
 import { Button } from "@/components/common/Button";
 import { Badge } from "@/components/common/Badge";
-import { getAllCourses } from "@/services/course.service";
-import { getMyCourses } from "@/services/course.service";
+import { getCoursesWithProgress } from "@/services/course.service";
 import { enrollInCourse } from "@/services/progress.service";
 import { ICourse } from "@/types";
 
@@ -22,18 +21,12 @@ const CourseCatalog: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const [catalogRes, myRes] = await Promise.all([
-        getAllCourses("?isPublished=true&limit=50"),
-        getMyCourses(),
-      ]);
-
-      const allCourses: ICourse[] = Array.isArray(catalogRes.data)
-        ? catalogRes.data
-        : [];
+      // Returns all published courses; each course's progresses[] is filtered
+      // to only this student's records, so length > 0 means enrolled.
+      const allCourses = await getCoursesWithProgress();
       setCourses(allCourses);
-
       const ids = new Set(
-        (myRes.data?.enrolledCourses ?? []).map((c) => c.courseId)
+        allCourses.filter((c) => (c.progresses?.length ?? 0) > 0).map((c) => c.id)
       );
       setEnrolledIds(ids);
     } catch {
@@ -166,12 +159,14 @@ const CourseCatalog: React.FC = () => {
                       src={course.intro.bannerImage}
                       alt={course.title}
                       className="w-full h-full object-cover"
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
                     />
                   ) : course.coverIcon ? (
                     <img
                       src={course.coverIcon}
                       alt={course.title}
                       className="w-full h-full object-cover"
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
                     />
                   ) : (
                     <BookOpen className="text-white opacity-60" size={40} />

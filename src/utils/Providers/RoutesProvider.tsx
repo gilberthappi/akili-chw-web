@@ -32,6 +32,7 @@ import Hospitals from "@/pages/dashboard/Hospitals";
 import Announcement from "@/pages/dashboard/Announcement";
 import CourseCatalog from "@/pages/dashboard/CourseCatalog";
 import CourseLearner from "@/pages/dashboard/CourseLearner";
+import PreTest from "@/pages/dashboard/PreTest";
 
 const RoutesProvider = () => {
   const router = createBrowserRouter([
@@ -136,6 +137,14 @@ const RoutesProvider = () => {
           element: (
             <ProtectedRoute allowedRoles={["TRAINEE", "SUPERVISOR"]}>
               <CourseLearner />
+            </ProtectedRoute>
+          ),
+        },
+        {
+          path: "learn/:courseId/pre-test",
+          element: (
+            <ProtectedRoute allowedRoles={["TRAINEE", "SUPERVISOR"]}>
+              <PreTest />
             </ProtectedRoute>
           ),
         },

@@ -6,7 +6,7 @@ export const enrollInCourse = async (courseId: string): Promise<IResponse<unknow
 };
 
 export const markSlideComplete = async (slideId: string): Promise<IResponse<unknown>> => {
-  return (await api.post("/progress/slide/complete", { slideId })).data;
+  return (await api.post("/progress/slide/complete", { slideId, isCompleted: true })).data;
 };
 
 export const getCourseProgress = async (courseId: string): Promise<IResponse<unknown>> => {

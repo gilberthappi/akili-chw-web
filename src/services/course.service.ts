@@ -111,7 +111,12 @@ export const getCourseSectionsWithChapters = async (courseId: string): Promise<I
 };
 
 export const getChapterSlides = async (chapterId: string): Promise<IResponse<IChapter>> => {
-  return (await api.get(`/chapters/${chapterId}/slides`)).data;
+  return (await api.get(`/courses/chapters/${chapterId}/slides`)).data;
+};
+
+export const getCoursesWithProgress = async (): Promise<ICourse[]> => {
+  const res = await api.get("/courses/myall");
+  return (res.data?.data as ICourse[]) ?? [];
 };
 
 export const getMyCourses = async (): Promise<IMyCoursesResponse> => {
