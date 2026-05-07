@@ -15,7 +15,7 @@ import {
   ClipboardList,
 } from "lucide-react";
 import { Button } from "@/components/common/Button";
-import { getCourseSectionsWithChapters, getChapterSlides } from "@/services/course.service";
+import { getCourseSectionsWithChapters, getChapterSlides, getChapterMidTestId } from "@/services/course.service";
 import { markSlideComplete } from "@/services/progress.service";
 import { ISection, IChapter, ISlide } from "@/types";
 
@@ -111,6 +111,8 @@ const CourseLearner: React.FC = () => {
   const [slideIndex, setSlideIndex] = useState(0);
   // Completed slide ids (session-level; backend persists the truth)
   const [completedSlideIds, setCompletedSlideIds] = useState<Set<string>>(new Set());
+  // Mid-test id for the currently active chapter (null if none)
+  const [chapterMidTestId, setChapterMidTestId] = useState<string | null>(null);
   // Mobile outline drawer
   const [outlineOpen, setOutlineOpen] = useState(false);
   const markingRef = useRef(false);
@@ -140,6 +142,7 @@ const CourseLearner: React.FC = () => {
     setActiveChapter(chapter);
     setSlideIndex(0);
     setSlides([]);
+    setChapterMidTestId(null);
     setIsLoadingSlides(true);
     try {
       const res = await getChapterSlides(chapter.id);
@@ -150,6 +153,8 @@ const CourseLearner: React.FC = () => {
     } finally {
       setIsLoadingSlides(false);
     }
+    // Fetch mid-test id silently in background (doesn't block slide loading)
+    getChapterMidTestId(chapter.id).then(setChapterMidTestId).catch(() => {});
     setOutlineOpen(false);
   }, []);
 
@@ -243,6 +248,21 @@ const CourseLearner: React.FC = () => {
           <ClipboardList size={14} />
           Pre-Test
         </button>
+        {/* Chapter Test button — only shown when active chapter has a mid-test */}
+        {chapterMidTestId && activeChapter && (
+          <button
+            onClick={() =>
+              navigate(
+                `/learn/${courseId}/mid-test/${chapterMidTestId}?chapter=${encodeURIComponent(activeChapter.title)}`
+              )
+            }
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-amber-700 border border-amber-300 hover:bg-amber-50 transition-colors flex-shrink-0"
+            title="Take Chapter Test"
+          >
+            <ClipboardList size={14} />
+            Chapter Test
+          </button>
+        )}
         {/* Mobile outline toggle */}
         <button
           className="md:hidden p-1.5 rounded-lg hover:bg-gray-100 text-gray-600"
@@ -398,15 +418,30 @@ const CourseLearner: React.FC = () => {
                   {slideIndex + 1} / {totalSlides}
                 </span>
 
-                <Button
-                  size="sm"
-                  onClick={handleNext}
-                  disabled={slideIndex === totalSlides - 1}
-                  className="flex items-center gap-1"
-                >
-                  Next
-                  <ChevronRight size={14} />
-                </Button>
+                {slideIndex === totalSlides - 1 && chapterMidTestId ? (
+                  <Button
+                    size="sm"
+                    onClick={() =>
+                      navigate(
+                        `/learn/${courseId}/mid-test/${chapterMidTestId}?chapter=${encodeURIComponent(activeChapter?.title ?? "")}`
+                      )
+                    }
+                    className="flex items-center gap-1 bg-amber-600 hover:bg-amber-700"
+                  >
+                    <ClipboardList size={14} />
+                    Chapter Test
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    onClick={handleNext}
+                    disabled={slideIndex === totalSlides - 1}
+                    className="flex items-center gap-1"
+                  >
+                    Next
+                    <ChevronRight size={14} />
+                  </Button>
+                )}
               </div>
             </div>
           )}
