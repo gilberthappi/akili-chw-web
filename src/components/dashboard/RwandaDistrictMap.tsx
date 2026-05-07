@@ -503,14 +503,14 @@ export const RwandaDistrictMap: React.FC<RwandaDistrictMapProps> = ({
       ) : !geoData ? (
         <div className="h-48 flex items-center justify-center text-sm text-gray-400">Failed to load map</div>
       ) : (
-        <div ref={containerRef} className="relative w-full overflow-hidden rounded-b-xl" style={{ maxHeight: "450px" }}>
+        <div ref={containerRef} className="relative w-full overflow-hidden rounded-b-xl">
           <svg
             ref={svgRef}
             style={{
               width: "100%",
               height: "auto",
-              maxHeight: "450px",
               display: "block",
+              minHeight: "400px",
             }}
           />
 
