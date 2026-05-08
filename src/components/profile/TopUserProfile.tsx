@@ -71,13 +71,41 @@ export default function DashTop() {
       markAsRead(notification.id);
     }
 
-    // Handle navigation based on notification type and metadata
-    if (notification.entityType === "contact" && notification.entityId) {
-      // Navigate to contact details
+    // Navigate based on actionUrl / entityType
+    const actionUrl = notification.actionUrl || '';
+    const match = actionUrl.match(/^\/([a-z_]+)\/(.+?)(?:\?|$)/i);
+    
+    if (match) {
+      const [, resourceType, resourceId] = match;
+      
+      switch (resourceType.toLowerCase()) {
+        case 'chat':
+        case 'conversation':
+          navigate(`/dashboard/messaging?chatId=${resourceId}&type=direct`);
+          break;
+        case 'group':
+          navigate(`/dashboard/messaging?chatId=${resourceId}&type=group`);
+          break;
+        case 'community':
+          navigate(`/dashboard/messaging?communityId=${resourceId}&type=community`);
+          break;
+        case 'course':
+          navigate(`/dashboard/courses/${resourceId}`);
+          break;
+        case 'calendar':
+        case 'event':
+        case 'calendar_reminder':
+          navigate(`/dashboard/calendar?eventId=${resourceId}`);
+          break;
+        case 'announcement':
+          navigate(`/dashboard/announcements/${resourceId}`);
+          break;
+        default:
+          navigate('/dashboard');
+      }
+    } else if (notification.entityType === "contact" && notification.entityId) {
+      // Legacy: Navigate to contact details
       navigate(`/dashboard/contacts/${notification.entityId}`);
-    } else if (notification.actionUrl) {
-      // Navigate to action URL if available
-      window.open(notification.actionUrl, "_blank");
     }
 
     // Close notification modal

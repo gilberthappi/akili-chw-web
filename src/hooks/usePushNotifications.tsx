@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useAuth } from "./useAuth";
 import { requestFcmToken } from "@/lib/firebase";
 import ApiClient from "@/services/api";
+import { onMessage, getMessaging } from "firebase/messaging";
+import { getApp } from "firebase/app";
 
 export async function registerPushToken(): Promise<"granted" | "denied" | "default" | "error"> {
   try {
@@ -51,8 +53,33 @@ export const usePushNotifications = () => {
 
     register();
 
+    // Handle foreground push messages (app is open and focused)
+    let unsubscribeMessage: (() => void) | null = null;
+    try {
+      const messaging = getMessaging(getApp());
+      unsubscribeMessage = onMessage(messaging, (payload) => {
+        if (!active) return;
+
+        const title = payload.notification?.title || payload.data?.title || 'Notification';
+        const body = payload.notification?.body || payload.data?.body || '';
+        const deepLink = payload.data?.deepLink || payload.data?.actionUrl || '';
+        const entityType = payload.data?.entityType || '';
+        const entityId = payload.data?.entityId || '';
+
+        console.log('[PushNotifications] Foreground message:', title, deepLink);
+
+        // Dispatch a custom event so other components can react
+        window.dispatchEvent(new CustomEvent('fcm:foreground', {
+          detail: { title, body, deepLink, entityType, entityId, data: payload.data }
+        }));
+      });
+    } catch (err) {
+      console.warn('[PushNotifications] Could not set up foreground listener:', err);
+    }
+
     return () => {
       active = false;
+      if (unsubscribeMessage) unsubscribeMessage();
     };
   }, [user]);
 

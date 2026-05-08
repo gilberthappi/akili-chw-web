@@ -100,44 +100,10 @@ export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({
       if (!notification.isRead) {
         setUnreadCount((prev) => prev + 1);
       }
-
-      // Show OS notification only if tab is not focused AND FCM service worker didn't handle it
-      if (document.visibilityState !== 'visible' && Notification.permission === 'granted') {
-        const isReminder = notification.type === 'warning' ||
-          (notification as any).entityType === 'calendar_reminder';
-        const entityId = (notification as any).entityId || 'notification';
-
-        let fcmHandled = false;
-
-        // Listen for FCM signal from service worker via BroadcastChannel
-        let channel: BroadcastChannel | null = null;
-        try {
-          channel = new BroadcastChannel('fcm_notification_channel');
-          channel.onmessage = (event) => {
-            if (event.data?.type === 'FCM_HANDLED' && event.data?.entityId === entityId) {
-              fcmHandled = true;
-            }
-          };
-        } catch (_) {}
-
-        // Wait 2 seconds — if FCM handled it, skip; otherwise show native notification
-        setTimeout(() => {
-          try { channel?.close(); } catch (_) {}
-          if (!fcmHandled) {
-            const osNotification = new Notification(notification.title, {
-              body: notification.message,
-              icon: '/chw.png',
-              badge: '/chw.png',
-              tag: entityId,
-              requireInteraction: isReminder,
-            });
-            osNotification.onclick = () => {
-              window.focus();
-              osNotification.close();
-            };
-          }
-        }, 2000);
-      }
+      // OS push notifications are handled exclusively by the FCM service worker
+      // (firebase-messaging-sw.js). Showing them here too caused triple-popups
+      // because socket events arrive faster than FCM, and multiple tabs each
+      // had their own handler racing against the 2-second BroadcastChannel debounce.
     });
 
     socket.on("unread_count_updated", (data: { unreadCount: number }) => {
