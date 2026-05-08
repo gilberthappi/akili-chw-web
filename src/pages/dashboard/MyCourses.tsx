@@ -7,35 +7,30 @@ import {
   Clock,
   Loader2,
   PlayCircle,
-  Star,
+  ClipboardList,
+  TrendingUp,
+  ArrowRight,
 } from "lucide-react";
 import { Card } from "@/components/common/Card";
 import { Button } from "@/components/common/Button";
 import { Badge } from "@/components/common/Badge";
-import { getCoursesWithProgress } from "@/services/course.service";
-import { ICourse } from "@/types";
-
-interface ProgressRecord {
-  id: string;
-  progress?: number;
-  isCompleted?: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
+import {
+  getStudentStatistics,
+  IStudentStatistics,
+  ICourseStatEntry,
+} from "@/services/progress.service";
 
 export const MyCourses: React.FC = () => {
   const navigate = useNavigate();
-  const [enrolledCourses, setEnrolledCourses] = useState<ICourse[]>([]);
+  const [stats, setStats] = useState<IStudentStatistics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadCourses = useCallback(async () => {
+  const loadStats = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const all = await getCoursesWithProgress();
-      // Only show courses the student has enrolled in (has a progress record)
-      setEnrolledCourses(all.filter((c) => (c.progresses?.length ?? 0) > 0));
+      setStats(await getStudentStatistics());
     } catch {
       setError("Failed to load your courses. Please try again.");
     } finally {
@@ -44,8 +39,8 @@ export const MyCourses: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    loadCourses();
-  }, [loadCourses]);
+    loadStats();
+  }, [loadStats]);
 
   if (isLoading) {
     return (
@@ -62,16 +57,14 @@ export const MyCourses: React.FC = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-64 gap-3">
         <p className="text-red-500 text-sm">{error}</p>
-        <Button size="sm" onClick={loadCourses}>Retry</Button>
+        <Button size="sm" onClick={loadStats}>Retry</Button>
       </div>
     );
   }
 
-  const completed = enrolledCourses.filter((c) => {
-    const p = c.progresses?.[0] as unknown as ProgressRecord | undefined;
-    return p?.isCompleted === true;
-  });
-  const inProgress = enrolledCourses.length - completed.length;
+  const summary = stats?.summary;
+  const enrolledCourses = (stats?.courses ?? []).filter((c) => c.isEnrolled);
+  const lastViewed = stats?.lastViewedLocation ?? null;
 
   return (
     <div className="space-y-6">
@@ -94,8 +87,8 @@ export const MyCourses: React.FC = () => {
         </Button>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      {/* Summary stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <Card padding={false} className="p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-[#3363AD]/10 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -103,7 +96,7 @@ export const MyCourses: React.FC = () => {
             </div>
             <div>
               <p className="text-xs text-gray-500">Enrolled</p>
-              <p className="text-xl font-bold text-gray-900">{enrolledCourses.length}</p>
+              <p className="text-xl font-bold text-gray-900">{summary?.enrolledCourses ?? 0}</p>
             </div>
           </div>
         </Card>
@@ -114,22 +107,51 @@ export const MyCourses: React.FC = () => {
             </div>
             <div>
               <p className="text-xs text-gray-500">Completed</p>
-              <p className="text-xl font-bold text-gray-900">{completed.length}</p>
+              <p className="text-xl font-bold text-gray-900">{summary?.completedCourses ?? 0}</p>
             </div>
           </div>
         </Card>
         <Card padding={false} className="p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
-              <Clock className="text-orange-500" size={20} />
+              <TrendingUp className="text-orange-500" size={20} />
             </div>
             <div>
               <p className="text-xs text-gray-500">In Progress</p>
-              <p className="text-xl font-bold text-gray-900">{inProgress}</p>
+              <p className="text-xl font-bold text-gray-900">{summary?.startedCourses ?? 0}</p>
+            </div>
+          </div>
+        </Card>
+        <Card padding={false} className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <Clock className="text-purple-500" size={20} />
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Available</p>
+              <p className="text-xl font-bold text-gray-900">{summary?.totalCourses ?? 0}</p>
             </div>
           </div>
         </Card>
       </div>
+
+      {/* Continue where you left off */}
+      {lastViewed && (
+        <div
+          className="flex items-center gap-4 bg-[#3363AD] text-white rounded-xl p-4 cursor-pointer hover:bg-[#2a52a0] transition-colors"
+          onClick={() => navigate(`/learn/${lastViewed.courseId}`)}
+        >
+          <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0">
+            <PlayCircle size={22} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-white/70 font-medium">Continue where you left off</p>
+            <p className="text-sm font-semibold truncate">{lastViewed.courseTitle}</p>
+            <p className="text-xs text-white/60 truncate">{lastViewed.chapterTitle}</p>
+          </div>
+          <ArrowRight size={18} className="flex-shrink-0 text-white/70" />
+        </div>
+      )}
 
       {/* Course list */}
       {enrolledCourses.length === 0 ? (
@@ -149,24 +171,15 @@ export const MyCourses: React.FC = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {enrolledCourses.map((course) => {
-            const prog = course.progresses?.[0] as unknown as ProgressRecord | undefined;
-            const pct = Math.round(prog?.progress ?? 0);
-            const isDone = prog?.isCompleted === true;
-            const sectionCount = course.sections?.length ?? 0;
+          {enrolledCourses.map((course: ICourseStatEntry) => {
+            const pct = Math.round(course.progress ?? 0);
+            const isDone = course.isCompleted;
 
             return (
-              <Card key={course.id} padding={false} hover className="flex flex-col">
+              <Card key={course.courseId} padding={false} hover className="flex flex-col">
                 {/* Cover */}
-                <div className="relative h-40 bg-gradient-to-br from-[#3363AD] to-[#1a3d7c] rounded-t-lg flex items-center justify-center overflow-hidden flex-shrink-0">
-                  {course.intro?.bannerImage ? (
-                    <img
-                      src={course.intro.bannerImage}
-                      alt={course.title}
-                      className="w-full h-full object-cover"
-                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-                    />
-                  ) : course.coverIcon ? (
+                <div className="relative h-36 bg-gradient-to-br from-[#3363AD] to-[#1a3d7c] rounded-t-lg flex items-center justify-center overflow-hidden flex-shrink-0">
+                  {course.coverIcon ? (
                     <img
                       src={course.coverIcon}
                       alt={course.title}
@@ -177,11 +190,11 @@ export const MyCourses: React.FC = () => {
                     <BookOpen className="text-white opacity-60" size={40} />
                   )}
                   <Badge
-                    variant={isDone ? "success" : "warning"}
+                    variant={isDone ? "success" : course.isStarted ? "warning" : "default"}
                     size="sm"
                     className="absolute top-2 right-2"
                   >
-                    {isDone ? "Completed" : "In Progress"}
+                    {isDone ? "Completed" : course.isStarted ? "In Progress" : "Not Started"}
                   </Badge>
                 </div>
 
@@ -191,23 +204,30 @@ export const MyCourses: React.FC = () => {
                     <h3 className="font-semibold text-gray-900 text-sm leading-snug line-clamp-2">
                       {course.title}
                     </h3>
-                    {(course.intro?.summary || course.description) && (
-                      <p className="text-xs text-gray-500 mt-1 line-clamp-2">
-                        {course.intro?.summary ?? course.description}
-                      </p>
+                    {course.description && (
+                      <p className="text-xs text-gray-500 mt-1 line-clamp-2">{course.description}</p>
                     )}
                   </div>
 
                   {/* Meta */}
-                  <div className="flex items-center gap-3 text-xs text-gray-400">
-                    {course.rating != null && (
+                  <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
+                    {course.totalChapters > 0 && (
                       <span className="flex items-center gap-1">
-                        <Star size={12} className="text-yellow-400 fill-yellow-400" />
-                        {Number(course.rating).toFixed(1)}
+                        <BookOpen size={11} />
+                        {course.totalChapters} chapter{course.totalChapters !== 1 ? "s" : ""}
                       </span>
                     )}
-                    {sectionCount > 0 && (
-                      <span>{sectionCount} section{sectionCount !== 1 ? "s" : ""}</span>
+                    {course.totalTests > 0 && (
+                      <span className="flex items-center gap-1">
+                        <ClipboardList size={11} />
+                        {course.completedTests}/{course.totalTests} tests
+                      </span>
+                    )}
+                    {course.courseDuration > 0 && (
+                      <span className="flex items-center gap-1">
+                        <Clock size={11} />
+                        {course.courseDuration.toFixed(1)}h
+                      </span>
                     )}
                   </div>
 
@@ -215,7 +235,7 @@ export const MyCourses: React.FC = () => {
                   <div>
                     <div className="flex items-center justify-between text-xs text-gray-400 mb-1">
                       <span>Progress</span>
-                      <span>{pct}%</span>
+                      <span className={isDone ? "text-green-600 font-medium" : ""}>{pct}%</span>
                     </div>
                     <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
                       <div
@@ -225,12 +245,12 @@ export const MyCourses: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Actions */}
+                  {/* Action */}
                   <div className="mt-auto">
                     <Button
                       size="sm"
                       className="w-full flex items-center justify-center gap-1"
-                      onClick={() => navigate(`/learn/${course.id}`)}
+                      onClick={() => navigate(`/learn/${course.courseId}`)}
                     >
                       {isDone ? (
                         <>
@@ -240,7 +260,7 @@ export const MyCourses: React.FC = () => {
                       ) : (
                         <>
                           <PlayCircle size={14} />
-                          Continue Learning
+                          {course.isStarted ? "Continue Learning" : "Start Course"}
                           <ChevronRight size={14} />
                         </>
                       )}
