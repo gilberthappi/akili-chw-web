@@ -34,6 +34,7 @@ import CourseCatalog from "@/pages/dashboard/CourseCatalog";
 import CourseLearner from "@/pages/dashboard/CourseLearner";
 import PreTest from "@/pages/dashboard/PreTest";
 import MidTest from "@/pages/dashboard/MidTest";
+import FinalTestPage from "@/pages/dashboard/FinalTestPage";
 
 const RoutesProvider = () => {
   const router = createBrowserRouter([
@@ -154,6 +155,22 @@ const RoutesProvider = () => {
           element: (
             <ProtectedRoute allowedRoles={["TRAINEE", "SUPERVISOR"]}>
               <MidTest />
+            </ProtectedRoute>
+          ),
+        },
+        {
+          path: "learn/:courseId/final-test/:testId",
+          element: (
+            <ProtectedRoute allowedRoles={["TRAINEE", "SUPERVISOR"]}>
+              <FinalTestPage mode="finalTest" />
+            </ProtectedRoute>
+          ),
+        },
+        {
+          path: "learn/:courseId/final-exam/:testId",
+          element: (
+            <ProtectedRoute allowedRoles={["TRAINEE", "SUPERVISOR"]}>
+              <FinalTestPage mode="finalExam" />
             </ProtectedRoute>
           ),
         },

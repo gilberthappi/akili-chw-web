@@ -7,6 +7,35 @@ import {
 } from "@/types/certificates.d";
 
 // ============================================
+// REAL BACKEND ENDPOINTS
+// ============================================
+
+export interface IMyCertificate {
+  id: string;
+  courseId: string;
+  title: string;
+  image: string;
+  progress: number;
+  enrollmentDate: string;
+  completedAt: string;
+  slides: number;
+  attempt: number;
+  test: number;
+  finalExamMarks: number | null;
+  pdf: string;
+}
+
+export const getMyCertificates = async (): Promise<IMyCertificate[]> => {
+  const res = await api.get("/certificates/my-certificates");
+  return (res.data?.data as IMyCertificate[]) ?? [];
+};
+
+export const generateCertificate = async (courseId: string): Promise<IMyCertificate> => {
+  const res = await api.post("/certificates/generate", { courseId });
+  return res.data?.data as IMyCertificate;
+};
+
+// ============================================
 // TRAINEE CERTIFICATES (My Certificates)
 // ============================================
 

@@ -13,9 +13,11 @@ import {
   Menu,
   X,
   ClipboardList,
+  GraduationCap,
 } from "lucide-react";
 import { Button } from "@/components/common/Button";
 import { getCourseSectionsWithChapters, getChapterSlides, getChapterMidTestId } from "@/services/course.service";
+import { getCourseFinalTestIds } from "@/services/finaltest.service";
 import { markSlideComplete } from "@/services/progress.service";
 import { ISection, IChapter, ISlide } from "@/types";
 
@@ -113,6 +115,9 @@ const CourseLearner: React.FC = () => {
   const [completedSlideIds, setCompletedSlideIds] = useState<Set<string>>(new Set());
   // Mid-test id for the currently active chapter (null if none)
   const [chapterMidTestId, setChapterMidTestId] = useState<string | null>(null);
+  // Course-level final test / final exam ids (null if not configured)
+  const [finalTestId, setFinalTestId] = useState<string | null>(null);
+  const [finalExamId, setFinalExamId] = useState<string | null>(null);
   // Mobile outline drawer
   const [outlineOpen, setOutlineOpen] = useState(false);
   const markingRef = useRef(false);
@@ -134,6 +139,11 @@ const CourseLearner: React.FC = () => {
       })
       .catch(() => setCourseError("Failed to load course. Please go back and try again."))
       .finally(() => setIsLoadingCourse(false));
+    // Fetch final test / exam ids in background (non-blocking)
+    getCourseFinalTestIds(courseId).then(({ finalTestId: ftId, finalExamId: feId }) => {
+      setFinalTestId(ftId);
+      setFinalExamId(feId);
+    }).catch(() => {});
   }, [courseId]);
 
   // ── load chapter slides ───────────────────────────────────────────
@@ -261,6 +271,28 @@ const CourseLearner: React.FC = () => {
           >
             <ClipboardList size={14} />
             Chapter Test
+          </button>
+        )}
+        {/* Final Test button */}
+        {finalTestId && (
+          <button
+            onClick={() => navigate(`/learn/${courseId}/final-test/${finalTestId}`)}
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-green-700 border border-green-300 hover:bg-green-50 transition-colors flex-shrink-0"
+            title="Take Final Test"
+          >
+            <ClipboardList size={14} />
+            Final Test
+          </button>
+        )}
+        {/* Final Exam button */}
+        {finalExamId && (
+          <button
+            onClick={() => navigate(`/learn/${courseId}/final-exam/${finalExamId}`)}
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-purple-700 border border-purple-300 hover:bg-purple-50 transition-colors flex-shrink-0"
+            title="Take Final Exam"
+          >
+            <GraduationCap size={14} />
+            Final Exam
           </button>
         )}
         {/* Mobile outline toggle */}
