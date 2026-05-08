@@ -1,4 +1,4 @@
-import { ICourse, IPaged, IResponse, TDashboardStatisticsResponse } from "@/types";
+import { IChapter, ICourse, IPaged, IResponse, TDashboardStatisticsResponse } from "@/types";
 import api from "./api";
 import { getBackendURL } from "@/config/api.config";
 
@@ -105,6 +105,28 @@ export const uploadSlideFile = async (file: File): Promise<string> => {
 };
 
 import { IMyCoursesResponse, IMyCertificatesResponse, IMyCertificate, EnrolledCourse } from "@/types";
+
+export const getCourseSectionsWithChapters = async (courseId: string): Promise<IResponse<ICourse>> => {
+  return (await api.get(`/courses/${courseId}/sections`)).data;
+};
+
+export const getChapterSlides = async (chapterId: string): Promise<IResponse<IChapter>> => {
+  return (await api.get(`/courses/chapters/${chapterId}/slides`)).data;
+};
+
+export const getChapterMidTestId = async (chapterId: string): Promise<string | null> => {
+  try {
+    const res = await api.get(`/courses/chapters/${chapterId}/midtest`);
+    return res.data?.data?.id ?? null;
+  } catch {
+    return null;
+  }
+};
+
+export const getCoursesWithProgress = async (): Promise<ICourse[]> => {
+  const res = await api.get("/courses/myall");
+  return (res.data?.data as ICourse[]) ?? [];
+};
 
 export const getMyCourses = async (): Promise<IMyCoursesResponse> => {
   return (await api.get("/courses/myall")).data;
