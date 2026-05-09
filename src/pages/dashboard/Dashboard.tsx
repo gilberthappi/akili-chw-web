@@ -16,7 +16,7 @@ export const Dashboard: React.FC = () => {
     : [];
 
   const needsAnalytics = userRoles.some((r) =>
-    ["ADMIN", "TRAINER", "SUPERVISOR", "STAFF", "DEVELOPER"].includes(r)
+    ["ADMIN", "TRAINER", "STAFF", "DEVELOPER"].includes(r)
   );
 
   const { dashboardStats, courseAnalytics, studentAnalytics, isLoading } =
@@ -54,20 +54,20 @@ export const Dashboard: React.FC = () => {
         <AdoptionSection />
       )}
 
-      {isAnyOf("ADMIN", "TRAINER", "SUPERVISOR", "STAFF", "DEVELOPER") && (
+      {isAnyOf("ADMIN", "TRAINER", "STAFF", "DEVELOPER") && (
         <Phase3Section
           dashboardStats={dashboardStats}
           courseAnalytics={courseAnalytics}
           studentAnalytics={studentAnalytics}
           isLoading={isLoading}
-          isSupervisorView={is("SUPERVISOR")}
+          isSupervisorView={false}
           hideKpis={isAnyOf("ADMIN", "DEVELOPER")}
         />
       )}
 
       {is("DEVELOPER") && <DeveloperSection />}
 
-      {is("TRAINEE") && <LearnerSection />}
+      {isAnyOf("TRAINEE", "SUPERVISOR") && <LearnerSection />}
     </div>
   );
 };
