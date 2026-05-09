@@ -484,7 +484,7 @@ const DashboardLayout = ({
     {
       label: "Announcement",
       path: "/announcement",
-      roles: ["ADMIN", "TRAINER", "TRAINEE", "DEVELOPER", "SUPERVISOR"],
+      roles: ["ADMIN", "TRAINER", "DEVELOPER"],
       icon: <Megaphone className='w-5 h-5' />,
     },
 

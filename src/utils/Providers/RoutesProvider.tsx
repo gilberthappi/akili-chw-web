@@ -30,6 +30,7 @@ import Calendar from "@/pages/dashboard/Calender";
 import Help from "@/pages/dashboard/Help";
 import Hospitals from "@/pages/dashboard/Hospitals";
 import Announcement from "@/pages/dashboard/Announcement";
+import NotificationsPage from "@/pages/dashboard/NotificationsPage";
 import CourseCatalog from "@/pages/dashboard/CourseCatalog";
 import CourseLearner from "@/pages/dashboard/CourseLearner";
 import PreTest from "@/pages/dashboard/PreTest";
@@ -278,6 +279,10 @@ const RoutesProvider = () => {
         {
           path: "announcement",
           element: <Announcement />,
+        },
+        {
+          path: "notifications",
+          element: <NotificationsPage />,
         },
       ],
     },
