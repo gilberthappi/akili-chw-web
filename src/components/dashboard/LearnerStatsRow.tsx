@@ -1,16 +1,16 @@
 import React from "react";
-import { BookOpen, Users, CheckCircle, Award } from "lucide-react";
-import { IDashboardStats } from "@/types";
+import { BookOpen, Clock, CheckCircle, Award } from "lucide-react";
+import { IStudentStatistics } from "@/services/progress.service";
 import { KpiCard } from "./shared/KpiCard";
 
 interface LearnerStatsRowProps {
-  stats: IDashboardStats | null;
+  summary: IStudentStatistics["summary"] | null;
   totalCertificates: number;
   isLoading: boolean;
 }
 
 export const LearnerStatsRow: React.FC<LearnerStatsRowProps> = ({
-  stats,
+  summary,
   totalCertificates,
   isLoading,
 }) => {
@@ -27,22 +27,22 @@ export const LearnerStatsRow: React.FC<LearnerStatsRowProps> = ({
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       <KpiCard
-        title="Total Courses"
-        value={stats?.totalCourses?.value ?? 0}
+        title="Enrolled"
+        value={summary?.enrolledCourses ?? 0}
         icon={<BookOpen size={20} />}
         iconBg="bg-blue-50"
         iconColor="text-[#3363AD]"
       />
       <KpiCard
-        title="Students"
-        value={stats?.totalStudents?.value ?? 0}
-        icon={<Users size={20} />}
+        title="In Progress"
+        value={summary?.startedCourses ?? 0}
+        icon={<Clock size={20} />}
         iconBg="bg-indigo-50"
         iconColor="text-indigo-600"
       />
       <KpiCard
-        title="Completion (%)"
-        value={`${stats?.completionRate?.value ?? 0}%`}
+        title="Completed"
+        value={summary?.completedCourses ?? 0}
         icon={<CheckCircle size={20} />}
         iconBg="bg-green-50"
         iconColor="text-green-600"

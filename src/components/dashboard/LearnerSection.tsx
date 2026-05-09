@@ -9,7 +9,7 @@ import { MyCertificatesList } from "./MyCertificatesList";
 export const LearnerSection: React.FC = () => {
   const navigate = useNavigate();
   const {
-    dashboardStats,
+    studentStats,
     certificates,
     totalCertificates,
     isLoading,
@@ -32,7 +32,7 @@ export const LearnerSection: React.FC = () => {
 
       {/* Stats row */}
       <LearnerStatsRow
-        stats={dashboardStats}
+        summary={studentStats?.summary ?? null}
         totalCertificates={totalCertificates}
         isLoading={isLoading}
       />

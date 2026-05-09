@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
-import { IMyCertificate, IDashboardStats } from "@/types";
-import api from "@/services/api";
+import { IMyCertificate } from "@/types";
+import { getStudentStatistics, IStudentStatistics } from "@/services/progress.service";
 
 interface LearnerDashboardData {
-  dashboardStats: IDashboardStats | null;
+  studentStats: IStudentStatistics | null;
   certificates: IMyCertificate[];
   totalCertificates: number;
   isLoading: boolean;
@@ -12,7 +12,7 @@ interface LearnerDashboardData {
 }
 
 export const useLearnerDashboard = (): LearnerDashboardData => {
-  const [dashboardStats, setDashboardStats] = useState<IDashboardStats | null>(null);
+  const [studentStats, setStudentStats] = useState<IStudentStatistics | null>(null);
   const [certificates, setCertificates] = useState<IMyCertificate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -21,13 +21,8 @@ export const useLearnerDashboard = (): LearnerDashboardData => {
     setIsLoading(true);
     setError(null);
     try {
-      // GET /courses/dashboard/statistics — works for TRAINEE token
-      const statsRes = await api.get("/courses/dashboard/statistics");
-      setDashboardStats(statsRes.data?.data ?? null);
-
-      // Certificates: TRAINEE has no bulk endpoint.
-      // We leave it empty on the dashboard — the full list is on the
-      // My Certificates dedicated page.
+      const stats = await getStudentStatistics();
+      setStudentStats(stats);
       setCertificates([]);
     } catch {
       setError("Failed to fetch data. Please try again.");
@@ -41,7 +36,7 @@ export const useLearnerDashboard = (): LearnerDashboardData => {
   }, [fetchAll]);
 
   return {
-    dashboardStats,
+    studentStats,
     certificates,
     totalCertificates: certificates.length,
     isLoading,
