@@ -14,7 +14,6 @@ import {
   Award,
   BarChart2,
   BarChart3,
-  BookOpen,
   Calendar,
   GraduationCap,
   HelpCircle,
@@ -437,12 +436,6 @@ const DashboardLayout = ({
       roles: ["ADMIN", "TRAINER", "DEVELOPER", "STAFF"],
       industries: ["SFH", "WELTEL", "RBC"],
       icon: <ClipboardDocumentListIcon className='w-5 h-5' />,
-    },
-    {
-      label: "Course Catalog",
-      icon: <BookOpen className='w-4 h-4' />,
-      path: "/course-catalog",
-      roles: ["TRAINEE", "SUPERVISOR"],
     },
     {
       label: "My Learning",
