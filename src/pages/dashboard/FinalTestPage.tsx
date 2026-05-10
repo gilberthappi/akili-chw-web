@@ -50,11 +50,15 @@ const FinalTestPage: React.FC<Props> = ({ mode }) => {
     if (!testId) return;
     setIsLoading(true);
     setError(null);
+    setResult(null);
+    setAnswers({});
+    setCurrentQIndex(0);
     try {
       const data = isFinalExam ? await getFinalExamById(testId) : await getFinalTestById(testId);
       if (!data) { setError(`${label} not found.`); return; }
       setTestData(data);
-      setQuestions(data.questionnaires.slice(0, data.questionToBeAnswered));
+      const shuffled = [...data.questionnaires].sort(() => Math.random() - 0.5);
+      setQuestions(shuffled.slice(0, data.questionToBeAnswered));
     } catch {
       setError(`Failed to load ${label.toLowerCase()}. Please try again.`);
     } finally {
@@ -170,7 +174,7 @@ const FinalTestPage: React.FC<Props> = ({ mode }) => {
                 {passed && !isFinalExam ? <Trophy size={16} /> : null}
                 Back to Course
               </Button>
-              <Button variant="outline" className="w-full" onClick={() => { setResult(null); setAnswers({}); setCurrentQIndex(0); }}>
+              <Button variant="outline" className="w-full" onClick={loadTest}>
                 Retake {label}
               </Button>
             </div>
