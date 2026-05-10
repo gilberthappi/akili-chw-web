@@ -46,12 +46,6 @@ const SlideViewer: React.FC<{ slide: ISlide }> = ({ slide }) => {
           title="Slide PDF"
           className="flex-1 w-full border-0 min-h-0"
         />
-        {(slide.note || slide.description) && (
-          <div className="flex-shrink-0 px-6 py-3 border-t border-gray-100 space-y-1">
-            {slide.note && <h2 className="text-base font-semibold text-gray-900">{slide.note}</h2>}
-            {slide.description && <p className="text-sm text-gray-600 leading-relaxed">{slide.description}</p>}
-          </div>
-        )}
       </div>
     );
   }
@@ -499,25 +493,7 @@ const CourseLearner: React.FC = () => {
                   Previous
                 </Button>
 
-                {/* Slide dot row */}
-                <div className="flex gap-1.5 flex-wrap justify-center max-w-[240px]">
-                  {slides.map((s, i) => (
-                    <button
-                      key={s.id}
-                      onClick={() => goToSlide(i)}
-                      title={s.note || `Slide ${i + 1}`}
-                      className={`w-6 h-6 rounded-full text-[10px] font-semibold flex items-center justify-center transition-colors ${
-                        i === slideIndex
-                          ? "bg-[#3363AD] text-white"
-                          : completedSlideIds.has(s.id)
-                          ? "bg-green-100 text-green-600"
-                          : "bg-gray-100 text-gray-400 hover:bg-gray-200"
-                      }`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
-                </div>
+                <span className="text-sm text-gray-400">{slideIndex + 1} of {totalSlides}</span>
 
                 {slideIndex === totalSlides - 1 && chapterMidTestId ? (
                   <Button
