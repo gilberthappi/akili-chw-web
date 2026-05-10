@@ -22,7 +22,7 @@ import { Button } from "@/components/common/Button";
 import TopBar from "@/components/navigation/TopBar";
 import { getCourseSectionsWithChapters, getChapterSlides, getChapterMidTestId } from "@/services/course.service";
 import { getCourseFinalTestIds } from "@/services/finaltest.service";
-import { markSlideComplete, getStudentStatistics } from "@/services/progress.service";
+import { markSlideComplete, getCourseProgress, getStudentStatistics } from "@/services/progress.service";
 import { ISection, IChapter, ISlide } from "@/types";
 
 const VIDEO_EXTS = new Set(["mp4", "webm", "avi", "mov", "mkv", "flv", "wmv", "m4v", "3gp"]);
@@ -119,6 +119,7 @@ const CourseLearner: React.FC = () => {
   const [isLoadingSlides, setIsLoadingSlides] = useState(false);
   const [slideIndex, setSlideIndex] = useState(0);
   const [completedSlideIds, setCompletedSlideIds] = useState<Set<string>>(new Set());
+  const [completedChapterIds, setCompletedChapterIds] = useState<Set<string>>(new Set());
   const [chapterMidTestId, setChapterMidTestId] = useState<string | null>(null);
   const [finalTestId, setFinalTestId] = useState<string | null>(null);
   const [finalExamId, setFinalExamId] = useState<string | null>(null);
@@ -161,7 +162,17 @@ const CourseLearner: React.FC = () => {
         setSections(secs);
         if (secs.length === 0) return;
         try {
-          const stats = await getStudentStatistics();
+          const [stats, progress] = await Promise.all([
+            getStudentStatistics(),
+            getCourseProgress(courseId),
+          ]);
+          if (progress) {
+            setCompletedSlideIds(new Set(progress.completedSlideIds));
+            const doneChapters = progress.chapterProgress
+              .filter((cp) => cp.isCompleted)
+              .map((cp) => cp.chapterId);
+            setCompletedChapterIds(new Set(doneChapters));
+          }
           const loc = stats.lastViewedLocation;
           if (loc && loc.courseId === courseId) {
             for (const sec of secs) {
@@ -192,11 +203,18 @@ const CourseLearner: React.FC = () => {
     markingRef.current = true;
     try {
       await markSlideComplete(slide.id);
-      setCompletedSlideIds((prev) => new Set(prev).add(slide.id));
+      setCompletedSlideIds((prev) => {
+        const next = new Set(prev).add(slide.id);
+        const allDone = slides.every((s) => next.has(s.id));
+        if (allDone && activeChapter) {
+          setCompletedChapterIds((prev2) => new Set(prev2).add(activeChapter.id));
+        }
+        return next;
+      });
     } finally {
       markingRef.current = false;
     }
-  }, [slides, slideIndex, completedSlideIds]);
+  }, [slides, slideIndex, completedSlideIds, activeChapter]);
 
   const goToSlide = (index: number) => {
     markCurrentComplete();
@@ -212,7 +230,7 @@ const CourseLearner: React.FC = () => {
     if (slideIndex < slides.length - 1) setSlideIndex(slideIndex + 1);
   };
 
-  const isChapterDone = (chapter: IChapter) => completedSlideIds.has(chapter.id);
+  const isChapterDone = (chapter: IChapter) => completedChapterIds.has(chapter.id);
 
   const currentSlide = slides[slideIndex] ?? null;
   const totalSlides = slides.length;

@@ -1,6 +1,11 @@
 import api from "./api";
 import { IResponse } from "@/types";
 
+export interface ICourseProgressData {
+  chapterProgress: Array<{ chapterId: string; isCompleted: boolean; progress: number }>;
+  completedSlideIds: string[];
+}
+
 export const enrollInCourse = async (courseId: string): Promise<IResponse<unknown>> => {
   return (await api.post(`/progress/enroll/${courseId}`)).data;
 };
@@ -9,8 +14,9 @@ export const markSlideComplete = async (slideId: string): Promise<IResponse<unkn
   return (await api.post("/progress/slide/complete", { slideId, isCompleted: true })).data;
 };
 
-export const getCourseProgress = async (courseId: string): Promise<IResponse<unknown>> => {
-  return (await api.get(`/progress/student/course/${courseId}`)).data;
+export const getCourseProgress = async (courseId: string): Promise<ICourseProgressData | null> => {
+  const res = await api.get(`/progress/student/course/${courseId}`);
+  return (res.data?.data as ICourseProgressData) ?? null;
 };
 
 export interface ICourseStatEntry {
