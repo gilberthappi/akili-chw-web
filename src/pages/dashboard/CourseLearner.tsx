@@ -39,7 +39,7 @@ const SlideViewer: React.FC<{ slide: ISlide }> = ({ slide }) => {
 
   if (kind === "pdf") {
     return (
-      <div className="flex flex-col" style={{ height: "calc(100vh - 216px)" }}>
+      <div className="flex flex-col" style={{ height: "calc(100vh - 160px)" }}>
         <iframe
           key={slide.id}
           src={slide.file}
@@ -395,7 +395,7 @@ const CourseLearner: React.FC = () => {
 
       {/* ── Right column ─────────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <TopBar onMenuClick={() => setOutlineOpen((o) => !o)} />
+        {/* <TopBar onMenuClick={() => setOutlineOpen((o) => !o)} /> */}
 
         {/* Course context strip */}
         <div className="flex-shrink-0 flex items-center gap-3 px-4 h-10 border-b border-gray-100 bg-gray-50/70">
