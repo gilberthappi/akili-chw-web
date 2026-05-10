@@ -368,9 +368,11 @@ const AdminSidebar = ({
 const DashboardLayout = ({
   children,
   onSidebarToggle,
+  mainClassName,
 }: {
   children: React.ReactNode;
   onSidebarToggle?: (collapsed: boolean) => void;
+  mainClassName?: string;
 }) => {
   const { user } = useAuth();
   const location = useLocation();
@@ -523,7 +525,7 @@ const DashboardLayout = ({
       {/* Main Content */}
       <div className='flex-1 flex flex-col transition-all h-screen overflow-hidden'>
         <TopBar onMenuClick={() => setSidebarVisible((s) => !s)} />
-        <main className='flex-1 p-4 overflow-y-auto'>{children}</main>
+        <main className={mainClassName ?? 'flex-1 p-4 overflow-y-auto'}>{children}</main>
       </div>
 
       {/* Overlay for mobile sidebar */}

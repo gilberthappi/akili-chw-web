@@ -3,6 +3,7 @@ import { ProtectedRoute } from "@/components/common/ProtectedRoute";
 import { Navigate } from "react-router-dom";
 import ErrorPage from "@/pages/ErrorPage";
 import AdminLayout from "@/pages/Layout";
+import LearningLayout from "@/components/layouts/LearningLayout";
 import NotFound from "@/pages/NotFound";
 import { Dashboard } from "@/pages/dashboard/Dashboard";
 import { MyCourses } from "@/pages/dashboard/MyCourses";
@@ -119,7 +120,7 @@ const RoutesProvider = () => {
             </ProtectedRoute>
           ),
         },
-          {
+        {
           path: "my-learning",
           element: (
             <ProtectedRoute allowedRoles={["TRAINEE", "SUPERVISOR"]}>
@@ -132,46 +133,6 @@ const RoutesProvider = () => {
           element: (
             <ProtectedRoute allowedRoles={["TRAINEE", "SUPERVISOR"]}>
               <CourseCatalog />
-            </ProtectedRoute>
-          ),
-        },
-        {
-          path: "learn/:courseId",
-          element: (
-            <ProtectedRoute allowedRoles={["TRAINEE", "SUPERVISOR"]}>
-              <CourseLearner />
-            </ProtectedRoute>
-          ),
-        },
-        {
-          path: "learn/:courseId/pre-test",
-          element: (
-            <ProtectedRoute allowedRoles={["TRAINEE", "SUPERVISOR"]}>
-              <PreTest />
-            </ProtectedRoute>
-          ),
-        },
-        {
-          path: "learn/:courseId/mid-test/:midTestId",
-          element: (
-            <ProtectedRoute allowedRoles={["TRAINEE", "SUPERVISOR"]}>
-              <MidTest />
-            </ProtectedRoute>
-          ),
-        },
-        {
-          path: "learn/:courseId/final-test/:testId",
-          element: (
-            <ProtectedRoute allowedRoles={["TRAINEE", "SUPERVISOR"]}>
-              <FinalTestPage mode="finalTest" />
-            </ProtectedRoute>
-          ),
-        },
-        {
-          path: "learn/:courseId/final-exam/:testId",
-          element: (
-            <ProtectedRoute allowedRoles={["TRAINEE", "SUPERVISOR"]}>
-              <FinalTestPage mode="finalExam" />
             </ProtectedRoute>
           ),
         },
@@ -253,7 +214,7 @@ const RoutesProvider = () => {
             </ProtectedRoute>
           ),
         },
-          {
+        {
           path: "calender",
           element: <Calendar />,
         },
@@ -286,6 +247,38 @@ const RoutesProvider = () => {
         },
       ],
     },
+
+    // ── Immersive learning layout (no sidebar) ────────────────────────
+    {
+      element: (
+        <ProtectedRoute allowedRoles={["TRAINEE", "SUPERVISOR"]}>
+          <LearningLayout />
+        </ProtectedRoute>
+      ),
+      children: [
+        {
+          path: "/learn/:courseId",
+          element: <CourseLearner />,
+        },
+        {
+          path: "/learn/:courseId/pre-test",
+          element: <PreTest />,
+        },
+        {
+          path: "/learn/:courseId/mid-test/:midTestId",
+          element: <MidTest />,
+        },
+        {
+          path: "/learn/:courseId/final-test/:testId",
+          element: <FinalTestPage mode="finalTest" />,
+        },
+        {
+          path: "/learn/:courseId/final-exam/:testId",
+          element: <FinalTestPage mode="finalExam" />,
+        },
+      ],
+    },
+
     {
       path: "/auth/login",
       element: <Login />,
@@ -325,4 +318,3 @@ const RoutesProvider = () => {
 };
 
 export default RoutesProvider;
-
