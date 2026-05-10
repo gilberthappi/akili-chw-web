@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { IMyCertificate } from "@/types";
+import { getMyCertificates, IMyCertificate } from "@/services/certificates.service";
 import { getStudentStatistics, IStudentStatistics } from "@/services/progress.service";
 
 interface LearnerDashboardData {
@@ -21,9 +21,12 @@ export const useLearnerDashboard = (): LearnerDashboardData => {
     setIsLoading(true);
     setError(null);
     try {
-      const stats = await getStudentStatistics();
+      const [stats, certs] = await Promise.all([
+        getStudentStatistics(),
+        getMyCertificates(),
+      ]);
       setStudentStats(stats);
-      setCertificates([]);
+      setCertificates(certs);
     } catch {
       setError("Failed to fetch data. Please try again.");
     } finally {
