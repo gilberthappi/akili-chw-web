@@ -1,7 +1,7 @@
 import React from "react";
 import { Award, Download } from "lucide-react";
 import { Card } from "@/components/common/Card";
-import { IMyCertificate } from "@/types";
+import { IMyCertificate } from "@/services/certificates.service";
 
 interface MyCertificatesListProps {
   certificates: IMyCertificate[];
@@ -47,14 +47,16 @@ export const MyCertificatesList: React.FC<MyCertificatesListProps> = ({
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-800 truncate">
-                  {cert.courseTitle}
+                  {cert.title}
                 </p>
                 <p className="text-xs text-gray-400 mt-0.5">
-                  {new Date(cert.createdAt).toLocaleDateString("fr-RW", {
-                    year: "numeric",
-                    month: "short",
-                    day: "numeric",
-                  })}
+                  {cert.completedAt
+                    ? new Date(cert.completedAt).toLocaleDateString("fr-RW", {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      })
+                    : "—"}
                 </p>
               </div>
               <a

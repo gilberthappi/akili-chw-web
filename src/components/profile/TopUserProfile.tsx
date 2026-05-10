@@ -66,50 +66,8 @@ export default function DashTop() {
   }, [showNotifications]);
 
   const handleNotificationClick = (notification: Notification) => {
-    // Mark as read if not already read
-    if (!notification.isRead) {
-      markAsRead(notification.id);
-    }
-
-    // Navigate based on actionUrl / entityType
-    const actionUrl = notification.actionUrl || '';
-    const match = actionUrl.match(/^\/([a-z_]+)\/(.+?)(?:\?|$)/i);
-    
-    if (match) {
-      const [, resourceType, resourceId] = match;
-      
-      switch (resourceType.toLowerCase()) {
-        case 'chat':
-        case 'conversation':
-          navigate(`/dashboard/messaging?chatId=${resourceId}&type=direct`);
-          break;
-        case 'group':
-          navigate(`/dashboard/messaging?chatId=${resourceId}&type=group`);
-          break;
-        case 'community':
-          navigate(`/dashboard/messaging?communityId=${resourceId}&type=community`);
-          break;
-        case 'course':
-          navigate(`/dashboard/courses/${resourceId}`);
-          break;
-        case 'calendar':
-        case 'event':
-        case 'calendar_reminder':
-          navigate(`/dashboard/calendar?eventId=${resourceId}`);
-          break;
-        case 'announcement':
-          navigate(`/dashboard/announcements/${resourceId}`);
-          break;
-        default:
-          navigate('/dashboard');
-      }
-    } else if (notification.entityType === "contact" && notification.entityId) {
-      // Legacy: Navigate to contact details
-      navigate(`/dashboard/contacts/${notification.entityId}`);
-    }
-
-    // Close notification modal
     setShowNotifications(false);
+    navigate(`/notifications?id=${notification.id}`);
   };
 
   const handleMarkAllAsRead = () => {
@@ -226,7 +184,7 @@ export default function DashTop() {
                       <button
                         onClick={() => {
                           setShowNotifications(false);
-                          navigate("/dashboard/profile");
+                          navigate("/notifications");
                         }}
                         className='text-sm text-blue-600 hover:text-blue-800'
                       >

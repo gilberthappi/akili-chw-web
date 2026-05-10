@@ -14,7 +14,6 @@ import {
   Award,
   BarChart2,
   BarChart3,
-  BookOpen,
   Calendar,
   GraduationCap,
   HelpCircle,
@@ -369,9 +368,11 @@ const AdminSidebar = ({
 const DashboardLayout = ({
   children,
   onSidebarToggle,
+  mainClassName,
 }: {
   children: React.ReactNode;
   onSidebarToggle?: (collapsed: boolean) => void;
+  mainClassName?: string;
 }) => {
   const { user } = useAuth();
   const location = useLocation();
@@ -439,12 +440,6 @@ const DashboardLayout = ({
       icon: <ClipboardDocumentListIcon className='w-5 h-5' />,
     },
     {
-      label: "Course Catalog",
-      icon: <BookOpen className='w-4 h-4' />,
-      path: "/course-catalog",
-      roles: ["TRAINEE", "SUPERVISOR"],
-    },
-    {
       label: "My Learning",
       icon: <GraduationCap className='w-4 h-4' />,
       path: "/my-learning",
@@ -491,7 +486,7 @@ const DashboardLayout = ({
     {
       label: "Announcement",
       path: "/announcement",
-      roles: ["ADMIN", "TRAINER", "TRAINEE", "DEVELOPER", "SUPERVISOR"],
+      roles: ["ADMIN", "TRAINER", "DEVELOPER"],
       icon: <Megaphone className='w-5 h-5' />,
     },
 
@@ -530,7 +525,7 @@ const DashboardLayout = ({
       {/* Main Content */}
       <div className='flex-1 flex flex-col transition-all h-screen overflow-hidden'>
         <TopBar onMenuClick={() => setSidebarVisible((s) => !s)} />
-        <main className='flex-1 p-4 overflow-y-auto'>{children}</main>
+        <main className={mainClassName ?? 'flex-1 p-4 overflow-y-auto'}>{children}</main>
       </div>
 
       {/* Overlay for mobile sidebar */}

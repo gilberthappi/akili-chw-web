@@ -2,12 +2,14 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
+  ChevronRight,
   CheckCircle2,
   XCircle,
   Loader2,
   ClipboardList,
   AlertCircle,
   FileQuestion,
+  GraduationCap,
 } from "lucide-react";
 import { Button } from "@/components/common/Button";
 import {
@@ -28,8 +30,8 @@ const PreTest: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [noPreTest, setNoPreTest] = useState(false);
 
-  // answers: questionnaireId → Set<optionId>
   const [answers, setAnswers] = useState<Record<string, Set<string>>>({});
+  const [currentQIndex, setCurrentQIndex] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState<IAttemptResult | null>(null);
 
@@ -39,36 +41,24 @@ const PreTest: React.FC = () => {
     setError(null);
     try {
       const data = await getPreTestByCourseId(courseId);
-      if (!data) {
-        setNoPreTest(true);
-        return;
-      }
+      if (!data) { setNoPreTest(true); return; }
       setPreTest(data);
-      const qs = data.course?.questionnaires ?? [];
-      setQuestions(qs.slice(0, data.questionToBeAnswered));
+      setQuestions((data.course?.questionnaires ?? []).slice(0, data.questionToBeAnswered));
     } catch {
       setError("Failed to load pre-test. Please try again.");
     } finally {
       setIsLoading(false);
     }
-  }, [courseId, navigate]);
+  }, [courseId]);
 
-  useEffect(() => {
-    loadPreTest();
-  }, [loadPreTest]);
+  useEffect(() => { loadPreTest(); }, [loadPreTest]);
 
   const toggleOption = (questionId: string, optionId: string, allowMultiple: boolean) => {
     setAnswers((prev) => {
-      if (!allowMultiple) {
-        return { ...prev, [questionId]: new Set([optionId]) };
-      }
+      if (!allowMultiple) return { ...prev, [questionId]: new Set([optionId]) };
       const current = new Set(prev[questionId] ?? []);
-      if (current.has(optionId)) {
-        current.delete(optionId);
-      } else {
-        current.add(optionId);
-      }
-      return { ...prev, [questionId]: new Set(current) };
+      current.has(optionId) ? current.delete(optionId) : current.add(optionId);
+      return { ...prev, [questionId]: current };
     });
   };
 
@@ -77,11 +67,10 @@ const PreTest: React.FC = () => {
     setIsSubmitting(true);
     setError(null);
     try {
-      const questionAnswers = questions.map((q) => ({
-        questionnaireId: q.id,
-        selectedAnswerIds: Array.from(answers[q.id] ?? []),
-      }));
-      const res = await submitPreTestAttempt(preTest.id, questionAnswers);
+      const res = await submitPreTestAttempt(
+        preTest.id,
+        questions.map((q) => ({ questionnaireId: q.id, selectedAnswerIds: Array.from(answers[q.id] ?? []) }))
+      );
       setResult(res);
     } catch {
       setError("Failed to submit answers. Please try again.");
@@ -94,14 +83,16 @@ const PreTest: React.FC = () => {
   const marksToPass = preTest?.marksToPass ?? 0;
   const score = Math.round(result?.marks ?? 0);
   const passed = score >= marksToPass;
-  const allAnswered = questions.length > 0 && questions.every((q) => (answers[q.id]?.size ?? 0) > 0);
   const answeredCount = questions.filter((q) => (answers[q.id]?.size ?? 0) > 0).length;
+  const allAnswered = questions.length > 0 && answeredCount === questions.length;
+  const currentQuestion = questions[currentQIndex] ?? null;
+  const currentSelected = answers[currentQuestion?.id ?? ""] ?? new Set<string>();
 
   // ── Loading ───────────────────────────────────────────────────────────────
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-64">
+      <div className="flex-1 flex items-center justify-center">
         <Loader2 size={28} className="animate-spin text-[#3363AD]" />
       </div>
     );
@@ -109,7 +100,7 @@ const PreTest: React.FC = () => {
 
   if (error && !result) {
     return (
-      <div className="flex flex-col items-center gap-3 min-h-64 justify-center">
+      <div className="flex-1 flex flex-col items-center gap-3 justify-center p-8">
         <AlertCircle size={32} className="text-red-400" />
         <p className="text-sm text-red-500">{error}</p>
         <Button size="sm" onClick={loadPreTest}>Retry</Button>
@@ -119,15 +110,13 @@ const PreTest: React.FC = () => {
 
   if (noPreTest) {
     return (
-      <div className="flex flex-col items-center gap-4 min-h-64 justify-center text-center px-6">
-        <FileQuestion size={48} className="text-gray-300" />
+      <div className="flex-1 flex flex-col items-center gap-4 justify-center text-center px-6">
+        <FileQuestion size={52} className="text-gray-200" />
         <div>
-          <p className="text-sm font-medium text-gray-700">No pre-test for this course</p>
-          <p className="text-xs text-gray-400 mt-1">This course doesn't have a pre-test. You can go straight to the lessons.</p>
+          <p className="text-sm font-semibold text-gray-700">No pre-test for this course</p>
+          <p className="text-xs text-gray-400 mt-1">Go straight to the lessons.</p>
         </div>
-        <Button size="sm" onClick={() => navigate(`/learn/${courseId}`)}>
-          Go to Course
-        </Button>
+        <Button size="sm" onClick={() => navigate(`/learn/${courseId}`)}>Go to Course</Button>
       </div>
     );
   }
@@ -136,56 +125,44 @@ const PreTest: React.FC = () => {
 
   if (result) {
     return (
-      <div className="max-w-lg mx-auto py-10 px-4 space-y-6">
-        <div className="text-center space-y-5">
-          {passed ? (
-            <CheckCircle2 size={56} className="mx-auto text-green-500" />
-          ) : (
-            <XCircle size={56} className="mx-auto text-orange-400" />
-          )}
-
+      <div className="flex flex-col h-full bg-gray-50">
+        <header className="flex-shrink-0 bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3">
+          <button onClick={() => navigate(`/learn/${courseId}`)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500">
+            <ArrowLeft size={18} />
+          </button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Pre-Test Complete</h1>
-            <p className="text-sm text-gray-500 mt-1">{courseTitle}</p>
+            <h1 className="text-sm font-semibold text-gray-900">Pre-Test</h1>
+            <p className="text-xs text-gray-400">{courseTitle}</p>
           </div>
-
-          {/* Score circle */}
-          <div className="flex items-center justify-center">
-            <div
-              className={`w-32 h-32 rounded-full border-8 flex flex-col items-center justify-center ${
-                passed ? "border-green-400" : "border-orange-400"
-              } bg-gray-50`}
-            >
-              <span className={`text-4xl font-bold ${passed ? "text-green-600" : "text-orange-500"}`}>
-                {score}%
-              </span>
+        </header>
+        <div className="flex-1 overflow-y-auto flex items-center justify-center p-6">
+          <div className="max-w-md w-full bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center space-y-6">
+            {passed
+              ? <CheckCircle2 size={56} className="mx-auto text-green-500" />
+              : <XCircle size={56} className="mx-auto text-orange-400" />
+            }
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">Pre-Test Complete</h2>
+              <p className="text-sm text-gray-400 mt-1">{courseTitle}</p>
+            </div>
+            <div className={`w-32 h-32 rounded-full border-8 mx-auto flex flex-col items-center justify-center ${passed ? "border-green-400" : "border-orange-300"}`}>
+              <span className={`text-4xl font-bold ${passed ? "text-green-600" : "text-orange-500"}`}>{score}%</span>
+            </div>
+            <div className={`rounded-xl px-4 py-3 text-sm ${passed ? "bg-green-50 text-green-800" : "bg-orange-50 text-orange-800"}`}>
+              {passed
+                ? `Great work! You scored above the ${marksToPass}% passing mark.`
+                : `You scored below the ${marksToPass}% target — that's OK! This helps gauge your starting knowledge.`}
+            </div>
+            <div className="space-y-2">
+              <Button className="w-full flex items-center justify-center gap-2" onClick={() => navigate(`/learn/${courseId}`)}>
+                <GraduationCap size={16} />
+                Continue to Course
+              </Button>
+              <Button variant="outline" className="w-full" onClick={() => { setResult(null); setAnswers({}); setCurrentQIndex(0); }}>
+                Retake Pre-Test
+              </Button>
             </div>
           </div>
-
-          <div className={`rounded-lg px-4 py-3 text-sm ${passed ? "bg-green-50 text-green-800" : "bg-orange-50 text-orange-800"}`}>
-            {passed
-              ? `Great work! You scored above the ${marksToPass}% passing mark.`
-              : `You scored below the ${marksToPass}% target — but that's OK! This test is just to gauge your starting knowledge. You can still start the course.`}
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          <Button
-            className="w-full flex items-center justify-center gap-2"
-            onClick={() => navigate(`/learn/${courseId}`)}
-          >
-            Continue to Course
-          </Button>
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={() => {
-              setResult(null);
-              setAnswers({});
-            }}
-          >
-            Retake Pre-Test
-          </Button>
         </div>
       </div>
     );
@@ -194,138 +171,183 @@ const PreTest: React.FC = () => {
   // ── Questions screen ──────────────────────────────────────────────────────
 
   return (
-    <div className="max-w-2xl mx-auto py-6 px-4 space-y-6 pb-32">
+    <div className="flex flex-col h-full bg-gray-50">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <button
-          onClick={() => navigate(`/learn/${courseId}`)}
-          className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors"
-        >
-          <ArrowLeft size={18} />
-        </button>
-        <div className="flex-1 min-w-0">
-          <h1 className="text-lg font-bold text-gray-900">Pre-Test</h1>
-          <p className="text-xs text-gray-500 truncate">{courseTitle}</p>
+      <header className="flex-shrink-0 bg-white border-b border-gray-100 px-4 py-3">
+        <div className="max-w-3xl mx-auto">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate(`/learn/${courseId}`)}
+              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
+            >
+              <ArrowLeft size={18} />
+            </button>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-sm font-semibold text-gray-900">Pre-Test</h1>
+              <p className="text-xs text-gray-400 truncate">{courseTitle}</p>
+            </div>
+            <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full flex-shrink-0">
+              {currentQIndex + 1} / {questions.length}
+            </span>
+          </div>
+
+          {preTest?.description && (
+            <div className="mt-3 text-xs text-[#3363AD] bg-[#3363AD]/5 border border-[#3363AD]/20 rounded-lg px-3 py-2">
+              {preTest.description}
+            </div>
+          )}
+
+          {/* Progress bar */}
+          <div className="mt-3">
+            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-[#3363AD] rounded-full transition-all"
+                style={{ width: `${questions.length > 0 ? (answeredCount / questions.length) * 100 : 0}%` }}
+              />
+            </div>
+            <div className="flex justify-between mt-1 text-[10px] text-gray-400">
+              <span>{answeredCount} answered</span>
+              <span>{questions.length - answeredCount} remaining</span>
+            </div>
+          </div>
         </div>
-        <span className="text-xs text-gray-400 flex-shrink-0">
-          {answeredCount}/{questions.length} answered
-        </span>
-      </div>
+      </header>
 
-      {preTest?.description && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
-          {preTest.description}
-        </div>
-      )}
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-3xl mx-auto px-4 py-5 space-y-5">
+          {/* Question palette */}
+          <div className="flex flex-wrap gap-2">
+            {questions.map((q, i) => {
+              const isAnswered = (answers[q.id]?.size ?? 0) > 0;
+              const isCurrent = i === currentQIndex;
+              return (
+                <button
+                  key={q.id}
+                  onClick={() => setCurrentQIndex(i)}
+                  className={`w-9 h-9 rounded-xl text-xs font-semibold transition-all ${
+                    isCurrent
+                      ? "bg-[#3363AD] text-white shadow-sm ring-2 ring-[#3363AD] ring-offset-2"
+                      : isAnswered
+                      ? "bg-[#3363AD]/10 text-[#3363AD] border border-[#3363AD]/20"
+                      : "bg-white text-gray-400 border border-gray-200 hover:border-gray-300"
+                  }`}
+                >
+                  {i + 1}
+                </button>
+              );
+            })}
+          </div>
 
-      {/* Progress bar */}
-      <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
-        <div
-          className="h-full bg-[#3363AD] rounded-full transition-all"
-          style={{ width: `${questions.length > 0 ? (answeredCount / questions.length) * 100 : 0}%` }}
-        />
-      </div>
-
-      {/* Questions */}
-      <div className="space-y-5">
-        {questions.map((q, idx) => {
-          const selected = answers[q.id] ?? new Set<string>();
-          return (
-            <div key={q.id} className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
-              {/* Question */}
-              <div className="flex items-start gap-3">
-                <span className="flex-shrink-0 w-7 h-7 rounded-full bg-[#3363AD]/10 text-[#3363AD] text-xs font-bold flex items-center justify-center mt-0.5">
-                  {idx + 1}
-                </span>
-                <div className="space-y-2 flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 leading-snug">{q.question}</p>
-                  {q.questionImage && (
-                    <img
-                      src={q.questionImage}
-                      alt=""
-                      className="rounded-lg max-h-48 object-contain border border-gray-100"
-                      onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).style.display = "none";
-                      }}
-                    />
-                  )}
-                  {q.allowMultiple && (
-                    <p className="text-xs text-gray-400">Select all that apply</p>
-                  )}
+          {/* Active question */}
+          {currentQuestion && (
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="p-6 space-y-5">
+                <div className="flex items-start gap-3">
+                  <span className="flex-shrink-0 w-8 h-8 rounded-xl bg-[#3363AD]/10 text-[#3363AD] text-sm font-bold flex items-center justify-center">
+                    {currentQIndex + 1}
+                  </span>
+                  <div className="space-y-3 flex-1 min-w-0">
+                    <p className="text-base font-medium text-gray-900 leading-snug">
+                      {currentQuestion.question}
+                    </p>
+                    {currentQuestion.questionImage && (
+                      <img
+                        src={currentQuestion.questionImage}
+                        alt=""
+                        className="rounded-xl max-h-56 object-contain border border-gray-100"
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                      />
+                    )}
+                    {currentQuestion.allowMultiple && (
+                      <span className="inline-block text-xs font-medium text-[#3363AD] bg-[#3363AD]/8 rounded-lg px-2.5 py-1">
+                        Select all that apply
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              {/* Options */}
-              <div className="space-y-2 ml-10">
-                {q.options.map((opt) => {
-                  const isSelected = selected.has(opt.id);
-                  return (
-                    <button
-                      key={opt.id}
-                      onClick={() => toggleOption(q.id, opt.id, q.allowMultiple)}
-                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border text-sm text-left transition-colors ${
-                        isSelected
-                          ? "border-[#3363AD] bg-[#3363AD]/5 text-[#3363AD] font-medium"
-                          : "border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50"
-                      }`}
-                    >
-                      {/* Radio / Checkbox indicator */}
-                      <span
-                        className={`flex-shrink-0 w-4 h-4 flex items-center justify-center border-2 transition-colors ${
-                          q.allowMultiple ? "rounded" : "rounded-full"
-                        } ${isSelected ? "border-[#3363AD] bg-[#3363AD]" : "border-gray-300 bg-white"}`}
+                <div className="space-y-2.5">
+                  {currentQuestion.options.map((opt, optIdx) => {
+                    const isSelected = currentSelected.has(opt.id);
+                    const letter = String.fromCharCode(65 + optIdx);
+                    return (
+                      <button
+                        key={opt.id}
+                        onClick={() => toggleOption(currentQuestion.id, opt.id, currentQuestion.allowMultiple)}
+                        className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border-2 text-sm text-left transition-all ${
+                          isSelected
+                            ? "border-[#3363AD] bg-[#3363AD]/5 text-gray-900"
+                            : "border-gray-100 bg-gray-50 text-gray-700 hover:border-gray-200 hover:bg-white"
+                        }`}
                       >
-                        {isSelected && (
-                          <span
-                            className={`block bg-white ${q.allowMultiple ? "w-2 h-1.5 border-b-2 border-l-2 -rotate-45 -translate-y-px" : "w-1.5 h-1.5 rounded-full"}`}
+                        <span
+                          className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all ${
+                            isSelected
+                              ? "border-[#3363AD] bg-[#3363AD] text-white"
+                              : "border-gray-300 text-gray-400"
+                          }`}
+                        >
+                          {letter}
+                        </span>
+                        <span className="flex-1">{opt.label}</span>
+                        {opt.image && (
+                          <img
+                            src={opt.image}
+                            alt=""
+                            className="w-12 h-12 object-cover rounded-lg flex-shrink-0"
+                            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
                           />
                         )}
-                      </span>
-                      <span className="flex-1">{opt.label}</span>
-                      {opt.image && (
-                        <img
-                          src={opt.image}
-                          alt=""
-                          className="w-12 h-12 object-cover rounded flex-shrink-0"
-                          onError={(e) => {
-                            (e.currentTarget as HTMLImageElement).style.display = "none";
-                          }}
-                        />
-                      )}
-                    </button>
-                  );
-                })}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
-          );
-        })}
-      </div>
-
-      {/* Sticky submit bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-4 z-10">
-        <div className="max-w-2xl mx-auto space-y-2">
-          {error && (
-            <p className="text-xs text-red-500 text-center">{error}</p>
           )}
-          {!allAnswered && (
-            <p className="text-xs text-gray-400 text-center">
-              Answer all {questions.length} questions to submit ({questions.length - answeredCount} remaining)
-            </p>
-          )}
-          <Button
-            className="w-full flex items-center justify-center gap-2"
-            disabled={!allAnswered || isSubmitting}
-            onClick={handleSubmit}
-          >
-            {isSubmitting ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              <ClipboardList size={16} />
-            )}
-            {isSubmitting ? "Submitting..." : "Submit Pre-Test"}
-          </Button>
         </div>
       </div>
+
+      {/* Footer navigation */}
+      <footer className="flex-shrink-0 bg-white border-t border-gray-100 px-4 py-3">
+        <div className="max-w-3xl mx-auto flex items-center justify-between gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentQIndex((i) => Math.max(0, i - 1))}
+            disabled={currentQIndex === 0}
+            className="flex items-center gap-1.5 min-w-[90px]"
+          >
+            <ArrowLeft size={14} />
+            Previous
+          </Button>
+
+          <span className="text-sm text-gray-400">{currentQIndex + 1} of {questions.length}</span>
+
+          {currentQIndex === questions.length - 1 ? (
+            <Button
+              size="sm"
+              onClick={handleSubmit}
+              disabled={!allAnswered || isSubmitting}
+              className="flex items-center gap-1.5 min-w-[120px]"
+            >
+              {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <ClipboardList size={14} />}
+              {isSubmitting ? "Submitting..." : "Submit Test"}
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              onClick={() => setCurrentQIndex((i) => Math.min(questions.length - 1, i + 1))}
+              className="flex items-center gap-1.5 min-w-[90px]"
+            >
+              Next
+              <ChevronRight size={14} />
+            </Button>
+          )}
+        </div>
+        {error && <p className="text-xs text-red-500 text-center mt-2">{error}</p>}
+      </footer>
     </div>
   );
 };
