@@ -23,7 +23,7 @@ import TopBar from "@/components/navigation/TopBar";
 import { getCourseSectionsWithChapters, getChapterSlides, getChapterMidTestId } from "@/services/course.service";
 import { getCourseFinalTestIds } from "@/services/finaltest.service";
 import { markSlideComplete, getCourseProgress, getStudentStatistics } from "@/services/progress.service";
-import { ISection, IChapter, ISlide } from "@/types";
+import { ISection, IChapter, ISlide, ICourseIntro } from "@/types";
 
 const VIDEO_EXTS = new Set(["mp4", "webm", "avi", "mov", "mkv", "flv", "wmv", "m4v", "3gp"]);
 
@@ -109,6 +109,7 @@ const CourseLearner: React.FC = () => {
   const navigate = useNavigate();
 
   const [courseTitle, setCourseTitle] = useState("");
+  const [courseIntro, setCourseIntro] = useState<ICourseIntro | null>(null);
   const [sections, setSections] = useState<ISection[]>([]);
   const [isLoadingCourse, setIsLoadingCourse] = useState(true);
   const [courseError, setCourseError] = useState<string | null>(null);
@@ -159,8 +160,9 @@ const CourseLearner: React.FC = () => {
     setCourseError(null);
     getCourseSectionsWithChapters(courseId)
       .then(async (res) => {
-        const data = res.data as unknown as { title?: string; sections?: ISection[] };
+        const data = res.data as unknown as { title?: string; sections?: ISection[]; intro?: ICourseIntro };
         setCourseTitle(data?.title ?? "Course");
+        setCourseIntro(data?.intro ?? null);
         const secs: ISection[] = data?.sections ?? [];
         setSections(secs);
         if (secs.length === 0) return;
@@ -287,8 +289,19 @@ const CourseLearner: React.FC = () => {
           </div>
 
           <div className="flex-1 overflow-y-auto py-3 space-y-1">
-            {/* Pre-Test */}
-            <div className="px-3">
+            {/* Course Intro & Pre-Test */}
+            <div className="px-3 space-y-1">
+              <button
+                onClick={() => { setActiveChapter(null); setSlides([]); setOutlineOpen(false); }}
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                  !activeChapter
+                    ? "bg-[#3363AD] text-white"
+                    : "text-gray-600 hover:bg-gray-100 border border-gray-200 bg-white"
+                }`}
+              >
+                <BookOpen size={15} className="flex-shrink-0" />
+                Course Overview
+              </button>
               <button
                 onClick={() => { navigate(`/learn/${courseId}/pre-test`); setOutlineOpen(false); }}
                 className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-[#3363AD] hover:bg-[#3363AD]/8 border border-[#3363AD]/20 bg-white transition-colors"
@@ -476,13 +489,38 @@ const CourseLearner: React.FC = () => {
         {/* ── Main content ─────────────────────────────────────────────── */}
         <main className="flex-1 flex flex-col overflow-hidden bg-white">
           {!activeChapter ? (
-            <div className="flex-1 flex flex-col items-center justify-center gap-4 text-gray-300 p-8">
-              <BookOpen size={56} className="opacity-40" />
-              <div className="text-center space-y-1">
-                <p className="text-sm font-semibold text-gray-500">Select a lesson to begin</p>
-                <p className="text-xs text-gray-400">
-                  Choose a chapter from the outline on the left
-                </p>
+            <div className="flex-1 overflow-y-auto">
+              {courseIntro?.bannerImage && (
+                <div className="w-full overflow-hidden bg-gray-100" style={{ maxHeight: 260 }}>
+                  <img
+                    src={courseIntro.bannerImage}
+                    alt=""
+                    className="w-full h-full object-cover"
+                    style={{ maxHeight: 260 }}
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                  />
+                </div>
+              )}
+              <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
+                <div className="space-y-3">
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    {courseIntro?.title ?? courseTitle}
+                  </h2>
+                  {courseIntro?.summary && (
+                    <p className="text-sm text-gray-600 leading-relaxed">{courseIntro.summary}</p>
+                  )}
+                </div>
+                <Button
+                  onClick={() => {
+                    const firstSec = sections[0];
+                    const firstChapter = firstSec?.chapters?.[0];
+                    if (firstChapter) { setOpenSectionId(firstSec.id); loadChapter(firstChapter); }
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  <PlayCircle size={16} />
+                  Start Learning
+                </Button>
               </div>
             </div>
           ) : isLoadingSlides ? (
