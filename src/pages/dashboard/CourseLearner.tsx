@@ -17,6 +17,7 @@ import {
   BookOpen,
   Trophy,
   Layers,
+  Lock,
 } from "lucide-react";
 import { Button } from "@/components/common/Button";
 import TopBar from "@/components/navigation/TopBar";
@@ -124,6 +125,8 @@ const CourseLearner: React.FC = () => {
   const [chapterMidTestId, setChapterMidTestId] = useState<string | null>(null);
   const [finalTestId, setFinalTestId] = useState<string | null>(null);
   const [finalExamId, setFinalExamId] = useState<string | null>(null);
+  const [isCourseComplete, setIsCourseComplete] = useState(false);
+  const [finalTestPassed, setFinalTestPassed] = useState(false);
   const [outlineOpen, setOutlineOpen] = useState(false);
   const markingRef = useRef(false);
 
@@ -177,8 +180,10 @@ const CourseLearner: React.FC = () => {
               .filter((cp) => cp.isCompleted)
               .map((cp) => cp.chapterId);
             setCompletedChapterIds(new Set(doneChapters));
+            setFinalTestPassed(progress.finalTestStatus?.passed ?? false);
           }
           const courseStats = stats.courses.find((c) => c.courseId === courseId);
+          setIsCourseComplete(courseStats?.isCompleted ?? false);
           const loc = stats.lastViewedLocation;
           if (courseStats?.isCompleted) {
             // Course 100% complete — show empty state for now (course intro will replace this in #3)
@@ -426,20 +431,52 @@ const CourseLearner: React.FC = () => {
                 <div className="space-y-1">
                   {finalTestId && (
                     <button
-                      onClick={() => { navigate(`/learn/${courseId}/final-test/${finalTestId}`); setOutlineOpen(false); }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-green-700 hover:bg-green-50 border border-green-200 bg-white transition-colors"
+                      onClick={() => {
+                        if (!isCourseComplete) return;
+                        navigate(`/learn/${courseId}/final-test/${finalTestId}`);
+                        setOutlineOpen(false);
+                      }}
+                      disabled={!isCourseComplete}
+                      title={!isCourseComplete ? "Complete all lessons to unlock" : undefined}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium border transition-colors ${
+                        isCourseComplete
+                          ? "text-green-700 hover:bg-green-50 border-green-200 bg-white"
+                          : "text-gray-400 border-gray-200 bg-gray-50 cursor-not-allowed"
+                      }`}
                     >
-                      <Trophy size={14} className="flex-shrink-0" />
+                      {isCourseComplete
+                        ? <Trophy size={14} className="flex-shrink-0" />
+                        : <Lock size={14} className="flex-shrink-0" />
+                      }
                       Final Test
+                      {!isCourseComplete && (
+                        <span className="ml-auto text-[10px]">Locked</span>
+                      )}
                     </button>
                   )}
                   {finalExamId && (
                     <button
-                      onClick={() => { navigate(`/learn/${courseId}/final-exam/${finalExamId}`); setOutlineOpen(false); }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-purple-700 hover:bg-purple-50 border border-purple-200 bg-white transition-colors"
+                      onClick={() => {
+                        if (!finalTestPassed) return;
+                        navigate(`/learn/${courseId}/final-exam/${finalExamId}`);
+                        setOutlineOpen(false);
+                      }}
+                      disabled={!finalTestPassed}
+                      title={!finalTestPassed ? "Pass the Final Test to unlock" : undefined}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium border transition-colors ${
+                        finalTestPassed
+                          ? "text-purple-700 hover:bg-purple-50 border-purple-200 bg-white"
+                          : "text-gray-400 border-gray-200 bg-gray-50 cursor-not-allowed"
+                      }`}
                     >
-                      <GraduationCap size={14} className="flex-shrink-0" />
+                      {finalTestPassed
+                        ? <GraduationCap size={14} className="flex-shrink-0" />
+                        : <Lock size={14} className="flex-shrink-0" />
+                      }
                       Final Exam
+                      {!finalTestPassed && (
+                        <span className="ml-auto text-[10px]">Locked</span>
+                      )}
                     </button>
                   )}
                 </div>

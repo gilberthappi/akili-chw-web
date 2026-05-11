@@ -1,9 +1,18 @@
 import api from "./api";
 import { IResponse } from "@/types";
 
+export interface ITestStatus {
+  attempted: boolean;
+  passed: boolean;
+  bestMarks: number | null;
+  marksToPass: number;
+}
+
 export interface ICourseProgressData {
   chapterProgress: Array<{ chapterId: string; isCompleted: boolean; progress: number }>;
   completedSlideIds: string[];
+  finalTestStatus: ITestStatus | null;
+  finalExamStatus: ITestStatus | null;
 }
 
 export const enrollInCourse = async (courseId: string): Promise<IResponse<unknown>> => {
