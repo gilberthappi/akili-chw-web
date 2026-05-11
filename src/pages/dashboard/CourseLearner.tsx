@@ -126,7 +126,7 @@ const CourseLearner: React.FC = () => {
   const [outlineOpen, setOutlineOpen] = useState(false);
   const markingRef = useRef(false);
 
-  const loadChapter = useCallback(async (chapter: IChapter, initialSlideId?: string) => {
+  const loadChapter = useCallback(async (chapter: IChapter, initialSlideId?: string, resumeCompletedIds?: Set<string>) => {
     setActiveChapter(chapter);
     setSlideIndex(0);
     setSlides([]);
@@ -137,7 +137,10 @@ const CourseLearner: React.FC = () => {
       const data = res.data as unknown as { slides?: ISlide[] };
       const loadedSlides = data?.slides ?? [];
       setSlides(loadedSlides);
-      if (initialSlideId) {
+      if (resumeCompletedIds) {
+        const firstUncompleted = loadedSlides.findIndex((s) => !resumeCompletedIds.has(s.id));
+        if (firstUncompleted > 0) setSlideIndex(firstUncompleted);
+      } else if (initialSlideId) {
         const idx = loadedSlides.findIndex((s) => s.id === initialSlideId);
         if (idx > 0) setSlideIndex(idx);
       }
@@ -173,13 +176,20 @@ const CourseLearner: React.FC = () => {
               .map((cp) => cp.chapterId);
             setCompletedChapterIds(new Set(doneChapters));
           }
+          const courseStats = stats.courses.find((c) => c.courseId === courseId);
           const loc = stats.lastViewedLocation;
+          if (courseStats?.isCompleted) {
+            // Course 100% complete — show empty state for now (course intro will replace this in #3)
+            setOpenSectionId(secs[0].id);
+            return;
+          }
           if (loc && loc.courseId === courseId) {
             for (const sec of secs) {
               const ch = sec.chapters?.find((c) => c.id === loc.chapterId);
               if (ch) {
                 setOpenSectionId(sec.id);
-                loadChapter(ch, loc.slideId);
+                const completed = new Set(progress?.completedSlideIds ?? []);
+                loadChapter(ch, undefined, completed);
                 return;
               }
             }
