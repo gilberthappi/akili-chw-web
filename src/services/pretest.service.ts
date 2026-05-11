@@ -13,6 +13,7 @@ export interface IPreTestQuestion {
   feedbackStatement?: string;
   allowMultiple: boolean;
   options: IPreTestOption[];
+  answers?: IPreTestOption[];
 }
 
 export interface IPreTest {

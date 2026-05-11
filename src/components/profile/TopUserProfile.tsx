@@ -67,7 +67,7 @@ export default function DashTop() {
 
   const handleNotificationClick = (notification: Notification) => {
     setShowNotifications(false);
-    navigate(`/notifications?id=${notification.id}`);
+    navigate(`/settings?tab=inbox&id=${notification.id}`);
   };
 
   const handleMarkAllAsRead = () => {
@@ -184,7 +184,7 @@ export default function DashTop() {
                       <button
                         onClick={() => {
                           setShowNotifications(false);
-                          navigate("/notifications");
+                          navigate("/settings?tab=inbox");
                         }}
                         className='text-sm text-blue-600 hover:text-blue-800'
                       >

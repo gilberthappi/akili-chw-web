@@ -101,7 +101,7 @@ const NotificationItem: React.FC<{
   );
 };
 
-const NotificationsPage: React.FC = () => {
+const NotificationsPage: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
   const [searchParams] = useSearchParams();
   const targetId = searchParams.get("id");
   const {
@@ -114,7 +114,7 @@ const NotificationsPage: React.FC = () => {
   } = useNotificationsContext();
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className={embedded ? "space-y-6" : "max-w-2xl mx-auto space-y-6"}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

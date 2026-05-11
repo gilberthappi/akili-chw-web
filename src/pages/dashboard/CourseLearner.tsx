@@ -22,7 +22,7 @@ import { Button } from "@/components/common/Button";
 import TopBar from "@/components/navigation/TopBar";
 import { getCourseSectionsWithChapters, getChapterSlides, getChapterMidTestId } from "@/services/course.service";
 import { getCourseFinalTestIds } from "@/services/finaltest.service";
-import { markSlideComplete } from "@/services/progress.service";
+import { markSlideComplete, getCourseProgress, getStudentStatistics } from "@/services/progress.service";
 import { ISection, IChapter, ISlide } from "@/types";
 
 const VIDEO_EXTS = new Set(["mp4", "webm", "avi", "mov", "mkv", "flv", "wmv", "m4v", "3gp"]);
@@ -46,12 +46,6 @@ const SlideViewer: React.FC<{ slide: ISlide }> = ({ slide }) => {
           title="Slide PDF"
           className="flex-1 w-full border-0 min-h-0"
         />
-        {(slide.note || slide.description) && (
-          <div className="flex-shrink-0 px-6 py-3 border-t border-gray-100 space-y-1">
-            {slide.note && <h2 className="text-base font-semibold text-gray-900">{slide.note}</h2>}
-            {slide.description && <p className="text-sm text-gray-600 leading-relaxed">{slide.description}</p>}
-          </div>
-        )}
       </div>
     );
   }
@@ -125,35 +119,14 @@ const CourseLearner: React.FC = () => {
   const [isLoadingSlides, setIsLoadingSlides] = useState(false);
   const [slideIndex, setSlideIndex] = useState(0);
   const [completedSlideIds, setCompletedSlideIds] = useState<Set<string>>(new Set());
+  const [completedChapterIds, setCompletedChapterIds] = useState<Set<string>>(new Set());
   const [chapterMidTestId, setChapterMidTestId] = useState<string | null>(null);
   const [finalTestId, setFinalTestId] = useState<string | null>(null);
   const [finalExamId, setFinalExamId] = useState<string | null>(null);
   const [outlineOpen, setOutlineOpen] = useState(false);
   const markingRef = useRef(false);
 
-  useEffect(() => {
-    if (!courseId) return;
-    setIsLoadingCourse(true);
-    setCourseError(null);
-    getCourseSectionsWithChapters(courseId)
-      .then((res) => {
-        const data = res.data as unknown as { title?: string; sections?: ISection[] };
-        setCourseTitle(data?.title ?? "Course");
-        const secs: ISection[] = data?.sections ?? [];
-        setSections(secs);
-        if (secs.length > 0) setOpenSectionId(secs[0].id);
-      })
-      .catch(() => setCourseError("Failed to load course. Please go back and try again."))
-      .finally(() => setIsLoadingCourse(false));
-    getCourseFinalTestIds(courseId)
-      .then(({ finalTestId: ftId, finalExamId: feId }) => {
-        setFinalTestId(ftId);
-        setFinalExamId(feId);
-      })
-      .catch(() => {});
-  }, [courseId]);
-
-  const loadChapter = useCallback(async (chapter: IChapter) => {
+  const loadChapter = useCallback(async (chapter: IChapter, initialSlideId?: string) => {
     setActiveChapter(chapter);
     setSlideIndex(0);
     setSlides([]);
@@ -162,7 +135,12 @@ const CourseLearner: React.FC = () => {
     try {
       const res = await getChapterSlides(chapter.id);
       const data = res.data as unknown as { slides?: ISlide[] };
-      setSlides(data?.slides ?? []);
+      const loadedSlides = data?.slides ?? [];
+      setSlides(loadedSlides);
+      if (initialSlideId) {
+        const idx = loadedSlides.findIndex((s) => s.id === initialSlideId);
+        if (idx > 0) setSlideIndex(idx);
+      }
     } catch {
       setSlides([]);
     } finally {
@@ -172,17 +150,71 @@ const CourseLearner: React.FC = () => {
     setOutlineOpen(false);
   }, []);
 
+  useEffect(() => {
+    if (!courseId) return;
+    setIsLoadingCourse(true);
+    setCourseError(null);
+    getCourseSectionsWithChapters(courseId)
+      .then(async (res) => {
+        const data = res.data as unknown as { title?: string; sections?: ISection[] };
+        setCourseTitle(data?.title ?? "Course");
+        const secs: ISection[] = data?.sections ?? [];
+        setSections(secs);
+        if (secs.length === 0) return;
+        try {
+          const [stats, progress] = await Promise.all([
+            getStudentStatistics(),
+            getCourseProgress(courseId),
+          ]);
+          if (progress) {
+            setCompletedSlideIds(new Set(progress.completedSlideIds));
+            const doneChapters = progress.chapterProgress
+              .filter((cp) => cp.isCompleted)
+              .map((cp) => cp.chapterId);
+            setCompletedChapterIds(new Set(doneChapters));
+          }
+          const loc = stats.lastViewedLocation;
+          if (loc && loc.courseId === courseId) {
+            for (const sec of secs) {
+              const ch = sec.chapters?.find((c) => c.id === loc.chapterId);
+              if (ch) {
+                setOpenSectionId(sec.id);
+                loadChapter(ch, loc.slideId);
+                return;
+              }
+            }
+          }
+        } catch { /* fall through to default */ }
+        setOpenSectionId(secs[0].id);
+      })
+      .catch(() => setCourseError("Failed to load course. Please go back and try again."))
+      .finally(() => setIsLoadingCourse(false));
+    getCourseFinalTestIds(courseId)
+      .then(({ finalTestId: ftId, finalExamId: feId }) => {
+        setFinalTestId(ftId);
+        setFinalExamId(feId);
+      })
+      .catch(() => {});
+  }, [courseId, loadChapter]);
+
   const markCurrentComplete = useCallback(async () => {
     const slide = slides[slideIndex];
     if (!slide || completedSlideIds.has(slide.id) || markingRef.current) return;
     markingRef.current = true;
     try {
       await markSlideComplete(slide.id);
-      setCompletedSlideIds((prev) => new Set(prev).add(slide.id));
+      setCompletedSlideIds((prev) => {
+        const next = new Set(prev).add(slide.id);
+        const allDone = slides.every((s) => next.has(s.id));
+        if (allDone && activeChapter) {
+          setCompletedChapterIds((prev2) => new Set(prev2).add(activeChapter.id));
+        }
+        return next;
+      });
     } finally {
       markingRef.current = false;
     }
-  }, [slides, slideIndex, completedSlideIds]);
+  }, [slides, slideIndex, completedSlideIds, activeChapter]);
 
   const goToSlide = (index: number) => {
     markCurrentComplete();
@@ -198,7 +230,7 @@ const CourseLearner: React.FC = () => {
     if (slideIndex < slides.length - 1) setSlideIndex(slideIndex + 1);
   };
 
-  const isChapterDone = (chapter: IChapter) => completedSlideIds.has(chapter.id);
+  const isChapterDone = (chapter: IChapter) => completedChapterIds.has(chapter.id);
 
   const currentSlide = slides[slideIndex] ?? null;
   const totalSlides = slides.length;
@@ -499,25 +531,7 @@ const CourseLearner: React.FC = () => {
                   Previous
                 </Button>
 
-                {/* Slide dot row */}
-                <div className="flex gap-1.5 flex-wrap justify-center max-w-[240px]">
-                  {slides.map((s, i) => (
-                    <button
-                      key={s.id}
-                      onClick={() => goToSlide(i)}
-                      title={s.note || `Slide ${i + 1}`}
-                      className={`w-6 h-6 rounded-full text-[10px] font-semibold flex items-center justify-center transition-colors ${
-                        i === slideIndex
-                          ? "bg-[#3363AD] text-white"
-                          : completedSlideIds.has(s.id)
-                          ? "bg-green-100 text-green-600"
-                          : "bg-gray-100 text-gray-400 hover:bg-gray-200"
-                      }`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
-                </div>
+                <span className="text-sm text-gray-400">{slideIndex + 1} of {totalSlides}</span>
 
                 {slideIndex === totalSlides - 1 && chapterMidTestId ? (
                   <Button

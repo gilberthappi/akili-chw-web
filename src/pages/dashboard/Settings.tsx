@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import i18n from "@/i18n";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -31,7 +32,9 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
+  Inbox,
 } from "lucide-react";
+import NotificationsPage from "./NotificationsPage";
 import { getProfile, updateAvatar } from "@/services/profile.api";
 import api from "@/services/api";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -102,7 +105,8 @@ const errCls = "text-xs text-red-500 mt-1";
 
 export const Settings: React.FC = () => {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState("profile");
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(() => searchParams.get("tab") ?? "profile");
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -318,7 +322,8 @@ export const Settings: React.FC = () => {
 
   const tabs = [
     { id: "profile", label: t("tabs.profile"), icon: User },
-    { id: "notifications", label: t("tabs.notifications"), icon: Bell },
+    { id: "inbox", label: "Inbox", icon: Inbox },
+    { id: "notification-prefs", label: "Notification Preferences", icon: Bell },
     { id: "security", label: t("tabs.security"), icon: Shield },
     { id: "appearance", label: t("tabs.appearance"), icon: Palette },
     { id: "language", label: t("tabs.language"), icon: Globe },
@@ -534,13 +539,20 @@ export const Settings: React.FC = () => {
               </div>
             )}
 
-            {/* ── NOTIFICATIONS ──────────────────────────────────────────── */}
-            {activeTab === "notifications" && (
+            {/* ── INBOX ──────────────────────────────────────────────────── */}
+            {activeTab === "inbox" && (
+              <div className="p-6">
+                <NotificationsPage embedded />
+              </div>
+            )}
+
+            {/* ── NOTIFICATION PREFERENCES ───────────────────────────────── */}
+            {activeTab === "notification-prefs" && (
               <div className="p-6">
                 <div className="flex items-center gap-3 mb-6 pb-4 border-b dark:border-slate-700">
                   <Bell className="w-5 h-5 text-gray-400 dark:text-slate-500" />
                   <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100">
-                    {t("notifications.title")}
+                    Notification Preferences
                   </h2>
                 </div>
 
