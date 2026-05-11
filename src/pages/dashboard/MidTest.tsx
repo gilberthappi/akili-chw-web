@@ -3,15 +3,12 @@ import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
   ChevronRight,
-  CheckCircle2,
-  XCircle,
   Loader2,
   ClipboardList,
   AlertCircle,
-  ListChecks,
 } from "lucide-react";
 import { Button } from "@/components/common/Button";
-import { getMidTestById, submitMidTestAttempt, IMidTestAttemptResult } from "@/services/midtest.service";
+import { getMidTestById, submitMidTestAttempt } from "@/services/midtest.service";
 import { IMidTest, IQuestionnaire } from "@/types";
 
 const MidTest: React.FC = () => {
@@ -28,8 +25,6 @@ const MidTest: React.FC = () => {
   const [answers, setAnswers] = useState<Record<string, Set<string>>>({});
   const [currentQIndex, setCurrentQIndex] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [result, setResult] = useState<IMidTestAttemptResult | null>(null);
-  const [showReview, setShowReview] = useState(false);
 
   const loadMidTest = useCallback(async () => {
     if (!midTestId) return;
@@ -63,11 +58,11 @@ const MidTest: React.FC = () => {
     setIsSubmitting(true);
     setError(null);
     try {
-      const res = await submitMidTestAttempt(
+      await submitMidTestAttempt(
         midTest.id,
         questions.map((q) => ({ questionnaireId: q.id, selectedAnswerIds: Array.from(answers[q.id] ?? []) }))
       );
-      setResult(res);
+      navigate(`/learn/${courseId}`);
     } catch {
       setError("Failed to submit answers. Please try again.");
     } finally {
@@ -76,8 +71,6 @@ const MidTest: React.FC = () => {
   };
 
   const marksToPass = midTest?.marksToPass ?? 0;
-  const score = Math.round(result?.marks ?? 0);
-  const passed = result?.isCompleted ?? false;
   const answeredCount = questions.filter((q) => (answers[q.id]?.size ?? 0) > 0).length;
   const allAnswered = questions.length > 0 && answeredCount === questions.length;
   const currentQuestion = questions[currentQIndex] ?? null;
@@ -93,144 +86,12 @@ const MidTest: React.FC = () => {
     );
   }
 
-  if (error && !result) {
+  if (error) {
     return (
       <div className="flex-1 flex flex-col items-center gap-3 justify-center p-8">
         <AlertCircle size={32} className="text-red-400" />
         <p className="text-sm text-red-500">{error}</p>
         <Button size="sm" onClick={loadMidTest}>Retry</Button>
-      </div>
-    );
-  }
-
-  // ── Results screen ────────────────────────────────────────────────────────
-
-  if (result) {
-    if (showReview) {
-      return (
-        <div className="flex flex-col h-full bg-gray-50">
-          <header className="flex-shrink-0 bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3">
-            <button onClick={() => setShowReview(false)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500">
-              <ArrowLeft size={18} />
-            </button>
-            <div className="flex-1 min-w-0">
-              <h1 className="text-sm font-semibold text-gray-900">Answer Review</h1>
-              <p className="text-xs text-gray-400">{chapterTitle}</p>
-            </div>
-            <span className="text-xs text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">{questions.length} questions</span>
-          </header>
-          <div className="flex-1 overflow-y-auto">
-            <div className="max-w-3xl mx-auto px-4 py-5 space-y-4">
-              {questions.map((q, i) => {
-                const correctLabels = new Set(q.answers.map((a) => a.label.trim().toLowerCase()));
-                const selectedIds = answers[q.id] ?? new Set<string>();
-                return (
-                  <div key={q.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                    <div className="p-5 space-y-4">
-                      <div className="flex items-start gap-3">
-                        <span className="flex-shrink-0 w-8 h-8 rounded-xl bg-amber-50 text-amber-700 text-sm font-bold flex items-center justify-center">
-                          {i + 1}
-                        </span>
-                        <div className="space-y-2 flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 leading-snug">{q.question}</p>
-                          {q.questionImage && (
-                            <img src={q.questionImage} alt="" className="rounded-xl max-h-40 object-contain border border-gray-100"
-                              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
-                          )}
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        {q.options.map((opt, optIdx) => {
-                          const isCorrect = correctLabels.has(opt.label.trim().toLowerCase());
-                          const isSelected = selectedIds.has(opt.id);
-                          const letter = String.fromCharCode(65 + optIdx);
-                          return (
-                            <div
-                              key={opt.id}
-                              className={`flex items-center gap-3 px-4 py-3 rounded-xl border-2 text-sm ${
-                                isCorrect && isSelected
-                                  ? "border-green-400 bg-green-50 text-gray-900"
-                                  : isCorrect && !isSelected
-                                  ? "border-green-300 border-dashed bg-green-50/40 text-gray-700"
-                                  : !isCorrect && isSelected
-                                  ? "border-red-400 bg-red-50 text-gray-900"
-                                  : "border-gray-100 bg-gray-50 text-gray-500"
-                              }`}
-                            >
-                              <span className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 ${
-                                isCorrect && isSelected ? "bg-green-500 border-green-500 text-white" :
-                                isCorrect ? "bg-green-100 border-green-300 text-green-700" :
-                                isSelected ? "bg-red-500 border-red-500 text-white" :
-                                "border-gray-300 text-gray-400"
-                              }`}>{letter}</span>
-                              <span className="flex-1">{opt.label}</span>
-                              {opt.image && <img src={opt.image} alt="" className="w-10 h-10 object-cover rounded-lg flex-shrink-0"
-                                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />}
-                              {isCorrect && isSelected && <CheckCircle2 size={16} className="flex-shrink-0 text-green-500" />}
-                              {isCorrect && !isSelected && <CheckCircle2 size={16} className="flex-shrink-0 text-green-400 opacity-60" />}
-                              {!isCorrect && isSelected && <XCircle size={16} className="flex-shrink-0 text-red-500" />}
-                            </div>
-                          );
-                        })}
-                      </div>
-                      {q.feedbackStatement && (
-                        <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-sm text-blue-800">
-                          <span className="font-semibold">Explanation: </span>{q.feedbackStatement}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className="flex flex-col h-full bg-gray-50">
-        <header className="flex-shrink-0 bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3">
-          <button onClick={() => navigate(`/learn/${courseId}`)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500">
-            <ArrowLeft size={18} />
-          </button>
-          <div>
-            <h1 className="text-sm font-semibold text-gray-900">Chapter Test</h1>
-            <p className="text-xs text-gray-400">{chapterTitle}</p>
-          </div>
-        </header>
-        <div className="flex-1 overflow-y-auto flex items-center justify-center p-6">
-          <div className="max-w-md w-full bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center space-y-6">
-            {passed
-              ? <CheckCircle2 size={56} className="mx-auto text-green-500" />
-              : <XCircle size={56} className="mx-auto text-orange-400" />
-            }
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">Chapter Test Complete</h2>
-              <p className="text-sm text-gray-400 mt-1">{chapterTitle}</p>
-            </div>
-            <div className={`w-32 h-32 rounded-full border-8 mx-auto flex flex-col items-center justify-center ${passed ? "border-green-400" : "border-orange-300"}`}>
-              <span className={`text-4xl font-bold ${passed ? "text-green-600" : "text-orange-500"}`}>{score}%</span>
-            </div>
-            <div className={`rounded-xl px-4 py-3 text-sm ${passed ? "bg-green-50 text-green-800" : "bg-orange-50 text-orange-800"}`}>
-              {passed
-                ? `Great work! You passed with ${score}% (required: ${marksToPass}%).`
-                : `You scored ${score}% — the passing mark is ${marksToPass}%. Review the chapter and try again.`}
-            </div>
-            <div className="space-y-2">
-              <Button className="w-full flex items-center justify-center gap-2" onClick={() => navigate(`/learn/${courseId}`)}>
-                Continue Learning
-              </Button>
-              <Button variant="outline" className="w-full flex items-center justify-center gap-2" onClick={() => setShowReview(true)}>
-                <ListChecks size={16} />
-                Review Answers
-              </Button>
-              <Button variant="outline" className="w-full" onClick={() => { setResult(null); setAnswers({}); setCurrentQIndex(0); setShowReview(false); }}>
-                Retake Chapter Test
-              </Button>
-            </div>
-          </div>
-        </div>
       </div>
     );
   }
