@@ -129,6 +129,7 @@ const CourseLearner: React.FC = () => {
   const [finalExamId, setFinalExamId] = useState<string | null>(null);
   const [isCourseComplete, setIsCourseComplete] = useState(false);
   const [finalTestPassed, setFinalTestPassed] = useState(false);
+  const [finalExamPassed, setFinalExamPassed] = useState(false);
   const [outlineOpen, setOutlineOpen] = useState(false);
   const markingRef = useRef(false);
 
@@ -163,7 +164,10 @@ const CourseLearner: React.FC = () => {
     if (!courseId) return;
     setIsLoadingCourse(true);
     setCourseError(null);
-    const completedChapterId = (location.state as { completedChapterId?: string } | null)?.completedChapterId ?? null;
+    const state = location.state as { completedChapterId?: string; passedFinalTest?: boolean; passedFinalExam?: boolean } | null;
+    const completedChapterId = state?.completedChapterId ?? null;
+    const passedFinalTestFromState = state?.passedFinalTest ?? false;
+    const passedFinalExamFromState = state?.passedFinalExam ?? false;
     getCourseSectionsWithChapters(courseId)
       .then(async (res) => {
         const data = res.data as unknown as { title?: string; sections?: ISection[]; intro?: ICourseIntro };
@@ -192,7 +196,8 @@ const CourseLearner: React.FC = () => {
             if (completedChapterId) mergedDone.add(completedChapterId);
             setCompletedChapterIds(mergedDone);
             setServerCompletedChapterIds(mergedDone);
-            setFinalTestPassed(progress.finalTestStatus?.passed ?? false);
+            setFinalTestPassed((progress.finalTestStatus?.passed ?? false) || passedFinalTestFromState);
+            setFinalExamPassed((progress.finalExamStatus?.passed ?? false) || passedFinalExamFromState);
           }
           const courseStats = stats.courses.find((c) => c.courseId === courseId);
           setIsCourseComplete(courseStats?.isCompleted ?? false);
@@ -493,18 +498,25 @@ const CourseLearner: React.FC = () => {
                       disabled={!isCourseComplete}
                       title={!isCourseComplete ? "Complete all lessons to unlock" : undefined}
                       className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium border transition-colors ${
-                        isCourseComplete
+                        isCourseComplete && finalTestPassed
+                          ? "text-green-700 bg-green-50 border-green-300"
+                          : isCourseComplete
                           ? "text-green-700 hover:bg-green-50 border-green-200 bg-white"
                           : "text-gray-400 border-gray-200 bg-gray-50 cursor-not-allowed"
                       }`}
                     >
-                      {isCourseComplete
+                      {isCourseComplete && finalTestPassed
+                        ? <CheckCircle2 size={14} className="flex-shrink-0 text-green-500" />
+                        : isCourseComplete
                         ? <Trophy size={14} className="flex-shrink-0" />
                         : <Lock size={14} className="flex-shrink-0" />
                       }
                       Final Test
                       {!isCourseComplete && (
                         <span className="ml-auto text-[10px]">Locked</span>
+                      )}
+                      {finalTestPassed && (
+                        <span className="ml-auto text-[10px] text-green-600">Passed</span>
                       )}
                     </button>
                   )}
@@ -524,18 +536,25 @@ const CourseLearner: React.FC = () => {
                           : undefined
                       }
                       className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium border transition-colors ${
-                        isCourseComplete && finalTestPassed
+                        isCourseComplete && finalTestPassed && finalExamPassed
+                          ? "text-purple-700 bg-purple-50 border-purple-300"
+                          : isCourseComplete && finalTestPassed
                           ? "text-purple-700 hover:bg-purple-50 border-purple-200 bg-white"
                           : "text-gray-400 border-gray-200 bg-gray-50 cursor-not-allowed"
                       }`}
                     >
-                      {isCourseComplete && finalTestPassed
+                      {isCourseComplete && finalTestPassed && finalExamPassed
+                        ? <CheckCircle2 size={14} className="flex-shrink-0 text-purple-500" />
+                        : isCourseComplete && finalTestPassed
                         ? <GraduationCap size={14} className="flex-shrink-0" />
                         : <Lock size={14} className="flex-shrink-0" />
                       }
                       Final Exam
                       {(!isCourseComplete || !finalTestPassed) && (
                         <span className="ml-auto text-[10px]">Locked</span>
+                      )}
+                      {finalExamPassed && (
+                        <span className="ml-auto text-[10px] text-purple-600">Passed</span>
                       )}
                     </button>
                   )}

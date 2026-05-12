@@ -21,6 +21,7 @@ import {
   submitFinalTestAttempt,
   submitFinalExamAttempt,
 } from "@/services/finaltest.service";
+import { generateCertificate } from "@/services/certificates.service";
 import { IQuestionnaire } from "@/types";
 
 interface Props {
@@ -47,6 +48,7 @@ const FinalTestPage: React.FC<Props> = ({ mode }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState<IFinalTestAttemptResult | null>(null);
   const [showReview, setShowReview] = useState(false);
+  const [isGeneratingCert, setIsGeneratingCert] = useState(false);
 
   const loadTest = useCallback(async () => {
     if (!testId) return;
@@ -69,6 +71,13 @@ const FinalTestPage: React.FC<Props> = ({ mode }) => {
   }, [testId, isFinalExam, label]);
 
   useEffect(() => { loadTest(); }, [loadTest]);
+
+  useEffect(() => {
+    if (result?.isCompleted && isFinalExam && courseId) {
+      setIsGeneratingCert(true);
+      generateCertificate(courseId).catch(() => {}).finally(() => setIsGeneratingCert(false));
+    }
+  }, [result, isFinalExam, courseId]);
 
   const toggleOption = (questionId: string, optionId: string, allowMultiple: boolean) => {
     setAnswers((prev) => {
@@ -245,15 +254,27 @@ const FinalTestPage: React.FC<Props> = ({ mode }) => {
             </div>
             <div className="space-y-2">
               {passed && isFinalExam && (
-                <Button className="w-full flex items-center justify-center gap-2" onClick={() => navigate("/my-certificates")}>
-                  <GraduationCap size={16} />
-                  View My Certificate
+                <Button
+                  className="w-full flex items-center justify-center gap-2"
+                  disabled={isGeneratingCert}
+                  onClick={() => navigate("/my-certificates")}
+                >
+                  {isGeneratingCert ? <Loader2 size={16} className="animate-spin" /> : <GraduationCap size={16} />}
+                  {isGeneratingCert ? "Generating Certificate..." : "View My Certificate"}
                 </Button>
               )}
               <Button
                 variant={passed && isFinalExam ? "outline" : "default"}
                 className="w-full flex items-center justify-center gap-2"
-                onClick={() => navigate(`/learn/${courseId}`)}
+                onClick={() =>
+                  navigate(`/learn/${courseId}`, {
+                    state: passed && !isFinalExam
+                      ? { passedFinalTest: true }
+                      : passed && isFinalExam
+                      ? { passedFinalExam: true }
+                      : undefined,
+                  })
+                }
               >
                 {passed && !isFinalExam ? <Trophy size={16} /> : null}
                 Back to Course
