@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import {
   ArrowLeft,
   ChevronDown,
@@ -108,6 +108,7 @@ const SlideIcon: React.FC<{ url?: string; size?: number }> = ({ url, size = 14 }
 const CourseLearner: React.FC = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [courseTitle, setCourseTitle] = useState("");
   const [courseIntro, setCourseIntro] = useState<ICourseIntro | null>(null);
@@ -122,6 +123,7 @@ const CourseLearner: React.FC = () => {
   const [slideIndex, setSlideIndex] = useState(0);
   const [completedSlideIds, setCompletedSlideIds] = useState<Set<string>>(new Set());
   const [completedChapterIds, setCompletedChapterIds] = useState<Set<string>>(new Set());
+  const [serverCompletedChapterIds, setServerCompletedChapterIds] = useState<Set<string>>(new Set());
   const [chapterMidTestId, setChapterMidTestId] = useState<string | null>(null);
   const [finalTestId, setFinalTestId] = useState<string | null>(null);
   const [finalExamId, setFinalExamId] = useState<string | null>(null);
@@ -161,6 +163,7 @@ const CourseLearner: React.FC = () => {
     if (!courseId) return;
     setIsLoadingCourse(true);
     setCourseError(null);
+    const completedChapterId = (location.state as { completedChapterId?: string } | null)?.completedChapterId ?? null;
     getCourseSectionsWithChapters(courseId)
       .then(async (res) => {
         const data = res.data as unknown as { title?: string; sections?: ISection[]; intro?: ICourseIntro };
@@ -179,14 +182,36 @@ const CourseLearner: React.FC = () => {
             const doneChapters = progress.chapterProgress
               .filter((cp) => cp.isCompleted)
               .map((cp) => cp.chapterId);
-            setCompletedChapterIds(new Set(doneChapters));
+            // Merge server completions with the just-finished chapter (if any)
+            const mergedDone = new Set(doneChapters);
+            if (completedChapterId) mergedDone.add(completedChapterId);
+            setCompletedChapterIds(mergedDone);
+            setServerCompletedChapterIds(mergedDone);
             setFinalTestPassed(progress.finalTestStatus?.passed ?? false);
           }
           const courseStats = stats.courses.find((c) => c.courseId === courseId);
           setIsCourseComplete(courseStats?.isCompleted ?? false);
+
+          // If returning from a mid-test, advance to the next chapter
+          if (completedChapterId) {
+            let found = false;
+            for (const sec of secs) {
+              for (const ch of (sec.chapters ?? [])) {
+                if (found) {
+                  setOpenSectionId(sec.id);
+                  loadChapter(ch);
+                  return;
+                }
+                if (ch.id === completedChapterId) found = true;
+              }
+            }
+            // No next chapter — the completed chapter was the last one
+            setOpenSectionId(secs[0].id);
+            return;
+          }
+
           const loc = stats.lastViewedLocation;
           if (courseStats?.isCompleted) {
-            // Course 100% complete — show empty state for now (course intro will replace this in #3)
             setOpenSectionId(secs[0].id);
             return;
           }
@@ -395,13 +420,23 @@ const CourseLearner: React.FC = () => {
                                   <button
                                     onClick={() =>
                                       navigate(
-                                        `/learn/${courseId}/mid-test/${chapterMidTestId}?chapter=${encodeURIComponent(chapter.title)}`
+                                        `/learn/${courseId}/mid-test/${chapterMidTestId}?chapter=${encodeURIComponent(chapter.title)}&chapterId=${chapter.id}`
                                       )
                                     }
-                                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium text-amber-700 hover:bg-amber-50 transition-colors"
+                                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                                      serverCompletedChapterIds.has(chapter.id)
+                                        ? "text-green-700 hover:bg-green-50"
+                                        : "text-amber-700 hover:bg-amber-50"
+                                    }`}
                                   >
-                                    <ClipboardList size={12} className="flex-shrink-0" />
+                                    {serverCompletedChapterIds.has(chapter.id)
+                                      ? <CheckCircle2 size={12} className="flex-shrink-0 text-green-500" />
+                                      : <ClipboardList size={12} className="flex-shrink-0" />
+                                    }
                                     Chapter Test
+                                    {serverCompletedChapterIds.has(chapter.id) && (
+                                      <span className="ml-auto text-[10px] text-green-600">Done</span>
+                                    )}
                                   </button>
                                 )}
                               </div>
@@ -621,11 +656,12 @@ const CourseLearner: React.FC = () => {
                 {slideIndex === totalSlides - 1 && chapterMidTestId ? (
                   <Button
                     size="sm"
-                    onClick={() =>
+                    onClick={async () => {
+                      await markCurrentComplete();
                       navigate(
-                        `/learn/${courseId}/mid-test/${chapterMidTestId}?chapter=${encodeURIComponent(activeChapter?.title ?? "")}`
-                      )
-                    }
+                        `/learn/${courseId}/mid-test/${chapterMidTestId}?chapter=${encodeURIComponent(activeChapter?.title ?? "")}&chapterId=${activeChapter?.id ?? ""}`
+                      );
+                    }}
                     className="flex items-center gap-1.5 min-w-[110px] bg-amber-600 hover:bg-amber-700"
                   >
                     <ClipboardList size={14} />

@@ -16,6 +16,7 @@ const MidTest: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const chapterTitle = searchParams.get("chapter") ?? "Chapter";
+  const chapterId = searchParams.get("chapterId") ?? "";
 
   const [midTest, setMidTest] = useState<IMidTest | null>(null);
   const [questions, setQuestions] = useState<IQuestionnaire[]>([]);
@@ -62,7 +63,7 @@ const MidTest: React.FC = () => {
         midTest.id,
         questions.map((q) => ({ questionnaireId: q.id, selectedAnswerIds: Array.from(answers[q.id] ?? []) }))
       );
-      navigate(`/learn/${courseId}`);
+      navigate(`/learn/${courseId}`, { state: { completedChapterId: chapterId } });
     } catch {
       setError("Failed to submit answers. Please try again.");
     } finally {
@@ -86,7 +87,7 @@ const MidTest: React.FC = () => {
     );
   }
 
-  if (error) {
+  if (error && !isSubmitting) {
     return (
       <div className="flex-1 flex flex-col items-center gap-3 justify-center p-8">
         <AlertCircle size={32} className="text-red-400" />
