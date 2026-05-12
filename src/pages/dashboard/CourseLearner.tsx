@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/common/Button";
 import TopBar from "@/components/navigation/TopBar";
-import { getCourseSectionsWithChapters, getChapterSlides, getChapterMidTestId } from "@/services/course.service";
+import { getCourseSectionsWithChapters, getChapterSlides } from "@/services/course.service";
 import { getCourseFinalTestIds } from "@/services/finaltest.service";
 import { markSlideComplete, getCourseProgress, getStudentStatistics } from "@/services/progress.service";
 import { ISection, IChapter, ISlide, ICourseIntro } from "@/types";
@@ -155,7 +155,7 @@ const CourseLearner: React.FC = () => {
     } finally {
       setIsLoadingSlides(false);
     }
-    getChapterMidTestId(chapter.id).then(setChapterMidTestId).catch(() => {});
+    setChapterMidTestId(chapter.midTest?.id ?? null);
     setOutlineOpen(false);
   }, []);
 
@@ -173,10 +173,15 @@ const CourseLearner: React.FC = () => {
         setSections(secs);
         if (secs.length === 0) return;
         try {
-          const [stats, progress] = await Promise.all([
+          const [stats, progress, finalIds] = await Promise.all([
             getStudentStatistics(),
             getCourseProgress(courseId),
+            getCourseFinalTestIds(courseId).catch(() => ({ finalTestId: null as string | null, finalExamId: null as string | null })),
           ]);
+          const ftId = finalIds.finalTestId;
+          const feId = finalIds.finalExamId;
+          setFinalTestId(ftId);
+          setFinalExamId(feId);
           if (progress) {
             setCompletedSlideIds(new Set(progress.completedSlideIds));
             const doneChapters = progress.chapterProgress
@@ -205,8 +210,12 @@ const CourseLearner: React.FC = () => {
                 if (ch.id === completedChapterId) found = true;
               }
             }
-            // No next chapter — the completed chapter was the last one
-            setOpenSectionId(secs[0].id);
+            // No next chapter — last chapter done, go to final test
+            if (ftId) {
+              navigate(`/learn/${courseId}/final-test/${ftId}`);
+            } else {
+              setOpenSectionId(secs[0].id);
+            }
             return;
           }
 
@@ -231,12 +240,6 @@ const CourseLearner: React.FC = () => {
       })
       .catch(() => setCourseError("Failed to load course. Please go back and try again."))
       .finally(() => setIsLoadingCourse(false));
-    getCourseFinalTestIds(courseId)
-      .then(({ finalTestId: ftId, finalExamId: feId }) => {
-        setFinalTestId(ftId);
-        setFinalExamId(feId);
-      })
-      .catch(() => {});
   }, [courseId, loadChapter]);
 
   const markCurrentComplete = useCallback(async () => {
@@ -270,6 +273,22 @@ const CourseLearner: React.FC = () => {
   const handleNext = async () => {
     await markCurrentComplete();
     if (slideIndex < slides.length - 1) setSlideIndex(slideIndex + 1);
+  };
+
+  const handleNextChapter = async () => {
+    await markCurrentComplete();
+    let found = false;
+    for (const sec of sections) {
+      for (const ch of (sec.chapters ?? [])) {
+        if (found) { setOpenSectionId(sec.id); loadChapter(ch); return; }
+        if (ch.id === activeChapter?.id) found = true;
+      }
+    }
+    if (finalTestId) {
+      navigate(`/learn/${courseId}/final-test/${finalTestId}`);
+    } else {
+      setActiveChapter(null);
+    }
   };
 
   const isChapterDone = (chapter: IChapter) => completedChapterIds.has(chapter.id);
@@ -673,11 +692,19 @@ const CourseLearner: React.FC = () => {
                     <ClipboardList size={14} />
                     Chapter Test
                   </Button>
+                ) : slideIndex === totalSlides - 1 ? (
+                  <Button
+                    size="sm"
+                    onClick={handleNextChapter}
+                    className="flex items-center gap-1.5 min-w-[110px]"
+                  >
+                    Next Chapter
+                    <ChevronRight size={14} />
+                  </Button>
                 ) : (
                   <Button
                     size="sm"
                     onClick={handleNext}
-                    disabled={slideIndex === totalSlides - 1}
                     className="flex items-center gap-1.5 min-w-[90px]"
                   >
                     Next
