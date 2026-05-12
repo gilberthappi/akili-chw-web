@@ -17,13 +17,14 @@ import {
   BookOpen,
   Trophy,
   Layers,
+  Lock,
 } from "lucide-react";
 import { Button } from "@/components/common/Button";
 import TopBar from "@/components/navigation/TopBar";
 import { getCourseSectionsWithChapters, getChapterSlides, getChapterMidTestId } from "@/services/course.service";
 import { getCourseFinalTestIds } from "@/services/finaltest.service";
 import { markSlideComplete, getCourseProgress, getStudentStatistics } from "@/services/progress.service";
-import { ISection, IChapter, ISlide } from "@/types";
+import { ISection, IChapter, ISlide, ICourseIntro } from "@/types";
 
 const VIDEO_EXTS = new Set(["mp4", "webm", "avi", "mov", "mkv", "flv", "wmv", "m4v", "3gp"]);
 
@@ -109,6 +110,7 @@ const CourseLearner: React.FC = () => {
   const navigate = useNavigate();
 
   const [courseTitle, setCourseTitle] = useState("");
+  const [courseIntro, setCourseIntro] = useState<ICourseIntro | null>(null);
   const [sections, setSections] = useState<ISection[]>([]);
   const [isLoadingCourse, setIsLoadingCourse] = useState(true);
   const [courseError, setCourseError] = useState<string | null>(null);
@@ -123,10 +125,12 @@ const CourseLearner: React.FC = () => {
   const [chapterMidTestId, setChapterMidTestId] = useState<string | null>(null);
   const [finalTestId, setFinalTestId] = useState<string | null>(null);
   const [finalExamId, setFinalExamId] = useState<string | null>(null);
+  const [isCourseComplete, setIsCourseComplete] = useState(false);
+  const [finalTestPassed, setFinalTestPassed] = useState(false);
   const [outlineOpen, setOutlineOpen] = useState(false);
   const markingRef = useRef(false);
 
-  const loadChapter = useCallback(async (chapter: IChapter, initialSlideId?: string) => {
+  const loadChapter = useCallback(async (chapter: IChapter, initialSlideId?: string, resumeCompletedIds?: Set<string>) => {
     setActiveChapter(chapter);
     setSlideIndex(0);
     setSlides([]);
@@ -137,7 +141,10 @@ const CourseLearner: React.FC = () => {
       const data = res.data as unknown as { slides?: ISlide[] };
       const loadedSlides = data?.slides ?? [];
       setSlides(loadedSlides);
-      if (initialSlideId) {
+      if (resumeCompletedIds) {
+        const firstUncompleted = loadedSlides.findIndex((s) => !resumeCompletedIds.has(s.id));
+        if (firstUncompleted > 0) setSlideIndex(firstUncompleted);
+      } else if (initialSlideId) {
         const idx = loadedSlides.findIndex((s) => s.id === initialSlideId);
         if (idx > 0) setSlideIndex(idx);
       }
@@ -156,8 +163,9 @@ const CourseLearner: React.FC = () => {
     setCourseError(null);
     getCourseSectionsWithChapters(courseId)
       .then(async (res) => {
-        const data = res.data as unknown as { title?: string; sections?: ISection[] };
+        const data = res.data as unknown as { title?: string; sections?: ISection[]; intro?: ICourseIntro };
         setCourseTitle(data?.title ?? "Course");
+        setCourseIntro(data?.intro ?? null);
         const secs: ISection[] = data?.sections ?? [];
         setSections(secs);
         if (secs.length === 0) return;
@@ -172,14 +180,23 @@ const CourseLearner: React.FC = () => {
               .filter((cp) => cp.isCompleted)
               .map((cp) => cp.chapterId);
             setCompletedChapterIds(new Set(doneChapters));
+            setFinalTestPassed(progress.finalTestStatus?.passed ?? false);
           }
+          const courseStats = stats.courses.find((c) => c.courseId === courseId);
+          setIsCourseComplete(courseStats?.isCompleted ?? false);
           const loc = stats.lastViewedLocation;
+          if (courseStats?.isCompleted) {
+            // Course 100% complete — show empty state for now (course intro will replace this in #3)
+            setOpenSectionId(secs[0].id);
+            return;
+          }
           if (loc && loc.courseId === courseId) {
             for (const sec of secs) {
               const ch = sec.chapters?.find((c) => c.id === loc.chapterId);
               if (ch) {
                 setOpenSectionId(sec.id);
-                loadChapter(ch, loc.slideId);
+                const completed = new Set(progress?.completedSlideIds ?? []);
+                loadChapter(ch, undefined, completed);
                 return;
               }
             }
@@ -277,8 +294,19 @@ const CourseLearner: React.FC = () => {
           </div>
 
           <div className="flex-1 overflow-y-auto py-3 space-y-1">
-            {/* Pre-Test */}
-            <div className="px-3">
+            {/* Course Intro & Pre-Test */}
+            <div className="px-3 space-y-1">
+              <button
+                onClick={() => { setActiveChapter(null); setSlides([]); setOutlineOpen(false); }}
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                  !activeChapter
+                    ? "bg-[#3363AD] text-white"
+                    : "text-gray-600 hover:bg-gray-100 border border-gray-200 bg-white"
+                }`}
+              >
+                <BookOpen size={15} className="flex-shrink-0" />
+                Course Overview
+              </button>
               <button
                 onClick={() => { navigate(`/learn/${courseId}/pre-test`); setOutlineOpen(false); }}
                 className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-[#3363AD] hover:bg-[#3363AD]/8 border border-[#3363AD]/20 bg-white transition-colors"
@@ -403,20 +431,52 @@ const CourseLearner: React.FC = () => {
                 <div className="space-y-1">
                   {finalTestId && (
                     <button
-                      onClick={() => { navigate(`/learn/${courseId}/final-test/${finalTestId}`); setOutlineOpen(false); }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-green-700 hover:bg-green-50 border border-green-200 bg-white transition-colors"
+                      onClick={() => {
+                        if (!isCourseComplete) return;
+                        navigate(`/learn/${courseId}/final-test/${finalTestId}`);
+                        setOutlineOpen(false);
+                      }}
+                      disabled={!isCourseComplete}
+                      title={!isCourseComplete ? "Complete all lessons to unlock" : undefined}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium border transition-colors ${
+                        isCourseComplete
+                          ? "text-green-700 hover:bg-green-50 border-green-200 bg-white"
+                          : "text-gray-400 border-gray-200 bg-gray-50 cursor-not-allowed"
+                      }`}
                     >
-                      <Trophy size={14} className="flex-shrink-0" />
+                      {isCourseComplete
+                        ? <Trophy size={14} className="flex-shrink-0" />
+                        : <Lock size={14} className="flex-shrink-0" />
+                      }
                       Final Test
+                      {!isCourseComplete && (
+                        <span className="ml-auto text-[10px]">Locked</span>
+                      )}
                     </button>
                   )}
                   {finalExamId && (
                     <button
-                      onClick={() => { navigate(`/learn/${courseId}/final-exam/${finalExamId}`); setOutlineOpen(false); }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-purple-700 hover:bg-purple-50 border border-purple-200 bg-white transition-colors"
+                      onClick={() => {
+                        if (!finalTestPassed) return;
+                        navigate(`/learn/${courseId}/final-exam/${finalExamId}`);
+                        setOutlineOpen(false);
+                      }}
+                      disabled={!finalTestPassed}
+                      title={!finalTestPassed ? "Pass the Final Test to unlock" : undefined}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium border transition-colors ${
+                        finalTestPassed
+                          ? "text-purple-700 hover:bg-purple-50 border-purple-200 bg-white"
+                          : "text-gray-400 border-gray-200 bg-gray-50 cursor-not-allowed"
+                      }`}
                     >
-                      <GraduationCap size={14} className="flex-shrink-0" />
+                      {finalTestPassed
+                        ? <GraduationCap size={14} className="flex-shrink-0" />
+                        : <Lock size={14} className="flex-shrink-0" />
+                      }
                       Final Exam
+                      {!finalTestPassed && (
+                        <span className="ml-auto text-[10px]">Locked</span>
+                      )}
                     </button>
                   )}
                 </div>
@@ -466,13 +526,38 @@ const CourseLearner: React.FC = () => {
         {/* ── Main content ─────────────────────────────────────────────── */}
         <main className="flex-1 flex flex-col overflow-hidden bg-white">
           {!activeChapter ? (
-            <div className="flex-1 flex flex-col items-center justify-center gap-4 text-gray-300 p-8">
-              <BookOpen size={56} className="opacity-40" />
-              <div className="text-center space-y-1">
-                <p className="text-sm font-semibold text-gray-500">Select a lesson to begin</p>
-                <p className="text-xs text-gray-400">
-                  Choose a chapter from the outline on the left
-                </p>
+            <div className="flex-1 overflow-y-auto">
+              {courseIntro?.bannerImage && (
+                <div className="w-full overflow-hidden bg-gray-100" style={{ maxHeight: 260 }}>
+                  <img
+                    src={courseIntro.bannerImage}
+                    alt=""
+                    className="w-full h-full object-cover"
+                    style={{ maxHeight: 260 }}
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                  />
+                </div>
+              )}
+              <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
+                <div className="space-y-3">
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    {courseIntro?.title ?? courseTitle}
+                  </h2>
+                  {courseIntro?.summary && (
+                    <p className="text-sm text-gray-600 leading-relaxed">{courseIntro.summary}</p>
+                  )}
+                </div>
+                <Button
+                  onClick={() => {
+                    const firstSec = sections[0];
+                    const firstChapter = firstSec?.chapters?.[0];
+                    if (firstChapter) { setOpenSectionId(firstSec.id); loadChapter(firstChapter); }
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  <PlayCircle size={16} />
+                  Start Learning
+                </Button>
               </div>
             </div>
           ) : isLoadingSlides ? (
