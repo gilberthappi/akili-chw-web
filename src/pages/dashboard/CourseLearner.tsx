@@ -492,24 +492,30 @@ const CourseLearner: React.FC = () => {
                   {finalExamId && (
                     <button
                       onClick={() => {
-                        if (!finalTestPassed) return;
+                        if (!isCourseComplete || !finalTestPassed) return;
                         navigate(`/learn/${courseId}/final-exam/${finalExamId}`);
                         setOutlineOpen(false);
                       }}
-                      disabled={!finalTestPassed}
-                      title={!finalTestPassed ? "Pass the Final Test to unlock" : undefined}
+                      disabled={!isCourseComplete || !finalTestPassed}
+                      title={
+                        !isCourseComplete
+                          ? "Complete all lessons to unlock"
+                          : !finalTestPassed
+                          ? "Pass the Final Test to unlock"
+                          : undefined
+                      }
                       className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium border transition-colors ${
-                        finalTestPassed
+                        isCourseComplete && finalTestPassed
                           ? "text-purple-700 hover:bg-purple-50 border-purple-200 bg-white"
                           : "text-gray-400 border-gray-200 bg-gray-50 cursor-not-allowed"
                       }`}
                     >
-                      {finalTestPassed
+                      {isCourseComplete && finalTestPassed
                         ? <GraduationCap size={14} className="flex-shrink-0" />
                         : <Lock size={14} className="flex-shrink-0" />
                       }
                       Final Exam
-                      {!finalTestPassed && (
+                      {(!isCourseComplete || !finalTestPassed) && (
                         <span className="ml-auto text-[10px]">Locked</span>
                       )}
                     </button>
