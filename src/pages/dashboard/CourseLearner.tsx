@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import {
   ArrowLeft,
   ChevronDown,
@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/common/Button";
 import TopBar from "@/components/navigation/TopBar";
-import { getCourseSectionsWithChapters, getChapterSlides, getChapterMidTestId } from "@/services/course.service";
+import { getCourseSectionsWithChapters, getChapterSlides } from "@/services/course.service";
 import { getCourseFinalTestIds } from "@/services/finaltest.service";
 import { markSlideComplete, getCourseProgress, getStudentStatistics } from "@/services/progress.service";
 import { ISection, IChapter, ISlide, ICourseIntro } from "@/types";
@@ -108,6 +108,7 @@ const SlideIcon: React.FC<{ url?: string; size?: number }> = ({ url, size = 14 }
 const CourseLearner: React.FC = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [courseTitle, setCourseTitle] = useState("");
   const [courseIntro, setCourseIntro] = useState<ICourseIntro | null>(null);
@@ -122,11 +123,13 @@ const CourseLearner: React.FC = () => {
   const [slideIndex, setSlideIndex] = useState(0);
   const [completedSlideIds, setCompletedSlideIds] = useState<Set<string>>(new Set());
   const [completedChapterIds, setCompletedChapterIds] = useState<Set<string>>(new Set());
+  const [serverCompletedChapterIds, setServerCompletedChapterIds] = useState<Set<string>>(new Set());
   const [chapterMidTestId, setChapterMidTestId] = useState<string | null>(null);
   const [finalTestId, setFinalTestId] = useState<string | null>(null);
   const [finalExamId, setFinalExamId] = useState<string | null>(null);
   const [isCourseComplete, setIsCourseComplete] = useState(false);
   const [finalTestPassed, setFinalTestPassed] = useState(false);
+  const [finalExamPassed, setFinalExamPassed] = useState(false);
   const [outlineOpen, setOutlineOpen] = useState(false);
   const markingRef = useRef(false);
 
@@ -153,7 +156,7 @@ const CourseLearner: React.FC = () => {
     } finally {
       setIsLoadingSlides(false);
     }
-    getChapterMidTestId(chapter.id).then(setChapterMidTestId).catch(() => {});
+    setChapterMidTestId(chapter.midTest?.id ?? null);
     setOutlineOpen(false);
   }, []);
 
@@ -161,6 +164,10 @@ const CourseLearner: React.FC = () => {
     if (!courseId) return;
     setIsLoadingCourse(true);
     setCourseError(null);
+    const state = location.state as { completedChapterId?: string; passedFinalTest?: boolean; passedFinalExam?: boolean } | null;
+    const completedChapterId = state?.completedChapterId ?? null;
+    const passedFinalTestFromState = state?.passedFinalTest ?? false;
+    const passedFinalExamFromState = state?.passedFinalExam ?? false;
     getCourseSectionsWithChapters(courseId)
       .then(async (res) => {
         const data = res.data as unknown as { title?: string; sections?: ISection[]; intro?: ICourseIntro };
@@ -170,23 +177,55 @@ const CourseLearner: React.FC = () => {
         setSections(secs);
         if (secs.length === 0) return;
         try {
-          const [stats, progress] = await Promise.all([
+          const [stats, progress, finalIds] = await Promise.all([
             getStudentStatistics(),
             getCourseProgress(courseId),
+            getCourseFinalTestIds(courseId).catch(() => ({ finalTestId: null as string | null, finalExamId: null as string | null })),
           ]);
+          const ftId = finalIds.finalTestId;
+          const feId = finalIds.finalExamId;
+          setFinalTestId(ftId);
+          setFinalExamId(feId);
           if (progress) {
             setCompletedSlideIds(new Set(progress.completedSlideIds));
             const doneChapters = progress.chapterProgress
               .filter((cp) => cp.isCompleted)
               .map((cp) => cp.chapterId);
-            setCompletedChapterIds(new Set(doneChapters));
-            setFinalTestPassed(progress.finalTestStatus?.passed ?? false);
+            // Merge server completions with the just-finished chapter (if any)
+            const mergedDone = new Set(doneChapters);
+            if (completedChapterId) mergedDone.add(completedChapterId);
+            setCompletedChapterIds(mergedDone);
+            setServerCompletedChapterIds(mergedDone);
+            setFinalTestPassed((progress.finalTestStatus?.passed ?? false) || passedFinalTestFromState);
+            setFinalExamPassed((progress.finalExamStatus?.passed ?? false) || passedFinalExamFromState);
           }
           const courseStats = stats.courses.find((c) => c.courseId === courseId);
           setIsCourseComplete(courseStats?.isCompleted ?? false);
+
+          // If returning from a mid-test, advance to the next chapter
+          if (completedChapterId) {
+            let found = false;
+            for (const sec of secs) {
+              for (const ch of (sec.chapters ?? [])) {
+                if (found) {
+                  setOpenSectionId(sec.id);
+                  loadChapter(ch);
+                  return;
+                }
+                if (ch.id === completedChapterId) found = true;
+              }
+            }
+            // No next chapter — last chapter done, go to final test
+            if (ftId) {
+              navigate(`/learn/${courseId}/final-test/${ftId}`);
+            } else {
+              setOpenSectionId(secs[0].id);
+            }
+            return;
+          }
+
           const loc = stats.lastViewedLocation;
           if (courseStats?.isCompleted) {
-            // Course 100% complete — show empty state for now (course intro will replace this in #3)
             setOpenSectionId(secs[0].id);
             return;
           }
@@ -206,12 +245,6 @@ const CourseLearner: React.FC = () => {
       })
       .catch(() => setCourseError("Failed to load course. Please go back and try again."))
       .finally(() => setIsLoadingCourse(false));
-    getCourseFinalTestIds(courseId)
-      .then(({ finalTestId: ftId, finalExamId: feId }) => {
-        setFinalTestId(ftId);
-        setFinalExamId(feId);
-      })
-      .catch(() => {});
   }, [courseId, loadChapter]);
 
   const markCurrentComplete = useCallback(async () => {
@@ -245,6 +278,22 @@ const CourseLearner: React.FC = () => {
   const handleNext = async () => {
     await markCurrentComplete();
     if (slideIndex < slides.length - 1) setSlideIndex(slideIndex + 1);
+  };
+
+  const handleNextChapter = async () => {
+    await markCurrentComplete();
+    let found = false;
+    for (const sec of sections) {
+      for (const ch of (sec.chapters ?? [])) {
+        if (found) { setOpenSectionId(sec.id); loadChapter(ch); return; }
+        if (ch.id === activeChapter?.id) found = true;
+      }
+    }
+    if (finalTestId) {
+      navigate(`/learn/${courseId}/final-test/${finalTestId}`);
+    } else {
+      setActiveChapter(null);
+    }
   };
 
   const isChapterDone = (chapter: IChapter) => completedChapterIds.has(chapter.id);
@@ -395,13 +444,23 @@ const CourseLearner: React.FC = () => {
                                   <button
                                     onClick={() =>
                                       navigate(
-                                        `/learn/${courseId}/mid-test/${chapterMidTestId}?chapter=${encodeURIComponent(chapter.title)}`
+                                        `/learn/${courseId}/mid-test/${chapterMidTestId}?chapter=${encodeURIComponent(chapter.title)}&chapterId=${chapter.id}`
                                       )
                                     }
-                                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium text-amber-700 hover:bg-amber-50 transition-colors"
+                                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                                      serverCompletedChapterIds.has(chapter.id)
+                                        ? "text-green-700 hover:bg-green-50"
+                                        : "text-amber-700 hover:bg-amber-50"
+                                    }`}
                                   >
-                                    <ClipboardList size={12} className="flex-shrink-0" />
+                                    {serverCompletedChapterIds.has(chapter.id)
+                                      ? <CheckCircle2 size={12} className="flex-shrink-0 text-green-500" />
+                                      : <ClipboardList size={12} className="flex-shrink-0" />
+                                    }
                                     Chapter Test
+                                    {serverCompletedChapterIds.has(chapter.id) && (
+                                      <span className="ml-auto text-[10px] text-green-600">Done</span>
+                                    )}
                                   </button>
                                 )}
                               </div>
@@ -439,12 +498,16 @@ const CourseLearner: React.FC = () => {
                       disabled={!isCourseComplete}
                       title={!isCourseComplete ? "Complete all lessons to unlock" : undefined}
                       className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium border transition-colors ${
-                        isCourseComplete
+                        isCourseComplete && finalTestPassed
+                          ? "text-green-700 bg-green-50 border-green-300"
+                          : isCourseComplete
                           ? "text-green-700 hover:bg-green-50 border-green-200 bg-white"
                           : "text-gray-400 border-gray-200 bg-gray-50 cursor-not-allowed"
                       }`}
                     >
-                      {isCourseComplete
+                      {isCourseComplete && finalTestPassed
+                        ? <CheckCircle2 size={14} className="flex-shrink-0 text-green-500" />
+                        : isCourseComplete
                         ? <Trophy size={14} className="flex-shrink-0" />
                         : <Lock size={14} className="flex-shrink-0" />
                       }
@@ -452,30 +515,46 @@ const CourseLearner: React.FC = () => {
                       {!isCourseComplete && (
                         <span className="ml-auto text-[10px]">Locked</span>
                       )}
+                      {finalTestPassed && (
+                        <span className="ml-auto text-[10px] text-green-600">Passed</span>
+                      )}
                     </button>
                   )}
                   {finalExamId && (
                     <button
                       onClick={() => {
-                        if (!finalTestPassed) return;
+                        if (!isCourseComplete || !finalTestPassed) return;
                         navigate(`/learn/${courseId}/final-exam/${finalExamId}`);
                         setOutlineOpen(false);
                       }}
-                      disabled={!finalTestPassed}
-                      title={!finalTestPassed ? "Pass the Final Test to unlock" : undefined}
+                      disabled={!isCourseComplete || !finalTestPassed}
+                      title={
+                        !isCourseComplete
+                          ? "Complete all lessons to unlock"
+                          : !finalTestPassed
+                          ? "Pass the Final Test to unlock"
+                          : undefined
+                      }
                       className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium border transition-colors ${
-                        finalTestPassed
+                        isCourseComplete && finalTestPassed && finalExamPassed
+                          ? "text-purple-700 bg-purple-50 border-purple-300"
+                          : isCourseComplete && finalTestPassed
                           ? "text-purple-700 hover:bg-purple-50 border-purple-200 bg-white"
                           : "text-gray-400 border-gray-200 bg-gray-50 cursor-not-allowed"
                       }`}
                     >
-                      {finalTestPassed
+                      {isCourseComplete && finalTestPassed && finalExamPassed
+                        ? <CheckCircle2 size={14} className="flex-shrink-0 text-purple-500" />
+                        : isCourseComplete && finalTestPassed
                         ? <GraduationCap size={14} className="flex-shrink-0" />
                         : <Lock size={14} className="flex-shrink-0" />
                       }
                       Final Exam
-                      {!finalTestPassed && (
+                      {(!isCourseComplete || !finalTestPassed) && (
                         <span className="ml-auto text-[10px]">Locked</span>
+                      )}
+                      {finalExamPassed && (
+                        <span className="ml-auto text-[10px] text-purple-600">Passed</span>
                       )}
                     </button>
                   )}
@@ -621,21 +700,30 @@ const CourseLearner: React.FC = () => {
                 {slideIndex === totalSlides - 1 && chapterMidTestId ? (
                   <Button
                     size="sm"
-                    onClick={() =>
+                    onClick={async () => {
+                      await markCurrentComplete();
                       navigate(
-                        `/learn/${courseId}/mid-test/${chapterMidTestId}?chapter=${encodeURIComponent(activeChapter?.title ?? "")}`
-                      )
-                    }
+                        `/learn/${courseId}/mid-test/${chapterMidTestId}?chapter=${encodeURIComponent(activeChapter?.title ?? "")}&chapterId=${activeChapter?.id ?? ""}`
+                      );
+                    }}
                     className="flex items-center gap-1.5 min-w-[110px] bg-amber-600 hover:bg-amber-700"
                   >
                     <ClipboardList size={14} />
                     Chapter Test
                   </Button>
+                ) : slideIndex === totalSlides - 1 ? (
+                  <Button
+                    size="sm"
+                    onClick={handleNextChapter}
+                    className="flex items-center gap-1.5 min-w-[110px]"
+                  >
+                    Next Chapter
+                    <ChevronRight size={14} />
+                  </Button>
                 ) : (
                   <Button
                     size="sm"
                     onClick={handleNext}
-                    disabled={slideIndex === totalSlides - 1}
                     className="flex items-center gap-1.5 min-w-[90px]"
                   >
                     Next
