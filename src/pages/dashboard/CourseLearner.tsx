@@ -207,14 +207,19 @@ const CourseLearner: React.FC = () => {
             setServerCompletedChapterIds(mergedDone);
             setFinalTestPassed((progress.finalTestStatus?.passed ?? false) || passedFinalTestFromState);
             setFinalExamPassed((progress.finalExamStatus?.passed ?? false) || passedFinalExamFromState);
+            const localPreTestKey = `pretest_attempted_${courseId}`;
             if (progress.preTestStatus !== null) {
               setPreTestExists(true);
-              preTestGatePassed = progress.preTestStatus.attempted;
+              preTestGatePassed = progress.preTestStatus.attempted
+                || localStorage.getItem(localPreTestKey) === "true";
             } else {
               setPreTestExists(false);
               preTestGatePassed = true;
             }
-            if (preTestCompleted) preTestGatePassed = true;
+            if (preTestCompleted) {
+              preTestGatePassed = true;
+              localStorage.setItem(localPreTestKey, "true");
+            }
             setPreTestAttempted(preTestGatePassed);
           }
           const courseStats = stats.courses.find((c) => c.courseId === courseId);
