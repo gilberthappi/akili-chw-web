@@ -435,12 +435,17 @@ const CourseLearner: React.FC = () => {
               {sections.map((section) => {
                 const firstChapter = section.chapters?.[0];
                 const sectionLocked = firstChapter ? !isChapterAccessible(firstChapter) : true;
+                const sectionChapters = section.chapters ?? [];
+                const sectionDone = !sectionLocked && sectionChapters.length > 0 &&
+                  sectionChapters.every(ch => completedChapterIds.has(ch.id));
                 return (
                 <div key={section.id} className="mb-1">
                   <button
                     className={`w-full flex items-center justify-between px-2 py-2 text-xs font-semibold rounded-lg transition-colors ${
                       sectionLocked
                         ? "text-gray-400 cursor-not-allowed"
+                        : sectionDone
+                        ? "text-green-700 hover:bg-green-50"
                         : "text-gray-500 hover:bg-gray-100"
                     }`}
                     onClick={() => {
@@ -450,16 +455,23 @@ const CourseLearner: React.FC = () => {
                     <div className="flex items-center gap-2 min-w-0">
                       {sectionLocked
                         ? <Lock size={12} className="flex-shrink-0 text-gray-300" />
+                        : sectionDone
+                        ? <CheckCircle2 size={12} className="flex-shrink-0 text-green-500" />
                         : <Layers size={12} className="flex-shrink-0 text-gray-400" />
                       }
                       <span className="text-left line-clamp-1">{section.title}</span>
                     </div>
-                    {!sectionLocked && (
-                      <ChevronDown
-                        size={12}
-                        className={`flex-shrink-0 ml-1 transition-transform ${openSectionId === section.id ? "rotate-180" : ""}`}
-                      />
-                    )}
+                    <div className="flex items-center gap-1 flex-shrink-0 ml-1">
+                      {sectionDone && (
+                        <span className="text-[10px] text-green-600">Done</span>
+                      )}
+                      {!sectionLocked && (
+                        <ChevronDown
+                          size={12}
+                          className={`transition-transform ${openSectionId === section.id ? "rotate-180" : ""}`}
+                        />
+                      )}
+                    </div>
                   </button>
 
                   {openSectionId === section.id && (
