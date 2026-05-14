@@ -30,9 +30,9 @@ export const TrainingFunnelCard: React.FC<TrainingFunnelCardProps> = ({ courses 
 
   const steps = [
     { label: "Enrolled", value: selectedCourse.enrolled, color: "#3363AD" },
-    { label: "In Progress", value: selectedCourse.inProgress, color: "rgba(51, 99, 173, 0.70)" },
-    { label: "Completed", value: selectedCourse.completed, color: "rgba(51, 99, 173, 0.45)" },
-    { label: "Certificates", value: Math.round(selectedCourse.rate), color: "rgba(51, 99, 173, 0.25)" },
+    { label: "In Progress", value: selectedCourse.inProgress, color: "#5B86C4" },
+    { label: "Completed", value: selectedCourse.completed, color: "#799DCD" },
+    { label: "Certificates", value: Math.round(selectedCourse.rate), color: "#A1BCE0" },
   ];
 
   return (

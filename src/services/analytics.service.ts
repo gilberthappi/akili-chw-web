@@ -25,12 +25,12 @@ export const getAnalytics = async (
   return (await api.get(`/analytics${queryParams}`)).data;
 };
 
-export const getCourseAnalytics = async (): Promise<ICourseAnalyticsResponse> => {
-  return (await api.get("export/dashboard/course/analytics")).data;
+export const getCourseAnalytics = async (qs: string = ""): Promise<ICourseAnalyticsResponse> => {
+  return (await api.get(`export/dashboard/course/analytics${qs ? '?' + qs : ''}`)).data;
 };
 
-export const getStudentAnalytics = async (): Promise<IStudentAnalyticsResponse> => {
-  return (await api.get("/export/dashboard/student/analytics")).data;
+export const getStudentAnalytics = async (qs: string = ""): Promise<IStudentAnalyticsResponse> => {
+  return (await api.get(`/export/dashboard/student/analytics${qs ? '?' + qs : ''}`)).data;
 };
 
 export const getTrainerAnalytics = async (
@@ -39,36 +39,36 @@ export const getTrainerAnalytics = async (
   return (await api.get(`/analytics/trainers/${trainerId}`)).data;
 };
 
-export const getTestScoreAnalytics = async (): Promise<
+export const getTestScoreAnalytics = async (qs: string = ""): Promise<
   IResponse<ITestScoreAnalytics>
 > => {
-  return (await api.get("/export/dashboard/test-score/analytics")).data;
+  return (await api.get(`/export/dashboard/test-score/analytics${qs ? '?' + qs : ''}`)).data;
 };
 
-export const getCommunicationsAnalytics = async (): Promise<
+export const getCommunicationsAnalytics = async (qs: string = ""): Promise<
   IResponse<ICommunicationsAnalytics>
 > => {
-  return (await api.get("/export/dashboard/communications/analytics")).data;
+  return (await api.get(`/export/dashboard/communications/analytics${qs ? '?' + qs : ''}`)).data;
 };
 
-export const getDemographicsAnalytics = async (): Promise<
+export const getDemographicsAnalytics = async (qs: string = ""): Promise<
   IResponse<IDemographicsAnalytics>
 > => {
-  return (await api.get("/export/dashboard/demographics/analytics")).data;
+  return (await api.get(`/export/dashboard/demographics/analytics${qs ? '?' + qs : ''}`)).data;
 };
 
-export const getCHWDashboardStats = async (): Promise<IResponse<ICHWStats>> => {
-  return (await api.get("/export/dashboard/chw-stats")).data;
+export const getCHWDashboardStats = async (qs: string = ""): Promise<IResponse<ICHWStats>> => {
+  return (await api.get(`/export/dashboard/chw-stats${qs ? '?' + qs : ''}`)).data;
 };
 
-export const getCourseDurationStats = async (): Promise<
+export const getCourseDurationStats = async (qs: string = ""): Promise<
   IResponse<ICourseDurationStats>
 > => {
-  return (await api.get("/export/dashboard/course-duration")).data;
+  return (await api.get(`/export/dashboard/course-duration${qs ? '?' + qs : ''}`)).data;
 };
 
-export const getRecentActivityFeed = async (): Promise<
+export const getRecentActivityFeed = async (qs: string = ""): Promise<
   IResponse<IRecentActivityFeed>
 > => {
-  return (await api.get("/export/dashboard/recent-activity")).data;
+  return (await api.get(`/export/dashboard/recent-activity${qs ? '?' + qs : ''}`)).data;
 };

@@ -24,6 +24,14 @@ interface FilteredData {
   filteredCommTrend: ICommunicationsAnalytics["monthlyTrend"];
 }
 
+const PROVINCE_DISTRICTS: Record<string, string[]> = {
+  "Kigali City": ["Gasabo", "Kicukiro", "Nyarugenge"],
+  "Eastern": ["Bugesera", "Gatsibo", "Kayonza", "Kirehe", "Ngoma", "Nyagatare", "Rwamagana"],
+  "Northern": ["Burera", "Gakenke", "Gicumbi", "Musanze", "Rulindo"],
+  "Southern": ["Gisagara", "Huye", "Kamonyi", "Muhanga", "Nyamagabe", "Nyanza", "Nyaruguru", "Ruhango"],
+  "Western": ["Karongi", "Ngororero", "Nyabihu", "Nyamasheke", "Rubavu", "Rusizi", "Rutsiro"],
+};
+
 interface UseDashboardFiltersInput {
   byProvince: { province: string; totalChws: number; activeChws: number; hospitals: number }[];
   demographics: IDemographicsAnalytics | null;
@@ -39,28 +47,22 @@ const extractYear = (monthStr: string): string =>
 const extractMonth = (monthStr: string): string =>
   monthStr.split(" ")[0] ?? "";
 
-export const useDashboardFilters = ({
-  byProvince,
-  demographics,
-  enrollmentTrends,
-  communications,
-}: UseDashboardFiltersInput): FilteredData => {
-  const [filters, setFilters] = useState<IDashboardFilters>({
-    province: "", district: "", gender: "", year: "", month: "",
-  });
+export const useDashboardFilters = (
+  { byProvince, demographics, enrollmentTrends, communications }: UseDashboardFiltersInput,
+  filters: IDashboardFilters,
+  setFilters: (f: IDashboardFilters) => void
+): FilteredData => {
 
   // ── Derive available options ──────────────────────────────────
   const availableProvinces = useMemo(
-    () => [...new Set(byProvince.map((r) => r.province).filter(Boolean))].sort(),
-    [byProvince],
+    () => Object.keys(PROVINCE_DISTRICTS).sort(),
+    [],
   );
 
-  const availableDistricts = useMemo(
-    () => [...new Set(
-      (demographics?.byDistrict ?? []).map((r) => r.district ?? "").filter(Boolean)
-    )].sort(),
-    [demographics],
-  );
+  const availableDistricts = useMemo(() => {
+    if (!filters.province) return [];
+    return PROVINCE_DISTRICTS[filters.province] ?? [];
+  }, [filters.province]);
 
   const availableGenders = useMemo(
     () => [...new Set(

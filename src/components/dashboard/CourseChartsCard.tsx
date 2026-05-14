@@ -187,7 +187,7 @@ export const CourseChartsCard: React.FC<CourseChartsCardProps> = ({
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Bar
                   dataKey='Enrolled'
-                  fill='rgba(51, 99, 173, 0.25)'
+                  fill='#82A5D6'
                   radius={[4, 4, 0, 0]}
                 />
                 <Bar dataKey='Completed' fill='#3363AD' radius={[4, 4, 0, 0]} />
@@ -281,13 +281,13 @@ export const CourseChartsCard: React.FC<CourseChartsCardProps> = ({
                 <Legend wrapperStyle={{ fontSize: 11, marginTop: 8 }} />
                 <Bar
                   dataKey='Pre-Test'
-                  fill='rgba(51, 99, 173, 0.30)'
+                  fill='#6E95CB'
                   radius={[4, 4, 0, 0]}
                 />
                 <Bar dataKey='Post-Test' fill='#3363AD' radius={[4, 4, 0, 0]} />
                 <Bar
                   dataKey='Knowledge Gain'
-                  fill='rgba(51, 99, 173, 0.60)'
+                  fill='#4B7ABF'
                   radius={[4, 4, 0, 0]}
                 />
               </BarChart>
