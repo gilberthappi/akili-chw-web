@@ -130,6 +130,8 @@ const CourseLearner: React.FC = () => {
   const [isCourseComplete, setIsCourseComplete] = useState(false);
   const [finalTestPassed, setFinalTestPassed] = useState(false);
   const [finalExamPassed, setFinalExamPassed] = useState(false);
+  const [preTestAttempted, setPreTestAttempted] = useState(false);
+  const [preTestExists, setPreTestExists] = useState(true);
   const [outlineOpen, setOutlineOpen] = useState(false);
   const [sidebarChapterId, setSidebarChapterId] = useState<string | null>(null);
   const markingRef = useRef(false);
@@ -169,10 +171,11 @@ const CourseLearner: React.FC = () => {
     if (!courseId) return;
     setIsLoadingCourse(true);
     setCourseError(null);
-    const state = location.state as { completedChapterId?: string; passedFinalTest?: boolean; passedFinalExam?: boolean } | null;
+    const state = location.state as { completedChapterId?: string; passedFinalTest?: boolean; passedFinalExam?: boolean; preTestCompleted?: boolean } | null;
     const completedChapterId = state?.completedChapterId ?? null;
     const passedFinalTestFromState = state?.passedFinalTest ?? false;
     const passedFinalExamFromState = state?.passedFinalExam ?? false;
+    const preTestCompleted = state?.preTestCompleted ?? false;
     getCourseSectionsWithChapters(courseId)
       .then(async (res) => {
         const data = res.data as unknown as { title?: string; sections?: ISection[]; intro?: ICourseIntro };
@@ -191,18 +194,33 @@ const CourseLearner: React.FC = () => {
           const feId = finalIds.finalExamId;
           setFinalTestId(ftId);
           setFinalExamId(feId);
+          let mergedDone = new Set<string>();
+          let preTestGatePassed = false;
           if (progress) {
             setCompletedSlideIds(new Set(progress.completedSlideIds));
             const doneChapters = progress.chapterProgress
               .filter((cp) => cp.isCompleted)
               .map((cp) => cp.chapterId);
-            // Merge server completions with the just-finished chapter (if any)
-            const mergedDone = new Set(doneChapters);
+            mergedDone = new Set(doneChapters);
             if (completedChapterId) mergedDone.add(completedChapterId);
             setCompletedChapterIds(mergedDone);
             setServerCompletedChapterIds(mergedDone);
             setFinalTestPassed((progress.finalTestStatus?.passed ?? false) || passedFinalTestFromState);
             setFinalExamPassed((progress.finalExamStatus?.passed ?? false) || passedFinalExamFromState);
+            const localPreTestKey = `pretest_attempted_${courseId}`;
+            if (progress.preTestStatus !== null) {
+              setPreTestExists(true);
+              preTestGatePassed = progress.preTestStatus.attempted
+                || localStorage.getItem(localPreTestKey) === "true";
+            } else {
+              setPreTestExists(false);
+              preTestGatePassed = true;
+            }
+            if (preTestCompleted) {
+              preTestGatePassed = true;
+              localStorage.setItem(localPreTestKey, "true");
+            }
+            setPreTestAttempted(preTestGatePassed);
           }
           const courseStats = stats.courses.find((c) => c.courseId === courseId);
           setIsCourseComplete(courseStats?.isCompleted ?? false);
@@ -229,19 +247,38 @@ const CourseLearner: React.FC = () => {
             return;
           }
 
+          // If returning from pre-test submission, load chapter 1
+          if (preTestCompleted) {
+            const firstSec = secs[0];
+            const firstChapter = firstSec?.chapters?.[0];
+            if (firstChapter) {
+              setOpenSectionId(firstSec.id);
+              loadChapter(firstChapter);
+              return;
+            }
+          }
+
           const loc = stats.lastViewedLocation;
           if (courseStats?.isCompleted) {
             setOpenSectionId(secs[0].id);
             return;
           }
           if (loc && loc.courseId === courseId) {
+            const allChaps = secs.flatMap(s => s.chapters ?? []);
             for (const sec of secs) {
               const ch = sec.chapters?.find((c) => c.id === loc.chapterId);
               if (ch) {
-                setOpenSectionId(sec.id);
-                const completed = new Set(progress?.completedSlideIds ?? []);
-                loadChapter(ch, undefined, completed);
-                return;
+                const chapIdx = allChaps.findIndex(c => c.id === ch.id);
+                const chapAccessible = chapIdx === 0
+                  ? preTestGatePassed
+                  : mergedDone.has(allChaps[chapIdx - 1]?.id);
+                if (chapAccessible) {
+                  setOpenSectionId(sec.id);
+                  const completed = new Set(progress?.completedSlideIds ?? []);
+                  loadChapter(ch, undefined, completed);
+                  return;
+                }
+                break; // chapter found but locked — fall through to overview
               }
             }
           }
@@ -302,6 +339,13 @@ const CourseLearner: React.FC = () => {
   };
 
   const isChapterDone = (chapter: IChapter) => completedChapterIds.has(chapter.id);
+
+  const allChaptersInOrder = sections.flatMap(sec => sec.chapters ?? []);
+  const isChapterAccessible = (chapter: IChapter): boolean => {
+    const idx = allChaptersInOrder.findIndex(ch => ch.id === chapter.id);
+    if (idx === 0) return preTestAttempted;
+    return completedChapterIds.has(allChaptersInOrder[idx - 1].id);
+  };
 
   const currentSlide = slides[slideIndex] ?? null;
   const totalSlides = slides.length;
@@ -367,44 +411,84 @@ const CourseLearner: React.FC = () => {
                       : "text-gray-600 hover:bg-gray-100"
                   }`}
                 >
-                  <BookOpen size={13} className="flex-shrink-0" />
+                  {activeChapter !== null && preTestAttempted
+                    ? <CheckCircle2 size={13} className="flex-shrink-0 text-green-500" />
+                    : <BookOpen size={13} className="flex-shrink-0" />
+                  }
                   Course Overview
                   {!activeChapter && <ChevronRight size={11} className="ml-auto flex-shrink-0 text-[#3363AD]" />}
+                  {activeChapter !== null && preTestAttempted && (
+                    <span className="ml-auto text-[10px] text-green-600">Done</span>
+                  )}
                 </button>
-                <button
-                  onClick={() => { navigate(`/learn/${courseId}/pre-test`); setOutlineOpen(false); }}
-                  className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs text-gray-600 hover:bg-gray-100 transition-colors text-left font-medium"
-                >
-                  <ClipboardList size={13} className="flex-shrink-0" />
-                  Pre-Test
-                </button>
+                {preTestExists && (
+                  <button
+                    onClick={() => { navigate(`/learn/${courseId}/pre-test`); setOutlineOpen(false); }}
+                    className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs transition-colors text-left font-medium ${
+                      preTestAttempted ? "text-green-700 hover:bg-green-50" : "text-gray-600 hover:bg-gray-100"
+                    }`}
+                  >
+                    {preTestAttempted
+                      ? <CheckCircle2 size={13} className="flex-shrink-0 text-green-500" />
+                      : <ClipboardList size={13} className="flex-shrink-0" />
+                    }
+                    Pre-Test
+                    {preTestAttempted && <span className="ml-auto text-[10px] text-green-600">Done</span>}
+                  </button>
+                )}
               </div>
-              {sections.map((section) => (
+              {sections.map((section) => {
+                const firstChapter = section.chapters?.[0];
+                const sectionLocked = firstChapter ? !isChapterAccessible(firstChapter) : true;
+                const sectionChapters = section.chapters ?? [];
+                const sectionDone = !sectionLocked && sectionChapters.length > 0 &&
+                  sectionChapters.every(ch => completedChapterIds.has(ch.id));
+                return (
                 <div key={section.id} className="mb-1">
                   <button
-                    className="w-full flex items-center justify-between px-2 py-2 text-xs font-semibold text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
-                    onClick={() =>
-                      setOpenSectionId((prev) => (prev === section.id ? null : section.id))
-                    }
+                    className={`w-full flex items-center justify-between px-2 py-2 text-xs font-semibold rounded-lg transition-colors ${
+                      sectionLocked
+                        ? "text-gray-400 cursor-not-allowed"
+                        : sectionDone
+                        ? "text-green-700 hover:bg-green-50"
+                        : "text-gray-500 hover:bg-gray-100"
+                    }`}
+                    onClick={() => {
+                      if (!sectionLocked) setOpenSectionId((prev) => (prev === section.id ? null : section.id));
+                    }}
                   >
                     <div className="flex items-center gap-2 min-w-0">
-                      <Layers size={12} className="flex-shrink-0 text-gray-400" />
+                      {sectionLocked
+                        ? <Lock size={12} className="flex-shrink-0 text-gray-300" />
+                        : sectionDone
+                        ? <CheckCircle2 size={12} className="flex-shrink-0 text-green-500" />
+                        : <Layers size={12} className="flex-shrink-0 text-gray-400" />
+                      }
                       <span className="text-left line-clamp-1">{section.title}</span>
                     </div>
-                    <ChevronDown
-                      size={12}
-                      className={`flex-shrink-0 ml-1 transition-transform ${openSectionId === section.id ? "rotate-180" : ""}`}
-                    />
+                    <div className="flex items-center gap-1 flex-shrink-0 ml-1">
+                      {sectionDone && (
+                        <span className="text-[10px] text-green-600">Done</span>
+                      )}
+                      {!sectionLocked && (
+                        <ChevronDown
+                          size={12}
+                          className={`transition-transform ${openSectionId === section.id ? "rotate-180" : ""}`}
+                        />
+                      )}
+                    </div>
                   </button>
 
                   {openSectionId === section.id && (
                     <div className="ml-1 mt-0.5 space-y-0.5">
                       {(section.chapters ?? []).map((chapter) => {
                         const isActiveChapter = activeChapter?.id === chapter.id;
+                        const chapterLocked = !isChapterAccessible(chapter);
                         return (
                           <div key={chapter.id}>
                             <button
                               onClick={() => {
+                                if (chapterLocked) return;
                                 if (isActiveChapter) {
                                   setSidebarChapterId((prev) => prev === chapter.id ? null : chapter.id);
                                 } else {
@@ -412,12 +496,16 @@ const CourseLearner: React.FC = () => {
                                 }
                               }}
                               className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs transition-colors text-left ${
-                                isActiveChapter
+                                chapterLocked
+                                  ? "text-gray-400 cursor-not-allowed"
+                                  : isActiveChapter
                                   ? "bg-[#3363AD]/10 text-[#3363AD]"
                                   : "text-gray-600 hover:bg-gray-100"
                               }`}
                             >
-                              {isChapterDone(chapter) ? (
+                              {chapterLocked ? (
+                                <Lock size={13} className="flex-shrink-0 text-gray-300" />
+                              ) : isChapterDone(chapter) ? (
                                 <CheckCircle2 size={13} className="flex-shrink-0 text-green-500" />
                               ) : (
                                 <Circle
@@ -426,7 +514,7 @@ const CourseLearner: React.FC = () => {
                                 />
                               )}
                               <span className="line-clamp-1 font-medium">{chapter.title}</span>
-                              {isActiveChapter && (
+                              {!chapterLocked && isActiveChapter && (
                                 sidebarChapterId === chapter.id
                                   ? <ChevronDown size={11} className="ml-auto flex-shrink-0 text-[#3363AD]" />
                                   : <ChevronRight size={11} className="ml-auto flex-shrink-0 text-[#3363AD]" />
@@ -464,31 +552,42 @@ const CourseLearner: React.FC = () => {
                                 </button>
                               );
 
+                              const firstUncompletedIdx = slides.findIndex(s => !completedSlideIds.has(s.id));
+                              const maxAccessibleIdx = firstUncompletedIdx === -1 ? slides.length - 1 : firstUncompletedIdx;
+
                               return (
                                 <div className="ml-5 border-l-2 border-[#3363AD]/20 pl-2 mt-0.5 space-y-0.5 pb-1">
-                                  {slides.map((slide, i) => (
-                                    <React.Fragment key={slide.id}>
-                                      {i === midSlot && midTestBtn}
-                                      <button
-                                        onClick={() => goToSlide(i)}
-                                        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-colors text-left ${
-                                          i === slideIndex
-                                            ? "bg-[#3363AD]/10 text-[#3363AD] font-medium"
-                                            : completedSlideIds.has(slide.id)
-                                            ? "text-green-600 hover:bg-green-50"
-                                            : "text-gray-500 hover:bg-gray-100"
-                                        }`}
-                                      >
-                                        <SlideIcon url={slide.file} size={12} />
-                                        <span className="line-clamp-1 flex-1">
-                                          {slide.note || `Slide ${i + 1}`}
-                                        </span>
-                                        {completedSlideIds.has(slide.id) && i !== slideIndex && (
-                                          <CheckCircle2 size={10} className="flex-shrink-0 text-green-500" />
-                                        )}
-                                      </button>
-                                    </React.Fragment>
-                                  ))}
+                                  {slides.map((slide, i) => {
+                                    const slideAccessible = i <= maxAccessibleIdx;
+                                    return (
+                                      <React.Fragment key={slide.id}>
+                                        {i === midSlot && midTestBtn}
+                                        <button
+                                          onClick={() => { if (slideAccessible) goToSlide(i); }}
+                                          className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-colors text-left ${
+                                            i === slideIndex
+                                              ? "bg-[#3363AD]/10 text-[#3363AD] font-medium"
+                                              : completedSlideIds.has(slide.id)
+                                              ? "text-green-600 hover:bg-green-50"
+                                              : slideAccessible
+                                              ? "text-gray-500 hover:bg-gray-100"
+                                              : "text-gray-300 cursor-not-allowed"
+                                          }`}
+                                        >
+                                          <SlideIcon url={slideAccessible ? slide.file : undefined} size={12} />
+                                          <span className="line-clamp-1 flex-1">
+                                            {slide.note || `Slide ${i + 1}`}
+                                          </span>
+                                          {completedSlideIds.has(slide.id) && i !== slideIndex && (
+                                            <CheckCircle2 size={10} className="flex-shrink-0 text-green-500" />
+                                          )}
+                                          {!slideAccessible && (
+                                            <Lock size={9} className="flex-shrink-0 text-gray-300" />
+                                          )}
+                                        </button>
+                                      </React.Fragment>
+                                    );
+                                  })}
                                   {/* Mid test after all slides (when activityAt >= slides.length + 1 or unset) */}
                                   {midSlot >= slides.length && midTestBtn}
                                 </div>
@@ -507,7 +606,8 @@ const CourseLearner: React.FC = () => {
                     </div>
                   )}
                 </div>
-              ))}
+              );
+              })}
             </div>
 
             {/* Final assessments */}
@@ -657,14 +757,18 @@ const CourseLearner: React.FC = () => {
                 </div>
                 <Button
                   onClick={() => {
+                    if (!preTestAttempted) {
+                      navigate(`/learn/${courseId}/pre-test`);
+                      return;
+                    }
                     const firstSec = sections[0];
                     const firstChapter = firstSec?.chapters?.[0];
                     if (firstChapter) { setOpenSectionId(firstSec.id); loadChapter(firstChapter); }
                   }}
                   className="flex items-center gap-2"
                 >
-                  <PlayCircle size={16} />
-                  Start Learning
+                  {preTestAttempted ? <PlayCircle size={16} /> : <ClipboardList size={16} />}
+                  {preTestAttempted ? "Start Learning" : "Take Pre-Test"}
                 </Button>
               </div>
             </div>

@@ -20,6 +20,7 @@ import {
   getFinalExamById,
   submitFinalTestAttempt,
   submitFinalExamAttempt,
+  getCourseFinalTestIds,
 } from "@/services/finaltest.service";
 import { generateCertificate } from "@/services/certificates.service";
 import { IQuestionnaire } from "@/types";
@@ -47,6 +48,7 @@ const FinalTestPage: React.FC<Props> = ({ mode }) => {
   const [result, setResult] = useState<IFinalTestAttemptResult | null>(null);
   const [showReview, setShowReview] = useState(false);
   const [isGeneratingCert, setIsGeneratingCert] = useState(false);
+  const [finalExamId, setFinalExamId] = useState<string | null>(null);
 
   const loadTest = useCallback(async () => {
     if (!testId) return;
@@ -61,6 +63,9 @@ const FinalTestPage: React.FC<Props> = ({ mode }) => {
       setTestData(data);
       const shuffled = [...data.questionnaires].sort(() => Math.random() - 0.5);
       setQuestions(shuffled.slice(0, data.questionToBeAnswered));
+      if (!isFinalExam && courseId) {
+        getCourseFinalTestIds(courseId).then((ids) => setFinalExamId(ids.finalExamId)).catch(() => {});
+      }
     } catch {
       setError(`Failed to load ${label.toLowerCase()}. Please try again.`);
     } finally {
@@ -251,39 +256,55 @@ const FinalTestPage: React.FC<Props> = ({ mode }) => {
                 : `You scored ${score}% — the passing mark is ${marksToPass}%. Review the course and try again.`}
             </div>
             <div className="space-y-2">
-              {passed && isFinalExam && (
-                <Button
-                  className="w-full flex items-center justify-center gap-2"
-                  disabled={isGeneratingCert}
-                  onClick={() => navigate("/my-certificates")}
-                >
-                  {isGeneratingCert ? <Loader2 size={16} className="animate-spin" /> : <GraduationCap size={16} />}
-                  {isGeneratingCert ? "Generating Certificate..." : "View My Certificate"}
-                </Button>
+              {passed ? (
+                <>
+                  {isFinalExam && (
+                    <Button
+                      className="w-full flex items-center justify-center gap-2"
+                      disabled={isGeneratingCert}
+                      onClick={() => navigate("/my-certificates")}
+                    >
+                      {isGeneratingCert ? <Loader2 size={16} className="animate-spin" /> : <GraduationCap size={16} />}
+                      {isGeneratingCert ? "Generating Certificate..." : "View My Certificate"}
+                    </Button>
+                  )}
+                  {!isFinalExam && finalExamId && (
+                    <Button
+                      className="w-full flex items-center justify-center gap-2"
+                      onClick={() => navigate(`/learn/${courseId}/final-exam/${finalExamId}`)}
+                    >
+                      <GraduationCap size={16} />
+                      Take Final Exam
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    className="w-full flex items-center justify-center gap-2"
+                    onClick={() =>
+                      navigate(`/learn/${courseId}`, {
+                        state: !isFinalExam ? { passedFinalTest: true } : { passedFinalExam: true },
+                      })
+                    }
+                  >
+                    {!isFinalExam && !finalExamId ? <Trophy size={16} /> : null}
+                    Back to Course
+                  </Button>
+                  <Button variant="outline" className="w-full flex items-center justify-center gap-2" onClick={() => setShowReview(true)}>
+                    <ListChecks size={16} />
+                    Review Answers
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button className="w-full flex items-center justify-center gap-2" onClick={() => setShowReview(true)}>
+                    <ListChecks size={16} />
+                    Review Your Answers
+                  </Button>
+                  <Button variant="outline" className="w-full" onClick={() => { setShowReview(false); loadTest(); }}>
+                    Retake {label}
+                  </Button>
+                </>
               )}
-              <Button
-                variant={passed && isFinalExam ? "outline" : "default"}
-                className="w-full flex items-center justify-center gap-2"
-                onClick={() =>
-                  navigate(`/learn/${courseId}`, {
-                    state: passed && !isFinalExam
-                      ? { passedFinalTest: true }
-                      : passed && isFinalExam
-                      ? { passedFinalExam: true }
-                      : undefined,
-                  })
-                }
-              >
-                {passed && !isFinalExam ? <Trophy size={16} /> : null}
-                Back to Course
-              </Button>
-              <Button variant="outline" className="w-full flex items-center justify-center gap-2" onClick={() => setShowReview(true)}>
-                <ListChecks size={16} />
-                Review Answers
-              </Button>
-              <Button variant="outline" className="w-full" onClick={() => { setShowReview(false); loadTest(); }}>
-                Retake {label}
-              </Button>
             </div>
           </div>
         </div>
