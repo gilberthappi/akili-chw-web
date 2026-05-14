@@ -8,9 +8,18 @@ export interface ITestStatus {
   marksToPass: number;
 }
 
+export interface IPreTestStatus {
+  attempted: boolean;
+  passed: boolean;
+  bestMarks: number | null;
+  marksToPass: number;
+  preTestId: string;
+}
+
 export interface ICourseProgressData {
   chapterProgress: Array<{ chapterId: string; isCompleted: boolean; progress: number }>;
   completedSlideIds: string[];
+  preTestStatus: IPreTestStatus | null;
   finalTestStatus: ITestStatus | null;
   finalExamStatus: ITestStatus | null;
 }

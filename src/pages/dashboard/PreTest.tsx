@@ -7,6 +7,8 @@ import {
   ClipboardList,
   AlertCircle,
   FileQuestion,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 import { Button } from "@/components/common/Button";
 import {
@@ -30,6 +32,9 @@ const PreTest: React.FC = () => {
   const [currentQIndex, setCurrentQIndex] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  type FeedbackState = { isCorrect: boolean; correctIds: Set<string>; feedbackText?: string };
+  const [feedback, setFeedback] = useState<FeedbackState | null>(null);
+
   const loadPreTest = useCallback(async () => {
     if (!courseId) return;
     setIsLoading(true);
@@ -49,12 +54,33 @@ const PreTest: React.FC = () => {
   useEffect(() => { loadPreTest(); }, [loadPreTest]);
 
   const toggleOption = (questionId: string, optionId: string, allowMultiple: boolean) => {
+    if (feedback) return;
     setAnswers((prev) => {
       if (!allowMultiple) return { ...prev, [questionId]: new Set([optionId]) };
       const current = new Set(prev[questionId] ?? []);
       current.has(optionId) ? current.delete(optionId) : current.add(optionId);
       return { ...prev, [questionId]: current };
     });
+  };
+
+  const checkAnswer = () => {
+    if (!currentQuestion) return;
+    // answers[] are separate records from options[]; match by label to get option IDs
+    const correctLabels = new Set((currentQuestion.answers ?? []).map((a) => a.label));
+    const correctIds = new Set(
+      currentQuestion.options.filter((opt) => correctLabels.has(opt.label)).map((opt) => opt.id)
+    );
+    const selected = currentSelected;
+    const isCorrect =
+      correctIds.size > 0 &&
+      selected.size === correctIds.size &&
+      [...selected].every((id) => correctIds.has(id));
+    setFeedback({ isCorrect, correctIds, feedbackText: currentQuestion.feedbackStatement });
+  };
+
+  const handleContinue = () => {
+    setFeedback(null);
+    setCurrentQIndex((i) => Math.min(questions.length - 1, i + 1));
   };
 
   const handleSubmit = async () => {
@@ -66,7 +92,7 @@ const PreTest: React.FC = () => {
         preTest.id,
         questions.map((q) => ({ questionnaireId: q.id, selectedAnswerIds: Array.from(answers[q.id] ?? []) }))
       );
-      navigate(`/learn/${courseId}`);
+      navigate(`/learn/${courseId}`, { state: { preTestCompleted: true } });
     } catch {
       setError("Failed to submit answers. Please try again.");
     } finally {
@@ -76,9 +102,9 @@ const PreTest: React.FC = () => {
 
   const courseTitle = preTest?.course?.title ?? "Course";
   const answeredCount = questions.filter((q) => (answers[q.id]?.size ?? 0) > 0).length;
-  const allAnswered = questions.length > 0 && answeredCount === questions.length;
   const currentQuestion = questions[currentQIndex] ?? null;
   const currentSelected = answers[currentQuestion?.id ?? ""] ?? new Set<string>();
+  const isLastQuestion = currentQIndex === questions.length - 1;
 
   // ── Loading ───────────────────────────────────────────────────────────────
 
@@ -169,7 +195,7 @@ const PreTest: React.FC = () => {
               return (
                 <button
                   key={q.id}
-                  onClick={() => setCurrentQIndex(i)}
+                  onClick={() => { setCurrentQIndex(i); setFeedback(null); }}
                   className={`w-9 h-9 rounded-xl text-xs font-semibold transition-all ${
                     isCurrent
                       ? "bg-[#3363AD] text-white shadow-sm ring-2 ring-[#3363AD] ring-offset-2"
@@ -215,20 +241,34 @@ const PreTest: React.FC = () => {
                 <div className="space-y-2.5">
                   {currentQuestion.options.map((opt, optIdx) => {
                     const isSelected = currentSelected.has(opt.id);
+                    const isCorrectOpt = feedback ? feedback.correctIds.has(opt.id) : false;
+                    const isWrongSelection = feedback ? (isSelected && !isCorrectOpt) : false;
                     const letter = String.fromCharCode(65 + optIdx);
                     return (
                       <button
                         key={opt.id}
                         onClick={() => toggleOption(currentQuestion.id, opt.id, currentQuestion.allowMultiple)}
                         className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border-2 text-sm text-left transition-all ${
-                          isSelected
+                          feedback
+                            ? isCorrectOpt
+                              ? "border-green-400 bg-green-50 text-gray-900"
+                              : isWrongSelection
+                              ? "border-red-400 bg-red-50 text-gray-900"
+                              : "border-gray-100 bg-gray-50 text-gray-400 opacity-60"
+                            : isSelected
                             ? "border-[#3363AD] bg-[#3363AD]/5 text-gray-900"
                             : "border-gray-100 bg-gray-50 text-gray-700 hover:border-gray-200 hover:bg-white"
                         }`}
                       >
                         <span
                           className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all ${
-                            isSelected
+                            feedback
+                              ? isCorrectOpt
+                                ? "border-green-500 bg-green-500 text-white"
+                                : isWrongSelection
+                                ? "border-red-400 bg-red-400 text-white"
+                                : "border-gray-300 text-gray-400"
+                              : isSelected
                               ? "border-[#3363AD] bg-[#3363AD] text-white"
                               : "border-gray-300 text-gray-400"
                           }`}
@@ -248,6 +288,28 @@ const PreTest: React.FC = () => {
                     );
                   })}
                 </div>
+
+                {/* Per-question feedback */}
+                {feedback && (
+                  <div className={`rounded-xl border-2 px-4 py-3 flex items-start gap-3 ${
+                    feedback.isCorrect
+                      ? "border-green-300 bg-green-50"
+                      : "border-red-300 bg-red-50"
+                  }`}>
+                    {feedback.isCorrect
+                      ? <CheckCircle2 size={18} className="flex-shrink-0 text-green-500 mt-0.5" />
+                      : <XCircle size={18} className="flex-shrink-0 text-red-400 mt-0.5" />
+                    }
+                    <div className="min-w-0">
+                      <p className={`text-sm font-semibold ${feedback.isCorrect ? "text-green-700" : "text-red-600"}`}>
+                        {feedback.isCorrect ? "Correct!" : "Incorrect"}
+                      </p>
+                      {feedback.feedbackText && (
+                        <p className="text-xs text-gray-600 mt-1 leading-relaxed">{feedback.feedbackText}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -260,7 +322,7 @@ const PreTest: React.FC = () => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setCurrentQIndex((i) => Math.max(0, i - 1))}
+            onClick={() => { setCurrentQIndex((i) => Math.max(0, i - 1)); setFeedback(null); }}
             disabled={currentQIndex === 0}
             className="flex items-center gap-1.5 min-w-[90px]"
           >
@@ -270,24 +332,36 @@ const PreTest: React.FC = () => {
 
           <span className="text-sm text-gray-400">{currentQIndex + 1} of {questions.length}</span>
 
-          {currentQIndex === questions.length - 1 ? (
-            <Button
-              size="sm"
-              onClick={handleSubmit}
-              disabled={!allAnswered || isSubmitting}
-              className="flex items-center gap-1.5 min-w-[120px]"
-            >
-              {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <ClipboardList size={14} />}
-              {isSubmitting ? "Submitting..." : "Submit Test"}
-            </Button>
+          {feedback ? (
+            isLastQuestion ? (
+              <Button
+                size="sm"
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+                className="flex items-center gap-1.5 min-w-[120px]"
+              >
+                {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <ClipboardList size={14} />}
+                {isSubmitting ? "Submitting..." : "Submit Test"}
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                onClick={handleContinue}
+                className="flex items-center gap-1.5 min-w-[90px]"
+              >
+                Continue
+                <ChevronRight size={14} />
+              </Button>
+            )
           ) : (
             <Button
               size="sm"
-              onClick={() => setCurrentQIndex((i) => Math.min(questions.length - 1, i + 1))}
-              className="flex items-center gap-1.5 min-w-[90px]"
+              onClick={checkAnswer}
+              disabled={currentSelected.size === 0}
+              className="flex items-center gap-1.5 min-w-[120px]"
             >
-              Next
-              <ChevronRight size={14} />
+              <CheckCircle2 size={14} />
+              Check Answer
             </Button>
           )}
         </div>
