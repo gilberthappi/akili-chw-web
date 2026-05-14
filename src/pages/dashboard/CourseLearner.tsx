@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/common/Button";
 import TopBar from "@/components/navigation/TopBar";
-import { getCourseSectionsWithChapters, getChapterSlides } from "@/services/course.service";
+import { getCourseSectionsWithChapters, getChapterSlides, getChapterMidTestId } from "@/services/course.service";
 import { getCourseFinalTestIds } from "@/services/finaltest.service";
 import { markSlideComplete, getCourseProgress, getStudentStatistics } from "@/services/progress.service";
 import { ISection, IChapter, ISlide, ICourseIntro } from "@/types";
@@ -40,7 +40,7 @@ const SlideViewer: React.FC<{ slide: ISlide }> = ({ slide }) => {
 
   if (kind === "pdf") {
     return (
-      <div className="flex flex-col" style={{ height: "calc(100vh - 160px)" }}>
+      <div className="flex flex-col" style={{ height: "calc(100vh - 100px)" }}>
         <iframe
           key={slide.id}
           src={slide.file}
@@ -131,19 +131,25 @@ const CourseLearner: React.FC = () => {
   const [finalTestPassed, setFinalTestPassed] = useState(false);
   const [finalExamPassed, setFinalExamPassed] = useState(false);
   const [outlineOpen, setOutlineOpen] = useState(false);
+  const [sidebarChapterId, setSidebarChapterId] = useState<string | null>(null);
   const markingRef = useRef(false);
 
   const loadChapter = useCallback(async (chapter: IChapter, initialSlideId?: string, resumeCompletedIds?: Set<string>) => {
     setActiveChapter(chapter);
+    setSidebarChapterId(chapter.id);
     setSlideIndex(0);
     setSlides([]);
     setChapterMidTestId(null);
     setIsLoadingSlides(true);
     try {
-      const res = await getChapterSlides(chapter.id);
-      const data = res.data as unknown as { slides?: ISlide[] };
-      const loadedSlides = data?.slides ?? [];
+      const [slidesRes, midTestId] = await Promise.all([
+        getChapterSlides(chapter.id),
+        getChapterMidTestId(chapter.id),
+      ]);
+      const data = slidesRes.data as unknown as { slides?: ISlide[] };
+      const loadedSlides = (data?.slides ?? []).sort((a, b) => a.slideNumber - b.slideNumber);
       setSlides(loadedSlides);
+      setChapterMidTestId(midTestId);
       if (resumeCompletedIds) {
         const firstUncompleted = loadedSlides.findIndex((s) => !resumeCompletedIds.has(s.id));
         if (firstUncompleted > 0) setSlideIndex(firstUncompleted);
@@ -156,7 +162,6 @@ const CourseLearner: React.FC = () => {
     } finally {
       setIsLoadingSlides(false);
     }
-    setChapterMidTestId(chapter.midTest?.id ?? null);
     setOutlineOpen(false);
   }, []);
 
@@ -302,6 +307,10 @@ const CourseLearner: React.FC = () => {
   const totalSlides = slides.length;
   const completedInChapter = slides.filter((s) => completedSlideIds.has(s.id)).length;
   const chapterProgress = totalSlides > 0 ? Math.round((completedInChapter / totalSlides) * 100) : 0;
+  // 0-indexed slide index after which the mid test should fire (activityAt is 1-indexed combined position)
+  const midTestSlideIdx = chapterMidTestId && activeChapter?.activityAt != null
+    ? activeChapter.activityAt - 2   // slide just before mid-test slot
+    : totalSlides - 1;               // default: after last slide
 
   if (isLoadingCourse) {
     return (
@@ -343,33 +352,33 @@ const CourseLearner: React.FC = () => {
           </div>
 
           <div className="flex-1 overflow-y-auto py-3 space-y-1">
-            {/* Course Intro & Pre-Test */}
-            <div className="px-3 space-y-1">
-              <button
-                onClick={() => { setActiveChapter(null); setSlides([]); setOutlineOpen(false); }}
-                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                  !activeChapter
-                    ? "bg-[#3363AD] text-white"
-                    : "text-gray-600 hover:bg-gray-100 border border-gray-200 bg-white"
-                }`}
-              >
-                <BookOpen size={15} className="flex-shrink-0" />
-                Course Overview
-              </button>
-              <button
-                onClick={() => { navigate(`/learn/${courseId}/pre-test`); setOutlineOpen(false); }}
-                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-[#3363AD] hover:bg-[#3363AD]/8 border border-[#3363AD]/20 bg-white transition-colors"
-              >
-                <ClipboardList size={15} className="flex-shrink-0" />
-                Pre-Test
-              </button>
-            </div>
-
             {/* Course content */}
             <div className="px-3 pt-2">
               <p className="px-1 pb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
                 Course Content
               </p>
+              {/* Course Overview & Pre-Test as first items */}
+              <div className="space-y-0.5 mb-1">
+                <button
+                  onClick={() => { setActiveChapter(null); setSlides([]); setOutlineOpen(false); }}
+                  className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs transition-colors text-left font-medium ${
+                    !activeChapter
+                      ? "bg-[#3363AD]/10 text-[#3363AD]"
+                      : "text-gray-600 hover:bg-gray-100"
+                  }`}
+                >
+                  <BookOpen size={13} className="flex-shrink-0" />
+                  Course Overview
+                  {!activeChapter && <ChevronRight size={11} className="ml-auto flex-shrink-0 text-[#3363AD]" />}
+                </button>
+                <button
+                  onClick={() => { navigate(`/learn/${courseId}/pre-test`); setOutlineOpen(false); }}
+                  className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs text-gray-600 hover:bg-gray-100 transition-colors text-left font-medium"
+                >
+                  <ClipboardList size={13} className="flex-shrink-0" />
+                  Pre-Test
+                </button>
+              </div>
               {sections.map((section) => (
                 <div key={section.id} className="mb-1">
                   <button
@@ -395,7 +404,13 @@ const CourseLearner: React.FC = () => {
                         return (
                           <div key={chapter.id}>
                             <button
-                              onClick={() => loadChapter(chapter)}
+                              onClick={() => {
+                                if (isActiveChapter) {
+                                  setSidebarChapterId((prev) => prev === chapter.id ? null : chapter.id);
+                                } else {
+                                  loadChapter(chapter);
+                                }
+                              }}
                               className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs transition-colors text-left ${
                                 isActiveChapter
                                   ? "bg-[#3363AD]/10 text-[#3363AD]"
@@ -411,62 +426,76 @@ const CourseLearner: React.FC = () => {
                                 />
                               )}
                               <span className="line-clamp-1 font-medium">{chapter.title}</span>
-                              {isActiveChapter && <ChevronRight size={11} className="ml-auto flex-shrink-0 text-[#3363AD]" />}
+                              {isActiveChapter && (
+                                sidebarChapterId === chapter.id
+                                  ? <ChevronDown size={11} className="ml-auto flex-shrink-0 text-[#3363AD]" />
+                                  : <ChevronRight size={11} className="ml-auto flex-shrink-0 text-[#3363AD]" />
+                              )}
                             </button>
 
                             {/* Slides under active chapter */}
-                            {isActiveChapter && !isLoadingSlides && slides.length > 0 && (
-                              <div className="ml-5 border-l-2 border-[#3363AD]/20 pl-2 mt-0.5 space-y-0.5 pb-1">
-                                {slides.map((slide, i) => (
-                                  <button
-                                    key={slide.id}
-                                    onClick={() => goToSlide(i)}
-                                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-colors text-left ${
-                                      i === slideIndex
-                                        ? "bg-[#3363AD]/10 text-[#3363AD] font-medium"
-                                        : completedSlideIds.has(slide.id)
-                                        ? "text-green-600 hover:bg-green-50"
-                                        : "text-gray-500 hover:bg-gray-100"
-                                    }`}
-                                  >
-                                    <SlideIcon url={slide.file} size={12} />
-                                    <span className="line-clamp-1 flex-1">
-                                      {slide.note || `Slide ${i + 1}`}
-                                    </span>
-                                    {completedSlideIds.has(slide.id) && i !== slideIndex && (
-                                      <CheckCircle2 size={10} className="flex-shrink-0 text-green-500" />
-                                    )}
-                                  </button>
-                                ))}
+                            {isActiveChapter && sidebarChapterId === chapter.id && !isLoadingSlides && slides.length > 0 && (() => {
+                              // activityAt is 1-indexed position of mid test in combined list
+                              const midSlot = chapterMidTestId
+                                ? (chapter.activityAt != null ? chapter.activityAt - 1 : slides.length)
+                                : -1; // 0-indexed insertion slot; -1 = no mid test
 
-                                {/* Chapter Test after slides */}
-                                {chapterMidTestId && (
-                                  <button
-                                    onClick={() =>
-                                      navigate(
-                                        `/learn/${courseId}/mid-test/${chapterMidTestId}?chapter=${encodeURIComponent(chapter.title)}&chapterId=${chapter.id}`
-                                      )
-                                    }
-                                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                                      serverCompletedChapterIds.has(chapter.id)
-                                        ? "text-green-700 hover:bg-green-50"
-                                        : "text-amber-700 hover:bg-amber-50"
-                                    }`}
-                                  >
-                                    {serverCompletedChapterIds.has(chapter.id)
-                                      ? <CheckCircle2 size={12} className="flex-shrink-0 text-green-500" />
-                                      : <ClipboardList size={12} className="flex-shrink-0" />
-                                    }
-                                    Chapter Test
-                                    {serverCompletedChapterIds.has(chapter.id) && (
-                                      <span className="ml-auto text-[10px] text-green-600">Done</span>
-                                    )}
-                                  </button>
-                                )}
-                              </div>
-                            )}
+                              const midTestBtn = (
+                                <button
+                                  onClick={() =>
+                                    navigate(
+                                      `/learn/${courseId}/mid-test/${chapterMidTestId}?chapter=${encodeURIComponent(chapter.title)}&chapterId=${chapter.id}`
+                                    )
+                                  }
+                                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                                    serverCompletedChapterIds.has(chapter.id)
+                                      ? "text-green-700 hover:bg-green-50"
+                                      : "text-amber-700 hover:bg-amber-50"
+                                  }`}
+                                >
+                                  {serverCompletedChapterIds.has(chapter.id)
+                                    ? <CheckCircle2 size={12} className="flex-shrink-0 text-green-500" />
+                                    : <ClipboardList size={12} className="flex-shrink-0" />
+                                  }
+                                  Mid Test
+                                  {serverCompletedChapterIds.has(chapter.id) && (
+                                    <span className="ml-auto text-[10px] text-green-600">Done</span>
+                                  )}
+                                </button>
+                              );
 
-                            {isActiveChapter && isLoadingSlides && (
+                              return (
+                                <div className="ml-5 border-l-2 border-[#3363AD]/20 pl-2 mt-0.5 space-y-0.5 pb-1">
+                                  {slides.map((slide, i) => (
+                                    <React.Fragment key={slide.id}>
+                                      {i === midSlot && midTestBtn}
+                                      <button
+                                        onClick={() => goToSlide(i)}
+                                        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-colors text-left ${
+                                          i === slideIndex
+                                            ? "bg-[#3363AD]/10 text-[#3363AD] font-medium"
+                                            : completedSlideIds.has(slide.id)
+                                            ? "text-green-600 hover:bg-green-50"
+                                            : "text-gray-500 hover:bg-gray-100"
+                                        }`}
+                                      >
+                                        <SlideIcon url={slide.file} size={12} />
+                                        <span className="line-clamp-1 flex-1">
+                                          {slide.note || `Slide ${i + 1}`}
+                                        </span>
+                                        {completedSlideIds.has(slide.id) && i !== slideIndex && (
+                                          <CheckCircle2 size={10} className="flex-shrink-0 text-green-500" />
+                                        )}
+                                      </button>
+                                    </React.Fragment>
+                                  ))}
+                                  {/* Mid test after all slides (when activityAt >= slides.length + 1 or unset) */}
+                                  {midSlot >= slides.length && midTestBtn}
+                                </div>
+                              );
+                            })()}
+
+                            {isActiveChapter && sidebarChapterId === chapter.id && isLoadingSlides && (
                               <div className="ml-5 py-2 flex items-center gap-2 text-xs text-gray-400 pl-2">
                                 <Loader2 size={11} className="animate-spin" />
                                 Loading slides...
@@ -487,7 +516,7 @@ const CourseLearner: React.FC = () => {
                 <p className="px-1 pb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
                   Final Assessments
                 </p>
-                <div className="space-y-1">
+                <div className="space-y-0.5">
                   {finalTestId && (
                     <button
                       onClick={() => {
@@ -497,26 +526,26 @@ const CourseLearner: React.FC = () => {
                       }}
                       disabled={!isCourseComplete}
                       title={!isCourseComplete ? "Complete all lessons to unlock" : undefined}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium border transition-colors ${
-                        isCourseComplete && finalTestPassed
-                          ? "text-green-700 bg-green-50 border-green-300"
+                      className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs transition-colors text-left font-medium ${
+                        finalTestPassed
+                          ? "text-green-700 hover:bg-green-50"
                           : isCourseComplete
-                          ? "text-green-700 hover:bg-green-50 border-green-200 bg-white"
-                          : "text-gray-400 border-gray-200 bg-gray-50 cursor-not-allowed"
+                          ? "text-gray-600 hover:bg-gray-100"
+                          : "text-gray-400 cursor-not-allowed"
                       }`}
                     >
-                      {isCourseComplete && finalTestPassed
-                        ? <CheckCircle2 size={14} className="flex-shrink-0 text-green-500" />
+                      {finalTestPassed
+                        ? <CheckCircle2 size={13} className="flex-shrink-0 text-green-500" />
                         : isCourseComplete
-                        ? <Trophy size={14} className="flex-shrink-0" />
-                        : <Lock size={14} className="flex-shrink-0" />
+                        ? <Trophy size={13} className="flex-shrink-0" />
+                        : <Lock size={13} className="flex-shrink-0" />
                       }
                       Final Test
-                      {!isCourseComplete && (
-                        <span className="ml-auto text-[10px]">Locked</span>
-                      )}
                       {finalTestPassed && (
                         <span className="ml-auto text-[10px] text-green-600">Passed</span>
+                      )}
+                      {!isCourseComplete && (
+                        <span className="ml-auto text-[10px]">Locked</span>
                       )}
                     </button>
                   )}
@@ -535,26 +564,26 @@ const CourseLearner: React.FC = () => {
                           ? "Pass the Final Test to unlock"
                           : undefined
                       }
-                      className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium border transition-colors ${
-                        isCourseComplete && finalTestPassed && finalExamPassed
-                          ? "text-purple-700 bg-purple-50 border-purple-300"
+                      className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs transition-colors text-left font-medium ${
+                        finalExamPassed
+                          ? "text-purple-700 hover:bg-purple-50"
                           : isCourseComplete && finalTestPassed
-                          ? "text-purple-700 hover:bg-purple-50 border-purple-200 bg-white"
-                          : "text-gray-400 border-gray-200 bg-gray-50 cursor-not-allowed"
+                          ? "text-gray-600 hover:bg-gray-100"
+                          : "text-gray-400 cursor-not-allowed"
                       }`}
                     >
-                      {isCourseComplete && finalTestPassed && finalExamPassed
-                        ? <CheckCircle2 size={14} className="flex-shrink-0 text-purple-500" />
+                      {finalExamPassed
+                        ? <CheckCircle2 size={13} className="flex-shrink-0 text-purple-500" />
                         : isCourseComplete && finalTestPassed
-                        ? <GraduationCap size={14} className="flex-shrink-0" />
-                        : <Lock size={14} className="flex-shrink-0" />
+                        ? <GraduationCap size={13} className="flex-shrink-0" />
+                        : <Lock size={13} className="flex-shrink-0" />
                       }
                       Final Exam
-                      {(!isCourseComplete || !finalTestPassed) && (
-                        <span className="ml-auto text-[10px]">Locked</span>
-                      )}
                       {finalExamPassed && (
                         <span className="ml-auto text-[10px] text-purple-600">Passed</span>
+                      )}
+                      {(!isCourseComplete || !finalTestPassed) && (
+                        <span className="ml-auto text-[10px]">Locked</span>
                       )}
                     </button>
                   )}
@@ -649,34 +678,6 @@ const CourseLearner: React.FC = () => {
             </div>
           ) : (
             <div className="flex-1 flex flex-col overflow-hidden">
-              {/* Slide progress strip */}
-              <div className="flex-shrink-0 px-6 pt-4 pb-3 border-b border-gray-50">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold text-gray-700 truncate max-w-xs">
-                    {activeChapter.title}
-                  </span>
-                  <span className="text-xs text-gray-400 flex-shrink-0 ml-2">
-                    {slideIndex + 1} / {totalSlides}
-                  </span>
-                </div>
-                {/* Segmented progress bar */}
-                <div className="flex gap-1 h-1.5">
-                  {slides.map((s, i) => (
-                    <button
-                      key={s.id}
-                      onClick={() => goToSlide(i)}
-                      className={`flex-1 rounded-full transition-colors ${
-                        i === slideIndex
-                          ? "bg-[#3363AD]"
-                          : completedSlideIds.has(s.id)
-                          ? "bg-green-400"
-                          : "bg-gray-200 hover:bg-gray-300"
-                      }`}
-                    />
-                  ))}
-                </div>
-              </div>
-
               {/* Slide viewer — scrollable */}
               <div className="flex-1 overflow-y-auto">
                 {currentSlide && <SlideViewer slide={currentSlide} />}
@@ -697,7 +698,7 @@ const CourseLearner: React.FC = () => {
 
                 <span className="text-sm text-gray-400">{slideIndex + 1} of {totalSlides}</span>
 
-                {slideIndex === totalSlides - 1 && chapterMidTestId ? (
+                {slideIndex === midTestSlideIdx && chapterMidTestId ? (
                   <Button
                     size="sm"
                     onClick={async () => {
@@ -709,7 +710,7 @@ const CourseLearner: React.FC = () => {
                     className="flex items-center gap-1.5 min-w-[110px] bg-amber-600 hover:bg-amber-700"
                   >
                     <ClipboardList size={14} />
-                    Chapter Test
+                    Mid Test
                   </Button>
                 ) : slideIndex === totalSlides - 1 ? (
                   <Button
