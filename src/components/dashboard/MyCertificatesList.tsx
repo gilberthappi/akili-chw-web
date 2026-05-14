@@ -50,13 +50,17 @@ export const MyCertificatesList: React.FC<MyCertificatesListProps> = ({
                   {cert.title}
                 </p>
                 <p className="text-xs text-gray-400 mt-0.5">
-                  {cert.completedAt
-                    ? new Date(cert.completedAt).toLocaleDateString("fr-RW", {
-                        year: "numeric",
-                        month: "short",
-                        day: "numeric",
-                      })
-                    : "—"}
+                  {(() => {
+                    const raw = cert.completedAtRaw ?? cert.completedAt;
+                    const d = raw ? new Date(raw) : null;
+                    return d && !isNaN(d.getTime())
+                      ? d.toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                        })
+                      : "—";
+                  })()}
                 </p>
               </div>
               <a

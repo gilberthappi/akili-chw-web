@@ -18,6 +18,7 @@ export interface IMyCertificate {
   progress: number;
   enrollmentDate: string;
   completedAt: string;
+  completedAtRaw?: string;
   slides: number;
   attempt: number;
   test: number;
