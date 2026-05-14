@@ -15,12 +15,14 @@ import {
   Loader2,
   CheckCircle,
   AlertCircle,
+  Pencil,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import SlideUpload from "@/components/courseBuilder/SlideUpload";
 import SlideCard from "@/components/courseBuilder/SlideCard";
 import SlideViewerModal from "@/components/courseBuilder/SlideViewerModal";
 import QuestionBankPanel from "@/components/courseBuilder/QuestionBankPanel";
+import CreateCourseModal from "@/components/courseBuilder/CreateCourseModal";
 import { uploadSlideFile } from "@/services/course.service";
 import {
   CourseBuilderData,
@@ -175,6 +177,10 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
   const [autoSaveStatus, setAutoSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [slideViewMode, setSlideViewMode] = useState<"grid" | "list">("list");
+  const [showEditCourseModal, setShowEditCourseModal] = useState(false);
+  const [localCourseTitle, setLocalCourseTitle] = useState(courseData.title);
+  const [localCourseDescription, setLocalCourseDescription] = useState(courseData.description);
+  const [localCourseCoverIcon, setLocalCourseCoverIcon] = useState(courseData.coverIcon);
 
   // Course-level test state
   const [preTest, setPreTest] = useState<TestConfig | undefined>(courseData.preTest);
@@ -219,6 +225,9 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
     autoSaveTimer.current = setTimeout(async () => {
       const updated: CourseBuilderData = {
         ...courseDataRef.current,
+        title: localCourseTitle,
+        description: localCourseDescription,
+        coverIcon: localCourseCoverIcon,
         sections,
         preTest,
         finalTest,
@@ -266,7 +275,7 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
       if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sections, preTest, finalTest, finalExam]);
+  }, [sections, preTest, finalTest, finalExam, localCourseTitle, localCourseDescription, localCourseCoverIcon]);
 
   const selectedSection = sections.find((s) => s.id === selectedSectionId);
   const selectedChapter = selectedSection?.chapters.find((c) => c.id === selectedChapterId);
@@ -738,6 +747,9 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
     }
     const updated: CourseBuilderData = {
       ...courseData,
+      title: localCourseTitle,
+      description: localCourseDescription,
+      coverIcon: localCourseCoverIcon,
       sections,
       preTest,
       finalTest,
@@ -762,6 +774,24 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
     <div className="h-full flex bg-page-bg">
+      <CreateCourseModal
+        isOpen={showEditCourseModal}
+        mode="edit"
+        initialValues={{
+          title: localCourseTitle,
+          description: localCourseDescription,
+          coverIcon: localCourseCoverIcon,
+        }}
+        onClose={() => setShowEditCourseModal(false)}
+        onSubmit={(data) => {
+          setLocalCourseTitle(data.title);
+          setLocalCourseDescription(data.description);
+          setLocalCourseCoverIcon(data.coverIcon);
+          setShowEditCourseModal(false);
+          toast.success("Course details updated");
+        }}
+      />
+
       {/* ── Sidebar ── */}
       <div
         className={`bg-white border-r border-gray-200 flex flex-col transition-all duration-300 ${
@@ -1009,7 +1039,14 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
                   <Menu className="w-6 h-6" />
                 </button>
               )}
-              <h2 className="text-2xl font-bold text-dark">{courseData.title}</h2>
+              <h2 className="text-2xl font-bold text-dark">{localCourseTitle}</h2>
+              <button
+                onClick={() => setShowEditCourseModal(true)}
+                title="Edit course details"
+                className="p-1.5 rounded-lg text-secondary hover:text-primary hover:bg-primary/10 transition"
+              >
+                <Pencil className="w-4 h-4" />
+              </button>
             </div>
             <div className="flex items-center gap-2">
               {autoSaveStatus === "saving" && (

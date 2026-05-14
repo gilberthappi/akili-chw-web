@@ -7,6 +7,8 @@ interface CreateCourseModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: CourseCreationForm) => void;
+  mode?: "create" | "edit";
+  initialValues?: CourseCreationForm;
 }
 
 const INITIAL_FORM_STATE: CourseCreationForm = {
@@ -19,6 +21,8 @@ export default function CreateCourseModal({
   isOpen,
   onClose,
   onSubmit,
+  mode = "create",
+  initialValues,
 }: CreateCourseModalProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState<CourseCreationForm>(INITIAL_FORM_STATE);
@@ -26,13 +30,13 @@ export default function CreateCourseModal({
 
   useEffect(() => {
     if (isOpen) {
-      setFormData(INITIAL_FORM_STATE);
+      setFormData(mode === "edit" && initialValues ? initialValues : INITIAL_FORM_STATE);
       setIsDragging(false);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
     }
-  }, [isOpen]);
+  }, [isOpen, mode, initialValues]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -99,6 +103,7 @@ export default function CreateCourseModal({
       return;
     }
 
+
     onSubmit(formData);
     setFormData(INITIAL_FORM_STATE);
     setIsDragging(false);
@@ -123,10 +128,12 @@ export default function CreateCourseModal({
               Course Builder
             </p>
             <h2 className="mt-1 text-2xl font-semibold sm:text-3xl">
-              Create a new course draft
+              {mode === "edit" ? "Edit course details" : "Create a new course draft"}
             </h2>
             <p className="mt-2 max-w-2xl text-sm text-white/85 sm:text-base">
-              Add the course title, write a clear description, and upload a real icon image to make the card feel more polished.
+              {mode === "edit"
+                ? "Update the course title, description, and icon below."
+                : "Add the course title, write a clear description, and upload a real icon image to make the card feel more polished."}
             </p>
           </div>
           <button
@@ -285,9 +292,11 @@ export default function CreateCourseModal({
                 <div className="rounded-2xl bg-blue-50 px-4 py-3 text-slate-700">
                   Keep the icon square for the cleanest result.
                 </div>
-                <div className="rounded-2xl bg-blue-50 px-4 py-3 text-slate-700">
-                  We will connect this form to the backend in the next step.
-                </div>
+                {mode === "create" && (
+                  <div className="rounded-2xl bg-blue-50 px-4 py-3 text-slate-700">
+                    We will connect this form to the backend in the next step.
+                  </div>
+                )}
               </div>
             </div>
 
@@ -304,7 +313,7 @@ export default function CreateCourseModal({
                 className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-3 font-semibold text-white shadow-lg shadow-blue-500/20 transition hover:bg-[#4d81d2]"
               >
                 <ArrowRight className="h-4 w-4" />
-                Create course
+                {mode === "edit" ? "Save changes" : "Create course"}
               </button>
             </div>
           </aside>
