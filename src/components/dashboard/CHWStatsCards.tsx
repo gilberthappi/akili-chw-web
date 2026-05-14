@@ -120,10 +120,10 @@ export const CHWStatsCards: React.FC<CHWStatsCardsProps> = ({
           label: "pre-test",
           value: data?.tests.preTest ?? 0,
         },
-        {
-          label: "mid-test",
-          value: data?.tests.midTest ?? 0,
-        },
+        // {
+        //   label: "mid-test",
+        //   value: data?.tests.midTest ?? 0,
+        // },
         {
           label: "final-test",
           value: data?.tests.finalTest ?? 0,
