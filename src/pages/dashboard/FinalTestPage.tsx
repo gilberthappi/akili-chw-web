@@ -11,6 +11,11 @@ import {
   GraduationCap,
   Trophy,
   ListChecks,
+  FileText,
+  Hash,
+  Target,
+  Eye,
+  ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/common/Button";
 import {
@@ -49,6 +54,7 @@ const FinalTestPage: React.FC<Props> = ({ mode }) => {
   const [showReview, setShowReview] = useState(false);
   const [isGeneratingCert, setIsGeneratingCert] = useState(false);
   const [finalExamId, setFinalExamId] = useState<string | null>(null);
+  const [showInstructions, setShowInstructions] = useState(true);
 
   const loadTest = useCallback(async () => {
     if (!testId) return;
@@ -300,12 +306,77 @@ const FinalTestPage: React.FC<Props> = ({ mode }) => {
                     <ListChecks size={16} />
                     Review Your Answers
                   </Button>
-                  <Button variant="outline" className="w-full" onClick={() => { setShowReview(false); loadTest(); }}>
+                  <Button variant="outline" className="w-full" onClick={() => { setShowReview(false); setShowInstructions(true); loadTest(); }}>
                     Retake {label}
                   </Button>
                 </>
               )}
             </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Instructions screen ───────────────────────────────────────────────────
+
+  if (showInstructions) {
+    const rules = [
+      { icon: <Hash size={15} />, text: `This ${label} contains ${questions.length} question${questions.length !== 1 ? "s" : ""}` },
+      { icon: <Target size={15} />, text: `You need ${marksToPass}% to pass` },
+      { icon: <Eye size={15} />, text: "Read each question carefully before selecting your answer" },
+      { icon: <ShieldCheck size={15} />, text: "Answer all questions before submitting — you cannot submit with unanswered questions" },
+      { icon: <FileText size={15} />, text: "You can navigate between questions freely before submitting" },
+    ];
+
+    return (
+      <div className="flex flex-col h-full bg-gray-50">
+        <header className="flex-shrink-0 bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3">
+          <button onClick={() => navigate(`/learn/${courseId}`)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors">
+            <ArrowLeft size={18} />
+          </button>
+          <div>
+            <h1 className="text-sm font-semibold text-gray-900">{label}</h1>
+            <p className="text-xs text-gray-400">{isFinalExam ? "Final examination for certification" : "End-of-course test"}</p>
+          </div>
+        </header>
+
+        <div className="flex-1 overflow-y-auto flex items-center justify-center p-6">
+          <div className="max-w-md w-full space-y-5">
+            {/* Icon + title */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 text-center">
+              <div className={`w-16 h-16 rounded-2xl ${accent.light} flex items-center justify-center mx-auto mb-4`}>
+                {isFinalExam
+                  ? <GraduationCap size={32} className={accent.text} />
+                  : <ClipboardList size={32} className={accent.text} />}
+              </div>
+              <h2 className="text-lg font-bold text-gray-900">{testData?.title ?? label}</h2>
+              {testData?.description && (
+                <p className="text-sm text-gray-500 mt-1 leading-relaxed">{testData.description}</p>
+              )}
+            </div>
+
+            {/* Rules */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
+              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Instructions</h3>
+              {rules.map((rule, i) => (
+                <div key={i} className="flex items-start gap-3">
+                  <div className={`shrink-0 w-7 h-7 rounded-lg ${accent.light} flex items-center justify-center ${accent.text}`}>
+                    {rule.icon}
+                  </div>
+                  <p className="text-sm text-gray-700 leading-snug pt-0.5">{rule.text}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Start button */}
+            <button
+              onClick={() => setShowInstructions(false)}
+              className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-sm text-white ${accent.bg} hover:opacity-90 transition-opacity shadow-sm`}
+            >
+              {isFinalExam ? <GraduationCap size={16} /> : <ClipboardList size={16} />}
+              Start {label}
+            </button>
           </div>
         </div>
       </div>
