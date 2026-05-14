@@ -33,19 +33,32 @@ export const Dashboard: React.FC = () => {
     );
   }
 
+  const isLearner = isAnyOf("TRAINEE", "SUPERVISOR");
+  const hour = new Date().getHours();
+  const greeting =
+    hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  const learnerSubtitle =
+    hour < 12
+      ? "Ready to learn something new today?"
+      : hour < 17
+      ? "Keep up the great progress!"
+      : "A great time to review what you've learned.";
+
   return (
     <div className="space-y-8 p-1">
-      {/* ── Welcome header with filters ─────────────────────────────────────── */}
+      {/* ── Welcome header ──────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-xl font-bold text-gray-900">
-            Welcome, {user.fullNames}!
+            {isLearner ? `${greeting}, ${user.fullNames}!` : `Welcome, ${user.fullNames}!`}
           </h1>
           <p className="text-xs text-gray-500 mt-0.5">
-            Here's what's happening on the platform
+            {isLearner
+              ? learnerSubtitle
+              : "Here's what's happening on the platform"}
           </p>
         </div>
-        
+
         {/* Filters will be injected here by AdoptionSection */}
         <div id="global-filters-container" className="flex-shrink-0" />
       </div>
