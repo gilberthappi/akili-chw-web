@@ -116,7 +116,7 @@ const MidTest: React.FC = () => {
               <p className="text-xs text-gray-400 truncate">{chapterTitle}</p>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
-              <span className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded-full">
+              <span className="text-xs font-medium text-[#3363AD] bg-[#3363AD]/10 border border-[#3363AD]/20 px-2 py-1 rounded-full">
                 Pass: {marksToPass}%
               </span>
               <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">
@@ -126,7 +126,7 @@ const MidTest: React.FC = () => {
           </div>
 
           {midTest?.description && (
-            <div className="mt-3 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            <div className="mt-3 text-xs text-[#3363AD] bg-[#3363AD]/5 border border-[#3363AD]/20 rounded-lg px-3 py-2">
               {midTest.description}
             </div>
           )}
@@ -135,7 +135,7 @@ const MidTest: React.FC = () => {
           <div className="mt-3">
             <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
               <div
-                className="h-full bg-amber-500 rounded-full transition-all"
+                className="h-full bg-[#3363AD] rounded-full transition-all"
                 style={{ width: `${questions.length > 0 ? (answeredCount / questions.length) * 100 : 0}%` }}
               />
             </div>
@@ -161,9 +161,9 @@ const MidTest: React.FC = () => {
                   onClick={() => setCurrentQIndex(i)}
                   className={`w-9 h-9 rounded-xl text-xs font-semibold transition-all ${
                     isCurrent
-                      ? "bg-amber-500 text-white shadow-sm ring-2 ring-amber-400 ring-offset-2"
+                      ? "bg-[#3363AD] text-white shadow-sm ring-2 ring-[#3363AD] ring-offset-2"
                       : isAnswered
-                      ? "bg-amber-50 text-amber-700 border border-amber-200"
+                      ? "bg-[#3363AD]/10 text-[#3363AD] border border-[#3363AD]/20"
                       : "bg-white text-gray-400 border border-gray-200 hover:border-gray-300"
                   }`}
                 >
@@ -178,7 +178,7 @@ const MidTest: React.FC = () => {
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
               <div className="p-6 space-y-5">
                 <div className="flex items-start gap-3">
-                  <span className="flex-shrink-0 w-8 h-8 rounded-xl bg-amber-50 text-amber-700 text-sm font-bold flex items-center justify-center">
+                  <span className="flex-shrink-0 w-8 h-8 rounded-xl bg-[#3363AD]/10 text-[#3363AD] text-sm font-bold flex items-center justify-center">
                     {currentQIndex + 1}
                   </span>
                   <div className="space-y-3 flex-1 min-w-0">
@@ -194,7 +194,7 @@ const MidTest: React.FC = () => {
                       />
                     )}
                     {currentQuestion.allowMultiple && (
-                      <span className="inline-block text-xs font-medium text-amber-700 bg-amber-50 rounded-lg px-2.5 py-1">
+                      <span className="inline-block text-xs font-medium text-[#3363AD] bg-[#3363AD]/10 rounded-lg px-2.5 py-1">
                         Select all that apply
                       </span>
                     )}
@@ -211,14 +211,14 @@ const MidTest: React.FC = () => {
                         onClick={() => toggleOption(currentQuestion.id, opt.id, currentQuestion.allowMultiple)}
                         className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border-2 text-sm text-left transition-all ${
                           isSelected
-                            ? "border-amber-400 bg-amber-50 text-gray-900"
+                            ? "border-[#3363AD] bg-[#3363AD]/5 text-gray-900"
                             : "border-gray-100 bg-gray-50 text-gray-700 hover:border-gray-200 hover:bg-white"
                         }`}
                       >
                         <span
                           className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all ${
                             isSelected
-                              ? "border-amber-500 bg-amber-500 text-white"
+                              ? "border-[#3363AD] bg-[#3363AD] text-white"
                               : "border-gray-300 text-gray-400"
                           }`}
                         >
@@ -264,7 +264,7 @@ const MidTest: React.FC = () => {
               size="sm"
               onClick={handleSubmit}
               disabled={!allAnswered || isSubmitting}
-              className="flex items-center gap-1.5 min-w-[120px] bg-amber-600 hover:bg-amber-700"
+              className="flex items-center gap-1.5 min-w-[120px]"
             >
               {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <ClipboardList size={14} />}
               {isSubmitting ? "Submitting..." : "Submit Test"}

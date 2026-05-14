@@ -34,9 +34,7 @@ const FinalTestPage: React.FC<Props> = ({ mode }) => {
 
   const isFinalExam = mode === "finalExam";
   const label = isFinalExam ? "Final Exam" : "Final Test";
-  const accent = isFinalExam
-    ? { ring: "ring-purple-400", bg: "bg-purple-600", light: "bg-purple-50", border: "border-purple-200", text: "text-purple-700", bar: "bg-purple-500", passedBorder: "border-purple-400" }
-    : { ring: "ring-green-400", bg: "bg-green-600", light: "bg-green-50", border: "border-green-200", text: "text-green-700", bar: "bg-green-500", passedBorder: "border-green-400" };
+  const accent = { ring: "ring-[#3363AD]", bg: "bg-[#3363AD]", light: "bg-[#3363AD]/10", border: "border-[#3363AD]/20", text: "text-[#3363AD]", bar: "bg-[#3363AD]", passedBorder: "border-[#3363AD]" };
 
   const [testData, setTestData] = useState<IFinalTestData | null>(null);
   const [questions, setQuestions] = useState<IQuestionnaire[]>([]);
@@ -414,7 +412,7 @@ const FinalTestPage: React.FC<Props> = ({ mode }) => {
                         <span
                           className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all ${
                             isSelected
-                              ? `${accent.bg.replace("bg-", "border-")} ${accent.bg} text-white`
+                              ? "border-[#3363AD] bg-[#3363AD] text-white"
                               : "border-gray-300 text-gray-400"
                           }`}
                         >
