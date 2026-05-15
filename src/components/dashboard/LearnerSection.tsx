@@ -24,7 +24,7 @@ const ContinueLearningCard: React.FC<{ loc: ILastViewedLocation }> = ({ loc }) =
   return (
     <div
       className="relative overflow-hidden rounded-2xl cursor-pointer group"
-      onClick={() => navigate(`/course-learner/${loc.courseId}`)}
+      onClick={() => navigate(`/learn/${loc.courseId}`)}
     >
       <div className="absolute inset-0 bg-gradient-to-r from-[#3363AD] to-[#4a7bbf]" />
       <div className="absolute -right-8 -top-8 w-48 h-48 rounded-full bg-white/10" />
@@ -117,7 +117,7 @@ const CourseCard: React.FC<{ course: ICourseStatEntry }> = ({ course }) => {
     <div
       className="bg-white rounded-xl border border-gray-100 p-4 hover:shadow-sm
         transition-shadow duration-200 cursor-pointer group"
-      onClick={() => navigate(`/course-learner/${course.courseId}`)}
+      onClick={() => navigate(`/learn/${course.courseId}`)}
     >
       <div className="flex items-center gap-3">
         <CourseIcon icon={course.coverIcon} completed={course.isCompleted} />
@@ -267,7 +267,7 @@ export const LearnerSection: React.FC = () => {
                   <div
                     key={course.courseId}
                     className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer group"
-                    onClick={() => navigate(`/course-learner/${course.courseId}`)}
+                    onClick={() => navigate(`/learn/${course.courseId}`)}
                   >
                     <CourseIcon icon={course.coverIcon} completed={true} />
                     <p className="text-sm text-gray-700 font-medium flex-1 truncate group-hover:text-[#3363AD] transition-colors">
