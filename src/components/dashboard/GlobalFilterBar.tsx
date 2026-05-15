@@ -50,8 +50,13 @@ export const GlobalFilterBar: React.FC<GlobalFilterBarProps> = ({
   months,
 }) => {
   const hasActiveFilters = Object.values(filters).some((v) => v !== "");
-  const set = (key: keyof IDashboardFilters) => (value: string) =>
-    onChange({ ...filters, [key]: value });
+  const set = (key: keyof IDashboardFilters) => (value: string) => {
+    if (key === "province") {
+      onChange({ ...filters, province: value, district: "" });
+    } else {
+      onChange({ ...filters, [key]: value });
+    }
+  };
   const reset = () => onChange(EMPTY);
 
   return (
@@ -72,7 +77,7 @@ export const GlobalFilterBar: React.FC<GlobalFilterBarProps> = ({
             onChange={set("province")}
           />
         )}
-        {districts.length > 0 && (
+        {filters.province !== "" && districts.length > 0 && (
           <SelectFilter
             label="District"
             value={filters.district}

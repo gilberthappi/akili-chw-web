@@ -19,9 +19,9 @@ interface CommunicationsCardProps {
 }
 
 const TYPE_COLORS: Record<string, string> = {
-  peer: "rgba(51, 99, 173, 1)",
-  group: "rgba(51, 99, 173, 0.7)",
-  community: "rgba(51, 99, 173, 0.4)",
+  peer: "#3363AD",
+  group: "#5B86C4",
+  community: "#82A5D6",
 };
 
 export const CommunicationsCard: React.FC<CommunicationsCardProps> = ({
@@ -140,19 +140,19 @@ export const CommunicationsCard: React.FC<CommunicationsCardProps> = ({
               dataKey='direct'
               name='Direct messages'
               stackId='a'
-              fill='rgba(51, 99, 173, 1)'
+              fill='#3363AD'
             />
             <Bar
               dataKey='group'
               name='Group chats'
               stackId='a'
-              fill='rgba(51, 99, 173, 0.7)'
+              fill='#5B86C4'
             />
             <Bar
               dataKey='community'
               name='Community posts'
               stackId='a'
-              fill='rgba(51, 99, 173, 0.4)'
+              fill='#82A5D6'
               radius={[3, 3, 0, 0]}
             />
           </BarChart>

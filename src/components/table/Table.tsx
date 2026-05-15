@@ -4,19 +4,29 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   MagnifyingGlassIcon,
+  FunnelIcon,
+  ArrowsUpDownIcon,
+  ArrowUpIcon,
+  ArrowDownIcon
 } from "@heroicons/react/20/solid";
 import SyncLoader from "react-spinners/SyncLoader";
-import { FunnelIcon } from "@heroicons/react/24/outline";
-import { Popover, PopoverButton, PopoverPanel } from "@headlessui/react";
-import { usePopper } from "react-popper";
-// import Protected from "../auth/Protected";
 
-interface TableColumn {
+export interface TableFilterDef {
+  key: string;
+  label: string;
+  options: { label: string; value: string }[];
+  value: string;
+  onChange: (value: string) => void;
+}
+
+export interface TableColumn {
   title: string;
   key: string;
   render?: (row: any) => React.ReactNode;
+  sortable?: boolean;
 }
-interface TableProps {
+
+export interface TableProps {
   columns: TableColumn[];
   data: Array<any>;
   totalItems?: number;
@@ -34,7 +44,19 @@ interface TableProps {
   position?: string;
   usedFilters?: string;
   paginate?: boolean;
+  
+  // New features
+  selectable?: boolean;
+  onSelectionChange?: (selectedIds: string[]) => void;
+  onSort?: (key: string, direction: "asc" | "desc") => void;
+  currentSortKey?: string;
+  currentSortOrder?: "asc" | "desc";
+  rowsPerPageOptions?: number[];
+  onRowsPerPageChange?: (limit: number) => void;
+  filters?: TableFilterDef[];
+  onResetFilters?: () => void;
 }
+
 const Table: FC<TableProps> = ({
   columns,
   data,
@@ -48,24 +70,27 @@ const Table: FC<TableProps> = ({
   isLoading,
   searchComponent,
   onChangePage,
-  hideFilters,
   position,
   usedFilters,
   headerComponent,
   paginate = true,
+  selectable = false,
+  onSelectionChange,
+  onSort,
+  currentSortKey,
+  currentSortOrder,
+  rowsPerPageOptions = [10, 15, 30, 50, 100],
+  onRowsPerPageChange,
+  filters,
+  onResetFilters,
 }) => {
-  // const [filtersOPened, setFiltersOpened] = useState(false);
-  const [searchText, setSearchText] = useState<string>();
-  const showPagination = paginate ? totalItems / itemsPerPage > 1 : false;
+  const [searchText, setSearchText] = useState<string>("");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const showPagination = paginate ? totalItems > 0 : false;
   const startPage = Math.max(1, currentPage - 2);
   const totalPages = Math.ceil(totalItems / itemsPerPage);
-  const endPage = Math.min(totalPages, startPage + 2);
-  // const closeFiltersDrawer = () => {
-  //   setFiltersOpened(false);
-  // };
-  // const openFiltersDrawer = () => {
-  //   setFiltersOpened(true);
-  // };
+  const endPage = Math.min(totalPages, Math.max(1, startPage + 2));
 
   const handleTableSearch = (searchq: string) => {
     setSearchText(searchq);
@@ -73,231 +98,285 @@ const Table: FC<TableProps> = ({
 
   useEffect(() => {
     const handleSearch = setTimeout(() => {
-      if (searchFun && searchText != undefined) {
+      if (searchFun && searchText !== undefined) {
         searchFun(searchText);
       }
     }, 300);
     return () => clearTimeout(handleSearch);
   }, [searchText, searchFun]);
-  const isActive = (pg: number): string => {
-    return pg == currentPage ? "text-darkblue font-extrabold" : "";
+
+  // Handle row selection
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const allIds = data.map((r, i) => r.id || i.toString());
+      setSelectedIds(new Set(allIds));
+      if (onSelectionChange) onSelectionChange(allIds);
+    } else {
+      setSelectedIds(new Set());
+      if (onSelectionChange) onSelectionChange([]);
+    }
   };
 
-  useEffect(() => {
-    if (hideFilters) {
-      // closeFiltersDrawer();
+  const handleSelectRow = (id: string, checked: boolean) => {
+    const newSet = new Set(selectedIds);
+    if (checked) newSet.add(id);
+    else newSet.delete(id);
+    setSelectedIds(newSet);
+    if (onSelectionChange) onSelectionChange(Array.from(newSet));
+  };
+
+  const allSelected = data.length > 0 && selectedIds.size === data.length;
+  const someSelected = selectedIds.size > 0 && selectedIds.size < data.length;
+
+  const handleSortClick = (columnKey: string) => {
+    if (!onSort) return;
+    if (currentSortKey === columnKey) {
+      // Toggle
+      onSort(columnKey, currentSortOrder === "asc" ? "desc" : "asc");
+    } else {
+      onSort(columnKey, "asc");
     }
-  }, [hideFilters]);
-
-  const filters = usedFilters
-    ? usedFilters
-        .split("&")
-        .map((param) => param.split("="))
-        .filter(([key, value]) => key !== "" && value !== "" && value != "all")
-        .map(([key, value]) => [key, decodeURIComponent(value)])
-    : [];
-
-  const [referenceElement, setReferenceElement] = useState<HTMLElement | null>(null);
-  const [popperElement, setPopperElement] = useState<HTMLElement | null>(null);
-
-  const { styles, attributes } = usePopper(referenceElement, popperElement, {
-    placement: "bottom-end", // Adjust placement as needed
-    modifiers: [
-      {
-        name: "offset",
-        options: {
-          // offset: [50, -2], // Adjust the horizontal and vertical offsets as needed
-        },
-      },
-    ],
-  });
+  };
 
   return (
-    <div className='rounded-t relative border p-0 bg-white'>
-      <div className='mt-3 px-5 mb-3'>
-        {searchComponent && searchComponent}
-        <div className='flex flex-wrap items-center space-x-2 space-y-1.5 sm:space-y-0'>
-          {headerComponent && headerComponent}
-
+    <div className='rounded-xl border border-gray-100 shadow-sm bg-white overflow-hidden'>
+      <div className='p-4 border-b border-gray-100 flex flex-col lg:flex-row lg:items-center justify-between gap-4'>
+        {/* Left side: Search & Inline Filters */}
+        <div className='flex flex-wrap items-center gap-3 w-full lg:w-auto'>
+          {searchComponent}
           {searchFun && (
-            <div className='relative rounded-md shadow-sm w-full max-w-md'>
+            <div className='relative rounded-lg shadow-sm w-full sm:w-auto sm:min-w-[240px]'>
               <div className='pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3'>
-                <span className='text-gray-400 sm:text-sm'>
-                  <MagnifyingGlassIcon className='w-5 stroke-2' />
-                </span>
+                <MagnifyingGlassIcon className='w-4 text-gray-400' />
               </div>
               <input
                 type='text'
-                name='price'
-                id='price'
+                value={searchText}
                 onChange={(e) => handleTableSearch(e.target.value)}
-                className='block w-full rounded-md outline-none border-0 py-2.5 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400  focus:ring-inset focus:ring-darkblue sm:text-sm sm:leading-6'
-                placeholder='Search ...'
+                className='block w-full rounded-lg border-0 py-2 pl-9 text-gray-900 ring-1 ring-inset ring-gray-200 placeholder:text-gray-400 focus:ring-1 focus:ring-inset focus:ring-[#3363AD] sm:text-sm sm:leading-6'
+                placeholder='Search students...'
               />
             </div>
           )}
+          
+          {/* Dynamic Filters Array */}
+          {filters && filters.length > 0 && (
+            <div className='flex flex-wrap items-center gap-2'>
+              {filters.map((f) => (
+                <select
+                  key={f.key}
+                  value={f.value}
+                  onChange={(e) => f.onChange(e.target.value)}
+                  className="border border-gray-200 rounded px-2 py-1.5 text-sm text-gray-600 outline-none focus:border-[#3363AD]"
+                >
+                  <option value="">{f.label}</option>
+                  {f.options.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              ))}
+            </div>
+          )}
+
+          {headerComponent}
           {allowFilter && filtersComponent && (
-            <div className='relative'>
-              {filtersComponent && (
-                <Popover ref={setReferenceElement} className='relative'>
-                  <PopoverButton className={"outline-none"}>
-                    <div
-                      className='rounded-md ring-1 ring-inset ring-gray-300 py-2.5 px-2 flex items-center space-x-3 relative text-gray-500 cursor-pointer'
-                      // onClick={openFiltersDrawer}
-                    >
-                      <FunnelIcon className='w-6' />
-                      <span>Filters</span>
-                      {filters.length > 0 && (
-                        <span className=' inline-block px-2.5 py-1.5 text-xs font-semibold leading-none rounded-full bg-darkblue text-white'>
-                          {filters.length}
+            <div className='flex items-center gap-2'>
+               {filtersComponent}
+            </div>
+          )}
+
+          {onResetFilters && (searchText || (filters && filters.some(f => f.value))) && (
+             <button 
+                onClick={() => {
+                  setSearchText("");
+                  onResetFilters();
+                }} 
+                className="text-[#3363AD] text-sm font-medium hover:underline px-2 whitespace-nowrap"
+              >
+                Reset Filters
+              </button>
+          )}
+        </div>
+        
+        {/* Right side: Actions */}
+        <div className='flex items-center gap-3 justify-end'>
+          {actionBtn}
+        </div>
+      </div>
+
+      <div className='relative w-full overflow-x-auto'>
+        {isLoading && (
+          <div className='absolute inset-0 bg-white/60 z-10 flex justify-center items-center backdrop-blur-[1px]'>
+            <SyncLoader color='#3363AD' size={10} />
+          </div>
+        )}
+
+        {data.length > 0 ? (
+          <table className='w-full text-sm text-left text-gray-600'>
+            <thead className='text-xs text-gray-500 bg-white border-b border-gray-100'>
+              <tr>
+                {selectable && (
+                  <th scope='col' className='px-6 py-4 w-12'>
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        ref={input => {
+                          if (input) input.indeterminate = someSelected;
+                        }}
+                        onChange={(e) => handleSelectAll(e.target.checked)}
+                        className="w-4 h-4 text-[#3363AD] bg-white border-gray-300 rounded focus:ring-[#3363AD] cursor-pointer"
+                      />
+                    </div>
+                  </th>
+                )}
+                {columns.map((column, columnIndex) => (
+                  <th 
+                    key={columnIndex} 
+                    scope='col' 
+                    className={`px-6 py-4 font-medium tracking-wide ${column.sortable ? 'cursor-pointer hover:bg-gray-50 transition-colors group' : ''}`}
+                    onClick={() => column.sortable && handleSortClick(column.key)}
+                  >
+                    <div className="flex items-center gap-2 whitespace-nowrap">
+                      {column.title}
+                      {column.sortable && (
+                        <span className="text-gray-400 group-hover:text-gray-600 flex-shrink-0">
+                          {currentSortKey === column.key ? (
+                            currentSortOrder === 'asc' ? <ArrowUpIcon className="w-3.5 h-3.5 text-[#3363AD]" /> : <ArrowDownIcon className="w-3.5 h-3.5 text-[#3363AD]" />
+                          ) : (
+                            <ArrowsUpDownIcon className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100" />
+                          )}
                         </span>
                       )}
                     </div>
-                  </PopoverButton>
-                  <PopoverPanel
-                    style={styles.popper}
-                    {...attributes.popper}
-                    ref={setPopperElement}
-                    className={"fixed z-50 -right-8 w-[480px]"}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {data.map((row, rowIndex) => {
+                const rowId = row.id || rowIndex.toString();
+                const isSelected = selectedIds.has(rowId);
+                return (
+                  <tr 
+                    key={rowId} 
+                    className={`bg-white hover:bg-gray-50/50 transition-colors ${isSelected ? 'bg-blue-50/20' : ''}`}
                   >
-                    <div className=' border border-gray-100 shadow-2xl rounded-md p-10 rounded-sm w-full bg-white'>
-                      {filtersComponent}
-                    </div>
-                  </PopoverPanel>
-                </Popover>
-              )}
-            </div>
-          )}
-          {actionBtn && actionBtn}
-        </div>
-      </div>
-      {isLoading && (
-        <div className='p-3 w-full absolute z-20 flex justify-center'>
-          <SyncLoader color='#4d81d2' />
-        </div>
-      )}
-
-      {data.length > 0 ? (
-        <div
-          className={
-            position
-              ? position
-              : `absolute ` + ` border-inherit w-full  border box-border bg-inherit`
-          }
-        >
-          <div className='w-full overflow-x-auto'>
-            <table className='text-sm text-left text-gray-500 w-full'>
-              <thead className='text-xs text-gray-700 uppercase border-b'>
-                <tr key={1}>
-                  {columns.map((column, columnIndex) => (
-                    <Fragment key={columnIndex}>
-                        <th scope='col' className='px-6 py-3'>
-                          {column.title}
-                        </th>
-                    </Fragment>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {data.map((row, rowIndex) => (
-                  <tr className='bg-white border-b' key={rowIndex}>
+                    {selectable && (
+                      <td className='px-6 py-3 w-12'>
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => handleSelectRow(rowId, e.target.checked)}
+                            className="w-4 h-4 text-[#3363AD] bg-white border-gray-300 rounded focus:ring-[#3363AD] cursor-pointer"
+                          />
+                        </div>
+                      </td>
+                    )}
                     {columns.map((column, cellIndex) => (
-                      <Fragment key={cellIndex}>
-                         <td className='px-6 py-2' key={cellIndex}>
-                            {column.render ? column.render(row) : row[column.key]}
-                          </td>
-                      </Fragment>
+                      <td className='px-6 py-3' key={cellIndex}>
+                        {column.render ? column.render(row) : row[column.key]}
+                      </td>
                     ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {showPagination && (
-            <div className='py-1 flex justify-between px-1'>
-              <div>
-                <span className='text-sm font-bold'>
-                  Showing{" "}
-                  {Math.min((currentPage - 1) * itemsPerPage + 1, totalItems)}-
-                  {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems}
-                </span>
-              </div>
-              <nav className='isolate inline-flex -space-x-px rounded-md'>
-                <a
-                  href='#'
-                  className='relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400  ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0'
-                >
-                  <ChevronLeftIcon
-                    onClick={() => {
-                      const prevPage = currentPage - 1;
-                      if (prevPage > 0 && onChangePage) {
-                        onChangePage(prevPage);
-                      }
-                    }}
-                    className='h-5 w-5'
-                    aria-hidden='true'
-                  />
-                </a>
-
-                {startPage > 1 && (
-                  <>
-                    <button
-                      className={`relative inline-flex ${isActive(
-                        1,
-                      )} items-center rounded-l-md px-2 py-2 text-gray-400  ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0`}
-                      onClick={() => onChangePage && onChangePage(1)}
-                    >
-                      1
-                    </button>
-                    {startPage > 2 && <span>...</span>}
-                  </>
-                )}
-                {Array.from({ length: endPage - startPage + 1 }, (_, i) => (
-                  <button
-                    className={`relative inline-flex ${isActive(
-                      startPage + i,
-                    )} items-center rounded-l-md px-2 py-2 text-gray-400  ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0`}
-                    key={startPage + i}
-                    onClick={() => onChangePage && onChangePage(startPage + i)}
-                  >
-                    {startPage + i}
-                  </button>
-                ))}
-                {endPage < totalPages && (
-                  <>
-                    {endPage < totalPages - 1 && <span>...</span>}
-                    <button
-                      className={`relative inline-flex items-center ${isActive(
-                        totalPages,
-                      )} rounded-l-md px-2 py-2 text-gray-400  ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0`}
-                      onClick={() => onChangePage && onChangePage(totalPages)}
-                    >
-                      {totalPages}
-                    </button>
-                  </>
-                )}
-                <a
-                  href='#'
-                  className={`relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400  ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0`}
-                >
-                  <ChevronRightIcon
-                    onClick={() => {
-                      const nextPage = currentPage + 1;
-                      if (nextPage <= totalPages && onChangePage) {
-                        onChangePage(nextPage);
-                      }
-                    }}
-                    className='h-5 w-5'
-                    aria-hidden='true'
-                  />
-                </a>
-              </nav>
+                );
+              })}
+            </tbody>
+          </table>
+        ) : (
+          <div className='p-12 text-center text-gray-500'>
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-50 mb-4">
+              <FunnelIcon className="w-8 h-8 text-gray-400" />
             </div>
-          )}
-        </div>
-      ) : (
-        <div className='p-4'>
-          <h2 className=' text-lg font-medium'>No data to display</h2>
+            <h2 className='text-lg font-medium text-gray-900'>No data found</h2>
+            <p className="mt-1">Try adjusting your search or filters to find what you're looking for.</p>
+          </div>
+        )}
+      </div>
+
+      {/* Pagination Footer */}
+      {showPagination && data.length > 0 && (
+        <div className='px-6 py-4 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4'>
+          <div className="flex items-center text-sm text-gray-500 whitespace-nowrap">
+            <span>
+              Showing <span className="font-medium text-gray-900">{Math.min((currentPage - 1) * itemsPerPage + 1, totalItems)}</span> to <span className="font-medium text-gray-900">{Math.min(currentPage * itemsPerPage, totalItems)}</span> of <span className="font-medium text-gray-900">{totalItems}</span>
+            </span>
+          </div>
+
+          <div className="flex items-center gap-6">
+            {onRowsPerPageChange && (
+              <div className="hidden sm:flex items-center gap-2 text-sm text-gray-500">
+                <label htmlFor="rows-per-page">Rows per page</label>
+                <select
+                  id="rows-per-page"
+                  value={itemsPerPage}
+                  onChange={(e) => onRowsPerPageChange(Number(e.target.value))}
+                  className="rounded border-gray-200 text-gray-700 text-sm py-1 pl-2 pr-6 focus:ring-[#3363AD] focus:border-[#3363AD] outline-none"
+                >
+                  {rowsPerPageOptions.map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <nav className='flex items-center gap-1'>
+              <button
+                onClick={() => onChangePage && currentPage > 1 && onChangePage(currentPage - 1)}
+                disabled={currentPage === 1}
+                className='p-1 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:hover:bg-transparent transition-colors'
+              >
+                <ChevronLeftIcon className='w-5 h-5' />
+              </button>
+
+              {startPage > 1 && (
+                <>
+                  <button
+                    className={`w-8 h-8 flex items-center justify-center rounded text-sm font-medium transition-colors ${currentPage === 1 ? 'bg-[#3363AD] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'}`}
+                    onClick={() => onChangePage && onChangePage(1)}
+                  >
+                    1
+                  </button>
+                  {startPage > 2 && <span className="px-1 text-gray-400">...</span>}
+                </>
+              )}
+
+              {Array.from({ length: endPage - startPage + 1 }, (_, i) => {
+                const pg = startPage + i;
+                const isActive = pg === currentPage;
+                return (
+                  <button
+                    key={pg}
+                    className={`w-8 h-8 flex items-center justify-center rounded text-sm font-medium transition-colors ${isActive ? 'bg-[#3363AD] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'}`}
+                    onClick={() => onChangePage && onChangePage(pg)}
+                  >
+                    {pg}
+                  </button>
+                );
+              })}
+
+              {endPage < totalPages && (
+                <>
+                  {endPage < totalPages - 1 && <span className="px-1 text-gray-400">...</span>}
+                  <button
+                    className={`w-8 h-8 flex items-center justify-center rounded text-sm font-medium transition-colors ${currentPage === totalPages ? 'bg-[#3363AD] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'}`}
+                    onClick={() => onChangePage && onChangePage(totalPages)}
+                  >
+                    {totalPages}
+                  </button>
+                </>
+              )}
+
+              <button
+                onClick={() => onChangePage && currentPage < totalPages && onChangePage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className='p-1 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:hover:bg-transparent transition-colors'
+              >
+                <ChevronRightIcon className='w-5 h-5' />
+              </button>
+            </nav>
+          </div>
         </div>
       )}
     </div>

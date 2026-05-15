@@ -20,6 +20,14 @@ import {
   getRecentActivityFeed,
 } from "@/services/analytics.service";
 
+export interface AnalyticsFilters {
+  district?: string;
+  province?: string;
+  gender?: string;
+  year?: string;
+  month?: string;
+}
+
 interface AdoptionStats {
   hospitals: IHospital[];
   totalChws: number;
@@ -48,7 +56,7 @@ interface AdoptionStats {
 
 const TOTAL_CHWS_NATIONAL = 58567;
 
-export const useAdoptionStats = (): AdoptionStats => {
+export const useAdoptionStats = (filters: AnalyticsFilters = {}): AdoptionStats => {
   const [hospitals, setHospitals] = useState<IHospital[]>([]);
   const [enrollmentTrends, setEnrollmentTrends] = useState<IEnrollmentTrend[]>([]);
   const [avgStudyTime, setAvgStudyTime] = useState(0);
@@ -75,16 +83,27 @@ export const useAdoptionStats = (): AdoptionStats => {
     setIsLoading(true);
     setError(null);
     try {
+      // Build query string
+      const qsParams = new URLSearchParams();
+      if (filters.district) qsParams.append("district", filters.district);
+      if (filters.province) qsParams.append("province", filters.province);
+      if (filters.gender) qsParams.append("gender", filters.gender);
+      if (filters.year) qsParams.append("year", filters.year);
+      if (filters.month) qsParams.append("month", filters.month);
+      
+      const qs = qsParams.toString();
+      const qsPrefix = qs ? `?${qs}` : "";
+
       const results = await Promise.allSettled([
-        api.get("/hospitals/"),
-        api.get("/export/dashboard/course/analytics"),
-        api.get("/export/dashboard/student/analytics"),
-        getTestScoreAnalytics(),
-        getCommunicationsAnalytics(),
-        getDemographicsAnalytics(),
-        getCHWDashboardStats(),
-        getCourseDurationStats(),
-        getRecentActivityFeed(),
+        api.get("/hospitals/"), // We can append it to hospitals if hospitals endpoint supports it, but probably it doesn't. Leaving as is.
+        api.get(`/export/dashboard/course/analytics${qsPrefix}`),
+        api.get(`/export/dashboard/student/analytics${qsPrefix}`),
+        getTestScoreAnalytics(qs),
+        getCommunicationsAnalytics(qs),
+        getDemographicsAnalytics(qs),
+        getCHWDashboardStats(qs),
+        getCourseDurationStats(qs),
+        getRecentActivityFeed(qs),
       ]);
 
       let hospitalList: IHospital[] = [];
@@ -142,7 +161,13 @@ export const useAdoptionStats = (): AdoptionStats => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [
+    filters.district,
+    filters.province,
+    filters.gender,
+    filters.year,
+    filters.month,
+  ]);
 
   useEffect(() => {
     fetchAll();

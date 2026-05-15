@@ -122,23 +122,15 @@ export const TestScoreAnalyticsCard: React.FC<TestScoreAnalyticsCardProps> = ({
                   borderRadius: 8,
                   border: "1px solid #e5e7eb",
                 }}
-                formatter={(v: number) => [`${v}%`]}
+                formatter={(value: number, name: string) => [`${value}%`, name]}
               />
               <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar dataKey='Pre-test' fill='#94a3b8' radius={[3, 3, 0, 0]} />
-              <Bar
-                dataKey='Pre-test'
-                fill='rgba(51, 99, 173, 0.4)'
-                radius={[3, 3, 0, 0]}
-              />
+              <Bar dataKey='Pre-test' fill='#6E95CB' radius={[3, 3, 0, 0]} />
               <Bar dataKey='Final test' fill='#3363AD' radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       )}
-      <Bar dataKey='Pre-test' fill='#94a3b8' radius={[3, 3, 0, 0]} />
-      {/* Duplicate Pre-test bar removed */}
-      <Bar dataKey='Final test' fill='#3363AD' radius={[3, 3, 0, 0]} />
       {data.byCourse.filter(
         (c) => c.meanPreTest !== null && c.meanFinalTest === null,
       ).length > 0 && (

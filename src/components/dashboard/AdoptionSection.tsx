@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect } from "react";
+import React, { useCallback, useState } from "react";
 import { createPortal } from "react-dom";
+import { IDashboardFilters } from "@/types";
 import { useAdoptionStats } from "@/hooks/useAdoptionStats";
 import { useDashboardFilters } from "@/hooks/useDashboardFilters";
 import { GlobalFilterBar } from "./GlobalFilterBar";
@@ -16,6 +17,10 @@ import { RwandaDistrictMap } from "./RwandaDistrictMap";
 import { CHWStatsCards } from "./CHWStatsCards";
 
 export const AdoptionSection: React.FC = () => {
+  const [filters, setFilters] = useState<IDashboardFilters>({
+    province: "", district: "", gender: "", year: "", month: "",
+  });
+
   const {
     hospitals,
     enrollmentTrends,
@@ -29,11 +34,9 @@ export const AdoptionSection: React.FC = () => {
     recentActivity,
     isLoading,
     error,
-  } = useAdoptionStats();
+  } = useAdoptionStats(filters);
 
   const {
-    filters,
-    setFilters,
     availableProvinces,
     availableDistricts,
     availableGenders,
@@ -43,12 +46,16 @@ export const AdoptionSection: React.FC = () => {
     filteredByGender,
     filteredEnrollmentTrends,
     filteredCommTrend,
-  } = useDashboardFilters({
-    byProvince,
-    demographics,
-    enrollmentTrends,
-    communications,
-  });
+  } = useDashboardFilters(
+    {
+      byProvince,
+      demographics,
+      enrollmentTrends,
+      communications,
+    },
+    filters,
+    setFilters
+  );
 
   const handleDistrictClick = useCallback(
     (district: string) => setFilters({ ...filters, district }),
@@ -60,7 +67,7 @@ export const AdoptionSection: React.FC = () => {
     ? document.getElementById('global-filters-container')
     : null;
 
-  if (isLoading) return <SectionSkeleton cards={5} rows={2} />;
+  if (isLoading && !chwStats) return <SectionSkeleton cards={5} rows={2} />;
 
   return (
     <>
@@ -78,13 +85,22 @@ export const AdoptionSection: React.FC = () => {
         filterPortal
       )}
 
-      <div className='space-y-5'>
+      <div className={`space-y-5 transition-opacity duration-200 ${isLoading ? 'opacity-60 pointer-events-none' : 'opacity-100'}`}>
         {error && (
           <div
             className='text-sm text-red-500 bg-red-50 border border-red-100
             rounded-lg px-4 py-3'
           >
             {error}
+          </div>
+        )}
+
+        {(filters.district || filters.province || filters.gender || filters.year || filters.month) && (
+          <div className="bg-blue-50/50 border border-blue-100 text-blue-700 px-4 py-3 rounded-lg text-sm flex items-center">
+            <svg className="w-5 h-5 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Showing filtered analytics. Clear filters in the top bar to view all data.
           </div>
         )}
 
