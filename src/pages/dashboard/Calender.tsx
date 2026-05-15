@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 import {
   Calendar as CalendarIcon,
   ChevronLeft,
@@ -35,7 +36,9 @@ import { uploadFileByType } from "@/services/uploader.api";
 
 const Calendar: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const profileEmail = user?.email || "";
+  const isAdmin = user?.roles?.some((r: string) => ['ADMIN', 'ADMINISTRATOR'].includes(r)) ?? false;
 
   // Fetch all users
   const { data: usersData } = useQuery({
@@ -1165,6 +1168,13 @@ const Calendar: React.FC = () => {
             <p className="text-gray-600">Manage training sessions, screenings, and events</p>
           </div>
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate(isAdmin ? '/recordings' : '/recordings/watch')}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+            >
+              <Video className="w-4 h-4" />
+              View Recordings
+            </button>
             <button
               onClick={() => setShowEventModal(true)}
               className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg  font-medium hover:bg-[#4d81d2]"

@@ -28,6 +28,8 @@ import NewCoursesBuilder from "@/pages/dashboard/NewCoursesBuilder";
 import StudentsPage from "@/pages/dashboard/Students";
 import StudentActivityPage from "@/components/students/StudentActivityPage";
 import Calendar from "@/pages/dashboard/Calender";
+import MeetingRecordings from "@/pages/dashboard/MeetingRecordings";
+import WatchRecordings from "@/pages/dashboard/WatchRecordings";
 import Help from "@/pages/dashboard/Help";
 import Hospitals from "@/pages/dashboard/Hospitals";
 import Announcement from "@/pages/dashboard/Announcement";
@@ -217,6 +219,22 @@ const RoutesProvider = () => {
         {
           path: "calender",
           element: <Calendar />,
+        },
+        {
+          path: "recordings",
+          element: (
+            <ProtectedRoute allowedRoles={["ADMIN", "ADMINISTRATOR"]}>
+              <MeetingRecordings />
+            </ProtectedRoute>
+          ),
+        },
+        {
+          path: "recordings/watch",
+          element: (
+            <ProtectedRoute allowedRoles={["TRAINEE", "SUPERVISOR"]}>
+              <WatchRecordings />
+            </ProtectedRoute>
+          ),
         },
         {
           path: "settings",
