@@ -5,6 +5,7 @@ export type UserRole =
   | "ADMIN"
   | "TRAINER"
   | "TRAINEE"
+  | "TESTER"
   | "DEVELOPER"
   | "SUPERVISOR"
   | "STAFF";
@@ -835,6 +836,7 @@ export interface IStudentAnalyticsResponse {
 export interface IStudentAnalytics {
   totalStudents: IStatWithTrend<number>;
   activeStudents: IStatWithTrend<number>;
+  onLeaveStudents: IStatWithTrend<number>;
   avgStudyTime: IStatWithTrend<number> & { unit: string };
   completionRate: IStatWithTrend<number> & { unit: string };
 

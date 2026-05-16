@@ -55,7 +55,7 @@ const resetBounceCount = () => {
 };
 
 const getRoleRedirect = (roles: string[]): string => {
-  if (roles.some((r) => ["TRAINEE"].includes(r))) return "/my-learning";
+  if (roles.some((r) => ["TRAINEE", "TESTER"].includes(r))) return "/my-learning";
   return "/";
 };
 
@@ -65,22 +65,25 @@ const TemporaryIssueScreen: React.FC<{
   onCleanup: () => void;
   onRetry: () => void;
 }> = ({ onCleanup, onRetry }) => (
-  <div className="min-h-screen flex bg-[#0b0f1e] items-center justify-center p-4">
-    <div className="w-full max-w-md">
-      <div className="text-center mb-8">
-        <div className="flex items-center justify-center mb-4">
-          <div className="w-16 h-16 rounded-full bg-red-500/20 border border-red-500/30 flex items-center justify-center">
-            <AlertCircle className="w-8 h-8 text-red-400" />
+  <div className='min-h-screen flex bg-[#0b0f1e] items-center justify-center p-4'>
+    <div className='w-full max-w-md'>
+      <div className='text-center mb-8'>
+        <div className='flex items-center justify-center mb-4'>
+          <div className='w-16 h-16 rounded-full bg-red-500/20 border border-red-500/30 flex items-center justify-center'>
+            <AlertCircle className='w-8 h-8 text-red-400' />
           </div>
         </div>
-        <h1 className="text-2xl font-bold text-white mb-2">Temporary Issue</h1>
-        <p className="text-gray-400 text-sm">Authentication session encountered a problem</p>
+        <h1 className='text-2xl font-bold text-white mb-2'>Temporary Issue</h1>
+        <p className='text-gray-400 text-sm'>
+          Authentication session encountered a problem
+        </p>
       </div>
 
-      <div className="bg-[#151c2e] rounded-2xl border border-white/10 p-8 space-y-5">
-        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
-          <p className="text-sm text-red-300 leading-relaxed">
-            Your session has corrupted cache or storage data. Clear it below to resolve the issue.
+      <div className='bg-[#151c2e] rounded-2xl border border-white/10 p-8 space-y-5'>
+        <div className='bg-red-500/10 border border-red-500/20 rounded-xl p-4'>
+          <p className='text-sm text-red-300 leading-relaxed'>
+            Your session has corrupted cache or storage data. Clear it below to
+            resolve the issue.
           </p>
         </div>
 
@@ -93,20 +96,20 @@ const TemporaryIssueScreen: React.FC<{
             }
             onCleanup();
           }}
-          className="w-full flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-4 rounded-xl transition-colors"
+          className='w-full flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-4 rounded-xl transition-colors'
         >
           <Trash2 size={18} /> Clean Cache & Storage
         </button>
 
         <button
           onClick={onRetry}
-          className="w-full bg-[#3363AD] hover:bg-[#2a52a0] text-white font-semibold py-3 px-4 rounded-xl transition-colors"
+          className='w-full bg-[#3363AD] hover:bg-[#2a52a0] text-white font-semibold py-3 px-4 rounded-xl transition-colors'
         >
           Back to Login
         </button>
       </div>
 
-      <p className="text-center text-xs text-gray-600 mt-6">
+      <p className='text-center text-xs text-gray-600 mt-6'>
         © {new Date().getFullYear()} eBumenyi. All rights reserved.
       </p>
     </div>
@@ -129,35 +132,39 @@ const DarkField: React.FC<{
   const inputType = isPassword ? (show ? "text" : "password") : type;
 
   return (
-    <div className="space-y-2">
-      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">
+    <div className='space-y-2'>
+      <label className='block text-xs font-semibold text-gray-400 uppercase tracking-wider'>
         {label}
       </label>
       <div
         className={`flex items-center gap-3 border rounded-xl px-4 py-3.5 transition-colors ${
-          error ? "border-red-500/50 bg-[#1f1535]" : "bg-[#1c1f2e] border-white/[0.08] focus-within:border-[#3363AD]/70"
+          error
+            ? "border-red-500/50 bg-[#1f1535]"
+            : "bg-[#1c1f2e] border-white/[0.08] focus-within:border-[#3363AD]/70"
         }`}
       >
-        <span className={`flex-shrink-0 ${error ? "text-red-400" : "text-gray-500"}`}>
+        <span
+          className={`flex-shrink-0 ${error ? "text-red-400" : "text-gray-500"}`}
+        >
           {icon}
         </span>
         <input
           {...reg}
           type={inputType}
           placeholder={placeholder}
-          className="flex-1 bg-transparent text-white text-base placeholder:text-gray-600 outline-none min-w-0"
+          className='flex-1 bg-transparent text-white text-base placeholder:text-gray-600 outline-none min-w-0'
         />
         {isPassword && (
           <button
-            type="button"
+            type='button'
             onClick={() => setShow((s) => !s)}
-            className="flex-shrink-0 text-gray-500 hover:text-gray-300 transition-colors"
+            className='flex-shrink-0 text-gray-500 hover:text-gray-300 transition-colors'
           >
             {show ? <EyeOff size={18} /> : <Eye size={18} />}
           </button>
         )}
       </div>
-      {error && <p className="text-sm text-red-400 pl-1">{error}</p>}
+      {error && <p className='text-sm text-red-400 pl-1'>{error}</p>}
     </div>
   );
 };
@@ -185,50 +192,52 @@ const StaffLoginForm: React.FC<{
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <form onSubmit={handleSubmit(onSubmit)} className='space-y-4'>
       <DarkField
-        label="Email Address"
-        placeholder="you@example.com"
-        type="email"
+        label='Email Address'
+        placeholder='you@example.com'
+        type='email'
         icon={<Mail size={16} />}
         error={errors.email?.message}
         reg={register("email")}
       />
       <DarkField
-        label="Password"
-        placeholder="Enter your password"
-        type="password"
+        label='Password'
+        placeholder='Enter your password'
+        type='password'
         icon={<Lock size={16} />}
         error={errors.password?.message}
         reg={register("password")}
       />
 
-      <div className="flex items-center justify-between pt-1">
-        <label className="flex items-center gap-2 cursor-pointer">
+      <div className='flex items-center justify-between pt-1'>
+        <label className='flex items-center gap-2 cursor-pointer'>
           <input
-            type="checkbox"
-            className="w-3.5 h-3.5 rounded border-white/20 bg-[#1a2235] accent-[#3363AD]"
+            type='checkbox'
+            className='w-3.5 h-3.5 rounded border-white/20 bg-[#1a2235] accent-[#3363AD]'
           />
-          <span className="text-xs text-gray-500">Remember me</span>
+          <span className='text-xs text-gray-500'>Remember me</span>
         </label>
-        <div className="flex items-center gap-3">
+        <div className='flex items-center gap-3'>
           <button
-            type="button"
+            type='button'
             onClick={() => {
               clearInvalidTokens();
               resetBounceCount();
               if ("caches" in window) {
-                caches.keys().then((names) => names.forEach((n) => caches.delete(n)));
+                caches
+                  .keys()
+                  .then((names) => names.forEach((n) => caches.delete(n)));
               }
               window.location.href = "/auth/login";
             }}
-            className="text-[10px] text-gray-600 hover:text-red-400 transition-colors underline"
+            className='text-[10px] text-gray-600 hover:text-red-400 transition-colors underline'
           >
             Clear Cache
           </button>
           <Link
-            to="/auth/forgot-password"
-            className="text-xs text-[#4a90d9] hover:text-[#6aaae8] transition-colors"
+            to='/auth/forgot-password'
+            className='text-xs text-[#4a90d9] hover:text-[#6aaae8] transition-colors'
           >
             Forgot password?
           </Link>
@@ -236,9 +245,9 @@ const StaffLoginForm: React.FC<{
       </div>
 
       {mutation.isError && (
-        <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
-          <AlertCircle size={16} className="text-red-400 flex-shrink-0" />
-          <p className="text-xs text-red-300">
+        <div className='flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3'>
+          <AlertCircle size={16} className='text-red-400 flex-shrink-0' />
+          <p className='text-xs text-red-300'>
             {(mutation.error as { message?: string })?.message ||
               "Invalid credentials. Please try again."}
           </p>
@@ -246,13 +255,13 @@ const StaffLoginForm: React.FC<{
       )}
 
       <button
-        type="submit"
+        type='submit'
         disabled={mutation.isPending}
-        className="w-full bg-[#3363AD] hover:bg-[#2a52a0] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold py-4 text-base rounded-xl transition-colors flex items-center justify-center gap-2 mt-2"
+        className='w-full bg-[#3363AD] hover:bg-[#2a52a0] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold py-4 text-base rounded-xl transition-colors flex items-center justify-center gap-2 mt-2'
       >
         {mutation.isPending ? (
           <>
-            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            <span className='w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin' />
             Signing in…
           </>
         ) : (
@@ -286,28 +295,28 @@ const ChwLoginForm: React.FC<{
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <form onSubmit={handleSubmit(onSubmit)} className='space-y-4'>
       <DarkField
-        label="National ID (NID)"
-        placeholder="16-digit National ID number"
-        type="text"
+        label='National ID (NID)'
+        placeholder='16-digit National ID number'
+        type='text'
         icon={<CreditCard size={16} />}
         error={errors.nid?.message}
         reg={register("nid")}
       />
       <DarkField
-        label="Phone Number"
-        placeholder="+250 7XX XXX XXX"
-        type="tel"
+        label='Phone Number'
+        placeholder='+250 7XX XXX XXX'
+        type='tel'
         icon={<Phone size={16} />}
         error={errors.phoneNumber?.message}
         reg={register("phoneNumber")}
       />
 
       {mutation.isError && (
-        <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
-          <AlertCircle size={16} className="text-red-400 flex-shrink-0" />
-          <p className="text-xs text-red-300">
+        <div className='flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3'>
+          <AlertCircle size={16} className='text-red-400 flex-shrink-0' />
+          <p className='text-xs text-red-300'>
             {(mutation.error as { message?: string })?.message ||
               "Could not verify your details. Please check and try again."}
           </p>
@@ -315,13 +324,13 @@ const ChwLoginForm: React.FC<{
       )}
 
       <button
-        type="submit"
+        type='submit'
         disabled={mutation.isPending}
-        className="w-full bg-[#3363AD] hover:bg-[#2a52a0] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold py-4 text-base rounded-xl transition-colors flex items-center justify-center gap-2 mt-2"
+        className='w-full bg-[#3363AD] hover:bg-[#2a52a0] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold py-4 text-base rounded-xl transition-colors flex items-center justify-center gap-2 mt-2'
       >
         {mutation.isPending ? (
           <>
-            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            <span className='w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin' />
             Verifying…
           </>
         ) : (
@@ -347,7 +356,10 @@ export const Login: React.FC = () => {
 
   const switchMode = (next: LoginMode) => {
     setFormVisible(false);
-    setTimeout(() => { setMode(next); setFormVisible(true); }, 250);
+    setTimeout(() => {
+      setMode(next);
+      setFormVisible(true);
+    }, 250);
   };
 
   useEffect(() => {
@@ -362,7 +374,12 @@ export const Login: React.FC = () => {
       const rawToken = localStorage.getItem("accessToken");
       if (rawToken && signIn) {
         try {
-          signIn({ token: rawToken, expiresIn: 3600, authState: user, tokenType: "JWT" });
+          signIn({
+            token: rawToken,
+            expiresIn: 3600,
+            authState: user,
+            tokenType: "JWT",
+          });
           type R = { roles?: string | string[] };
           const rv = (user as unknown as R).roles;
           const roles: string[] = rv ? (Array.isArray(rv) ? rv : [rv]) : [];
@@ -402,12 +419,13 @@ export const Login: React.FC = () => {
 
   return (
     /* Page background */
-    <div className="h-screen flex items-center justify-center p-3"
+    <div
+      className='h-screen flex items-center justify-center p-3'
       style={{ background: "#0e0a1f" }}
     >
       {/* Outer rounded card — system card-bg dark #111827 */}
       <div
-        className="w-full h-full flex overflow-hidden"
+        className='w-full h-full flex overflow-hidden'
         style={{
           borderRadius: 18,
           background: "#111827",
@@ -418,23 +436,24 @@ export const Login: React.FC = () => {
         <AuthDecorativePanel />
 
         {/* Right — login form, centered — system #111827 card bg */}
-        <div className="flex-1 flex flex-col items-center justify-center px-6 py-10 overflow-y-auto relative"
+        <div
+          className='flex-1 flex flex-col items-center justify-center px-6 py-10 overflow-y-auto relative'
           style={{ background: "#111827" }}
         >
-
           {/* Brand (mobile only) */}
-          <div className="flex lg:hidden items-center gap-2 mb-8">
-            <img src="/chw.png" alt="eBumenyi" className="w-7 h-7 object-contain" />
-            <span className="text-white font-bold text-sm">eBumenyi</span>
+          <div className='flex lg:hidden items-center gap-2 mb-8'>
+            <img src='/chw.png' alt='eBumenyi' className='w-7 h-7 object-contain' />
+            <span className='text-white font-bold text-sm'>eBumenyi</span>
           </div>
 
-          <div className="w-full max-w-[480px]">
+          <div className='w-full max-w-[480px]'>
             {/* Header */}
-            <div className="mb-8">
-              <h1 className="text-3xl font-bold text-white mb-1.5">Welcome back</h1>
-              <p className="text-base text-gray-500">Sign in to continue to eBumenyi</p>
+            <div className='mb-8'>
+              <h1 className='text-3xl font-bold text-white mb-1.5'>Welcome back</h1>
+              <p className='text-base text-gray-500'>
+                Sign in to continue to eBumenyi
+              </p>
             </div>
-
 
             {/* Forms + alt button — animated on mode switch */}
             <div
@@ -451,24 +470,24 @@ export const Login: React.FC = () => {
               )}
 
               {/* Alternative login method */}
-              <div className="mt-6 flex items-center gap-3">
-                <div className="flex-1 h-px bg-white/[0.07]" />
-                <span className="text-xs text-gray-600">or</span>
-                <div className="flex-1 h-px bg-white/[0.07]" />
+              <div className='mt-6 flex items-center gap-3'>
+                <div className='flex-1 h-px bg-white/[0.07]' />
+                <span className='text-xs text-gray-600'>or</span>
+                <div className='flex-1 h-px bg-white/[0.07]' />
               </div>
 
               <button
                 onClick={() => switchMode(mode === "staff" ? "chw" : "staff")}
-                className="mt-4 w-full flex items-center justify-center gap-2.5 py-3.5 rounded-xl border border-white/[0.10] bg-[#1c1f2e] hover:border-white/25 hover:bg-[#22263a] text-sm font-medium text-gray-300 transition-all"
+                className='mt-4 w-full flex items-center justify-center gap-2.5 py-3.5 rounded-xl border border-white/[0.10] bg-[#1c1f2e] hover:border-white/25 hover:bg-[#22263a] text-sm font-medium text-gray-300 transition-all'
               >
                 {mode === "staff" ? (
                   <>
-                    <CreditCard size={16} className="text-gray-400" />
+                    <CreditCard size={16} className='text-gray-400' />
                     Login with National ID &amp; Phone Number
                   </>
                 ) : (
                   <>
-                    <Mail size={16} className="text-gray-400" />
+                    <Mail size={16} className='text-gray-400' />
                     Login with Email &amp; Password
                   </>
                 )}
@@ -476,12 +495,12 @@ export const Login: React.FC = () => {
             </div>
 
             {/* Footer links */}
-            <div className="mt-6 pt-5 border-t border-white/[0.05] text-center">
-              <p className="text-sm text-gray-600">
+            <div className='mt-6 pt-5 border-t border-white/[0.05] text-center'>
+              <p className='text-sm text-gray-600'>
                 Don't have an account?{" "}
                 <Link
-                  to="/auth/signup"
-                  className="text-[#4a90d9] hover:text-[#6aaae8] font-medium transition-colors"
+                  to='/auth/signup'
+                  className='text-[#4a90d9] hover:text-[#6aaae8] font-medium transition-colors'
                 >
                   Sign up
                 </Link>
@@ -492,7 +511,7 @@ export const Login: React.FC = () => {
       </div>
 
       {/* Page footer */}
-      <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-xs text-gray-700 whitespace-nowrap">
+      <p className='absolute bottom-4 left-1/2 -translate-x-1/2 text-xs text-gray-700 whitespace-nowrap'>
         © {new Date().getFullYear()} eBumenyi · Ministry of Health, Rwanda
       </p>
     </div>

@@ -1,14 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import {
-  getDashboardStats,
-  getCourseAnalytics,
-  getStudentAnalytics,
-} from "@/services/analytics.service";
+import api from "@/services/api";
 import {
   IDashboardStats,
   ICourseAnalytics,
   IStudentAnalytics,
+  IDashboardFilters,
 } from "@/types";
 
 interface DashboardData {
@@ -20,7 +17,13 @@ interface DashboardData {
   refetch: () => void;
 }
 
-export const useDashboardStats = (options?: { enabled?: boolean }): DashboardData => {
+export const useDashboardStats = ({
+  enabled,
+  filters,
+}: {
+  enabled: boolean;
+  filters?: IDashboardFilters;
+}): DashboardData => {
   const { user } = useAuth();
   const [dashboardStats, setDashboardStats] = useState<IDashboardStats | null>(null);
   const [courseAnalytics, setCourseAnalytics] = useState<ICourseAnalytics | null>(null);
@@ -32,8 +35,6 @@ export const useDashboardStats = (options?: { enabled?: boolean }): DashboardDat
     ? Array.isArray(user.roles) ? user.roles : [user.roles]
     : [];
 
-  const shouldFetch = options?.enabled !== false;
-
   const isContentManager =
     userRoles.some(r => ["ADMIN", "TRAINER", "SUPERVISOR", "STAFF"].includes(r));
 
@@ -41,34 +42,42 @@ export const useDashboardStats = (options?: { enabled?: boolean }): DashboardDat
     setIsLoading(true);
     setError(null);
 
+    const qsParams = new URLSearchParams();
+    if (filters?.district) qsParams.append("district", filters.district);
+    if (filters?.province) qsParams.append("province", filters.province);
+    if (filters?.gender)   qsParams.append("gender",   filters.gender);
+    if (filters?.year)     qsParams.append("year",     filters.year);
+    if (filters?.month)    qsParams.append("month",    filters.month);
+    const qs = qsParams.toString() ? `?${qsParams.toString()}` : "";
+
     try {
       const [dashRes, courseRes, studentRes] = await Promise.allSettled([
-        getDashboardStats(),
-        isContentManager ? getCourseAnalytics() : Promise.resolve(null),
-        isContentManager ? getStudentAnalytics() : Promise.resolve(null),
+        api.get(`/courses/dashboard/statistics${qs}`),
+        isContentManager ? api.get(`/export/dashboard/course/analytics${qs}`) : Promise.resolve(null),
+        isContentManager ? api.get(`/export/dashboard/student/analytics${qs}`) : Promise.resolve(null),
       ]);
 
-      if (dashRes.status === "fulfilled" && dashRes.value?.data) {
-        setDashboardStats(dashRes.value.data);
+      if (dashRes.status === "fulfilled" && dashRes.value?.data?.data) {
+        setDashboardStats(dashRes.value.data.data);
       }
 
-      if (courseRes.status === "fulfilled" && courseRes.value?.data) {
-        setCourseAnalytics(courseRes.value.data);
+      if (courseRes.status === "fulfilled" && courseRes.value?.data?.data) {
+        setCourseAnalytics(courseRes.value.data.data);
       }
 
-      if (studentRes.status === "fulfilled" && studentRes.value?.data) {
-        setStudentAnalytics(studentRes.value.data);
+      if (studentRes.status === "fulfilled" && studentRes.value?.data?.data) {
+        setStudentAnalytics(studentRes.value.data.data);
       }
     } catch {
       setError("Failed to fetch data. Please try again.");
     } finally {
       setIsLoading(false);
     }
-  }, [isContentManager]);
+  }, [isContentManager, filters?.district, filters?.province, filters?.gender, filters?.year, filters?.month]);
 
   useEffect(() => {
-    if (shouldFetch) fetchAll();
-  }, [fetchAll, shouldFetch]);
+    if (enabled) fetchAll();
+  }, [fetchAll, enabled]);
 
   return { dashboardStats, courseAnalytics, studentAnalytics, isLoading, error, refetch: fetchAll };
 };

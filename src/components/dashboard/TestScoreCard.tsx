@@ -39,24 +39,30 @@ export const TestScoreCard: React.FC<TestScoreCardProps> = ({
   const { performanceDistribution, topPerformers } = studentAnalytics;
 
   const chartData = [
-    {
-      name: "Excellent",
-      value: performanceDistribution.excellent.count,
-      fill: "#3363AD",
-    },
-    { name: "Good", value: performanceDistribution.good.count, fill: "#22c55e" },
-    {
-      name: "Average",
-      value: performanceDistribution.average.count,
-      fill: "#f59e0b",
-    },
-    { name: "Poor", value: performanceDistribution.poor.count, fill: "#f97316" },
-    {
-      name: "Failing",
-      value: performanceDistribution.failing.count,
-      fill: "#ef4444",
-    },
+    { name: "Excellent", range: performanceDistribution.excellent.range, value: performanceDistribution.excellent.count, fill: "#3363AD" },
+    { name: "Good",      range: performanceDistribution.good.range,      value: performanceDistribution.good.count,      fill: "#22c55e" },
+    { name: "Average",   range: performanceDistribution.average.range,   value: performanceDistribution.average.count,   fill: "#f59e0b" },
+    { name: "Poor",      range: performanceDistribution.poor.range,      value: performanceDistribution.poor.count,      fill: "#f97316" },
+    { name: "Failing",   range: performanceDistribution.failing.range,   value: performanceDistribution.failing.count,   fill: "#ef4444" },
   ];
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const CustomXAxisTick = (props: any) => {
+    const { x, y, payload } = props;
+    const item = chartData.find((d) => d.name === payload.value);
+    return (
+      <g transform={`translate(${x},${y})`}>
+        <text x={0} y={0} dy={12} textAnchor="middle" fill="#6b7280" fontSize={11} fontWeight={500}>
+          {payload.value}
+        </text>
+        {item?.range && (
+          <text x={0} y={0} dy={26} textAnchor="middle" fill="#9ca3af" fontSize={9}>
+            {item.range}
+          </text>
+        )}
+      </g>
+    );
+  };
 
   // Calculate average score from top performers
   const avgScore =
@@ -75,15 +81,16 @@ export const TestScoreCard: React.FC<TestScoreCardProps> = ({
         <ResponsiveContainer width='100%' height={200}>
           <BarChart
             data={chartData}
-            margin={{ top: 4, right: 8, left: 20, bottom: 32 }}
+            margin={{ top: 4, right: 8, left: 20, bottom: 40 }}
             barSize={40}
           >
             <CartesianGrid strokeDasharray='3 3' stroke='#f0f0f0' />
             <XAxis
               dataKey='name'
-              tick={{ fontSize: 11 }}
+              tick={<CustomXAxisTick />}
               axisLine={false}
               tickLine={false}
+              height={50}
               label={{
                 value: "Performance Level",
                 position: "insideBottomRight",

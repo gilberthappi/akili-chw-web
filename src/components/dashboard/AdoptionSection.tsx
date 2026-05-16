@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback } from "react";
 import { createPortal } from "react-dom";
 import { IDashboardFilters } from "@/types";
 import { useAdoptionStats } from "@/hooks/useAdoptionStats";
@@ -16,10 +16,15 @@ import { DemographicsSection } from "./DemographicsSection";
 import { RwandaDistrictMap } from "./RwandaDistrictMap";
 import { CHWStatsCards } from "./CHWStatsCards";
 
-export const AdoptionSection: React.FC = () => {
-  const [filters, setFilters] = useState<IDashboardFilters>({
-    province: "", district: "", gender: "", year: "", month: "",
-  });
+interface AdoptionSectionProps {
+  filters: IDashboardFilters;
+  onFiltersChange: (f: IDashboardFilters) => void;
+}
+
+export const AdoptionSection: React.FC<AdoptionSectionProps> = ({
+  filters,
+  onFiltersChange,
+}) => {
 
   const {
     hospitals,
@@ -54,12 +59,12 @@ export const AdoptionSection: React.FC = () => {
       communications,
     },
     filters,
-    setFilters
+    onFiltersChange
   );
 
   const handleDistrictClick = useCallback(
-    (district: string) => setFilters({ ...filters, district }),
-    [filters, setFilters],
+    (district: string) => onFiltersChange({ ...filters, district }),
+    [filters, onFiltersChange],
   );
 
   // Portal the filters to the top-level header
@@ -75,7 +80,7 @@ export const AdoptionSection: React.FC = () => {
       {filterPortal && createPortal(
         <GlobalFilterBar
           filters={filters}
-          onChange={setFilters}
+          onChange={onFiltersChange}
           provinces={availableProvinces}
           districts={availableDistricts}
           genders={availableGenders}
