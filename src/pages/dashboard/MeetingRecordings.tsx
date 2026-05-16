@@ -159,7 +159,7 @@ const MeetingRecordings: React.FC = () => {
                         <PlayIcon className="w-5 h-5 text-primary" />
                       </div>
                       <span className="text-sm font-medium text-gray-900 line-clamp-1">
-                        {recording.title ?? 'Untitled Recording'}
+                        {recording.title ?? recording.event?.title ?? 'Untitled Recording'}
                       </span>
                     </div>
                   </td>
@@ -244,7 +244,7 @@ const MeetingRecordings: React.FC = () => {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl mx-4 overflow-hidden">
             <div className="flex items-center justify-between p-4 border-b border-gray-100">
               <h3 className="font-semibold text-gray-900">
-                {previewRecording.title ?? 'Recording Preview'}
+                {previewRecording.title ?? previewRecording.event?.title ?? 'Recording Preview'}
               </h3>
               <button
                 onClick={() => setPreviewRecording(null)}
