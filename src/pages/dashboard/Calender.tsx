@@ -41,6 +41,124 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { uploadFileByType } from "@/services/uploader.api";
 
+const EBUMENYI_SCHEDULE_URL =
+  import.meta.env.VITE_EBUMENYI_MEET_API_URL ||
+  "https://meeting.ebumenyi.online/api/meetings/schedule";
+
+function buildEventBackendPayload(eventData: any) {
+  const [startTimeStr, endTimeStr] = eventData.time.split(" - ");
+  const eventDate = new Date(eventData.date);
+
+  const startDateTime = new Date(eventDate);
+  const [startHours, startMinutes] = startTimeStr.split(":").map(Number);
+  startDateTime.setHours(startHours, startMinutes, 0, 0);
+
+  const endDateTime = new Date(eventDate);
+  const [endHours, endMinutes] = endTimeStr.split(":").map(Number);
+  endDateTime.setHours(endHours, endMinutes, 0, 0);
+
+  return {
+    title: eventData.title,
+    description: eventData.description,
+    type: eventData.type,
+    frequency: eventData.frequency || "NONE",
+    daysOfWeek: eventData.daysOfWeek || [],
+    timezone: "Africa/Kigali",
+    reminderMinutesBefore: Array.isArray(eventData.reminders)
+      ? eventData.reminders
+      : [Number(eventData.reminders || 30)],
+    startAt: startDateTime.toISOString(),
+    endAt: endDateTime.toISOString(),
+    recurrenceEndsAt: eventData.recurrenceEndsAt || undefined,
+    meetingType: eventData.meetingType.toUpperCase().replace("-", "_"),
+    location: eventData.location,
+    priority: eventData.priority.toUpperCase(),
+    hostEmail: eventData.hostEmail,
+    participants:
+      eventData.attendees?.map((userId: string) => ({
+        userId,
+      })) || [],
+    externalParticipants: (eventData.externalParticipants || []).map(
+      (email: string) => ({
+        email,
+      }),
+    ),
+    attachments: (eventData.attachments || [])
+      .filter((a: { url?: string }) => a?.url)
+      .map((a: { url: string; name?: string }) => ({
+        name: a.name?.trim() || a.url.split("/").filter(Boolean).pop() || "Attachment",
+        url: a.url,
+      })),
+  };
+}
+
+function parseMeetingUrlFromScheduleResponse(
+  result: Record<string, unknown>,
+): string | null {
+  const nested = result.data as Record<string, unknown> | undefined;
+  return (
+    (result.meetingLink as string) ||
+    (result.meetingUrl as string) ||
+    (result.url as string) ||
+    (result.link as string) ||
+    (result.joinUrl as string) ||
+    (result.meeting_url as string) ||
+    (result.meeting_link as string) ||
+    (nested?.meetingLink as string) ||
+    (nested?.meetingUrl as string) ||
+    (nested?.url as string) ||
+    (nested?.link as string) ||
+    null
+  );
+}
+
+function parseStreamRoomIdFromScheduleResponse(
+  result: Record<string, unknown>,
+  fallbackMeetingId: string,
+): string {
+  const nested = result.data as Record<string, unknown> | undefined;
+  const id =
+    (result.meetingId as string) ||
+    (nested?.meetingId as string) ||
+    fallbackMeetingId;
+  return id;
+}
+
+async function scheduleEbumenyiMeeting(params: {
+  startsAt: string;
+  hostEmail: string;
+  title: string;
+  userId: string;
+  meetingId: string;
+}): Promise<{ meetingUrl: string; streamRoomId: string } | null> {
+  const response = await fetch(EBUMENYI_SCHEDULE_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      startsAt: params.startsAt,
+      hostEmail: params.hostEmail,
+      description: params.title,
+      userId: params.userId,
+      meetingId: params.meetingId,
+    }),
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const result = (await response.json()) as Record<string, unknown>;
+  const meetingUrl = parseMeetingUrlFromScheduleResponse(result);
+  if (!meetingUrl) {
+    return null;
+  }
+
+  return {
+    meetingUrl,
+    streamRoomId: parseStreamRoomIdFromScheduleResponse(result, params.meetingId),
+  };
+}
+
 const Calendar: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -233,55 +351,7 @@ const Calendar: React.FC = () => {
 
   // Event management functions
   const sendEventToBackend = (eventData: any, _editingEvent?: any) => {
-    // Parse start and end times from the time range
-    const [startTimeStr, endTimeStr] = eventData.time.split(" - ");
-    const eventDate = new Date(eventData.date);
-
-    // Create start_time and end_time with timezone
-    const startDateTime = new Date(eventDate);
-    const [startHours, startMinutes] = startTimeStr.split(":").map(Number);
-    startDateTime.setHours(startHours, startMinutes, 0, 0);
-
-    const endDateTime = new Date(eventDate);
-    const [endHours, endMinutes] = endTimeStr.split(":").map(Number);
-    endDateTime.setHours(endHours, endMinutes, 0, 0);
-
-    const backendPayload = {
-      title: eventData.title,
-      description: eventData.description,
-      type: eventData.type,
-      frequency: eventData.frequency || "NONE",
-      daysOfWeek: eventData.daysOfWeek || [],
-      timezone: "Africa/Kigali",
-      reminderMinutesBefore: Array.isArray(eventData.reminders)
-        ? eventData.reminders
-        : [Number(eventData.reminders || 30)],
-      startAt: startDateTime.toISOString(),
-      endAt: endDateTime.toISOString(),
-      recurrenceEndsAt: eventData.recurrenceEndsAt || undefined,
-      meetingType: eventData.meetingType.toUpperCase().replace("-", "_"),
-
-      location: eventData.location,
-      priority: eventData.priority.toUpperCase(),
-
-      hostEmail: eventData.hostEmail,
-
-      participants:
-        eventData.attendees?.map((userId: any) => ({
-          userId,
-        })) || [],
-      externalParticipants: (eventData.externalParticipants || []).map(
-        (email: string) => ({
-          email,
-        }),
-      ),
-      attachments: (eventData.attachments || [])
-        .filter((a: any) => a?.url)
-        .map((a: any) => ({
-          name: getAttachmentLabel(a.url, a.name),
-          url: a.url,
-        })),
-    };
+    const backendPayload = buildEventBackendPayload(eventData);
 
     // Use the mutation to create/update the event
     if (eventData.id) {
@@ -358,114 +428,89 @@ const Calendar: React.FC = () => {
       return false;
     }
 
-    // If meeting type is ebumenyi-meeting, create meeting link via API
+    // EBUMENYI: calendar event id = Stream call id (same as chw-meeting) so recordings link correctly
     if (eventData.meetingType === "EBUMENYI_MEETING") {
+      if (!user?.id) {
+        toast.error("You must be signed in to schedule a meeting");
+        return false;
+      }
+
       setIsCreatingMeeting(true);
       try {
-        // Combine date and start time for startsAt
-        const dateStr = eventData.date.toISOString().split("T")[0]; // YYYY-MM-DD
-        const startTime = eventData.time.split(" - ")[0]; // HH:MM
+        const dateStr = eventData.date.toISOString().split("T")[0];
+        const startTime = eventData.time.split(" - ")[0];
         const localDateTime = new Date(`${dateStr}T${startTime}:00`);
-        const utcDateTime = new Date(localDateTime.getTime());
-        const startsAt = utcDateTime.toISOString();
+        const startsAt = localDateTime.toISOString();
 
-        const apiUrl =
-          import.meta.env.VITE_EBUMENYI_MEET_API_URL ||
-          "https://meeting.ebumenyi.online/api/meetings/schedule";
+        const payload = buildEventBackendPayload(finalEventData);
+        const calendarEventId = editingEvent?.id as string | undefined;
 
-        // Check if we're updating an existing meeting
-        let meetingId = null;
-        if (
-          editingEvent &&
-          editingEvent.location &&
-          editingEvent.location.includes("/meeting/")
-        ) {
-          // Extract meetingId from existing URL: https://meeting.ebumenyi.online/meeting/6pf-nfp-uvh
-          const urlParts = editingEvent.location.split("/");
-          meetingId = urlParts[urlParts.length - 1]; // Get the last part
-        }
-
-        const requestBody: any = {
-          startsAt: startsAt,
-          hostEmail: eventData.hostEmail,
-          description: eventData.title,
-          userId: user?.id,
+        const finishSuccess = () => {
+          queryClient.invalidateQueries({ queryKey: ["events"] });
+          toast.success(
+            calendarEventId ? "Event updated successfully!" : "Event created successfully!",
+          );
+          setShowEventModal(false);
+          setIsCreatingMeeting(false);
         };
 
-        // Include meetingId if updating existing meeting
-        if (meetingId) {
-          requestBody.meetingId = meetingId;
-        }
+        if (calendarEventId) {
+          const scheduled = await scheduleEbumenyiMeeting({
+            startsAt,
+            hostEmail: eventData.hostEmail,
+            title: eventData.title,
+            userId: user.id,
+            meetingId: calendarEventId,
+          });
 
-        const response = await fetch(apiUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(requestBody),
-        });
-
-        if (response.ok) {
-          const result = await response.json();
-
-          // Try multiple possible property names for the meeting link
-          const meetingUrl =
-            result.meetingLink ||
-            result.meetingUrl ||
-            result.url ||
-            result.link ||
-            result.joinUrl ||
-            result.meeting_url ||
-            result.meeting_link ||
-            result.data?.meetingLink ||
-            result.data?.meetingUrl ||
-            result.data?.url ||
-            result.data?.link;
-
-          if (meetingUrl) {
-            finalEventData.location = meetingUrl;
-
-            // Send to backend now that we have the meeting link
-            sendEventToBackend(finalEventData, editingEvent);
+          if (!scheduled) {
+            toast.error("Failed to update video meeting room");
             setIsCreatingMeeting(false);
-          } else {
-            console.warn("No meeting URL found in response:", result);
-            if (meetingId) {
-              // For updates, keep the existing meeting URL
-              finalEventData.location = editingEvent.location;
-              sendEventToBackend(finalEventData, editingEvent);
-              setIsCreatingMeeting(false);
-            } else {
-              // For new meetings, show error
-              toast.error(
-                "Meeting created but no URL returned. Please check with administrator.",
-              );
-              finalEventData.location = "Meeting link will be provided";
-              sendEventToBackend(finalEventData, editingEvent);
-              setIsCreatingMeeting(false);
-            }
+            return false;
           }
+
+          await updateEvent(calendarEventId, {
+            ...payload,
+            location: scheduled.meetingUrl,
+            streamRoomId: scheduled.streamRoomId,
+          });
+          finishSuccess();
         } else {
-          const errorData = await response
-            .json()
-            .catch(() => ({ error: "Unknown error" }));
-          toast.error(
-            `Failed to create meeting: ${errorData.message || response.statusText}`,
-          );
+          const created = await createEvent({ ...payload, location: "" });
+          const newCalendarId = created.data?.id;
 
-          // Show sign-in modal
-          setShowSignInModal(true);
+          if (!newCalendarId) {
+            toast.error("Failed to create calendar event");
+            setIsCreatingMeeting(false);
+            return false;
+          }
 
-          // Don't create the event
-          setIsCreatingMeeting(false);
-          return false;
+          const scheduled = await scheduleEbumenyiMeeting({
+            startsAt,
+            hostEmail: eventData.hostEmail,
+            title: eventData.title,
+            userId: user.id,
+            meetingId: newCalendarId,
+          });
+
+          if (!scheduled) {
+            await deleteEvent(newCalendarId).catch(() => undefined);
+            toast.error("Failed to create video meeting room");
+            setIsCreatingMeeting(false);
+            return false;
+          }
+
+          await updateEvent(newCalendarId, {
+            location: scheduled.meetingUrl,
+            streamRoomId: scheduled.streamRoomId,
+          });
+          finishSuccess();
         }
-      } catch (error) {
-        toast.error("Network error while creating meeting. Please try again.");
-        // Show sign-in modal
-        setShowSignInModal(true);
 
-        // Don't create the event
+        return true;
+      } catch {
+        toast.error("Network error while creating meeting. Please try again.");
+        setShowSignInModal(true);
         setIsCreatingMeeting(false);
         return false;
       }

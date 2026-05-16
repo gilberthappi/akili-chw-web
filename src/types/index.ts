@@ -1106,6 +1106,7 @@ export interface IEvent {
   googleEventId: string | null;
   meetingType: "EBUMENYI_MEETING" | "GOOGLE_MEET" | "ZOOM" | "PHYSICAL";
   location: string;
+  streamRoomId?: string | null;
   priority: "LOW" | "MEDIUM" | "HIGH";
   hostEmail?: string;
   roles?: {
