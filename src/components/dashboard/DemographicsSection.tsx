@@ -30,6 +30,35 @@ export const DemographicsSection: React.FC<DemographicsSectionProps> = ({ data, 
   const [activeView, setActiveView] = useState<FilterView>("district");
   const [searchDistrict, setSearchDistrict] = useState("");
 
+  // Hooks must run unconditionally — before any early return
+  const rawRows: IDemographicRow[] = useMemo(() => {
+    if (!data) return [];
+    if (activeView === "district") return filteredByDistrict ?? data.byDistrict;
+    if (activeView === "gender")   return filteredByGender   ?? data.byGender;
+    return data.byAgeGroup;
+  }, [activeView, data, filteredByDistrict, filteredByGender]);
+
+  const rows = useMemo(() => {
+    if (activeView !== "district" || !searchDistrict.trim()) return rawRows;
+    return rawRows.filter(r =>
+      (r.district ?? "").toLowerCase().includes(searchDistrict.toLowerCase())
+    );
+  }, [rawRows, activeView, searchDistrict]);
+
+  const tabs: { key: FilterView; label: string }[] = [
+    { key: "district", label: "District" },
+    { key: "gender",   label: "Gender" },
+    { key: "ageGroup", label: "Age Group" },
+  ];
+
+  const getLabel = (row: IDemographicRow): string => {
+    const raw = row.district ?? row.gender ?? row.ageGroup;
+    if (!raw) return "—";
+    if (row.gender != null)
+      return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
+    return raw;
+  };
+
   if (!data) {
     return (
       <Card>
@@ -40,32 +69,6 @@ export const DemographicsSection: React.FC<DemographicsSectionProps> = ({ data, 
       </Card>
     );
   }
-
-  // Select which rows to show
-  const rawRows: IDemographicRow[] = useMemo(() => {
-    if (activeView === "district")
-      return filteredByDistrict ?? data.byDistrict;
-    if (activeView === "gender")
-      return filteredByGender ?? data.byGender;
-    return data.byAgeGroup;
-  }, [activeView, data, filteredByDistrict, filteredByGender]);
-
-  // Client-side search filter (district only)
-  const rows = useMemo(() => {
-    if (activeView !== "district" || !searchDistrict.trim()) return rawRows;
-    return rawRows.filter(r =>
-      (r.district ?? "").toLowerCase().includes(searchDistrict.toLowerCase())
-    );
-  }, [rawRows, activeView, searchDistrict]);
-
-  const getLabel = (row: IDemographicRow): string =>
-    row.district ?? row.gender ?? row.ageGroup ?? "—";
-
-  const tabs: { key: FilterView; label: string }[] = [
-    { key: "district", label: "District" },
-    { key: "gender",   label: "Gender" },
-    { key: "ageGroup", label: "Age Group" },
-  ];
 
   return (
     <Card>

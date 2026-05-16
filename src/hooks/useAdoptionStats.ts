@@ -24,6 +24,7 @@ export interface AnalyticsFilters {
   district?: string;
   province?: string;
   gender?: string;
+  role?: string;
   year?: string;
   month?: string;
 }
@@ -88,6 +89,7 @@ export const useAdoptionStats = (filters: AnalyticsFilters = {}): AdoptionStats 
       if (filters.district) qsParams.append("district", filters.district);
       if (filters.province) qsParams.append("province", filters.province);
       if (filters.gender) qsParams.append("gender", filters.gender);
+      if (filters.role) qsParams.append("role", filters.role);
       if (filters.year) qsParams.append("year", filters.year);
       if (filters.month) qsParams.append("month", filters.month);
       
@@ -165,6 +167,7 @@ export const useAdoptionStats = (filters: AnalyticsFilters = {}): AdoptionStats 
     filters.district,
     filters.province,
     filters.gender,
+    filters.role,
     filters.year,
     filters.month,
   ]);

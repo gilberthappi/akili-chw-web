@@ -14,6 +14,7 @@ export const Dashboard: React.FC = () => {
     province: "",
     district: "",
     gender: "",
+    role: "TRAINEE",
     year: "",
     month: "",
   });

@@ -1,7 +1,7 @@
 import React from "react";
 import {
-  BarChart,
-  Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -42,9 +42,8 @@ export const EnrollmentTrendChart: React.FC<EnrollmentTrendChartProps> = ({
       />
       <div style={{ height: 260 }}>
         <ResponsiveContainer width='100%' height='100%'>
-          <BarChart
+          <LineChart
             data={trends}
-            barSize={40}
             margin={{ top: 4, right: 8, left: 20, bottom: 32 }}
           >
             <CartesianGrid strokeDasharray='3 3' stroke='#f0f0f0' vertical={false} />
@@ -88,13 +87,16 @@ export const EnrollmentTrendChart: React.FC<EnrollmentTrendChartProps> = ({
                 name,
               ]}
             />
-            <Bar
+            <Line
+              type='monotone'
               dataKey='enrollments'
-              fill='#3363AD'
-              radius={[4, 4, 0, 0]}
+              stroke='#3363AD'
+              strokeWidth={2}
+              dot={{ fill: '#3363AD', r: 4 }}
+              activeDot={{ r: 6 }}
               name='Enrollments'
             />
-          </BarChart>
+          </LineChart>
         </ResponsiveContainer>
       </div>
     </Card>
