@@ -1,5 +1,5 @@
 import React from "react";
-import { ICourseAnalytics, IStudentAnalytics, IDashboardStats } from "@/types";
+import { ICourseAnalytics, IStudentAnalytics, IDashboardStats, IDashboardFilters } from "@/types";
 import { KpiCard } from "./shared/KpiCard";
 import { DashboardSectionHeader } from "./shared/DashboardSectionHeader";
 import { SectionSkeleton } from "./shared/SectionSkeleton";
@@ -16,6 +16,7 @@ interface Phase3SectionProps {
   isLoading: boolean;
   isSupervisorView: boolean;
   hideKpis?: boolean;
+  filters?: IDashboardFilters;
 }
 
 export const Phase3Section: React.FC<Phase3SectionProps> = ({
@@ -25,6 +26,7 @@ export const Phase3Section: React.FC<Phase3SectionProps> = ({
   isLoading,
   isSupervisorView,
   hideKpis = false,
+  filters: _filters,
 }) => {
   if (isLoading) return <SectionSkeleton cards={4} rows={2} />;
 

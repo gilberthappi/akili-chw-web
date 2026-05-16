@@ -8,6 +8,8 @@ interface PermissionConfig {
   requireAll?: boolean; // If true, user must match both role AND industry (if both provided)
 }
 
+const isLearnerRole = (role?: UserRole) => role === "TRAINEE" || role === "TESTER";
+
 // Hook to check if the current user has permission based on roles and/or industries
 export const usePermission = (config: PermissionConfig = {}) => {
   const { allowedRoles, allowedIndustries, requireAll = true } = config;
@@ -25,7 +27,11 @@ export const usePermission = (config: PermissionConfig = {}) => {
   }
 
   const user = auth();
-  const userRoles = user?.roles ? (Array.isArray(user.roles) ? user.roles : [user.roles]) : [];
+  const userRoles = user?.roles
+    ? Array.isArray(user.roles)
+      ? user.roles
+      : [user.roles]
+    : [];
   const userIndustry = user?.industry;
 
   // If no restrictions provided, user has permission (authenticated only)
@@ -40,7 +46,13 @@ export const usePermission = (config: PermissionConfig = {}) => {
 
   // Check role permission
   const hasRolePermission = allowedRoles
-    ? userRoles.some((role: any) => allowedRoles.includes(role))
+    ? userRoles.some((role: any) =>
+        allowedRoles.some(
+          (allowedRole) =>
+            allowedRole === role ||
+            (isLearnerRole(allowedRole) && isLearnerRole(role)),
+        ),
+      )
     : true;
 
   // Check industry permission

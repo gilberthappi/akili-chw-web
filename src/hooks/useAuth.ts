@@ -4,6 +4,11 @@ import { decodeJWT, getCookieValue } from "../utils/jwt";
 import { broadcastAuthChange } from "../utils/authSync";
 import { clearCookiesFromAllDomains } from "../utils/cookieHelper";
 
+const isLearnerRole = (role: UserRole) => role === "TRAINEE" || role === "TESTER";
+
+const asRoleArray = (roles: UserRole | UserRole[]): UserRole[] =>
+  Array.isArray(roles) ? roles : [roles];
+
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -11,28 +16,31 @@ export const useAuth = () => {
   useEffect(() => {
     // Try to get token from localStorage first
     let storedToken = localStorage.getItem("accessToken");
-    
+
     // If no localStorage token, try to read from cookie
     if (!storedToken) {
       storedToken = getCookieValue("accessToken");
-      
+
       // If found in cookie, store in localStorage for stability
       if (storedToken) {
         localStorage.setItem("accessToken", storedToken);
-        
+
         // Also try to extract user info from JWT token
         const tokenPayload = decodeJWT(storedToken);
         if (tokenPayload) {
           const userData: User = {
             id: tokenPayload.id,
             email: tokenPayload.email,
-            roles: Array.isArray(tokenPayload.userRoles) 
-              ? tokenPayload.userRoles 
+            fullNames: tokenPayload.fullNames ?? "",
+            roles: Array.isArray(tokenPayload.userRoles)
+              ? tokenPayload.userRoles
               : [tokenPayload.userRoles],
             permissions: [],
-            industry: null,
+            industry: undefined,
+            isActive: true,
+            createdAt: new Date(),
           };
-          
+
           localStorage.setItem("chw", JSON.stringify(userData));
           setUser(userData);
           setLoading(false);
@@ -40,7 +48,7 @@ export const useAuth = () => {
         }
       }
     }
-    
+
     // Try to get user from localStorage
     const storedUser = localStorage.getItem("chw");
     if (storedUser) {
@@ -51,7 +59,7 @@ export const useAuth = () => {
         localStorage.removeItem("chw");
       }
     }
-    
+
     setLoading(false);
   }, []);
 
@@ -61,20 +69,25 @@ export const useAuth = () => {
     localStorage.removeItem("chw");
     localStorage.removeItem("accessToken");
     localStorage.removeItem("auth_user");
-    
+
     // Clear cookies from all domains (handles cross-domain cookies)
     clearCookiesFromAllDomains();
-    
+
     // Broadcast logout to other tabs/ports
-    broadcastAuthChange('logout');
+    broadcastAuthChange("logout");
   };
 
   const hasRole = (roles: UserRole | UserRole[]): boolean => {
     if (!user) return false;
-    if (Array.isArray(roles)) {
-      return roles.some((role) => user.roles.includes(role));
-    }
-    return user.roles.includes(roles);
+    const userRoles = asRoleArray(user.roles);
+    const requestedRoles = asRoleArray(roles);
+
+    return requestedRoles.some((role) =>
+      userRoles.some(
+        (userRole: UserRole) =>
+          userRole === role || (isLearnerRole(role) && isLearnerRole(userRole)),
+      ),
+    );
   };
 
   const hasPermission = (permission: Permission): boolean => {
