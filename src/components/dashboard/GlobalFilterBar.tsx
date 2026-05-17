@@ -13,7 +13,12 @@ interface GlobalFilterBarProps {
 }
 
 const EMPTY: IDashboardFilters = {
-  province: "", district: "", gender: "", year: "", month: "",
+  province: "", district: "", gender: "", role: "", year: "", month: "",
+};
+
+const ROLE_LABELS: Record<string, string> = {
+  TRAINEE: "CHW",
+  TESTER: "Tester",
 };
 
 const SelectFilter: React.FC<{
@@ -93,6 +98,21 @@ export const GlobalFilterBar: React.FC<GlobalFilterBarProps> = ({
             onChange={set("gender")}
           />
         )}
+        <select
+          value={filters.role}
+          onChange={(e) => set("role")(e.target.value)}
+          className={`text-xs border rounded px-1.5 py-0.5 focus:outline-none
+            focus:ring-1 focus:ring-[#3363AD] bg-white transition-colors min-w-[70px] ${
+            filters.role
+              ? "border-[#3363AD] text-[#3363AD] font-medium"
+              : "border-gray-200 text-gray-600"
+          }`}
+          title="CHW Role"
+        >
+          <option value="">CHW Role</option>
+          <option value="TRAINEE">CHW</option>
+          <option value="TESTER">Tester</option>
+        </select>
         {years.length > 0 && (
           <SelectFilter
             label="Year"
@@ -136,7 +156,7 @@ export const GlobalFilterBar: React.FC<GlobalFilterBarProps> = ({
                   className="flex items-center gap-0.5 bg-[#3363AD]/10 text-[#3363AD]
                     text-[10px] px-1.5 py-0.5 rounded-full"
                 >
-                  {value}
+                  {key === "role" ? (ROLE_LABELS[value] ?? value) : value}
                   <button
                     onClick={() => set(key as keyof IDashboardFilters)("")}
                     className="hover:text-red-500 transition-colors"

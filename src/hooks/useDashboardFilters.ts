@@ -66,7 +66,9 @@ export const useDashboardFilters = (
 
   const availableGenders = useMemo(
     () => [...new Set(
-      (demographics?.byGender ?? []).map((r) => r.gender ?? "").filter(Boolean)
+      (demographics?.byGender ?? [])
+        .map((r) => r.gender ? r.gender.charAt(0).toUpperCase() + r.gender.slice(1).toLowerCase() : "")
+        .filter(Boolean)
     )],
     [demographics],
   );
@@ -105,7 +107,11 @@ export const useDashboardFilters = (
 
   const filteredByGender = useMemo(() => {
     let rows = demographics?.byGender ?? [];
-    if (filters.gender) rows = rows.filter((r) => r.gender === filters.gender);
+    if (filters.gender)
+      rows = rows.filter(
+        (r) =>
+          (r.gender ?? "").toLowerCase() === filters.gender.toLowerCase(),
+      );
     return rows;
   }, [demographics, filters.gender]);
 

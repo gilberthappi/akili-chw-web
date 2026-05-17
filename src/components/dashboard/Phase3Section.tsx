@@ -3,7 +3,7 @@ import { ICourseAnalytics, IStudentAnalytics, IDashboardStats, IDashboardFilters
 import { KpiCard } from "./shared/KpiCard";
 import { DashboardSectionHeader } from "./shared/DashboardSectionHeader";
 import { SectionSkeleton } from "./shared/SectionSkeleton";
-import { TrainingFunnelCard } from "./TrainingFunnelCard";
+// import { TrainingFunnelCard } from "./TrainingFunnelCard";
 import { TestScoreCard } from "./TestScoreCard";
 import { CertificationCard } from "./CertificationCard";
 import { RecentLearnerActivity } from "./RecentLearnerActivity";
@@ -78,9 +78,9 @@ export const Phase3Section: React.FC<Phase3SectionProps> = ({
 
       {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <TrainingFunnelCard
+        {/* <TrainingFunnelCard
           courses={courseAnalytics?.coursePerformanceMetrics ?? []}
-        />
+        /> */}
         <TestScoreCard studentAnalytics={studentAnalytics} />
       </div>
 

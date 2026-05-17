@@ -1222,6 +1222,7 @@ export interface IDashboardFilters {
   province: string; // "" means all
   district: string; // "" means all
   gender: string; // "" means all
+  role: string; // "" means all; "TRAINEE" | "TESTER"
   year: string; // "" means all, e.g. "2025" | "2026"
   month: string; // "" means all, e.g. "Jan" | "Feb" ... "Dec"
 }

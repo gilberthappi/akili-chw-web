@@ -132,8 +132,8 @@ const StudentsList: FC<StudentsListProps> = ({
         }}
         filters={[
           {
-            key: "class",
-            label: "Class",
+            key: "course",
+            label: "Course",
             value: courseFilter,
             onChange: (val) => {
               setCourseFilter(val);
@@ -168,8 +168,8 @@ const StudentsList: FC<StudentsListProps> = ({
             options: [
               { label: "Active", value: "ACTIVE" },
               { label: "Inactive", value: "INACTIVE" },
-              { label: "Graduated", value: "GRADUATED" },
-              { label: "Suspended", value: "SUSPENDED" },
+              // { label: "Graduated", value: "GRADUATED" },
+              // { label: "Suspended", value: "SUSPENDED" },
             ],
           },
         ]}
