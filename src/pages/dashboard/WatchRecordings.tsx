@@ -95,7 +95,7 @@ const WatchRecordings: React.FC = () => {
               {/* Info */}
               <div className="p-4">
                 <h3 className="font-semibold text-gray-900 text-sm line-clamp-1 mb-1">
-                  {recording.title ?? 'Untitled Recording'}
+                  {recording.title ?? recording.event?.title ?? 'Untitled Recording'}
                 </h3>
                 <p className="text-xs text-gray-500 line-clamp-1 mb-3">
                   {recording.event?.title ?? 'No meeting linked'}
@@ -129,7 +129,7 @@ const WatchRecordings: React.FC = () => {
             <div className="flex items-center justify-between p-4 border-b border-gray-100">
               <div>
                 <h3 className="font-semibold text-gray-900">
-                  {activeRecording.title ?? 'Untitled Recording'}
+                  {activeRecording.title ?? activeRecording.event?.title ?? 'Untitled Recording'}
                 </h3>
                 {activeRecording.event?.title && (
                   <p className="text-sm text-gray-500">{activeRecording.event.title}</p>

@@ -1,6 +1,8 @@
 import api from "./api";
 import { getBackendURL } from "@/config/api.config";
 
+export type RecordingAudience = "ALL" | "TRAINEES" | "INVITED";
+
 export interface IRecordingEvent {
   id: string;
   title: string;
@@ -21,11 +23,19 @@ export interface IMeetingRecording {
   url: string;
   title: string | null;
   isPublished: boolean;
+  publishedTo: RecordingAudience;
   publishedAt: string | null;
   createdAt: string;
   updatedAt: string;
   event?: IRecordingEvent | null;
   user?: IRecordingUser;
+}
+
+export interface ITraineeOption {
+  id: string;
+  fullNames: string;
+  email: string | null;
+  photo: string;
 }
 
 export const buildRecordingUrl = (url: string): string => {
@@ -41,8 +51,14 @@ export const getPublishedRecordings = async (): Promise<{ data: IMeetingRecordin
   return (await api.get("/recordings/published")).data;
 };
 
-export const publishRecording = async (id: string): Promise<{ data: IMeetingRecording }> => {
-  return (await api.patch(`/recordings/${id}/publish`)).data;
+export const publishRecording = async (
+  id: string,
+  publishedTo: RecordingAudience,
+  invitedUserIds?: string[],
+): Promise<{ data: IMeetingRecording }> => {
+  return (
+    await api.patch(`/recordings/${id}/publish`, { publishedTo, invitedUserIds })
+  ).data;
 };
 
 export const unpublishRecording = async (id: string): Promise<{ data: IMeetingRecording }> => {
@@ -51,4 +67,14 @@ export const unpublishRecording = async (id: string): Promise<{ data: IMeetingRe
 
 export const deleteRecording = async (id: string): Promise<void> => {
   await api.delete(`/recordings/${id}`);
+};
+
+export const getTrainees = async (search?: string): Promise<ITraineeOption[]> => {
+  const params = search ? { searchq: search } : {};
+  const res = await api.get("/auth/users/all", { params });
+  const all: (ITraineeOption & { userRoles?: { role: string }[] })[] =
+    res.data?.data ?? res.data ?? [];
+  return all.filter((u) =>
+    u.userRoles?.some((r) => r.role === "TRAINEE"),
+  );
 };

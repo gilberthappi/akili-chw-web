@@ -140,7 +140,7 @@ export const DemographicsSection: React.FC<DemographicsSectionProps> = ({ data, 
                     <ProgressBar value={row.completionRate} color="#3363AD" />
                   </td>
                   <td className="py-2.5 pl-3">
-                    <ProgressBar value={row.certificationRate} color="#f59e0b" />
+                    <ProgressBar value={row.certificationRate} color="#3363AD" />
                   </td>
                 </tr>
               ))}
