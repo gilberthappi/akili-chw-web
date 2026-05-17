@@ -96,14 +96,6 @@ const RoutesProvider = () => {
           ),
         },
         {
-          path: "courses/builder",
-          element: (
-            <ProtectedRoute allowedRoles={["ADMIN", "TRAINER", "DEVELOPER"]}>
-              <NewCoursesBuilder />
-            </ProtectedRoute>
-          ),
-        },
-        {
           path: "courses/edit/:id",
           element: (
             <ProtectedRoute allowedRoles={["ADMIN", "TRAINER", "DEVELOPER"]}>
@@ -264,6 +256,18 @@ const RoutesProvider = () => {
           element: <NotificationsPage />,
         },
       ],
+    },
+
+    // ── Course builder (no sidebar, full-screen editor) ───────────────
+    {
+      path: "/courses/builder",
+      element: (
+        <ProtectedRoute allowedRoles={["ADMIN", "TRAINER", "DEVELOPER"]}>
+          <div className="h-screen overflow-hidden">
+            <NewCoursesBuilder />
+          </div>
+        </ProtectedRoute>
+      ),
     },
 
     // ── Immersive learning layout (no sidebar) ────────────────────────
