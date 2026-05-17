@@ -711,7 +711,7 @@ const CourseLearner: React.FC = () => {
             {activeChapter && (
               <>
                 <ChevronRight size={10} className="text-gray-300 flex-shrink-0" />
-                <span className="text-xs text-gray-400 truncate">{activeChapter.title}</span>
+                <span className="text-xs font-medium text-gray-700 truncate">{activeChapter.title}</span>
               </>
             )}
           </div>
