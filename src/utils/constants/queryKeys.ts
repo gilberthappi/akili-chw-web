@@ -12,6 +12,13 @@ export const courseKeys = {
   list: (filter?: string) => [...courseKeys.lists(), filter] as const,
 };
 
+// Query key factory for hospitals with filters
+export const hospitalKeys = {
+  all: ["hospitals"] as const,
+  lists: () => [...hospitalKeys.all, "list"] as const,
+  list: (filter?: string) => [...hospitalKeys.lists(), filter] as const,
+};
+
 // Query key factory for students with filters
 export const studentKeys = {
   all: ["students"] as const,
