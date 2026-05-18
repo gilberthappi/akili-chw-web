@@ -16,6 +16,7 @@ import {
   CheckCircle,
   AlertCircle,
   Pencil,
+  ArrowLeft,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import SlideUpload from "@/components/courseBuilder/SlideUpload";
@@ -139,7 +140,7 @@ interface CourseBuilderProps {
   onBack: () => void;
 }
 
-export default function CourseBuilder({ courseData, onAutoSave, onPublish }: CourseBuilderProps) {
+export default function CourseBuilder({ courseData, onAutoSave, onPublish, onBack }: CourseBuilderProps) {
   const defaultSections =
     courseData.sections.length > 0
       ? courseData.sections
@@ -1031,6 +1032,13 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish }: Cou
         <div className="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
+              <button
+                onClick={onBack}
+                title="Back to courses"
+                className="p-1.5 rounded-lg text-secondary hover:text-dark hover:bg-gray-100 transition"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
               {!sidebarOpen && (
                 <button
                   onClick={() => setSidebarOpen(true)}

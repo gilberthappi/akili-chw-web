@@ -15,6 +15,7 @@ import {
   type RecordingAudience,
   type ITraineeOption,
 } from '@/services/recording.service';
+import { getEventById } from '@/services/calender.service';
 
 // ── Publish audience modal ─────────────────────────────────────────────────
 
@@ -36,16 +37,43 @@ const PublishModal: React.FC<PublishModalProps> = ({ recording, onClose, onConfi
   const [search, setSearch] = useState('');
   const [selectedUsers, setSelectedUsers] = useState<ITraineeOption[]>([]);
 
-  const { data: trainees = [], isLoading: loadingTrainees } = useQuery({
-    queryKey: ['trainees', search],
-    queryFn: () => getTrainees(search || undefined),
-    enabled: audience === 'INVITED',
+  const hasEventId = !!recording.eventId;
+
+  // When linked to an event, fetch that event's participants instead of all trainees
+  const { data: eventData, isLoading: loadingEvent } = useQuery({
+    queryKey: ['event-participants', recording.eventId],
+    queryFn: () => getEventById(recording.eventId!),
+    enabled: audience === 'INVITED' && hasEventId,
     staleTime: 30_000,
   });
 
-  const filteredTrainees = trainees.filter(
-    (t) => !selectedUsers.some((s) => s.id === t.id),
-  );
+  // Fallback: all trainees (only used when recording has no linked event)
+  const { data: trainees = [], isLoading: loadingTrainees } = useQuery({
+    queryKey: ['trainees', search],
+    queryFn: () => getTrainees(search || undefined),
+    enabled: audience === 'INVITED' && !hasEventId,
+    staleTime: 30_000,
+  });
+
+  const eventInvitees: ITraineeOption[] = (eventData?.data?.participants ?? []).map((p) => ({
+    id: p.userId,
+    fullNames: p.user.fullNames,
+    email: p.user.email,
+    photo: '',
+  }));
+
+  const allCandidates = hasEventId ? eventInvitees : trainees;
+
+  const filteredTrainees = allCandidates
+    .filter((t) => !selectedUsers.some((s) => s.id === t.id))
+    .filter((t) =>
+      !hasEventId || !search
+        ? true
+        : t.fullNames.toLowerCase().includes(search.toLowerCase()) ||
+          (t.email ?? '').toLowerCase().includes(search.toLowerCase()),
+    );
+
+  const loadingCandidates = hasEventId ? loadingEvent : loadingTrainees;
 
   const toggleUser = (user: ITraineeOption) => {
     setSelectedUsers((prev) =>
@@ -134,21 +162,23 @@ const PublishModal: React.FC<PublishModalProps> = ({ recording, onClose, onConfi
               <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search trainees..."
+                placeholder={hasEventId ? 'Search invited users...' : 'Search trainees...'}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
 
-            {/* Trainee list */}
+            {/* User list */}
             <div className="max-h-44 overflow-y-auto space-y-1 rounded-lg border border-gray-100">
-              {loadingTrainees ? (
+              {loadingCandidates ? (
                 <div className="flex justify-center py-4">
                   <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                 </div>
               ) : filteredTrainees.length === 0 ? (
-                <p className="text-xs text-gray-400 text-center py-4">No trainees found</p>
+                <p className="text-xs text-gray-400 text-center py-4">
+                  {hasEventId ? 'No invited users found' : 'No trainees found'}
+                </p>
               ) : (
                 filteredTrainees.map((trainee) => (
                   <button

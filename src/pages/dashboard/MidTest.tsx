@@ -19,6 +19,8 @@ const MidTest: React.FC = () => {
   const [searchParams] = useSearchParams();
   const chapterTitle = searchParams.get("chapter") ?? "Chapter";
   const chapterId = searchParams.get("chapterId") ?? "";
+  const revisit = searchParams.get("revisit") === "true";
+  const afterSlide = parseInt(searchParams.get("afterSlide") ?? "-1");
 
   const [midTest, setMidTest] = useState<IMidTest | null>(null);
   const [questions, setQuestions] = useState<IQuestionnaire[]>([]);
@@ -89,7 +91,7 @@ const MidTest: React.FC = () => {
         midTest.id,
         questions.map((q) => ({ questionnaireId: q.id, selectedAnswerIds: Array.from(answers[q.id] ?? []) }))
       );
-      navigate(`/learn/${courseId}`, { state: { completedChapterId: chapterId } });
+      navigate(`/learn/${courseId}`, { state: { completedChapterId: chapterId, revisit, afterSlide: afterSlide !== -1 ? afterSlide : undefined } });
     } catch {
       setError("Failed to submit answers. Please try again.");
     } finally {
