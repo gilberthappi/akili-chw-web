@@ -3,7 +3,7 @@ import StudentsList from "@/components/students/StudentList";
 import StudentStatsCards from "@/components/students/StudentStatsCards";
 
 const studentTabs = [
-  { id: "students", label: "Students", roleFilter: "TRAINEE" as const },
+  { id: "students", label: "CHW", roleFilter: "TRAINEE" as const },
   { id: "testers", label: "Testers", roleFilter: "TESTER" as const },
 ];
 
@@ -18,7 +18,7 @@ const StudentsPage = () => {
     <div className='space-y-6'>
       <div className='flex flex-col md:flex-row items-start md:items-center justify-between gap-4'>
         <div className='space-y-1'>
-          <h2 className='text-3xl font-bold text-[#333333]'>Students</h2>
+          <h2 className='text-3xl font-bold text-[#333333]'>CHW</h2>
           <p className='text-sm text-gray-500'>
             Review trainee and tester records with the same analytics and table
             layout.

@@ -106,7 +106,7 @@ function TestConfigForm({ label, value, onChange }: TestConfigFormProps) {
             <label className="block text-xs font-medium text-secondary mb-1.5">
               Description
               <span className="ml-1 text-destructive font-bold">*</span>
-              <span className="ml-1 font-normal text-gray-400">(shown to students as test feedback)</span>
+              <span className="ml-1 font-normal text-gray-400">(shown to chw as test feedback)</span>
             </label>
             <textarea
               rows={3}
@@ -118,10 +118,10 @@ function TestConfigForm({ label, value, onChange }: TestConfigFormProps) {
                   ? "border-destructive/60 bg-destructive/5"
                   : "border-gray-300"
               }`}
-              placeholder="Describe what this test covers and what feedback students will receive..."
+              placeholder="Describe what this test covers and what feedback chw will receive..."
             />
             {value.description.trim() === "" && (
-              <p className="text-xs text-destructive mt-1">Description is required — students see this as feedback.</p>
+              <p className="text-xs text-destructive mt-1">Description is required — chw see this as feedback.</p>
             )}
           </div>
         </div>
@@ -1162,7 +1162,7 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish, onBac
             <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-4">
               <h3 className="text-lg font-semibold text-dark">Question Bank</h3>
               <p className="text-sm text-secondary mt-1">
-                All questions stored here are randomly selected when students take the
+                All questions stored here are randomly selected when chw take the
                 Pre-Test, Final Test, or Exam. Each test draws the number of questions
                 you configure. Mid-Test uses its own separate questions.
               </p>
@@ -1235,7 +1235,7 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish, onBac
                     Mid-Test — {selectedChapter.title}
                   </h3>
                   <p className="text-sm text-secondary mt-1">
-                    Given after students complete this chapter. Mid-Test uses its own
+                    Given after chw complete this chapter. Mid-Test uses its own
                     questions — not from the Question Bank.
                   </p>
                 </div>

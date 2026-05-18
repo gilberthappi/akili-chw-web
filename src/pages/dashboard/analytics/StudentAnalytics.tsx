@@ -20,6 +20,7 @@ export const StudentAnalytics: React.FC = () => {
         setAnalytics({
           totalStudents: { value: 0, trend: { value: 0, direction: 'stable' } },
           activeStudents: { value: 0, trend: { value: 0, direction: 'stable' } },
+          onLeaveStudents: { value: 0, trend: { value: 0, direction: 'stable' } },
           avgStudyTime: { value: 0, trend: { value: 0, direction: 'stable' }, unit: 'hours' },
           completionRate: { value: 0, trend: { value: 0, direction: 'stable' }, unit: 'percent' },
           performanceDistribution: {
@@ -90,7 +91,7 @@ export const StudentAnalytics: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium text-gray-600">Total Students</span>
+            <span className="text-xs font-medium text-gray-600">Total chw</span>
             <div className="w-9 h-9 rounded-lg bg-[#3363AD]/10 flex items-center justify-center">
               <Users className="w-4 h-4 text-[#3363AD]" />
             </div>

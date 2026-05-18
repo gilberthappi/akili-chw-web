@@ -4,6 +4,7 @@ import api from "./api";
 // Student interface
 export interface IStudent {
   id: string;
+  userId: string;
   fullName: string;
   phoneNumber: string;
   district: string;

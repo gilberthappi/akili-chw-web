@@ -143,7 +143,7 @@ console.log("student id:", studentId)
               onClick={() => navigate('/students')}
               className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
             >
-              Back to Students
+              Back to chw
             </button>
           </div>
         </div>

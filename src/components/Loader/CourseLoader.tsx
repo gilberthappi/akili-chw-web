@@ -63,7 +63,7 @@ const CourseLoader = ({
             fileType === 'pdf' ? "📄 PDFs are great for detailed reference materials" : "🔒 Secure file uploads protect your content",
             "☁️ Cloud storage ensures your files are always accessible",
             "📱 Mobile-optimized content reaches 70% more learners",
-            "⚡ Compressed files load 3x faster for students",
+            "⚡ Compressed files load 3x faster for chw",
             "🌐 CDN delivery provides global access speeds",
             "🔄 Auto-backup prevents content loss during uploads",
             "📊 File analytics help optimize content delivery"
