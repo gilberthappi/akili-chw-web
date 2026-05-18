@@ -6,6 +6,7 @@ export type RecordingAudience = "ALL" | "TRAINEES" | "INVITED";
 export interface IRecordingEvent {
   id: string;
   title: string;
+  description?: string | null;
   startAt: string;
 }
 

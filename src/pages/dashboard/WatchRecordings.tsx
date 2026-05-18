@@ -7,6 +7,7 @@ import {
   buildRecordingUrl,
   type IMeetingRecording,
 } from '@/services/recording.service';
+import { formatRwDateStringShort } from '@/utils/date';
 
 const WatchRecordings: React.FC = () => {
   const navigate = useNavigate();
@@ -28,12 +29,7 @@ const WatchRecordings: React.FC = () => {
     (r.event?.title ?? '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const formatDate = (dateStr: string) =>
-    new Date(dateStr).toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    });
+  const formatDate = (dateStr: string) => formatRwDateStringShort(dateStr);
 
   return (
     <div className="space-y-6">
@@ -97,8 +93,8 @@ const WatchRecordings: React.FC = () => {
                 <h3 className="font-semibold text-gray-900 text-sm line-clamp-1 mb-1">
                   {recording.title ?? recording.event?.title ?? 'Untitled Recording'}
                 </h3>
-                <p className="text-xs text-gray-500 line-clamp-1 mb-3">
-                  {recording.event?.title ?? 'No meeting linked'}
+                <p className="text-xs text-gray-500 line-clamp-2 mb-3">
+                  {recording.event?.description ?? recording.event?.title ?? 'No description'}
                 </p>
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-gray-400">
@@ -131,8 +127,10 @@ const WatchRecordings: React.FC = () => {
                 <h3 className="font-semibold text-gray-900">
                   {activeRecording.title ?? activeRecording.event?.title ?? 'Untitled Recording'}
                 </h3>
-                {activeRecording.event?.title && (
-                  <p className="text-sm text-gray-500">{activeRecording.event.title}</p>
+                {(activeRecording.event?.description || activeRecording.event?.title) && (
+                  <p className="text-sm text-gray-500 line-clamp-2">
+                    {activeRecording.event.description ?? activeRecording.event.title}
+                  </p>
                 )}
               </div>
               <button
