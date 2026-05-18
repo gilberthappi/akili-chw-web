@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { FC, Fragment, ReactElement, ReactNode, useEffect, useState } from "react";
+import { FC, ReactElement, ReactNode, useEffect, useState } from "react";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -13,10 +13,12 @@ import SyncLoader from "react-spinners/SyncLoader";
 
 export interface TableFilterDef {
   key: string;
-  label: string;
-  options: { label: string; value: string }[];
+  label?: string;
+  type?: "select" | "date";
+  options?: { label: string; value: string }[];
   value: string;
   onChange: (value: string) => void;
+  renderFilter?: ReactNode;
 }
 
 export interface TableColumn {
@@ -42,7 +44,6 @@ export interface TableProps {
   onChangePage?: (page: number) => void;
   hideFilters?: boolean;
   position?: string;
-  usedFilters?: string;
   paginate?: boolean;
   
   // New features
@@ -71,7 +72,6 @@ const Table: FC<TableProps> = ({
   searchComponent,
   onChangePage,
   position,
-  usedFilters,
   headerComponent,
   paginate = true,
   selectable = false,
@@ -162,26 +162,44 @@ const Table: FC<TableProps> = ({
           {/* Dynamic Filters Array */}
           {filters && filters.length > 0 && (
             <div className='flex flex-wrap items-center gap-2'>
-              {filters.map((f) => (
-                <select
-                  key={f.key}
-                  value={f.value}
-                  onChange={(e) => f.onChange(e.target.value)}
-                  className="border border-gray-200 rounded px-2 py-1.5 text-sm text-gray-600 outline-none focus:border-[#3363AD]"
-                >
-                  <option value="">{f.label}</option>
-                  {f.options.map((opt) => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-              ))}
+              {filters.map((f) => {
+                if (f.renderFilter) {
+                  return <div key={f.key} className='min-w-[160px]'>{f.renderFilter}</div>;
+                }
+                if (f.type === "date") {
+                  return (
+                    <div key={f.key} className='flex items-center gap-1.5'>
+                      <label className='text-xs text-gray-500 whitespace-nowrap'>{f.label}</label>
+                      <input
+                        type='date'
+                        value={f.value}
+                        onChange={(e) => f.onChange(e.target.value)}
+                        className='border border-gray-200 rounded px-2 py-1.5 text-sm text-gray-600 outline-none focus:border-[#3363AD]'
+                      />
+                    </div>
+                  );
+                }
+                return (
+                  <select
+                    key={f.key}
+                    value={f.value}
+                    onChange={(e) => f.onChange(e.target.value)}
+                    className='border border-gray-200 rounded px-2 py-1.5 text-sm text-gray-600 outline-none focus:border-[#3363AD]'
+                  >
+                    <option value=''>{f.label}</option>
+                    {f.options?.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                );
+              })}
             </div>
           )}
 
           {headerComponent}
           {allowFilter && filtersComponent && (
             <div className='flex items-center gap-2'>
-               {filtersComponent}
+              {filtersComponent}
             </div>
           )}
 

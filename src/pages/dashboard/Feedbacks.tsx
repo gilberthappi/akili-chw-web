@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import FilterTabs, { TabItem } from "@/components/ui/FilterTabs";
-import Table from "@/components/table/Table";
+import Table, { TableFilterDef } from "@/components/table/Table";
 import { formatDate } from "@/utils/formats/formats";
 import { debounce } from "lodash";
 import {
@@ -15,9 +15,7 @@ import {
 } from "@/services/feedback.service";
 import { StarIcon } from "@heroicons/react/24/solid";
 import { Button } from "@/components/common/Button";
-import { Input } from "@/components/common/Input";
-import ComboboxField, { IOptionFieldOption } from "@/components/common/form/ComboboxField";
-import { XMarkIcon } from "@heroicons/react/24/outline";
+import ComboboxField from "@/components/common/form/ComboboxField";
 import {
   ISlideFeedback,
   IChapterReview,
@@ -64,15 +62,14 @@ export const Feedbacks: React.FC = () => {
     "Rubavu", "Ruhango", "Rulindo", "Rusizi", "Rutsiro", "Rwamagana"
   ], []);
 
-  // Prepare options for ComboboxField
-  const districtOptions: IOptionFieldOption[] = useMemo(() => {
+  const districtOptions: { value: string; label: string }[] = useMemo(() => {
     return districts.map(district => ({
       value: district,
       label: district
     })).sort((a, b) => a.label.localeCompare(b.label));
   }, [districts]);
 
-  const sectorOptions: IOptionFieldOption[] = useMemo(() => {
+  const sectorOptions: { value: string; label: string }[] = useMemo(() => {
     const sectorsData = [
       // Bugesera District
       { sector: "Gashora", district: "Bugesera" },
@@ -701,7 +698,7 @@ export const Feedbacks: React.FC = () => {
   };
 
   // Filter handlers
-  const handleFilterChange = (key: string, value: string | boolean) => {
+  const handleFilterChange = useCallback((key: string, value: string | boolean) => {
     setFilters(prev => {
       const newFilters = { ...prev, [key]: value };
       
@@ -721,7 +718,7 @@ export const Feedbacks: React.FC = () => {
     setSectionPage(1);
     setCoursePage(1);
     setSystemPage(1);
-  };
+  }, []);
 
   const clearFilters = () => {
     setFilters({
@@ -737,111 +734,90 @@ export const Feedbacks: React.FC = () => {
     });
   };
 
-  // Filter component
-  const renderFilters = () => (
-    <div className="space-y-1 max-h-126">
-      <div className="flex items-center justify-between sticky top-0 bg-white pb-2 border-b">
-        <h3 className="font-semibold text-gray-900 text-sm">Filter Reviews</h3>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onClick={clearFilters}
-          className="text-gray-500 hover:text-gray-700 text-xs px-2 py-1"
+  // Shared inline filters for all tabs
+  const sharedFilters: TableFilterDef[] = useMemo(() => [
+    {
+      key: "district",
+      label: "District",
+      value: filters.district,
+      onChange: (val: string) => handleFilterChange("district", val),
+      renderFilter: (
+        <ComboboxField
+          options={[{ value: "", label: "All Districts" }, ...districtOptions]}
+          defaultValue={filters.district}
+          onChange={(val) => handleFilterChange("district", val)}
+          hideQueryOnChange={false}
+          placeholder="District..."
+          margin={false}
+        />
+      ),
+    },
+    {
+      key: "sector",
+      label: "Sector",
+      value: filters.sector,
+      onChange: (val: string) => handleFilterChange("sector", val),
+      renderFilter: (
+        <ComboboxField
+          options={[{ value: "", label: "All Sectors" }, ...sectorOptions]}
+          defaultValue={filters.sector}
+          onChange={(val) => handleFilterChange("sector", val)}
+          hideQueryOnChange={false}
+          placeholder="Sector..."
+          margin={false}
+        />
+      ),
+    },
+    {
+      key: "startDate",
+      label: "From",
+      type: "date" as const,
+      value: filters.startDate,
+      onChange: (val: string) => handleFilterChange("startDate", val),
+    },
+    {
+      key: "endDate",
+      label: "To",
+      type: "date" as const,
+      value: filters.endDate,
+      onChange: (val: string) => handleFilterChange("endDate", val),
+    },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [filters.district, filters.sector, filters.startDate, filters.endDate, districtOptions, sectorOptions]);
+
+  const reviewTypePills = useMemo(() => (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {([
+        { key: "includeFeedbacks", label: "Slides" },
+        { key: "includeChapterReviews", label: "Chapters" },
+        { key: "includeSectionReviews", label: "Sections" },
+        { key: "includeCourseReviews", label: "Courses" },
+        { key: "includeSystemReviews", label: "System" },
+      ] as { key: keyof typeof filters; label: string }[]).map(({ key, label }) => (
+        <label
+          key={key}
+          className={`flex items-center px-2 py-1 rounded-full text-xs cursor-pointer transition-all ${
+            filters[key]
+              ? "bg-blue-100 text-blue-700 border border-blue-200"
+              : "bg-gray-100 text-gray-500 border border-gray-200"
+          }`}
         >
-          <XMarkIcon className="w-3 h-3 mr-1" />
-          Clear
-        </Button>
-      </div>
-
-      {/* Include/Exclude Filters - Horizontal Pills */}
-      <div className="space-y-2">
-        <h4 className="text-xs font-medium text-gray-700 uppercase tracking-wide">Review Types</h4>
-        <div className="flex flex-wrap gap-1.5">
-          {[
-            { key: 'includeFeedbacks', label: 'Slides' },
-            { key: 'includeChapterReviews', label: 'Chapters' },
-            { key: 'includeSectionReviews', label: 'Sections' },
-            { key: 'includeCourseReviews', label: 'Courses' },
-            { key: 'includeSystemReviews', label: 'System' },
-          ].map(({ key, label }) => (
-            <label key={key} className={`
-              flex items-center px-2 py-1 rounded-full text-xs cursor-pointer transition-all
-              ${filters[key as keyof typeof filters] 
-                ? 'bg-blue-100 text-blue-700 border border-blue-200' 
-                : 'bg-gray-100 text-gray-500 border border-gray-200'
-              }
-            `}>
-              <input
-                type="checkbox"
-                checked={filters[key as keyof typeof filters] as boolean}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFilterChange(key, e.target.checked)}
-                className="sr-only"
-              />
-              <span className="font-medium">{label}</span>
-            </label>
-          ))}
-        </div>
-      </div>
-
- 
-        <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1">District</label>
-          <ComboboxField
-                options={[{ value: "", label: "All Districts" }, ...districtOptions]}
-                defaultValue={filters.district}
-                onChange={(value) => handleFilterChange('district', value)}
-                hideQueryOnChange={false}
-                placeholder="Select district..."
-              />
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1">Sector</label>
-          <ComboboxField
-                options={[{ value: "", label: "All Sectors" }, ...sectorOptions]}
-                defaultValue={filters.sector}
-                onChange={(value) => handleFilterChange('sector', value)}
-                hideQueryOnChange={false}
-                placeholder="Select sector..."
-              />
-        </div>
-             {/* Location and Date Filters - Compact Grid */}
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1">Start Date</label>
-          <Input
-                type="date"
-                value={filters.startDate}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFilterChange('startDate', e.target.value)}
-                className="text-xs py-1.5 px-2"
-                placeholder="Start date"
-              />
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1">End Date</label>
-          <Input
-                type="date"
-                value={filters.endDate}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFilterChange('endDate', e.target.value)}
-                className="text-xs py-1.5 px-2"
-                placeholder="End date"
-              />
-        </div>
-
-      </div>
-
-      {/* Export Button - Compact */}
-      <div className="pt-2 border-t border-gray-200">
-        <Button 
-          variant="outline" 
-          size="sm"
-          className="w-full text-xs py-2"
-          onClick={() => exportData()}
-          disabled={isExporting}
-        >
-          {isExporting ? "📊 Exporting..." : "📊 Export Data"}
-        </Button>
-      </div>
+          <input
+            type="checkbox"
+            checked={filters[key] as boolean}
+            onChange={(e) => handleFilterChange(key, e.target.checked)}
+            className="sr-only"
+          />
+          <span className="font-medium">{label}</span>
+        </label>
+      ))}
     </div>
+  ), [filters, handleFilterChange]);
+
+  const exportBtn = (
+    <Button variant="outline" size="sm" onClick={() => exportData()} disabled={isExporting}>
+      {isExporting ? "Exporting..." : "Export"}
+    </Button>
   );
 
   // Search handlers with debounce
@@ -908,10 +884,11 @@ export const Feedbacks: React.FC = () => {
         totalItems={slideFeedbacks?.totalItems || 0}
         itemsPerPage={slideFeedbacks?.itemsPerPage || 15}
         onChangePage={setSlidePage}
+        headerComponent={reviewTypePills}
         searchFun={handleSlideSearch}
-        filtersComponent={renderFilters()}
-        allowFilter={true}
-        usedFilters={buildQueryParams(1).substring(1)} 
+        filters={sharedFilters}
+        onResetFilters={clearFilters}
+        actionBtn={exportBtn}
         columns={[
         {
           title: "User",
@@ -1006,10 +983,11 @@ export const Feedbacks: React.FC = () => {
         totalItems={chapterReviews?.totalItems || 0}
         itemsPerPage={chapterReviews?.itemsPerPage || 15}
         onChangePage={setChapterPage}
+        headerComponent={reviewTypePills}
         searchFun={handleChapterSearch}
-        filtersComponent={renderFilters()}
-        allowFilter={true}
-        usedFilters={buildQueryParams(1).substring(1)}
+        filters={sharedFilters}
+        onResetFilters={clearFilters}
+        actionBtn={exportBtn}
         columns={[
         {
           title: "Student",
@@ -1078,10 +1056,11 @@ export const Feedbacks: React.FC = () => {
         totalItems={sectionReviews?.totalItems || 0}
         itemsPerPage={sectionReviews?.itemsPerPage || 15}
         onChangePage={setSectionPage}
+        headerComponent={reviewTypePills}
         searchFun={handleSectionSearch}
-        filtersComponent={renderFilters()}
-        allowFilter={true}
-        usedFilters={buildQueryParams(1).substring(1)}
+        filters={sharedFilters}
+        onResetFilters={clearFilters}
+        actionBtn={exportBtn}
         columns={[
         {
           title: "Student",
@@ -1150,10 +1129,11 @@ export const Feedbacks: React.FC = () => {
         totalItems={courseReviews?.totalItems || 0}
         itemsPerPage={courseReviews?.itemsPerPage || 15}
         onChangePage={setCoursePage}
+        headerComponent={reviewTypePills}
         searchFun={handleCourseSearch}
-        filtersComponent={renderFilters()}
-        allowFilter={true}
-        usedFilters={buildQueryParams(1).substring(1)}
+        filters={sharedFilters}
+        onResetFilters={clearFilters}
+        actionBtn={exportBtn}
         columns={[
         {
           title: "Student",
@@ -1231,10 +1211,11 @@ export const Feedbacks: React.FC = () => {
         totalItems={systemReviews?.totalItems || 0}
         itemsPerPage={systemReviews?.itemsPerPage || 15}
         onChangePage={setSystemPage}
+        headerComponent={reviewTypePills}
         searchFun={handleSystemSearch}
-        filtersComponent={renderFilters()}
-        allowFilter={true}
-        usedFilters={buildQueryParams(1).substring(1)}
+        filters={sharedFilters}
+        onResetFilters={clearFilters}
+        actionBtn={exportBtn}
         columns={[
         {
           title: "User",
