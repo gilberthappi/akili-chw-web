@@ -170,7 +170,7 @@ export const CourseChartsCard: React.FC<CourseChartsCardProps> = ({
                   axisLine={false}
                   tickLine={false}
                   label={{
-                    value: "Students",
+                    value: "CHW",
                     angle: -90,
                     position: "insideLeft",
                     dx: -12,

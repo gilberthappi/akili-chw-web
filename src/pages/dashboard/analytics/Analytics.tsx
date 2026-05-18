@@ -43,7 +43,7 @@ export const Analytics: React.FC = () => {
                 <Users className="w-6 h-6 text-green-600" />
               </div>
               <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Student Analytics</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">CHW Analytics</h3>
                 <p className="text-sm text-gray-600">
                   Track student progress, performance metrics, and engagement levels across all courses.
                 </p>

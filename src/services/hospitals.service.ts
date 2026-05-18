@@ -26,3 +26,19 @@ export const updateHospital = async (
 export const deleteHospital = async (id: string): Promise<IResponse<null>> => {
   return (await api.delete(`/hospitals/${id}`)).data;
 };
+
+export const importHospitals = async (
+  file: File,
+): Promise<{
+  statusCode: number;
+  message: string;
+  data: { total: number; created: number; skipped: number; errors: string[] };
+}> => {
+  const formData = new FormData();
+  formData.append("file", file);
+  return (
+    await api.post("/hospitals/import", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    })
+  ).data;
+};

@@ -1324,7 +1324,7 @@ export const Feedbacks: React.FC = () => {
         <div className="space-y-1">
           <h2 className="text-3xl font-bold text-[#333333]">Feedbacks & Reviews</h2>
           <p className="text-base text-gray-500">
-            Manage and review feedback from students
+            Manage and review feedback from chw
           </p>
         </div>
       </div>

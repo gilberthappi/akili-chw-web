@@ -74,7 +74,7 @@ export const TestScoreCard: React.FC<TestScoreCardProps> = ({
     <Card>
       <div className='flex items-center gap-2 mb-4'>
         <BarChart2 size={20} className='text-[#3363AD]' />
-        <h3 className='text-lg font-semibold text-gray-800'>Student Performance</h3>
+        <h3 className='text-lg font-semibold text-gray-800'>CHW Performance</h3>
       </div>
 
       <div style={{ height: "200px" }}>
@@ -103,7 +103,7 @@ export const TestScoreCard: React.FC<TestScoreCardProps> = ({
               axisLine={false}
               tickLine={false}
               label={{
-                value: "Students",
+                value: "CHW",
                 angle: -90,
                 position: "insideLeft",
                 dx: -12,
@@ -111,7 +111,7 @@ export const TestScoreCard: React.FC<TestScoreCardProps> = ({
               }}
             />
             <Tooltip
-              formatter={(value: number) => [value, "Students"]}
+              formatter={(value: number) => [value, "CHW"]}
               contentStyle={{ fontSize: 12 }}
             />
             <Bar dataKey='value' radius={[4, 4, 0, 0]}>

@@ -176,7 +176,7 @@ const StudentsList: FC<StudentsListProps> = ({
         onResetFilters={resetFilters}
         columns={[
           {
-            title: "Student Name",
+            title: "CHW Name",
             key: "fullName",
             sortable: true,
             render: (row: IStudent) => {

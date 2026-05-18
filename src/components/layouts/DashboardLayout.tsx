@@ -446,7 +446,7 @@ const DashboardLayout = ({
       roles: ["TRAINEE", "SUPERVISOR"],
     },
     {
-      label: "Students",
+      label: "CHW",
       icon: <Users className='w-4 h-4' />,
       path: "/students",
       roles: ["ADMIN","DEVELOPER" ,"TRAINER", "STAFF"],

@@ -41,7 +41,7 @@ export const Phase3Section: React.FC<Phase3SectionProps> = ({
       {!hideKpis && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <KpiCard
-            title="Total Students"
+            title="Total CHW"
             value={dashboardStats?.totalStudents?.value ?? 0}
             icon={<Users size={20} />}
             iconBg="bg-blue-50"

@@ -2,7 +2,7 @@ import { IStaff, IPaged, IResponse } from "@/types";
 import api from "./api";
 
 export const getAllStaff = async (params?: string): Promise<IPaged<IStaff[]>> => {
-  const queryParams = params ? params : "";
+  const queryParams = params ?? "";
   return (await api.get(`/auth/staffs${queryParams}`)).data;
 };
 
@@ -17,10 +17,17 @@ export const createStaff = async (
 };
 
 export const updateStaff = async (
-  id: string,
-  data: Partial<IStaff>
-): Promise<IResponse<IStaff>> => {
-  return (await api.put(`/staff/${id}`, data)).data;
+  userId: string,
+  data: Record<string, unknown>,
+): Promise<IResponse<unknown>> => {
+  return (await api.put(`/auth/update/${userId}`, data)).data;
+};
+
+export const updateStaffInfo = async (
+  staffId: string,
+  data: Record<string, unknown>,
+): Promise<IResponse<unknown>> => {
+  return (await api.put(`/auth/staffs/${staffId}`, data)).data;
 };
 
 export const deleteStaff = async (id: string): Promise<IResponse<null>> => {
