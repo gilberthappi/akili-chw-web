@@ -136,7 +136,7 @@ const CourseLearner: React.FC = () => {
   const [sidebarChapterId, setSidebarChapterId] = useState<string | null>(null);
   const markingRef = useRef(false);
 
-  const loadChapter = useCallback(async (chapter: IChapter, initialSlideId?: string, resumeCompletedIds?: Set<string>) => {
+  const loadChapter = useCallback(async (chapter: IChapter, initialSlideId?: string, resumeCompletedIds?: Set<string>, initialSlideIndex?: number) => {
     setActiveChapter(chapter);
     setSidebarChapterId(chapter.id);
     setSlideIndex(0);
@@ -158,6 +158,12 @@ const CourseLearner: React.FC = () => {
       } else if (initialSlideId) {
         const idx = loadedSlides.findIndex((s) => s.id === initialSlideId);
         if (idx > 0) setSlideIndex(idx);
+      } else if (initialSlideIndex != null) {
+        // -1 means last slide; otherwise clamp to valid range
+        const target = initialSlideIndex === -1
+          ? loadedSlides.length - 1
+          : Math.min(initialSlideIndex, loadedSlides.length - 1);
+        if (target > 0) setSlideIndex(target);
       }
     } catch {
       setSlides([]);
@@ -171,8 +177,10 @@ const CourseLearner: React.FC = () => {
     if (!courseId) return;
     setIsLoadingCourse(true);
     setCourseError(null);
-    const state = location.state as { completedChapterId?: string; passedFinalTest?: boolean; passedFinalExam?: boolean; preTestCompleted?: boolean } | null;
+    const state = location.state as { completedChapterId?: string; revisit?: boolean; afterSlide?: number; passedFinalTest?: boolean; passedFinalExam?: boolean; preTestCompleted?: boolean } | null;
     const completedChapterId = state?.completedChapterId ?? null;
+    const revisit = state?.revisit ?? false;
+    const afterSlide = state?.afterSlide ?? null;
     const passedFinalTestFromState = state?.passedFinalTest ?? false;
     const passedFinalExamFromState = state?.passedFinalExam ?? false;
     const preTestCompleted = state?.preTestCompleted ?? false;
@@ -225,8 +233,28 @@ const CourseLearner: React.FC = () => {
           const courseStats = stats.courses.find((c) => c.courseId === courseId);
           setIsCourseComplete(courseStats?.isCompleted ?? false);
 
-          // If returning from a mid-test, advance to the next chapter
+          // If returning from a mid-test
           if (completedChapterId) {
+            // afterSlide === -2 is a sentinel meaning "mid-test was on the last slide,
+            // no more slides in this chapter, advance to next chapter"
+            const advanceToNext = !revisit || afterSlide === -2;
+            if (!advanceToNext) {
+              // Revisit: reload same chapter starting at the slide right after the mid-test
+              for (const sec of secs) {
+                const ch = sec.chapters?.find((c) => c.id === completedChapterId);
+                if (ch) {
+                  setOpenSectionId(sec.id);
+                  const slideAfterMidTest = afterSlide != null && afterSlide >= 0
+                    ? afterSlide
+                    : (ch.activityAt != null ? ch.activityAt - 1 : 0);
+                  loadChapter(ch, undefined, undefined, slideAfterMidTest);
+                  return;
+                }
+              }
+              setOpenSectionId(secs[0].id);
+              return;
+            }
+            // First-time completion OR last-slide revisit — advance to the next chapter
             let found = false;
             for (const sec of secs) {
               for (const ch of (sec.chapters ?? [])) {
@@ -530,11 +558,14 @@ const CourseLearner: React.FC = () => {
 
                               const midTestBtn = (
                                 <button
-                                  onClick={() =>
+                                  onClick={() => {
+                                    const isRevisit = serverCompletedChapterIds.has(chapter.id);
+                                    // -2 signals "no slides remain after mid-test, advance to next chapter"
+                                    const afterSlideParam = isRevisit && midSlot >= slides.length ? -2 : (midSlot > 0 ? midSlot : 0);
                                     navigate(
-                                      `/learn/${courseId}/mid-test/${chapterMidTestId}?chapter=${encodeURIComponent(chapter.title)}&chapterId=${chapter.id}`
-                                    )
-                                  }
+                                      `/learn/${courseId}/mid-test/${chapterMidTestId}?chapter=${encodeURIComponent(chapter.title)}&chapterId=${chapter.id}&revisit=${isRevisit}&afterSlide=${afterSlideParam}`
+                                    );
+                                  }}
                                   className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                                     serverCompletedChapterIds.has(chapter.id)
                                       ? "text-green-700 hover:bg-green-50"
@@ -558,7 +589,7 @@ const CourseLearner: React.FC = () => {
                               return (
                                 <div className="ml-5 border-l-2 border-[#3363AD]/20 pl-2 mt-0.5 space-y-0.5 pb-1">
                                   {slides.map((slide, i) => {
-                                    const slideAccessible = i <= maxAccessibleIdx;
+                                    const slideAccessible = i <= maxAccessibleIdx || completedSlideIds.has(slide.id);
                                     return (
                                       <React.Fragment key={slide.id}>
                                         {i === midSlot && midTestBtn}
@@ -807,8 +838,11 @@ const CourseLearner: React.FC = () => {
                     size="sm"
                     onClick={async () => {
                       await markCurrentComplete();
+                      const isRevisit = serverCompletedChapterIds.has(activeChapter?.id ?? "");
+                      // -2 signals "no slides remain after mid-test, advance to next chapter"
+                      const afterSlideParam = isRevisit && slideIndex === totalSlides - 1 ? -2 : slideIndex + 1;
                       navigate(
-                        `/learn/${courseId}/mid-test/${chapterMidTestId}?chapter=${encodeURIComponent(activeChapter?.title ?? "")}&chapterId=${activeChapter?.id ?? ""}`
+                        `/learn/${courseId}/mid-test/${chapterMidTestId}?chapter=${encodeURIComponent(activeChapter?.title ?? "")}&chapterId=${activeChapter?.id ?? ""}&revisit=${isRevisit}&afterSlide=${afterSlideParam}`
                       );
                     }}
                     className="flex items-center gap-1.5 min-w-[110px] bg-amber-600 hover:bg-amber-700"
