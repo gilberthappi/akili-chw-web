@@ -25,8 +25,12 @@ import { getCourseSectionsWithChapters, getChapterSlides, getChapterMidTestId } 
 import { getCourseFinalTestIds } from "@/services/finaltest.service";
 import { markSlideComplete, getCourseProgress, getStudentStatistics } from "@/services/progress.service";
 import { ISection, IChapter, ISlide, ICourseIntro } from "@/types";
+import { getBackendURL } from "@/config/api.config";
 
 const VIDEO_EXTS = new Set(["mp4", "webm", "avi", "mov", "mkv", "flv", "wmv", "m4v", "3gp"]);
+
+const resolveMediaUrl = (url: string): string =>
+  url.startsWith("http") ? url : `${getBackendURL()}${url}`;
 
 function detectFileType(url: string): "video" | "pdf" | "image" {
   const ext = url.split("?")[0].split(".").pop()?.toLowerCase() ?? "";
@@ -59,7 +63,7 @@ const SlideViewer: React.FC<{ slide: ISlide }> = ({ slide }) => {
             <div className="relative w-full rounded-2xl overflow-hidden bg-black shadow-sm" style={{ paddingBottom: "56.25%" }}>
               <video
                 key={slide.id}
-                src={slide.file}
+                src={resolveMediaUrl(slide.file)}
                 controls
                 className="absolute inset-0 w-full h-full outline-none"
               />

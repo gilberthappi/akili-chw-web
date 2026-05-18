@@ -2,6 +2,10 @@ import { useEffect } from "react";
 import { X, ExternalLink, FileText, Image as ImageIcon, Video } from "lucide-react";
 import { CourseSlide } from "@/types/courseBuilder.d";
 import { getProxyUrl } from "@/services/uploader.api";
+import { getBackendURL } from "@/config/api.config";
+
+const resolveMediaUrl = (url: string): string =>
+  url.startsWith("http") ? url : `${getBackendURL()}${url}`;
 
 interface SlideViewerModalProps {
   slide: CourseSlide | null;
@@ -104,7 +108,7 @@ export default function SlideViewerModal({ slide, onClose }: SlideViewerModalPro
 
           {slide.fileType === "video" && (
             <video
-              src={slide.fileUrl}
+              src={resolveMediaUrl(slide.fileUrl)}
               controls
               autoPlay
               className="max-w-full max-h-full"
