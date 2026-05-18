@@ -36,6 +36,11 @@ export const generateCertificate = async (courseId: string): Promise<IMyCertific
   return res.data?.data as IMyCertificate;
 };
 
+export const regenerateCertificate = async (certificateId: string): Promise<IMyCertificate> => {
+  const res = await api.post(`/certificates/regenerate/${certificateId}`);
+  return res.data?.data as IMyCertificate;
+};
+
 // ============================================
 // TRAINEE CERTIFICATES (My Certificates)
 // ============================================

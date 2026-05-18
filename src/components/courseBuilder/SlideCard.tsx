@@ -11,6 +11,10 @@ import {
 } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
 import { CourseSlide } from "@/types/courseBuilder.d";
+import { getBackendURL } from "@/config/api.config";
+
+const resolveMediaUrl = (url: string): string =>
+  url.startsWith("http") ? url : `${getBackendURL()}${url}`;
 
 interface SlideCardProps {
   slide: CourseSlide;
@@ -112,7 +116,7 @@ export default function SlideCard({
           {slide.fileType === "image" ? (
             <img src={slide.fileUrl} alt={slide.title} className="w-full h-full object-cover" />
           ) : slide.fileType === "video" ? (
-            <video src={slide.fileUrl} className="w-full h-full object-cover" muted />
+            <video src={resolveMediaUrl(slide.fileUrl)} className="w-full h-full object-cover" muted />
           ) : (
             <FileText className="w-5 h-5 text-red-400" />
           )}
@@ -216,7 +220,7 @@ export default function SlideCard({
         {slide.fileType === "video" && (
           <>
             <video
-              src={slide.fileUrl}
+              src={resolveMediaUrl(slide.fileUrl)}
               className="w-full h-full object-cover pointer-events-none"
               crossOrigin="anonymous"
               muted
