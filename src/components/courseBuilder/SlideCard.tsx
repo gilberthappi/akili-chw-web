@@ -8,6 +8,7 @@ import {
   GripVertical,
   Play,
   RotateCw,
+  X,
 } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
 import { CourseSlide } from "@/types/courseBuilder.d";
@@ -71,6 +72,7 @@ export default function SlideCard({
 }: SlideCardProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editingTitle, setEditingTitle] = useState(slide.title);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const replaceInputRef = useRef<HTMLInputElement>(null);
 
   // Keep editingTitle in sync when the slide title changes externally (e.g. after replace)
@@ -95,6 +97,7 @@ export default function SlideCard({
   /* ── List row layout ── */
   if (displayMode === "list") {
     return (
+      <>
       <div
         className={`bg-white rounded-lg border border-gray-200 flex items-center gap-3 px-3 py-2 group transition ${
           isDragging ? "opacity-50" : "hover:border-blue-400"
@@ -172,11 +175,46 @@ export default function SlideCard({
             <RotateCw className="w-4 h-4" />
           </button>
           <input ref={replaceInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.bmp,.svg,.ico,.tiff,.mp4,.avi,.mov,.mkv,.webm,.flv,.wmv,.m4v,.3gp" style={{ display: "none" }} onChange={handleReplaceFileChange} />
-          <button onClick={(e) => { e.stopPropagation(); onDelete(slide.id); }} className="p-1.5 text-red-600 hover:bg-red-50 rounded transition" title="Delete">
+          <button onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(true); }} className="p-1.5 text-red-600 hover:bg-red-50 rounded transition" title="Delete">
             <Trash2 className="w-4 h-4" />
           </button>
         </div>
       </div>
+
+      {/* Delete confirmation modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm mx-4 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-red-50 rounded-lg">
+                <Trash2 className="w-5 h-5 text-red-500" />
+              </div>
+              <h3 className="text-base font-bold text-gray-900">Delete slide?</h3>
+              <button onClick={() => setShowDeleteConfirm(false)} className="ml-auto text-gray-400 hover:text-gray-600 transition">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-sm text-gray-500">
+              <span className="font-semibold text-gray-800">{slide.title}</span> will be permanently removed. This cannot be undone.
+            </p>
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 px-4 py-2 text-sm font-semibold rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => { setShowDeleteConfirm(false); onDelete(slide.id); }}
+                className="flex-1 px-4 py-2 text-sm font-semibold rounded-lg bg-red-500 text-white hover:bg-red-600 transition"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      </>
     );
   }
 
@@ -326,7 +364,7 @@ export default function SlideCard({
           />
 
           <button
-            onClick={(e) => { e.stopPropagation(); onDelete(slide.id); }}
+            onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(true); }}
             className="flex-1 p-2 text-red-600 hover:bg-red-50 rounded transition flex items-center justify-center gap-1"
             title="Delete slide"
           >
@@ -335,6 +373,40 @@ export default function SlideCard({
           </button>
         </div>
       </div>
+
+      {/* Delete confirmation modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm mx-4 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-red-50 rounded-lg">
+                <Trash2 className="w-5 h-5 text-red-500" />
+              </div>
+              <h3 className="text-base font-bold text-gray-900">Delete slide?</h3>
+              <button onClick={() => setShowDeleteConfirm(false)} className="ml-auto text-gray-400 hover:text-gray-600 transition">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-sm text-gray-500">
+              <span className="font-semibold text-gray-800">{slide.title}</span> will be permanently removed. This cannot be undone.
+            </p>
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 px-4 py-2 text-sm font-semibold rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => { setShowDeleteConfirm(false); onDelete(slide.id); }}
+                className="flex-1 px-4 py-2 text-sm font-semibold rounded-lg bg-red-500 text-white hover:bg-red-600 transition"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
