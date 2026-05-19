@@ -135,7 +135,11 @@ const ComboboxField: FC<IOptionsField> = ({
         });
 
   useEffect(() => {
-    if (defaultValue && options.length > 0) {
+    if (!defaultValue) {
+      setSelected(null);
+      return;
+    }
+    if (options.length > 0) {
       const defaultOption = options.find((option) => option.value === defaultValue);
       if (defaultOption && selected?.value !== defaultOption.value) {
         setSelected(defaultOption);
