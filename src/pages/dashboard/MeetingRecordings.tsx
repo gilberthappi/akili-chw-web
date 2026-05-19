@@ -16,6 +16,7 @@ import {
   type ITraineeOption,
 } from '@/services/recording.service';
 import { getEventById } from '@/services/calender.service';
+import { formatRwDateStringFull } from '@/utils/date';
 
 // ── Publish audience modal ─────────────────────────────────────────────────
 
@@ -302,33 +303,26 @@ const MeetingRecordings: React.FC = () => {
     return matchesSearch && matchesStatus;
   });
 
-  const formatDate = (dateStr: string) =>
-    new Date(dateStr).toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+  const formatDate = (dateStr: string) => formatRwDateStringFull(dateStr);
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate('/calender')}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
           >
             <ArrowLeftIcon className="w-5 h-5 text-gray-600" />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Meeting Recordings</h1>
-            <p className="text-sm text-gray-500">Publish recordings to make them available for trainees</p>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Meeting Recordings</h1>
+            <p className="text-sm text-gray-500 hidden sm:block">Publish recordings to make them available for trainees</p>
           </div>
         </div>
-        <div className="text-sm text-gray-500">
-          {recordings.filter((r) => r.isPublished).length} of {recordings.length} published
+        <div className="text-xs sm:text-sm text-gray-500 flex-shrink-0 mt-1">
+          {recordings.filter((r) => r.isPublished).length}/{recordings.length} published
         </div>
       </div>
 
@@ -339,7 +333,7 @@ const MeetingRecordings: React.FC = () => {
           placeholder="Search by title, meeting, or uploader..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="flex-1 min-w-[240px] px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          className="flex-1 min-w-[180px] px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
         />
         <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
           {(['all', 'published', 'draft'] as const).map((s) => (
@@ -358,7 +352,7 @@ const MeetingRecordings: React.FC = () => {
         </div>
       </div>
 
-      {/* Table */}
+      {/* Table / Cards */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
@@ -371,58 +365,27 @@ const MeetingRecordings: React.FC = () => {
             <p className="text-sm">Recordings will appear here once meetings are completed</p>
           </div>
         ) : (
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-100 bg-gray-50 text-left">
-                <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Recording</th>
-                <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Meeting</th>
-                <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Uploaded by</th>
-                <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
-                <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
+          <>
+            {/* Mobile card list */}
+            <div className="sm:hidden divide-y divide-gray-100">
               {filtered.map((recording) => (
-                <tr key={recording.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <PlayIcon className="w-5 h-5 text-primary" />
-                      </div>
-                      <span className="text-sm font-medium text-gray-900 line-clamp-1">
-                        {recording.title ?? recording.event?.title ?? 'Untitled Recording'}
-                      </span>
+                <div key={recording.id} className="p-4 space-y-2">
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <PlayIcon className="w-5 h-5 text-primary" />
                     </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm text-gray-700">{recording.event?.title ?? '—'}</div>
-                    {recording.event?.startAt && (
-                      <div className="text-xs text-gray-400">{formatDate(recording.event.startAt)}</div>
-                    )}
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      {recording.user?.photo && (
-                        <img
-                          src={recording.user.photo}
-                          alt={recording.user.fullNames}
-                          className="w-7 h-7 rounded-full object-cover"
-                        />
-                      )}
-                      <span className="text-sm text-gray-700">{recording.user?.fullNames ?? '—'}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 line-clamp-1">
+                        {recording.title ?? '—'}
+                      </p>
+                      <p className="text-xs text-gray-500 line-clamp-2 mt-0.5">
+                        {recording.event?.description ?? '—'}
+                      </p>
                     </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">{formatDate(recording.createdAt)}</td>
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col gap-1">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          recording.isPublished
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-gray-100 text-gray-600'
-                        }`}
-                      >
+                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                        recording.isPublished ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+                      }`}>
                         {recording.isPublished ? 'Published' : 'Draft'}
                       </span>
                       {recording.isPublished && (
@@ -431,12 +394,21 @@ const MeetingRecordings: React.FC = () => {
                         </span>
                       )}
                     </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
+                  </div>
+
+                  <div className="flex items-center justify-between pl-12">
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-1.5">
+                        {recording.user?.photo && (
+                          <img src={recording.user.photo} alt={recording.user.fullNames} className="w-5 h-5 rounded-full object-cover" />
+                        )}
+                        <span className="text-xs text-gray-500">{recording.user?.fullNames ?? '—'}</span>
+                      </div>
+                      <p className="text-xs text-gray-400">{formatDate(recording.createdAt)}</p>
+                    </div>
+                    <div className="flex items-center gap-1">
                       <button
                         onClick={() => setPreviewRecording(recording)}
-                        title="Preview"
                         className="p-1.5 text-gray-400 hover:text-primary hover:bg-blue-50 rounded-lg transition-colors"
                       >
                         <PlayIcon className="w-4 h-4" />
@@ -445,7 +417,6 @@ const MeetingRecordings: React.FC = () => {
                         <button
                           onClick={() => unpublishMutation.mutate(recording.id)}
                           disabled={unpublishMutation.isPending}
-                          title="Unpublish"
                           className="p-1.5 text-green-600 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition-colors"
                         >
                           <EyeSlashIcon className="w-4 h-4" />
@@ -453,7 +424,6 @@ const MeetingRecordings: React.FC = () => {
                       ) : (
                         <button
                           onClick={() => setPublishTarget(recording)}
-                          title="Publish"
                           className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                         >
                           <EyeIcon className="w-4 h-4" />
@@ -461,17 +431,119 @@ const MeetingRecordings: React.FC = () => {
                       )}
                       <button
                         onClick={() => setDeleteConfirm(recording)}
-                        title="Delete"
                         className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                       >
                         <TrashIcon className="w-4 h-4" />
                       </button>
                     </div>
-                  </td>
-                </tr>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+
+            {/* Desktop table */}
+            <table className="hidden sm:table w-full">
+              <thead>
+                <tr className="border-b border-gray-100 bg-gray-50 text-left">
+                  <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Title</th>
+                  <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">About</th>
+                  <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Uploaded by</th>
+                  <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
+                  <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {filtered.map((recording) => (
+                  <tr key={recording.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <PlayIcon className="w-5 h-5 text-primary" />
+                        </div>
+                        <span className="text-sm font-medium text-gray-900 line-clamp-1">
+                          {recording.title ?? '—'}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-gray-700 line-clamp-2">{recording.event?.description ?? '—'}</div>
+                      {recording.event?.startAt && (
+                        <div className="text-xs text-gray-400 mt-0.5">{formatDate(recording.event.startAt)}</div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        {recording.user?.photo && (
+                          <img
+                            src={recording.user.photo}
+                            alt={recording.user.fullNames}
+                            className="w-7 h-7 rounded-full object-cover"
+                          />
+                        )}
+                        <span className="text-sm text-gray-700">{recording.user?.fullNames ?? '—'}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500">{formatDate(recording.createdAt)}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col gap-1">
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            recording.isPublished
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-gray-100 text-gray-600'
+                          }`}
+                        >
+                          {recording.isPublished ? 'Published' : 'Draft'}
+                        </span>
+                        {recording.isPublished && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-600">
+                            {AUDIENCE_LABELS[recording.publishedTo ?? 'ALL']}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setPreviewRecording(recording)}
+                          title="Preview"
+                          className="p-1.5 text-gray-400 hover:text-primary hover:bg-blue-50 rounded-lg transition-colors"
+                        >
+                          <PlayIcon className="w-4 h-4" />
+                        </button>
+                        {recording.isPublished ? (
+                          <button
+                            onClick={() => unpublishMutation.mutate(recording.id)}
+                            disabled={unpublishMutation.isPending}
+                            title="Unpublish"
+                            className="p-1.5 text-green-600 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition-colors"
+                          >
+                            <EyeSlashIcon className="w-4 h-4" />
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => setPublishTarget(recording)}
+                            title="Publish"
+                            className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                          >
+                            <EyeIcon className="w-4 h-4" />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => setDeleteConfirm(recording)}
+                          title="Delete"
+                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
         )}
       </div>
 
