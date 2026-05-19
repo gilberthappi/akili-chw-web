@@ -16,7 +16,7 @@ import {
   type ITraineeOption,
 } from '@/services/recording.service';
 import { getEventById } from '@/services/calender.service';
-import { formatRwDateStringFull } from '@/utils/date';
+import { formatDate } from '@/utils/formats/formats';
 
 // ── Publish audience modal ─────────────────────────────────────────────────
 
@@ -303,7 +303,7 @@ const MeetingRecordings: React.FC = () => {
     return matchesSearch && matchesStatus;
   });
 
-  const formatDate = (dateStr: string) => formatRwDateStringFull(dateStr);
+  const formatRecordingDate = (dateStr: string) => formatDate(dateStr);
 
   return (
     <div className="space-y-6">
@@ -404,7 +404,7 @@ const MeetingRecordings: React.FC = () => {
                         )}
                         <span className="text-xs text-gray-500">{recording.user?.fullNames ?? '—'}</span>
                       </div>
-                      <p className="text-xs text-gray-400">{formatDate(recording.createdAt)}</p>
+                      <p className="text-xs text-gray-400">{formatRecordingDate(recording.createdAt)}</p>
                     </div>
                     <div className="flex items-center gap-1">
                       <button
@@ -469,7 +469,7 @@ const MeetingRecordings: React.FC = () => {
                     <td className="px-6 py-4">
                       <div className="text-sm text-gray-700 line-clamp-2">{recording.event?.description ?? '—'}</div>
                       {recording.event?.startAt && (
-                        <div className="text-xs text-gray-400 mt-0.5">{formatDate(recording.event.startAt)}</div>
+                        <div className="text-xs text-gray-400 mt-0.5">{formatRecordingDate(recording.event.startAt)}</div>
                       )}
                     </td>
                     <td className="px-6 py-4">
@@ -484,7 +484,7 @@ const MeetingRecordings: React.FC = () => {
                         <span className="text-sm text-gray-700">{recording.user?.fullNames ?? '—'}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">{formatDate(recording.createdAt)}</td>
+                    <td className="px-6 py-4 text-sm text-gray-500">{formatRecordingDate(recording.createdAt)}</td>
                     <td className="px-6 py-4">
                       <div className="flex flex-col gap-1">
                         <span
@@ -572,7 +572,7 @@ const MeetingRecordings: React.FC = () => {
             </div>
             <div className="p-4 flex items-center justify-between">
               <span className="text-sm text-gray-500">
-                {previewRecording.event?.title ?? 'No meeting linked'} • {formatDate(previewRecording.createdAt)}
+                {previewRecording.event?.title ?? 'No meeting linked'} • {formatRecordingDate(previewRecording.createdAt)}
               </span>
               <a
                 href={buildRecordingUrl(previewRecording.url)}

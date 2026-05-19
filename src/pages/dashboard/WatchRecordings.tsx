@@ -7,7 +7,7 @@ import {
   buildRecordingUrl,
   type IMeetingRecording,
 } from '@/services/recording.service';
-import { formatRwDateStringShort } from '@/utils/date';
+import { formatDate as formatDateUtil } from '@/utils/formats/formats';
 
 const WatchRecordings: React.FC = () => {
   const navigate = useNavigate();
@@ -29,7 +29,7 @@ const WatchRecordings: React.FC = () => {
     (r.event?.title ?? '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const formatDate = (dateStr: string) => formatRwDateStringShort(dateStr);
+  const formatDate = (dateStr: string) => formatDateUtil(dateStr);
 
   return (
     <div className="space-y-6">
