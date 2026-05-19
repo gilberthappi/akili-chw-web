@@ -1102,13 +1102,11 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish, onBac
           {(viewMode === "slides" || viewMode === "midTest") && (
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm text-secondary">
-                <span className="font-semibold">📂 Section:</span>
                 <span className="text-dark font-medium">
-                  {selectedSection?.title || "—"}
+                📂 Section:  {selectedSection?.title || "—"}
                 </span>
-                <span className="font-semibold ml-2">📘 Chapter:</span>
                 <span className="text-dark font-medium">
-                  {selectedChapter?.title || "Select a chapter"}
+                📘 Chapter:  {selectedChapter?.title || "Select a chapter"}
                 </span>
               </div>
               {selectedChapter && (
