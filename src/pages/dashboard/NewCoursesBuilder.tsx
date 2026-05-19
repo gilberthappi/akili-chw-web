@@ -48,7 +48,7 @@ function mapICourseToCourseBuilderData(course: ICourse): CourseBuilderData {
       id: section.id,
       title: section.title,
       description: section.description ?? "",
-      order: si + 1,
+      order: section.sectionNumber ?? si + 1,
       hasTest: false,
       chapters: (section.chapters ?? []).map(
         (chapter: IChapter, ci: number) => {
@@ -149,6 +149,7 @@ function buildApiPayload(data: CourseBuilderData): Record<string, unknown> {
     sections: data.sections.map((_section, _si) => ({
       title: _section.title,
       description: _section.description,
+      sectionNumber: _si + 1,
       chapters: _section.chapters.map((chapter, ci) => ({
         title: chapter.title,
         description: chapter.description,
