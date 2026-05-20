@@ -554,6 +554,7 @@ export interface ISection {
   title: string;
   description: string;
   totalChapter: number;
+  sectionNumber: number;
   createdAt: string;
   updatedAt: string;
   chapters: IChapter[];

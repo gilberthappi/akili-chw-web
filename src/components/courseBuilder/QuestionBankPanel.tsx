@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Trash2, X, CheckCircle, Loader2, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Trash2, Pencil, X, CheckCircle, Loader2, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import toast from "react-hot-toast";
 import { getCourseById } from "@/services/course.service";
 import {
@@ -7,6 +7,10 @@ import {
   createOption,
   createAnswer,
   deleteQuestionnaire,
+  updateQuestionnaire,
+  updateOption,
+  deleteOption,
+  deleteAnswer,
 } from "@/services/questionnaire.service";
 import { IQuestionnaire, ICourse } from "@/types";
 
@@ -14,6 +18,7 @@ import { IQuestionnaire, ICourse } from "@/types";
 
 interface OptionDraft {
   id: string;
+  serverId?: string; // set for existing options when editing
   label: string;
   isCorrect: boolean;
 }
@@ -59,6 +64,7 @@ export default function QuestionBankPanel({
   const [deletingId, setDeletingId] = useState<string>("");
   const [showAddForm, setShowAddForm] = useState(false);
   const [draft, setDraft] = useState<QuestionDraft>(emptyDraft());
+  const [editingQuestion, setEditingQuestion] = useState<IQuestionnaire | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string>("");
 
@@ -102,6 +108,25 @@ export default function QuestionBankPanel({
     setShowAddForm(false);
     setCurrentPage(1);
   }, [fetchQuestions, refreshKey]);
+
+  // ── Edit ──────────────────────────────────────────────────────────────────────
+  const handleEditClick = (q: IQuestionnaire) => {
+    setEditingQuestion(q);
+    setDraft({
+      question: q.question,
+      feedbackStatement: q.feedbackStatement ?? "",
+      allowMultiple: q.allowMultiple,
+      options: (q.options ?? []).map((opt) => ({
+        id: opt.id,
+        serverId: opt.id,
+        label: opt.label,
+        isCorrect: (q.answers ?? []).some(
+          (a) => a.label.trim().toLowerCase() === opt.label.trim().toLowerCase()
+        ),
+      })),
+    });
+    setShowAddForm(true);
+  };
 
   // ── Delete ────────────────────────────────────────────────────────────────────
   const handleDelete = (id: string) => {
@@ -166,7 +191,7 @@ export default function QuestionBankPanel({
     });
   };
 
-  // ── Save ──────────────────────────────────────────────────────────────────────
+  // ── Save (create or update) ───────────────────────────────────────────────────
   const handleSave = async () => {
     if (!draft.question.trim()) {
       toast.error("Question text is required");
@@ -185,37 +210,74 @@ export default function QuestionBankPanel({
 
     setSaving(true);
     try {
-      const questionnaire = await createQuestionnaire({
-        question: draft.question.trim(),
-        feedbackStatement: draft.feedbackStatement.trim() || undefined,
-        allowMultiple: draft.allowMultiple,
-        courseId: midTestId ? null : effectiveCourseId,
-        midTestId: midTestId ?? null,
-      });
+      if (editingQuestion) {
+        // UPDATE flow
+        await updateQuestionnaire(editingQuestion.id, {
+          question: draft.question.trim(),
+          feedbackStatement: draft.feedbackStatement.trim() || undefined,
+          allowMultiple: draft.allowMultiple,
+        });
 
-      if (!questionnaire?.id) throw new Error("No questionnaire ID returned");
+        const draftServerIds = new Set(
+          filledOptions.filter((o) => o.serverId).map((o) => o.serverId!)
+        );
+        // Delete options removed from the draft
+        await Promise.all(
+          (editingQuestion.options ?? [])
+            .filter((o) => !draftServerIds.has(o.id))
+            .map((o) => deleteOption(o.id))
+        );
+        // Update existing options / create new ones
+        await Promise.all(
+          filledOptions.map((opt) =>
+            opt.serverId
+              ? updateOption(opt.serverId, { label: opt.label.trim(), questionnaireId: editingQuestion.id })
+              : createOption({ label: opt.label.trim(), questionnaireId: editingQuestion.id })
+          )
+        );
+        // Delete all old answers and recreate from correct options
+        await Promise.all((editingQuestion.answers ?? []).map((a) => deleteAnswer(a.id)));
+        await Promise.all(
+          correctOptions.map((opt) =>
+            createAnswer({ label: opt.label.trim(), questionnaireId: editingQuestion.id })
+          )
+        );
 
-      await Promise.all(
-        filledOptions.map((opt) =>
-          createOption({ label: opt.label.trim(), questionnaireId: questionnaire.id })
-        )
-      );
+        toast.success("Question updated");
+      } else {
+        // CREATE flow
+        const questionnaire = await createQuestionnaire({
+          question: draft.question.trim(),
+          feedbackStatement: draft.feedbackStatement.trim() || undefined,
+          allowMultiple: draft.allowMultiple,
+          courseId: midTestId ? null : effectiveCourseId,
+          midTestId: midTestId ?? null,
+        });
 
-      await Promise.all(
-        correctOptions.map((opt) =>
-          createAnswer({ label: opt.label.trim(), questionnaireId: questionnaire.id })
-        )
-      );
+        if (!questionnaire?.id) throw new Error("No questionnaire ID returned");
 
-      toast.success("Question added");
+        await Promise.all(
+          filledOptions.map((opt) =>
+            createOption({ label: opt.label.trim(), questionnaireId: questionnaire.id })
+          )
+        );
+        await Promise.all(
+          correctOptions.map((opt) =>
+            createAnswer({ label: opt.label.trim(), questionnaireId: questionnaire.id })
+          )
+        );
+
+        toast.success("Question added");
+        const newLastPage = Math.ceil((questions.length + 1) / QUESTIONS_PER_PAGE);
+        setCurrentPage(newLastPage);
+      }
+
       setDraft(emptyDraft());
       setShowAddForm(false);
-      // Jump to the page where the new question will appear (always the last page)
-      const newLastPage = Math.ceil((questions.length + 1) / QUESTIONS_PER_PAGE);
-      setCurrentPage(newLastPage);
+      setEditingQuestion(null);
       fetchQuestions();
     } catch {
-      toast.error("Failed to save question");
+      toast.error(editingQuestion ? "Failed to update question" : "Failed to save question");
     } finally {
       setSaving(false);
     }
@@ -251,9 +313,11 @@ export default function QuestionBankPanel({
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
             {/* Modal header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
-              <h4 className="font-semibold text-base text-dark">New Question</h4>
+              <h4 className="font-semibold text-base text-dark">
+                {editingQuestion ? "Edit Question" : "New Question"}
+              </h4>
               <button
-                onClick={() => { setShowAddForm(false); setDraft(emptyDraft()); }}
+                onClick={() => { setShowAddForm(false); setDraft(emptyDraft()); setEditingQuestion(null); }}
                 className="text-gray-400 hover:text-dark transition"
               >
                 <X className="w-5 h-5" />
@@ -356,14 +420,14 @@ export default function QuestionBankPanel({
                 {saving ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Saving...
+                    {editingQuestion ? "Updating..." : "Saving..."}
                   </>
                 ) : (
-                  "Save Question"
+                  editingQuestion ? "Update Question" : "Save Question"
                 )}
               </button>
               <button
-                onClick={() => { setShowAddForm(false); setDraft(emptyDraft()); }}
+                onClick={() => { setShowAddForm(false); setDraft(emptyDraft()); setEditingQuestion(null); }}
                 disabled={saving}
                 className="px-4 py-2 bg-white text-secondary text-sm font-semibold rounded-lg border border-gray-300 hover:bg-gray-50 transition"
               >
@@ -403,17 +467,26 @@ export default function QuestionBankPanel({
                 <p className="text-sm font-semibold text-dark">
                   {globalIdx + 1}. {q.question}
                 </p>
-                <button
-                  onClick={() => handleDelete(q.id)}
-                  disabled={deletingId === q.id}
-                  className="flex-shrink-0 text-destructive/60 hover:text-destructive transition p-0.5 disabled:opacity-50"
-                >
-                  {deletingId === q.id ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="w-4 h-4" />
-                  )}
-                </button>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <button
+                    onClick={() => handleEditClick(q)}
+                    className="text-secondary/60 hover:text-primary transition p-0.5"
+                    title="Edit question"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(q.id)}
+                    disabled={deletingId === q.id}
+                    className="text-destructive/60 hover:text-destructive transition p-0.5 disabled:opacity-50"
+                  >
+                    {deletingId === q.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-1 pl-2">

@@ -177,6 +177,8 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish, onBac
   const [isPublishing, setIsPublishing] = useState(false);
   const [autoSaveStatus, setAutoSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [confirmDeleteSectionId, setConfirmDeleteSectionId] = useState<string>("");
+  const [confirmDeleteChapterId, setConfirmDeleteChapterId] = useState<string>("");
   const [slideViewMode, setSlideViewMode] = useState<"grid" | "list">("list");
   const [showEditCourseModal, setShowEditCourseModal] = useState(false);
   const [localCourseTitle, setLocalCourseTitle] = useState(courseData.title);
@@ -313,6 +315,12 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish, onBac
       toast.error("You must have at least one section");
       return;
     }
+    setConfirmDeleteSectionId(id);
+  };
+
+  const confirmDeleteSection = () => {
+    const id = confirmDeleteSectionId;
+    setConfirmDeleteSectionId("");
     const updated = sections.filter((s) => s.id !== id);
     setSections(updated);
     if (selectedSectionId === id) {
@@ -374,6 +382,13 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish, onBac
       toast.error("You must have at least one chapter in a section");
       return;
     }
+    setConfirmDeleteChapterId(chapterId);
+  };
+
+  const confirmDeleteChapter = () => {
+    const chapterId = confirmDeleteChapterId;
+    setConfirmDeleteChapterId("");
+    if (!selectedSection) return;
     setSections(
       sections.map((s) => {
         if (s.id === selectedSectionId) {
@@ -1561,6 +1576,76 @@ export default function CourseBuilder({ courseData, onAutoSave, onPublish, onBac
         slide={viewingSlide}
         onClose={() => setViewingSlide(null)}
       />
+
+      {/* Delete Section Confirm Modal */}
+      {confirmDeleteSectionId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm mx-4 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-destructive/10 rounded-lg">
+                <Trash2 className="w-5 h-5 text-destructive" />
+              </div>
+              <h3 className="text-base font-bold text-dark">Delete section?</h3>
+            </div>
+            <p className="text-sm text-secondary">
+              This will permanently remove{" "}
+              <span className="font-semibold text-dark">
+                {sections.find((s) => s.id === confirmDeleteSectionId)?.title}
+              </span>{" "}
+              and all its chapters. This cannot be undone.
+            </p>
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={() => setConfirmDeleteSectionId("")}
+                className="flex-1 px-4 py-2 text-sm font-semibold rounded-lg border border-gray-300 text-secondary hover:bg-gray-50 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteSection}
+                className="flex-1 px-4 py-2 text-sm font-semibold rounded-lg bg-destructive text-white hover:bg-destructive/90 transition"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Chapter Confirm Modal */}
+      {confirmDeleteChapterId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm mx-4 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-destructive/10 rounded-lg">
+                <Trash2 className="w-5 h-5 text-destructive" />
+              </div>
+              <h3 className="text-base font-bold text-dark">Delete chapter?</h3>
+            </div>
+            <p className="text-sm text-secondary">
+              This will permanently remove{" "}
+              <span className="font-semibold text-dark">
+                {selectedSection?.chapters.find((c) => c.id === confirmDeleteChapterId)?.title}
+              </span>{" "}
+              and all its slides. This cannot be undone.
+            </p>
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={() => setConfirmDeleteChapterId("")}
+                className="flex-1 px-4 py-2 text-sm font-semibold rounded-lg border border-gray-300 text-secondary hover:bg-gray-50 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteChapter}
+                className="flex-1 px-4 py-2 text-sm font-semibold rounded-lg bg-destructive text-white hover:bg-destructive/90 transition"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Clear All Confirm Modal */}
       {showClearConfirm && (

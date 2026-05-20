@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Trash2, X, CheckCircle, Loader2, AlertCircle } from "lucide-react";
+import { Plus, Trash2, Pencil, X, CheckCircle, Loader2, AlertCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import { getCourseById } from "@/services/course.service";
 import {
@@ -7,6 +7,10 @@ import {
   createOption,
   createAnswer,
   deleteQuestionnaire,
+  updateQuestionnaire,
+  updateOption,
+  deleteOption,
+  deleteAnswer,
 } from "@/services/questionnaire.service";
 import { IQuestionnaire, ICourse } from "@/types";
 
@@ -14,6 +18,7 @@ import { IQuestionnaire, ICourse } from "@/types";
 
 interface OptionDraft {
   id: string;
+  serverId?: string; // set for existing options when editing
   label: string;
   isCorrect: boolean;
 }
@@ -61,6 +66,8 @@ export default function QuestionBuilderModal({
   const [deletingId, setDeletingId] = useState<string>("");
   const [showAddForm, setShowAddForm] = useState(false);
   const [draft, setDraft] = useState<QuestionDraft>(emptyDraft());
+  const [editingQuestion, setEditingQuestion] = useState<IQuestionnaire | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string>("");
 
   // ── Fetch questions ─────────────────────────────────────────────────────────
   const fetchQuestions = useCallback(async () => {
@@ -101,9 +108,33 @@ export default function QuestionBuilderModal({
     }
   }, [isOpen, fetchQuestions]);
 
+  // ── Edit question ────────────────────────────────────────────────────────────
+  const handleEditClick = (q: IQuestionnaire) => {
+    setEditingQuestion(q);
+    setDraft({
+      question: q.question,
+      feedbackStatement: q.feedbackStatement ?? "",
+      allowMultiple: q.allowMultiple,
+      options: (q.options ?? []).map((opt) => ({
+        id: opt.id,
+        serverId: opt.id,
+        label: opt.label,
+        isCorrect: (q.answers ?? []).some(
+          (a) => a.label.trim().toLowerCase() === opt.label.trim().toLowerCase()
+        ),
+      })),
+    });
+    setShowAddForm(true);
+  };
+
   // ── Delete question ─────────────────────────────────────────────────────────
-  const handleDelete = async (id: string) => {
-    if (!confirm("Delete this question? This cannot be undone.")) return;
+  const handleDelete = (id: string) => {
+    setConfirmDeleteId(id);
+  };
+
+  const confirmDelete = async () => {
+    const id = confirmDeleteId;
+    setConfirmDeleteId("");
     setDeletingId(id);
     try {
       await deleteQuestionnaire(id);
@@ -154,7 +185,7 @@ export default function QuestionBuilderModal({
     });
   };
 
-  // ── Save question ───────────────────────────────────────────────────────────
+  // ── Save question (create or update) ────────────────────────────────────────
   const handleSave = async () => {
     if (!draft.question.trim()) {
       toast.error("Question text is required");
@@ -173,37 +204,69 @@ export default function QuestionBuilderModal({
 
     setSaving(true);
     try {
-      // 1. Create questionnaire
-      const questionnaire = await createQuestionnaire({
-        question: draft.question.trim(),
-        feedbackStatement: draft.feedbackStatement.trim() || undefined,
-        allowMultiple: draft.allowMultiple,
-        courseId: midTestId ? null : courseId,
-        midTestId: midTestId ?? null,
-      });
+      if (editingQuestion) {
+        // UPDATE flow
+        await updateQuestionnaire(editingQuestion.id, {
+          question: draft.question.trim(),
+          feedbackStatement: draft.feedbackStatement.trim() || undefined,
+          allowMultiple: draft.allowMultiple,
+        });
 
-      if (!questionnaire?.id) throw new Error("No questionnaire ID returned");
+        const draftServerIds = new Set(
+          filledOptions.filter((o) => o.serverId).map((o) => o.serverId!)
+        );
+        await Promise.all(
+          (editingQuestion.options ?? [])
+            .filter((o) => !draftServerIds.has(o.id))
+            .map((o) => deleteOption(o.id))
+        );
+        await Promise.all(
+          filledOptions.map((opt) =>
+            opt.serverId
+              ? updateOption(opt.serverId, { label: opt.label.trim(), questionnaireId: editingQuestion.id })
+              : createOption({ label: opt.label.trim(), questionnaireId: editingQuestion.id })
+          )
+        );
+        await Promise.all((editingQuestion.answers ?? []).map((a) => deleteAnswer(a.id)));
+        await Promise.all(
+          correctOptions.map((opt) =>
+            createAnswer({ label: opt.label.trim(), questionnaireId: editingQuestion.id })
+          )
+        );
 
-      // 2. Create options
-      await Promise.all(
-        filledOptions.map((opt) =>
-          createOption({ label: opt.label.trim(), questionnaireId: questionnaire.id })
-        )
-      );
+        toast.success("Question updated");
+      } else {
+        // CREATE flow
+        const questionnaire = await createQuestionnaire({
+          question: draft.question.trim(),
+          feedbackStatement: draft.feedbackStatement.trim() || undefined,
+          allowMultiple: draft.allowMultiple,
+          courseId: midTestId ? null : courseId,
+          midTestId: midTestId ?? null,
+        });
 
-      // 3. Create answers (correct options only)
-      await Promise.all(
-        correctOptions.map((opt) =>
-          createAnswer({ label: opt.label.trim(), questionnaireId: questionnaire.id })
-        )
-      );
+        if (!questionnaire?.id) throw new Error("No questionnaire ID returned");
 
-      toast.success("Question added");
+        await Promise.all(
+          filledOptions.map((opt) =>
+            createOption({ label: opt.label.trim(), questionnaireId: questionnaire.id })
+          )
+        );
+        await Promise.all(
+          correctOptions.map((opt) =>
+            createAnswer({ label: opt.label.trim(), questionnaireId: questionnaire.id })
+          )
+        );
+
+        toast.success("Question added");
+      }
+
       setDraft(emptyDraft());
       setShowAddForm(false);
+      setEditingQuestion(null);
       fetchQuestions();
     } catch {
-      toast.error("Failed to save question");
+      toast.error(editingQuestion ? "Failed to update question" : "Failed to save question");
     } finally {
       setSaving(false);
     }
@@ -260,17 +323,26 @@ export default function QuestionBuilderModal({
                 <p className="text-sm font-semibold text-gray-800">
                   {idx + 1}. {q.question}
                 </p>
-                <button
-                  onClick={() => handleDelete(q.id)}
-                  disabled={deletingId === q.id}
-                  className="flex-shrink-0 text-red-400 hover:text-red-600 transition p-0.5 disabled:opacity-50"
-                >
-                  {deletingId === q.id ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="w-4 h-4" />
-                  )}
-                </button>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <button
+                    onClick={() => handleEditClick(q)}
+                    className="text-gray-400 hover:text-blue-600 transition p-0.5"
+                    title="Edit question"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(q.id)}
+                    disabled={deletingId === q.id}
+                    className="text-red-400 hover:text-red-600 transition p-0.5 disabled:opacity-50"
+                  >
+                    {deletingId === q.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
               </div>
 
               {/* Options */}
@@ -312,10 +384,12 @@ export default function QuestionBuilderModal({
             </div>
           ))}
 
-          {/* Add Question Form */}
+          {/* Add / Edit Question Form */}
           {showAddForm && (
             <div className="border-2 border-blue-200 rounded-lg p-4 space-y-3 bg-blue-50">
-              <h4 className="font-semibold text-sm text-blue-800">New Question</h4>
+              <h4 className="font-semibold text-sm text-blue-800">
+                {editingQuestion ? "Edit Question" : "New Question"}
+              </h4>
 
               {/* Question text */}
               <div>
@@ -418,16 +492,17 @@ export default function QuestionBuilderModal({
                   {saving ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      Saving...
+                      {editingQuestion ? "Updating..." : "Saving..."}
                     </>
                   ) : (
-                    "Save Question"
+                    editingQuestion ? "Update Question" : "Save Question"
                   )}
                 </button>
                 <button
                   onClick={() => {
                     setShowAddForm(false);
                     setDraft(emptyDraft());
+                    setEditingQuestion(null);
                   }}
                   disabled={saving}
                   className="px-4 py-2 bg-white text-gray-700 text-sm font-semibold rounded-lg border border-gray-300 hover:bg-gray-50 transition"
@@ -455,6 +530,37 @@ export default function QuestionBuilderModal({
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {confirmDeleteId && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm mx-4 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-red-50 rounded-lg">
+                <Trash2 className="w-5 h-5 text-red-500" />
+              </div>
+              <h3 className="text-base font-bold text-gray-900">Delete question?</h3>
+            </div>
+            <p className="text-sm text-gray-500">
+              This question will be permanently removed. This cannot be undone.
+            </p>
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={() => setConfirmDeleteId("")}
+                className="flex-1 px-4 py-2 text-sm font-semibold rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="flex-1 px-4 py-2 text-sm font-semibold rounded-lg bg-red-500 text-white hover:bg-red-600 transition"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
