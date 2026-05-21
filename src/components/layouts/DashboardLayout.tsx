@@ -18,6 +18,7 @@ import {
   GraduationCap,
   HelpCircle,
   Building2,
+  Mail,
   Megaphone,
   MessageCircle,
   MessageSquare,
@@ -395,7 +396,7 @@ const DashboardLayout = ({
     {
       label: "Dashboard",
       path: "/",
-      roles: ["ADMIN", "TRAINEE", "TRAINER", "DEVELOPER", "SUPERVISOR"],
+      roles: ["ADMIN", "TRAINEE", "TRAINER", "DEVELOPER", "CHO"],
       icon: <Squares2X2Icon className='w-5 h-5' />,
     },
     {
@@ -443,7 +444,19 @@ const DashboardLayout = ({
       label: "My Learning",
       icon: <GraduationCap className='w-4 h-4' />,
       path: "/my-learning",
-      roles: ["TRAINEE", "SUPERVISOR"],
+      roles: ["TRAINEE", "CHO"],
+    },
+    {
+      label: "Invitations",
+      icon: <Mail className='w-4 h-4' />,
+      path: "/my-invitations",
+      roles: ["TRAINEE"],
+    },
+    {
+      label: "My Group",
+      icon: <UsersRound className='w-4 h-4' />,
+      path: "/cho-group",
+      roles: ["CHO"],
     },
     {
       label: "CHW",
@@ -452,10 +465,16 @@ const DashboardLayout = ({
       roles: ["ADMIN","DEVELOPER" ,"TRAINER", "STAFF"],
     },
     {
+      label: "CHO Groups",
+      icon: <UsersRound className='w-4 h-4' />,
+      path: "/admin/cho-groups",
+      roles: ["ADMIN", "STAFF"],
+    },
+    {
       label: "My Certificates",
       icon: <Award className='w-4 h-4' />,
       path: "/my-certificates",
-      roles: ["TRAINEE", "SUPERVISOR"],
+      roles: ["TRAINEE", "CHO"],
     },
     {
       label: "Certificates",
@@ -473,14 +492,14 @@ const DashboardLayout = ({
     {
       label: "Calender",
       path: "/calender",
-      roles: ["ADMIN", "TRAINER", "TRAINEE", "DEVELOPER", "SUPERVISOR"],
+      roles: ["ADMIN", "TRAINER", "TRAINEE", "DEVELOPER", "CHO"],
       icon: <Calendar className='w-5 h-5' />,
     },
     {
       label: "Messaging",
       icon: <MessageSquare className='w-4 h-4' />,
       path: "/messaging",
-      roles: ["ADMIN", "TRAINER", "TRAINEE", "DEVELOPER", "SUPERVISOR"],
+      roles: ["ADMIN", "TRAINER", "TRAINEE", "DEVELOPER", "CHO"],
       industries: ["SFH", "WELTEL", "RBC"],
     },
     {
@@ -493,13 +512,13 @@ const DashboardLayout = ({
     {
       label: "Help",
       path: "/help",
-      roles: ["ADMIN", "TRAINER", "TRAINEE", "DEVELOPER", "SUPERVISOR"],
+      roles: ["ADMIN", "TRAINER", "TRAINEE", "DEVELOPER", "CHO"],
       icon: <HelpCircle className='w-5 h-5' />,
     },
     {
       label: "Settings",
       path: "/settings",
-      roles: ["ADMIN", "TRAINER", "TRAINEE", "DEVELOPER", "SUPERVISOR"],
+      roles: ["ADMIN", "TRAINER", "TRAINEE", "DEVELOPER", "CHO"],
       icon: <Cog8ToothIcon className='w-5 h-5' />,
     },
   ];

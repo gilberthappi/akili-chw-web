@@ -36,7 +36,7 @@ export const useDashboardStats = ({
     : [];
 
   const isContentManager =
-    userRoles.some(r => ["ADMIN", "TRAINER", "SUPERVISOR", "STAFF"].includes(r));
+    userRoles.some(r => ["ADMIN", "TRAINER", "STAFF"].includes(r));
 
   const fetchAll = useCallback(async () => {
     setIsLoading(true);
