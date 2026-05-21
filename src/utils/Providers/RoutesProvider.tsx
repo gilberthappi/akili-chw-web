@@ -44,6 +44,7 @@ import CHOGroupMembersPage from "@/pages/dashboard/CHOGroupMembers";
 import CHOGroupMonitoringPage from "@/pages/dashboard/CHOGroupMonitoring";
 import CHOGroupInvitePage from "@/pages/dashboard/CHOGroupInvite";
 import CHWInvitationsPage from "@/pages/dashboard/CHWInvitations";
+import AdminCHOGroupsPage from "@/pages/dashboard/AdminCHOGroups";
 
 const RoutesProvider = () => {
   const router = createBrowserRouter([
@@ -297,6 +298,14 @@ const RoutesProvider = () => {
           element: (
             <ProtectedRoute allowedRoles={["TRAINEE"]}>
               <CHWInvitationsPage />
+            </ProtectedRoute>
+          ),
+        },
+        {
+          path: "admin/cho-groups",
+          element: (
+            <ProtectedRoute allowedRoles={["ADMIN", "STAFF"]}>
+              <AdminCHOGroupsPage />
             </ProtectedRoute>
           ),
         },
