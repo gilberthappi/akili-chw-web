@@ -29,8 +29,19 @@ export const inviteMember = async (targetStudentId: string): Promise<ICHOGroupIn
 
 export const searchStudentsForInvite = async (search?: string): Promise<IStudentSearchResult[]> => {
   const params = search ? `?search=${encodeURIComponent(search)}` : "";
-  const res = await api.get(`/students${params}`);
-  const raw = res.data;
-  const items: any[] = raw?.data?.data ?? raw?.data ?? [];
-  return items;
+  const res = await api.get(`/cho-groups/mine/invite-candidates${params}`);
+  return res.data.data ?? [];
+};
+
+export const getMyInvitations = async (): Promise<ICHOGroupInvitation[]> => {
+  const res = await api.get("/cho-groups/invitations/mine");
+  return res.data.data ?? [];
+};
+
+export const respondToInvitation = async (
+  invitationId: string,
+  accept: boolean,
+): Promise<ICHOGroupInvitation> => {
+  const res = await api.patch(`/cho-groups/invitations/${invitationId}`, { accept });
+  return res.data.data;
 };

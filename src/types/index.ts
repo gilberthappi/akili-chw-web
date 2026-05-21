@@ -439,6 +439,7 @@ export interface IStudentSearchResult {
   userId: string;
   status: string;
   groupMembership?: { id: string } | null;
+  pendingInvitation?: { id: string } | null;
   user: {
     id: string;
     fullNames: string;
