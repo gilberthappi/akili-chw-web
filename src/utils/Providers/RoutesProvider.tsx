@@ -39,13 +39,17 @@ import CourseLearner from "@/pages/dashboard/CourseLearner";
 import PreTest from "@/pages/dashboard/PreTest";
 import MidTest from "@/pages/dashboard/MidTest";
 import FinalTestPage from "@/pages/dashboard/FinalTestPage";
+import CHOGroupPage from "@/pages/dashboard/CHOGroup";
+import CHOGroupMembersPage from "@/pages/dashboard/CHOGroupMembers";
+import CHOGroupMonitoringPage from "@/pages/dashboard/CHOGroupMonitoring";
+import CHOGroupInvitePage from "@/pages/dashboard/CHOGroupInvite";
 
 const RoutesProvider = () => {
   const router = createBrowserRouter([
     {
       path: "/",
       element: (
-        <ProtectedRoute allowedRoles={["ADMIN", "TRAINEE", "TRAINER", "DEVELOPER", "SUPERVISOR", "STAFF"]}>
+        <ProtectedRoute allowedRoles={["ADMIN", "TRAINEE", "TRAINER", "DEVELOPER", "SUPERVISOR", "STAFF", "CHO"]}>
           <AdminLayout />
         </ProtectedRoute>
       ),
@@ -117,7 +121,7 @@ const RoutesProvider = () => {
         {
           path: "my-learning",
           element: (
-            <ProtectedRoute allowedRoles={["TRAINEE", "SUPERVISOR"]}>
+            <ProtectedRoute allowedRoles={["TRAINEE", "CHO"]}>
               <MyCourses />
             </ProtectedRoute>
           ),
@@ -125,7 +129,7 @@ const RoutesProvider = () => {
         {
           path: "course-catalog",
           element: (
-            <ProtectedRoute allowedRoles={["TRAINEE", "SUPERVISOR"]}>
+            <ProtectedRoute allowedRoles={["TRAINEE", "CHO"]}>
               <CourseCatalog />
             </ProtectedRoute>
           ),
@@ -173,7 +177,7 @@ const RoutesProvider = () => {
         {
           path: "my-certificates",
           element: (
-            <ProtectedRoute allowedRoles={["TRAINEE", "SUPERVISOR"]}>
+            <ProtectedRoute allowedRoles={["TRAINEE", "CHO"]}>
               <MyCertificates />
             </ProtectedRoute>
           ),
@@ -223,7 +227,7 @@ const RoutesProvider = () => {
         {
           path: "recordings/watch",
           element: (
-            <ProtectedRoute allowedRoles={["TRAINEE", "SUPERVISOR"]}>
+            <ProtectedRoute allowedRoles={["TRAINEE", "CHO"]}>
               <WatchRecordings />
             </ProtectedRoute>
           ),
@@ -255,6 +259,38 @@ const RoutesProvider = () => {
           path: "notifications",
           element: <NotificationsPage />,
         },
+        {
+          path: "cho-group",
+          element: (
+            <ProtectedRoute allowedRoles={["CHO"]}>
+              <CHOGroupPage />
+            </ProtectedRoute>
+          ),
+        },
+        {
+          path: "cho-group/members",
+          element: (
+            <ProtectedRoute allowedRoles={["CHO"]}>
+              <CHOGroupMembersPage />
+            </ProtectedRoute>
+          ),
+        },
+        {
+          path: "cho-group/monitoring",
+          element: (
+            <ProtectedRoute allowedRoles={["CHO"]}>
+              <CHOGroupMonitoringPage />
+            </ProtectedRoute>
+          ),
+        },
+        {
+          path: "cho-group/invite",
+          element: (
+            <ProtectedRoute allowedRoles={["CHO"]}>
+              <CHOGroupInvitePage />
+            </ProtectedRoute>
+          ),
+        },
       ],
     },
 
@@ -273,7 +309,7 @@ const RoutesProvider = () => {
     // ── Immersive learning layout (no sidebar) ────────────────────────
     {
       element: (
-        <ProtectedRoute allowedRoles={["TRAINEE", "SUPERVISOR"]}>
+        <ProtectedRoute allowedRoles={["TRAINEE", "CHO"]}>
           <LearningLayout />
         </ProtectedRoute>
       ),

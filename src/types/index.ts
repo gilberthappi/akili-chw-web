@@ -7,7 +7,7 @@ export type UserRole =
   | "TRAINEE"
   | "TESTER"
   | "DEVELOPER"
-  | "SUPERVISOR"
+  | "CHO"
   | "STAFF";
 export type UserIndustry = "WELTEL" | "RBC" | "SFH" | "CIIC-HIN";
 export type Permission = "ALL" | "DEFAULT";
@@ -355,6 +355,98 @@ export interface IGroup {
   createdAt: string;
   updatedAt: string;
   createdBy?: string;
+}
+
+// ── CHO Group ────────────────────────────────────────────────────────────────
+
+export interface ICHOGroup {
+  id: string;
+  name: string;
+  sector?: string | null;
+  description?: string | null;
+  choId: string;
+  createdAt: string;
+  updatedAt: string;
+  cho?: {
+    id: string;
+    user: { id: string; fullNames: string; photo: string | null; phoneNumber: string | null };
+  };
+  _count?: { members: number };
+}
+
+export interface ICHOGroupMember {
+  id: string;
+  groupId: string;
+  studentId: string;
+  joinedAt: string;
+  student: {
+    id: string;
+    user: {
+      id: string;
+      fullNames: string;
+      photo: string | null;
+      phoneNumber: string | null;
+      district?: string | null;
+      sector?: string | null;
+    };
+  };
+}
+
+export interface ICHOGroupInvitation {
+  id: string;
+  groupId: string;
+  studentId: string;
+  status: "PENDING" | "ACCEPTED" | "REJECTED";
+  invitedAt: string;
+  respondedAt: string | null;
+  group?: {
+    id: string;
+    name: string;
+    cho?: { user: { id: string; fullNames: string; photo: string | null; phoneNumber: string | null } };
+  };
+  student?: { user: { id: string; fullNames: string; photo: string | null; phoneNumber: string | null } };
+}
+
+export interface ICHOGroupMonitoringMember {
+  studentId: string;
+  user: { id: string; fullNames: string; photo: string | null; phoneNumber: string | null };
+  status: string;
+  joinedGroupAt: string;
+  courseProgress: Array<{
+    courseId: string;
+    courseTitle: string;
+    progress: number;
+    isCompleted: boolean;
+  }>;
+  recentTestAttempts: Array<{
+    id: string;
+    marks: number;
+    isCompleted: boolean;
+    tryCount: number;
+    updatedAt: string;
+  }>;
+}
+
+export interface ICHOGroupMonitoring {
+  groupId: string;
+  groupName: string;
+  totalMembers: number;
+  members: ICHOGroupMonitoringMember[];
+}
+
+export interface IStudentSearchResult {
+  id: string;
+  userId: string;
+  status: string;
+  groupMembership?: { id: string } | null;
+  user: {
+    id: string;
+    fullNames: string;
+    photo: string | null;
+    phoneNumber: string | null;
+    district?: string | null;
+    sector?: string | null;
+  };
 }
 
 export interface ICommunity {

@@ -9,7 +9,7 @@ import EditUserModal, { EditUserFormData } from "@/components/common/EditUserMod
 const STAFF_ROLE_OPTIONS = [
   { label: "Admin", value: "ADMIN" },
   { label: "Trainer", value: "TRAINER" },
-  { label: "Supervisor", value: "SUPERVISOR" },
+  { label: "CHO", value: "CHO" },
   { label: "Staff", value: "STAFF" },
   { label: "Developer", value: "DEVELOPER" },
 ];

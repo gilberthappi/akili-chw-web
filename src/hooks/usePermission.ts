@@ -10,6 +10,10 @@ interface PermissionConfig {
 
 const isLearnerRole = (role?: UserRole) => role === "TRAINEE" || role === "TESTER";
 
+// Normalize legacy role names to their current equivalents
+const normalizeRole = (role: string): string =>
+  role === "SUPERVISOR" ? "CHO" : role;
+
 // Hook to check if the current user has permission based on roles and/or industries
 export const usePermission = (config: PermissionConfig = {}) => {
   const { allowedRoles, allowedIndustries, requireAll = true } = config;
@@ -27,11 +31,13 @@ export const usePermission = (config: PermissionConfig = {}) => {
   }
 
   const user = auth();
-  const userRoles = user?.roles
-    ? Array.isArray(user.roles)
-      ? user.roles
-      : [user.roles]
-    : [];
+  const userRoles = (
+    user?.roles
+      ? Array.isArray(user.roles)
+        ? user.roles
+        : [user.roles]
+      : []
+  ).map(normalizeRole);
   const userIndustry = user?.industry;
 
   // If no restrictions provided, user has permission (authenticated only)
