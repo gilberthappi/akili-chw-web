@@ -5,6 +5,7 @@ import { DashboardSectionHeader } from "./shared/DashboardSectionHeader";
 import { SectionSkeleton } from "./shared/SectionSkeleton";
 // import { TrainingFunnelCard } from "./TrainingFunnelCard";
 import { TestScoreCard } from "./TestScoreCard";
+import { RecommendationReviewCard } from "./RecommendationReviewCard";
 import { CertificationCard } from "./CertificationCard";
 import { RecentLearnerActivity } from "./RecentLearnerActivity";
 import { Users, Activity, CheckCircle, Award, BarChart2 } from "lucide-react";
@@ -78,10 +79,8 @@ export const Phase3Section: React.FC<Phase3SectionProps> = ({
 
       {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* <TrainingFunnelCard
-          courses={courseAnalytics?.coursePerformanceMetrics ?? []}
-        /> */}
         <TestScoreCard studentAnalytics={studentAnalytics} />
+        <RecommendationReviewCard />
       </div>
 
       {/* Certification + Activity row */}

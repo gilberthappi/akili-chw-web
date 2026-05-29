@@ -1,4 +1,4 @@
-import { IPaged, IResponse, StudentData } from "@/types";
+import { IPaged, IResponse, StudentData, IPostCourseRecommendationsResponse } from "@/types";
 import api from "./api";
 
 // Student interface
@@ -27,6 +27,15 @@ export const getAllStudentsNoPagination = async (params?: string): Promise<IResp
 
 export const getStudentById = async (id: string): Promise<IResponse<StudentData>> => {
   return (await api.get(`/students/${id}`)).data;
+};
+
+export const getStudentPostCourseRecommendations = async (
+  studentId: string,
+  courseId: string,
+): Promise<IPostCourseRecommendationsResponse> => {
+  return (
+    await api.get(`/students/${studentId}/course/${courseId}/recommendations`)
+  ).data;
 };
 
 export const createStudent = async (

@@ -11,11 +11,16 @@ import {
   ICHWStats,
   ICourseDurationStats,
   IRecentActivityFeed,
+  IRecommendationInsightsResponse,
 } from "@/types";
 import api from "./api";
 
 export const getDashboardStats = async (): Promise<IDashboardStatsResponse> => {
   return (await api.get("/courses/dashboard/statistics")).data;
+};
+
+export const getRecommendationInsights = async (): Promise<IRecommendationInsightsResponse> => {
+  return (await api.get("/courses/dashboard/recommendations-insights")).data;
 };
 
 export const getAnalytics = async (
