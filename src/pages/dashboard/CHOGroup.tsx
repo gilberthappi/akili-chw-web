@@ -162,8 +162,8 @@ const CHOGroupPage = () => {
           {
             to: "/cho-group/invite",
             Icon: UserPlus,
-            label: "Invite CHW",
-            desc: "Search and invite CHWs to join your group",
+            label: "Add CHW",
+            desc: "Add CHWs from your area directly to your group",
             iconBg: "bg-amber-50",
             iconColor: "text-amber-500",
           },

@@ -15,7 +15,7 @@ import type { ICourse } from "@/types";
 interface StudentsListProps {
   hideHeader?: boolean;
   filter?: string;
-  roleFilter?: "TRAINEE" | "TESTER";
+  roleFilter?: "TRAINEE" | "TESTER" | "CHO";
 }
 
 const StudentsList: FC<StudentsListProps> = ({
@@ -255,7 +255,7 @@ const StudentsList: FC<StudentsListProps> = ({
             render: (row: IStudent) => {
               return (
                 <TableActions>
-                  <StudentTableActions item={row} />
+                  <StudentTableActions item={row} showPromote={roleFilter === "TRAINEE"} />
                 </TableActions>
               );
             },

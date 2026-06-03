@@ -465,7 +465,7 @@ const DashboardLayout = ({
       roles: ["ADMIN","DEVELOPER" ,"TRAINER", "STAFF"],
     },
     {
-      label: "CHO Groups",
+      label: "CHO",
       icon: <UsersRound className='w-4 h-4' />,
       path: "/admin/cho-groups",
       roles: ["ADMIN", "STAFF"],

@@ -2,7 +2,6 @@ import api from "./api";
 import {
   ICHOGroup,
   ICHOGroupMember,
-  ICHOGroupInvitation,
   ICHOGroupMonitoring,
   IStudentSearchResult,
 } from "@/types";
@@ -10,6 +9,8 @@ import {
 export interface ICHOGroupDetail extends ICHOGroup {
   members: ICHOGroupMember[];
 }
+
+// ─── CHO: own group ──────────────────────────────────────────────────────────
 
 export const getMyGroup = async (): Promise<ICHOGroup> => {
   const res = await api.get("/cho-groups/mine");
@@ -26,18 +27,26 @@ export const getGroupMonitoring = async (): Promise<ICHOGroupMonitoring> => {
   return res.data.data;
 };
 
-export const inviteMember = async (targetStudentId: string): Promise<ICHOGroupInvitation> => {
-  const res = await api.post("/cho-groups/mine/invitations", { targetStudentId });
+// ─── CHO: add / remove members (no invitation needed) ────────────────────────
+
+export const choDirectlyAddMember = async (targetStudentId: string): Promise<ICHOGroupMember> => {
+  const res = await api.post("/cho-groups/mine/members", { targetStudentId });
   return res.data.data;
 };
 
-export const searchStudentsForInvite = async (search?: string): Promise<IStudentSearchResult[]> => {
+export const choRemoveMyMember = async (studentId: string): Promise<void> => {
+  await api.delete(`/cho-groups/mine/members/${studentId}`);
+};
+
+// ─── CHO: search CHW candidates in same area (max 10) ────────────────────────
+
+export const searchCHWCandidates = async (search?: string): Promise<IStudentSearchResult[]> => {
   const params = search ? `?search=${encodeURIComponent(search)}` : "";
-  const res = await api.get(`/cho-groups/mine/invite-candidates${params}`);
+  const res = await api.get(`/cho-groups/mine/chw-candidates${params}`);
   return res.data.data ?? [];
 };
 
-// ─── Admin functions ─────────────────────────────────────────────────────────
+// ─── Admin: groups CRUD ───────────────────────────────────────────────────────
 
 export const adminGetAllGroups = async (
   limit = 20,
@@ -70,24 +79,24 @@ export const adminAddMember = async (
   return res.data.data;
 };
 
-export const adminRemoveMember = async (
-  groupId: string,
-  studentId: string,
-): Promise<void> => {
+export const adminRemoveMember = async (groupId: string, studentId: string): Promise<void> => {
   await api.delete(`/cho-groups/${groupId}/members/${studentId}`);
 };
 
-// ─── CHW invitation functions ─────────────────────────────────────────────────
+// ─── Admin: promote / demote ──────────────────────────────────────────────────
 
-export const getMyInvitations = async (): Promise<ICHOGroupInvitation[]> => {
-  const res = await api.get("/cho-groups/invitations/mine");
-  return res.data.data ?? [];
+export const adminPromoteToCHO = async (
+  userId: string,
+  groupName?: string,
+): Promise<{ user: { id: string; fullNames: string }; group: ICHOGroup }> => {
+  const res = await api.patch(`/cho-groups/promote/${userId}`, { groupName });
+  return res.data.data;
 };
 
-export const respondToInvitation = async (
-  invitationId: string,
-  accept: boolean,
-): Promise<ICHOGroupInvitation> => {
-  const res = await api.patch(`/cho-groups/invitations/${invitationId}`, { accept });
+export const adminDemoteToCHW = async (
+  userId: string,
+  newChoStudentId: string,
+): Promise<{ demotedUser: { id: string; fullNames: string }; newCHO: { id: string; fullNames: string }; group: ICHOGroup }> => {
+  const res = await api.patch(`/cho-groups/demote/${userId}`, { newChoStudentId });
   return res.data.data;
 };
