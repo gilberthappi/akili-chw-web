@@ -255,7 +255,7 @@ const StudentsList: FC<StudentsListProps> = ({
             render: (row: IStudent) => {
               return (
                 <TableActions>
-                  <StudentTableActions item={row} showPromote={roleFilter === "TRAINEE"} />
+                  <StudentTableActions item={row} showPromote={roleFilter === "TRAINEE"} showDemote={roleFilter === "CHO"} />
                 </TableActions>
               );
             },

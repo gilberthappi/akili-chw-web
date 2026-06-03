@@ -1,4 +1,5 @@
 import { useState, useCallback, Fragment } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Users,
@@ -497,9 +498,9 @@ const ManageGroupModal = ({
 
 /* ─── Main page ──────────────────────────────────────────────────────────── */
 const AdminCHOGroupsPage = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<"cho" | "cho-group">("cho");
   const [showCreate, setShowCreate] = useState(false);
-  const [managingGroup, setManagingGroup] = useState<ICHOGroup | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-cho-groups"],
@@ -608,7 +609,7 @@ const AdminCHOGroupsPage = () => {
 
                   <button
                     type="button"
-                    onClick={() => setManagingGroup(group)}
+                    onClick={() => navigate(`/admin/cho-groups/${group.id}`)}
                     className="flex items-center gap-1.5 text-sm font-semibold text-[#3363AD] hover:underline shrink-0"
                   >
                     Manage <ChevronRight className="w-4 h-4" />
@@ -621,7 +622,6 @@ const AdminCHOGroupsPage = () => {
       )}
 
       <CreateGroupModal open={showCreate} onClose={() => setShowCreate(false)} />
-      <ManageGroupModal group={managingGroup} onClose={() => setManagingGroup(null)} />
     </div>
   );
 };
