@@ -1,4 +1,5 @@
 import { useState, useCallback, Fragment } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Users,
@@ -10,6 +11,7 @@ import {
   UserPlus,
   ChevronRight,
   X,
+  ArrowDownCircle,
 } from "lucide-react";
 import { Dialog, Transition } from "@headlessui/react";
 import { debounce } from "lodash";
@@ -20,11 +22,14 @@ import {
   adminGetGroupById,
   adminAddMember,
   adminRemoveMember,
+  adminDemoteToCHW,
   ICHOGroupDetail,
 } from "@/services/choGroup.service";
 import { getAllStudentsNoPagination, IStudent } from "@/services/students.service";
 import { ICHOGroup } from "@/types";
 import { Button } from "@/components/common/Button";
+import StudentStatsCards from "@/components/students/StudentStatsCards";
+import StudentsList from "@/components/students/StudentList";
 
 /* ─── Shared avatar ─────────────────────────────────────────────────────── */
 const Avatar = ({ name, photo, size = "w-9 h-9" }: { name: string; photo: string | null; size?: string }) => {
@@ -42,15 +47,17 @@ const Avatar = ({ name, photo, size = "w-9 h-9" }: { name: string; photo: string
   );
 };
 
-/* ─── Student search input used inside both modals ──────────────────────── */
+/* ─── Student search input ───────────────────────────────────────────────── */
 const StudentSearchPicker = ({
   label,
   placeholder,
   onSelect,
+  resetKey,
 }: {
   label: string;
   placeholder: string;
   onSelect: (student: IStudent) => void;
+  resetKey?: number;
 }) => {
   const [term, setTerm] = useState("");
   const [debounced, setDebounced] = useState("");
@@ -65,7 +72,7 @@ const StudentSearchPicker = ({
   };
 
   const { data: resp, isFetching } = useQuery({
-    queryKey: ["student-search-admin", debounced],
+    queryKey: ["student-search-admin", debounced, resetKey],
     queryFn: () => getAllStudentsNoPagination(`?searchq=${encodeURIComponent(debounced)}`),
     enabled: debounced.length > 1,
   });
@@ -81,7 +88,7 @@ const StudentSearchPicker = ({
 
   return (
     <div className="space-y-1">
-      <label className="text-xs font-semibold text-gray-600">{label}</label>
+      {label && <label className="text-xs font-semibold text-gray-600">{label}</label>}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
         <input
@@ -105,9 +112,8 @@ const StudentSearchPicker = ({
         )}
       </div>
 
-      {/* Dropdown */}
       {debounced.length > 1 && results.length > 0 && !selected && (
-        <div className="border border-gray-100 rounded-lg shadow-lg bg-white max-h-44 overflow-y-auto">
+        <div className="border border-gray-100 rounded-lg shadow-lg bg-white max-h-44 overflow-y-auto z-10 relative">
           {results.map((s) => (
             <button
               key={s.id}
@@ -181,7 +187,6 @@ const CreateGroupModal = ({ open, onClose }: { open: boolean; onClose: () => voi
                 </Dialog.Description>
               </div>
 
-              {/* Fields */}
               <div className="space-y-3">
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-gray-600">Group Name *</label>
@@ -251,6 +256,9 @@ const ManageGroupModal = ({
   const queryClient = useQueryClient();
   const [addStudent, setAddStudent] = useState<IStudent | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [showDemote, setShowDemote] = useState(false);
+  const [newCHOStudent, setNewCHOStudent] = useState<IStudent | null>(null);
+  const [demotePickerKey, setDemotePickerKey] = useState(0);
 
   const { data: detail, isLoading } = useQuery<ICHOGroupDetail>({
     queryKey: ["admin-cho-group-detail", group?.id],
@@ -285,7 +293,26 @@ const ManageGroupModal = ({
     },
   });
 
+  const { mutate: demoteCHO, isPending: isDemoting } = useMutation({
+    mutationFn: () => adminDemoteToCHW(group!.cho!.user!.id, newCHOStudent!.id),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-cho-groups"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-cho-group-detail", group?.id] });
+      toast.success(
+        `${data.demotedUser.fullNames} demoted. ${data.newCHO.fullNames} is now the CHO.`,
+      );
+      setShowDemote(false);
+      setNewCHOStudent(null);
+      setDemotePickerKey((k) => k + 1);
+      onClose();
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message ?? "Failed to demote CHO.");
+    },
+  });
+
   const members = detail?.members ?? [];
+  const choUserId = group?.cho?.user?.id;
 
   return (
     <Transition appear show={!!group} as={Fragment}>
@@ -300,8 +327,8 @@ const ManageGroupModal = ({
               {/* Header */}
               <div className="px-6 pt-6 pb-4 border-b border-gray-100">
                 <div className="flex items-start justify-between">
-                  <div>
-                    <Dialog.Title className="text-lg font-bold text-gray-900">{group?.name}</Dialog.Title>
+                  <div className="min-w-0">
+                    <Dialog.Title className="text-lg font-bold text-gray-900 truncate">{group?.name}</Dialog.Title>
                     <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1">
                       {group?.cho?.user && (
                         <p className="text-xs text-gray-500 flex items-center gap-1">
@@ -315,10 +342,66 @@ const ManageGroupModal = ({
                       )}
                     </div>
                   </div>
-                  <button type="button" onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400">
-                    <X className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-2 shrink-0 ml-3">
+                    {choUserId && (
+                      <button
+                        type="button"
+                        onClick={() => setShowDemote((v) => !v)}
+                        className="flex items-center gap-1 text-xs font-semibold text-amber-500 hover:text-amber-600 px-2 py-1 rounded-lg hover:bg-amber-50 transition-colors"
+                        title="Demote this CHO back to CHW"
+                      >
+                        <ArrowDownCircle className="w-3.5 h-3.5" />
+                        Demote CHO
+                      </button>
+                    )}
+                    <button type="button" onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
+
+                {/* Demote section (inline, toggled) */}
+                {showDemote && (
+                  <div className="mt-4 p-4 bg-amber-50 border border-amber-100 rounded-xl space-y-3">
+                    <p className="text-xs font-semibold text-amber-700 flex items-center gap-1.5">
+                      <ArrowDownCircle className="w-3.5 h-3.5" />
+                      Demote {group?.cho?.user?.fullNames} — select a replacement CHO
+                    </p>
+                    <StudentSearchPicker
+                      label=""
+                      placeholder="Search replacement CHO by name…"
+                      onSelect={setNewCHOStudent}
+                      resetKey={demotePickerKey}
+                    />
+                    {newCHOStudent && (
+                      <div className="flex items-center gap-2 p-2 bg-white rounded-lg border border-amber-100 text-sm">
+                        <Avatar name={newCHOStudent.fullName} photo={null} size="w-7 h-7" />
+                        <span className="font-medium text-gray-800 truncate flex-1">{newCHOStudent.fullName}</span>
+                      </div>
+                    )}
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => { setShowDemote(false); setNewCHOStudent(null); setDemotePickerKey((k) => k + 1); }}
+                        disabled={isDemoting}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="flex-1 !bg-amber-500 hover:!bg-amber-600"
+                        disabled={!newCHOStudent || isDemoting}
+                        isLoading={isDemoting}
+                        onClick={() => demoteCHO()}
+                      >
+                        {!isDemoting && <ArrowDownCircle className="w-3.5 h-3.5 mr-1.5" />}
+                        Confirm Demotion
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Body (scrollable) */}
@@ -415,8 +498,9 @@ const ManageGroupModal = ({
 
 /* ─── Main page ──────────────────────────────────────────────────────────── */
 const AdminCHOGroupsPage = () => {
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<"cho" | "cho-group">("cho");
   const [showCreate, setShowCreate] = useState(false);
-  const [managingGroup, setManagingGroup] = useState<ICHOGroup | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-cho-groups"],
@@ -425,84 +509,119 @@ const AdminCHOGroupsPage = () => {
 
   const groups = data?.groups ?? [];
 
+  const skeletons = (
+    <div className="space-y-3 animate-pulse">
+      {[...Array(4)].map((_, i) => (
+        <div key={i} className="h-20 bg-gray-100 rounded-xl" />
+      ))}
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="space-y-1">
-          <h2 className="text-3xl font-bold text-[#333333]">CHO Groups</h2>
+          <h2 className="text-3xl font-bold text-[#333333]">CHO</h2>
           <p className="text-sm text-gray-500">
-            Create groups, assign CHOs, and manage CHW membership.
+            Manage Community Health Officers and their groups.
           </p>
         </div>
-        <Button size="sm" onClick={() => setShowCreate(true)}>
-          <Plus className="w-4 h-4 mr-1.5" />
-          New Group
-        </Button>
+        {activeTab === "cho-group" && (
+          <Button size="sm" onClick={() => setShowCreate(true)}>
+            <Plus className="w-4 h-4 mr-1.5" />
+            New Group
+          </Button>
+        )}
       </div>
 
-      {/* Groups */}
-      {isLoading ? (
-        <div className="space-y-3 animate-pulse">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-20 bg-gray-100 rounded-xl" />
-          ))}
-        </div>
-      ) : groups.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-24 gap-3 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-[#EBF0F9] flex items-center justify-center">
-            <Users className="w-8 h-8 text-[#3363AD]/40" />
-          </div>
-          <p className="text-gray-600 font-semibold">No CHO groups yet</p>
-          <p className="text-gray-400 text-sm">Click "New Group" to create the first one.</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {groups.map((group) => (
-            <div
-              key={group.id}
-              className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center gap-4 hover:shadow-md transition-shadow"
-            >
-              <div className="w-11 h-11 rounded-xl bg-[#EBF0F9] flex items-center justify-center shrink-0">
-                <Users className="w-5 h-5 text-[#3363AD]" />
-              </div>
+      {/* Tab switcher */}
+      <div className="inline-flex rounded-2xl bg-white p-1 shadow-sm border border-gray-100">
+        {(["cho", "cho-group"] as const).map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            onClick={() => setActiveTab(tab)}
+            className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
+              activeTab === tab
+                ? "bg-[#3363AD] text-white shadow-sm"
+                : "text-gray-600 hover:text-[#3363AD]"
+            }`}
+          >
+            {tab === "cho" ? "CHO" : "CHO GROUP"}
+          </button>
+        ))}
+      </div>
 
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-gray-900 truncate">{group.name}</p>
-                <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-0.5">
-                  {group.cho?.user && (
-                    <p className="text-xs text-gray-500 flex items-center gap-1">
-                      <Users className="w-3 h-3" />
-                      CHO: {group.cho.user.fullNames}
-                    </p>
-                  )}
-                  {group.sector && (
-                    <p className="text-xs text-gray-500 flex items-center gap-1">
-                      <MapPin className="w-3 h-3" />
-                      {group.sector}
-                    </p>
-                  )}
-                  <p className="text-xs text-gray-500 flex items-center gap-1">
-                    <Users className="w-3 h-3" />
-                    {group._count?.members ?? 0} member{group._count?.members !== 1 ? "s" : ""}
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setManagingGroup(group)}
-                className="flex items-center gap-1.5 text-sm font-semibold text-[#3363AD] hover:underline shrink-0"
-              >
-                Manage <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          ))}
+      {/* ── CHO tab ──────────────────────────────────────────────────────── */}
+      {activeTab === "cho" && (
+        <div className="space-y-6">
+          <StudentStatsCards roleFilter="CHO" />
+          <StudentsList hideHeader={true} roleFilter="CHO" />
         </div>
       )}
 
+      {/* ── CHO GROUP tab ─────────────────────────────────────────────────── */}
+      {activeTab === "cho-group" && (
+        <>
+          {isLoading ? (
+            skeletons
+          ) : groups.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-24 gap-3 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-[#EBF0F9] flex items-center justify-center">
+                <Users className="w-8 h-8 text-[#3363AD]/40" />
+              </div>
+              <p className="text-gray-600 font-semibold">No CHO groups yet</p>
+              <p className="text-gray-400 text-sm">Click "New Group" to create the first one, or promote a CHW to CHO.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {groups.map((group) => (
+                <div
+                  key={group.id}
+                  className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center gap-4 hover:shadow-md transition-shadow"
+                >
+                  <div className="w-11 h-11 rounded-xl bg-[#EBF0F9] flex items-center justify-center shrink-0">
+                    <Users className="w-5 h-5 text-[#3363AD]" />
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-900 truncate">{group.name}</p>
+                    <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-0.5">
+                      {group.cho?.user && (
+                        <p className="text-xs text-gray-500 flex items-center gap-1">
+                          <Users className="w-3 h-3" />
+                          CHO: {group.cho.user.fullNames}
+                        </p>
+                      )}
+                      {group.sector && (
+                        <p className="text-xs text-gray-500 flex items-center gap-1">
+                          <MapPin className="w-3 h-3" />
+                          {group.sector}
+                        </p>
+                      )}
+                      <p className="text-xs text-gray-500 flex items-center gap-1">
+                        <Users className="w-3 h-3" />
+                        {group._count?.members ?? 0} member{group._count?.members !== 1 ? "s" : ""}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/admin/cho-groups/${group.id}`)}
+                    className="flex items-center gap-1.5 text-sm font-semibold text-[#3363AD] hover:underline shrink-0"
+                  >
+                    Manage <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
       <CreateGroupModal open={showCreate} onClose={() => setShowCreate(false)} />
-      <ManageGroupModal group={managingGroup} onClose={() => setManagingGroup(null)} />
     </div>
   );
 };
