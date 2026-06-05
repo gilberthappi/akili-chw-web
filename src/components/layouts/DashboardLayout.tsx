@@ -16,7 +16,6 @@ import {
   BarChart3,
   Calendar,
   GraduationCap,
-  HelpCircle,
   Building2,
   Megaphone,
   MessageCircle,
@@ -502,12 +501,6 @@ const DashboardLayout = ({
       icon: <Megaphone className='w-5 h-5' />,
     },
 
-    {
-      label: "Help",
-      path: "/help",
-      roles: ["ADMIN", "TRAINER", "TRAINEE", "DEVELOPER", "CHO"],
-      icon: <HelpCircle className='w-5 h-5' />,
-    },
     {
       label: "Settings",
       path: "/settings",
