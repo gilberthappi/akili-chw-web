@@ -222,7 +222,7 @@ const CHOGroupPage = () => {
           {/* CHO leader card */}
           {choMatchesSearch && cho && (
             <div
-              onClick={() => navigate(`/students/${cho.user.id}`)}
+              onClick={() => navigate(`/students/${cho.id}`)}
               className="bg-white rounded-xl border border-[#3363AD]/20 shadow-sm p-4 hover:shadow-md transition-shadow cursor-pointer"
             >
               <div className="flex items-center gap-3 mb-3">
@@ -251,7 +251,7 @@ const CHOGroupPage = () => {
             return (
               <div
                 key={member.id}
-                onClick={() => navigate(`/students/${u.id}`)}
+                onClick={() => navigate(`/students/${member.student.id}`)}
                 className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 hover:shadow-md transition-shadow cursor-pointer"
               >
                 <div className="flex items-center gap-3 mb-3">
