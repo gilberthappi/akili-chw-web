@@ -12,6 +12,7 @@ import {
   ChevronRight,
   X,
   ArrowDownCircle,
+  AlertTriangle,
 } from "lucide-react";
 import { Dialog, Transition } from "@headlessui/react";
 import { debounce } from "lodash";
@@ -23,6 +24,7 @@ import {
   adminAddMember,
   adminRemoveMember,
   adminDemoteToCHW,
+  adminDeleteGroup,
   ICHOGroupDetail,
 } from "@/services/choGroup.service";
 import { getAllStudentsNoPagination, IStudent } from "@/services/students.service";
@@ -313,6 +315,7 @@ const ManageGroupModal = ({
 
   const members = detail?.members ?? [];
   const choUserId = group?.cho?.user?.id;
+  const totalCount = members.length + (choUserId ? 1 : 0);
 
   return (
     <Transition appear show={!!group} as={Fragment}>
@@ -428,7 +431,7 @@ const ManageGroupModal = ({
                 <div className="space-y-2">
                   <h3 className="text-sm font-semibold text-gray-700">
                     Members{" "}
-                    <span className="text-xs font-normal text-gray-400">({members.length})</span>
+                    <span className="text-xs font-normal text-gray-400">({totalCount})</span>
                   </h3>
 
                   {isLoading ? (
@@ -499,8 +502,10 @@ const ManageGroupModal = ({
 /* ─── Main page ──────────────────────────────────────────────────────────── */
 const AdminCHOGroupsPage = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<"cho" | "cho-group">("cho");
   const [showCreate, setShowCreate] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<ICHOGroup | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-cho-groups"],
@@ -508,6 +513,18 @@ const AdminCHOGroupsPage = () => {
   });
 
   const groups = data?.groups ?? [];
+
+  const { mutate: deleteGroup, isPending: isDeleting } = useMutation({
+    mutationFn: (groupId: string) => adminDeleteGroup(groupId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-cho-groups"] });
+      toast.success("Group deleted.");
+      setPendingDelete(null);
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message ?? "Failed to delete group.");
+    },
+  });
 
   const skeletons = (
     <div className="space-y-3 animate-pulse">
@@ -602,18 +619,28 @@ const AdminCHOGroupsPage = () => {
                       )}
                       <p className="text-xs text-gray-500 flex items-center gap-1">
                         <Users className="w-3 h-3" />
-                        {group._count?.members ?? 0} member{group._count?.members !== 1 ? "s" : ""}
+                        {(group._count?.members ?? 0) + (group.cho?.user ? 1 : 0)} member{(group._count?.members ?? 0) + (group.cho?.user ? 1 : 0) !== 1 ? "s" : ""}
                       </p>
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/admin/cho-groups/${group.id}`)}
-                    className="flex items-center gap-1.5 text-sm font-semibold text-[#3363AD] hover:underline shrink-0"
-                  >
-                    Manage <ChevronRight className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/admin/cho-groups/${group.id}`)}
+                      className="flex items-center gap-1.5 text-sm font-semibold text-[#3363AD] hover:underline"
+                    >
+                      Manage <ChevronRight className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPendingDelete(group)}
+                      className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                      title="Delete group"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -622,6 +649,62 @@ const AdminCHOGroupsPage = () => {
       )}
 
       <CreateGroupModal open={showCreate} onClose={() => setShowCreate(false)} />
+
+      {/* Delete confirmation modal */}
+      <Transition appear show={!!pendingDelete} as={Fragment}>
+        <Dialog as="div" className="relative z-50" onClose={() => !isDeleting && setPendingDelete(null)}>
+          <Transition.Child
+            as={Fragment}
+            enter="ease-out duration-200" enterFrom="opacity-0" enterTo="opacity-100"
+            leave="ease-in duration-150" leaveFrom="opacity-100" leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-black/40" />
+          </Transition.Child>
+
+          <div className="fixed inset-0 flex items-center justify-center p-4">
+            <Transition.Child
+              as={Fragment}
+              enter="ease-out duration-200" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100"
+              leave="ease-in duration-150" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95"
+            >
+              <Dialog.Panel className="w-full max-w-sm bg-white rounded-2xl shadow-xl p-6">
+                <div className="flex flex-col items-center text-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center">
+                    <AlertTriangle className="w-5 h-5 text-red-500" />
+                  </div>
+                  <div>
+                    <Dialog.Title className="text-lg font-bold text-gray-900">Delete Group</Dialog.Title>
+                    <Dialog.Description className="text-sm text-gray-500 mt-1">
+                      Delete <span className="font-semibold text-gray-800">{pendingDelete?.name}</span>?
+                      This removes all members and revokes the CHO role. Cannot be undone.
+                    </Dialog.Description>
+                  </div>
+                </div>
+                <div className="flex gap-3 mt-6">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => setPendingDelete(null)}
+                    disabled={isDeleting}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="flex-1 !bg-red-500 hover:!bg-red-600"
+                    onClick={() => pendingDelete && deleteGroup(pendingDelete.id)}
+                    isLoading={isDeleting}
+                  >
+                    {!isDeleting && <Trash2 className="w-3.5 h-3.5 mr-1.5" />}
+                    Delete
+                  </Button>
+                </div>
+              </Dialog.Panel>
+            </Transition.Child>
+          </div>
+        </Dialog>
+      </Transition>
     </div>
   );
 };

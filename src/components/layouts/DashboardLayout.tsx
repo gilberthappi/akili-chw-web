@@ -16,9 +16,7 @@ import {
   BarChart3,
   Calendar,
   GraduationCap,
-  HelpCircle,
   Building2,
-  Mail,
   Megaphone,
   MessageCircle,
   MessageSquare,
@@ -447,12 +445,6 @@ const DashboardLayout = ({
       roles: ["TRAINEE", "CHO"],
     },
     {
-      label: "Invitations",
-      icon: <Mail className='w-4 h-4' />,
-      path: "/my-invitations",
-      roles: ["TRAINEE"],
-    },
-    {
       label: "My Group",
       icon: <UsersRound className='w-4 h-4' />,
       path: "/cho-group",
@@ -509,12 +501,6 @@ const DashboardLayout = ({
       icon: <Megaphone className='w-5 h-5' />,
     },
 
-    {
-      label: "Help",
-      path: "/help",
-      roles: ["ADMIN", "TRAINER", "TRAINEE", "DEVELOPER", "CHO"],
-      icon: <HelpCircle className='w-5 h-5' />,
-    },
     {
       label: "Settings",
       path: "/settings",
