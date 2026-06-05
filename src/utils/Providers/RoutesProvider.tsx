@@ -40,8 +40,6 @@ import PreTest from "@/pages/dashboard/PreTest";
 import MidTest from "@/pages/dashboard/MidTest";
 import FinalTestPage from "@/pages/dashboard/FinalTestPage";
 import CHOGroupPage from "@/pages/dashboard/CHOGroup";
-import CHOGroupMembersPage from "@/pages/dashboard/CHOGroupMembers";
-import CHOGroupMonitoringPage from "@/pages/dashboard/CHOGroupMonitoring";
 import CHOGroupInvitePage from "@/pages/dashboard/CHOGroupInvite";
 import AdminCHOGroupsPage from "@/pages/dashboard/AdminCHOGroups";
 import AdminCHOGroupDetailPage from "@/pages/dashboard/AdminCHOGroupDetail";
@@ -150,7 +148,7 @@ const RoutesProvider = () => {
           path: "students/:id",
           element: (
             <ProtectedRoute
-              allowedRoles={["ADMIN", "TRAINER","DEVELOPER"]}
+              allowedRoles={["ADMIN", "TRAINER", "DEVELOPER", "CHO"]}
             >
               <StudentActivityPage />
             </ProtectedRoute>
@@ -266,22 +264,6 @@ const RoutesProvider = () => {
           element: (
             <ProtectedRoute allowedRoles={["CHO"]}>
               <CHOGroupPage />
-            </ProtectedRoute>
-          ),
-        },
-        {
-          path: "cho-group/members",
-          element: (
-            <ProtectedRoute allowedRoles={["CHO"]}>
-              <CHOGroupMembersPage />
-            </ProtectedRoute>
-          ),
-        },
-        {
-          path: "cho-group/monitoring",
-          element: (
-            <ProtectedRoute allowedRoles={["CHO"]}>
-              <CHOGroupMonitoringPage />
             </ProtectedRoute>
           ),
         },

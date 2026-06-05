@@ -242,6 +242,7 @@ const AdminCHOGroupDetailPage = () => {
 
   const members = group.members ?? [];
   const cho = group.cho?.user;
+  const totalCount = members.length + (cho ? 1 : 0);
 
   return (
     <div className="space-y-6">
@@ -280,7 +281,7 @@ const AdminCHOGroupDetailPage = () => {
             )}
             <div className="flex items-center gap-2 text-sm text-gray-700">
               <Users className="w-4 h-4 text-[#3363AD] shrink-0" />
-              <span>{members.length} member{members.length !== 1 ? "s" : ""}</span>
+              <span>{totalCount} member{totalCount !== 1 ? "s" : ""}</span>
             </div>
             <div className="flex items-center gap-2 text-sm text-gray-500">
               <CalendarDays className="w-4 h-4 shrink-0" />
@@ -397,7 +398,7 @@ const AdminCHOGroupDetailPage = () => {
         <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
           <Users className="w-4 h-4 text-[#3363AD]" />
           Members
-          <span className="text-xs font-normal text-gray-400">({members.length})</span>
+          <span className="text-xs font-normal text-gray-400">({totalCount})</span>
         </h3>
 
         {members.length === 0 ? (

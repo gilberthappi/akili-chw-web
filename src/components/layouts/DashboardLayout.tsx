@@ -18,7 +18,6 @@ import {
   GraduationCap,
   HelpCircle,
   Building2,
-  Mail,
   Megaphone,
   MessageCircle,
   MessageSquare,
@@ -445,12 +444,6 @@ const DashboardLayout = ({
       icon: <GraduationCap className='w-4 h-4' />,
       path: "/my-learning",
       roles: ["TRAINEE", "CHO"],
-    },
-    {
-      label: "Invitations",
-      icon: <Mail className='w-4 h-4' />,
-      path: "/my-invitations",
-      roles: ["TRAINEE"],
     },
     {
       label: "My Group",

@@ -313,6 +313,7 @@ const ManageGroupModal = ({
 
   const members = detail?.members ?? [];
   const choUserId = group?.cho?.user?.id;
+  const totalCount = members.length + (choUserId ? 1 : 0);
 
   return (
     <Transition appear show={!!group} as={Fragment}>
@@ -428,7 +429,7 @@ const ManageGroupModal = ({
                 <div className="space-y-2">
                   <h3 className="text-sm font-semibold text-gray-700">
                     Members{" "}
-                    <span className="text-xs font-normal text-gray-400">({members.length})</span>
+                    <span className="text-xs font-normal text-gray-400">({totalCount})</span>
                   </h3>
 
                   {isLoading ? (
@@ -602,7 +603,7 @@ const AdminCHOGroupsPage = () => {
                       )}
                       <p className="text-xs text-gray-500 flex items-center gap-1">
                         <Users className="w-3 h-3" />
-                        {group._count?.members ?? 0} member{group._count?.members !== 1 ? "s" : ""}
+                        {(group._count?.members ?? 0) + (group.cho?.user ? 1 : 0)} member{(group._count?.members ?? 0) + (group.cho?.user ? 1 : 0) !== 1 ? "s" : ""}
                       </p>
                     </div>
                   </div>
