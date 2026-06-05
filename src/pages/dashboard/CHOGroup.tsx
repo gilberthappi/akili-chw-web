@@ -10,6 +10,9 @@ import {
   Activity,
   TrendingUp,
   UserMinus,
+  Pencil,
+  Check,
+  X,
 } from "lucide-react";
 import { Dialog, Transition } from "@headlessui/react";
 import toast from "react-hot-toast";
@@ -18,6 +21,7 @@ import {
   getMyGroupMembers,
   getGroupMonitoring,
   choRemoveMyMember,
+  choUpdateMyGroup,
 } from "@/services/choGroup.service";
 import { ICHOGroupMember } from "@/types";
 import { MetricCard } from "@/components/common/MetricCard";
@@ -48,6 +52,9 @@ const CHOGroupPage = () => {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [pendingRemove, setPendingRemove] = useState<ICHOGroupMember | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editSector, setEditSector] = useState("");
 
   const { data: group, isLoading, isError } = useQuery({
     queryKey: ["cho-group-mine"],
@@ -79,6 +86,24 @@ const CHOGroupPage = () => {
       toast.error(msg);
     },
   });
+
+  const { mutate: updateGroup, isPending: isUpdating } = useMutation({
+    mutationFn: () => choUpdateMyGroup({ name: editName || undefined, sector: editSector }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cho-group-mine"] });
+      toast.success("Group updated.");
+      setIsEditing(false);
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message ?? "Failed to update group.");
+    },
+  });
+
+  const openEdit = () => {
+    setEditName(group?.name ?? "");
+    setEditSector(group?.sector ?? "");
+    setIsEditing(true);
+  };
 
   if (isLoading) {
     return (
@@ -135,7 +160,16 @@ const CHOGroupPage = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="space-y-1">
-          <h2 className="text-3xl font-bold text-[#333333]">{group.name}</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-3xl font-bold text-[#333333]">{group.name}</h2>
+            <button
+              onClick={openEdit}
+              className="p-1.5 rounded-lg text-gray-400 hover:text-[#3363AD] hover:bg-[#EBF0F9] transition-colors"
+              title="Edit group"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+          </div>
           {group.sector && (
             <div className="flex items-center gap-1.5 text-gray-500 text-sm">
               <MapPin className="w-3.5 h-3.5" />
@@ -160,6 +194,52 @@ const CHOGroupPage = () => {
           </Link>
         </div>
       </div>
+
+      {/* Inline edit form */}
+      {isEditing && (
+        <div className="bg-white rounded-xl border border-[#3363AD]/20 shadow-sm p-4 space-y-3">
+          <p className="text-sm font-semibold text-gray-700">Edit Group</p>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex-1 space-y-1">
+              <label className="text-xs font-semibold text-gray-500">Group Name *</label>
+              <input
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD]"
+              />
+            </div>
+            <div className="flex-1 space-y-1">
+              <label className="text-xs font-semibold text-gray-500">Sector</label>
+              <input
+                type="text"
+                value={editSector}
+                onChange={(e) => setEditSector(e.target.value)}
+                placeholder="e.g. Nyarugenge"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD]"
+              />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setIsEditing(false)}
+              className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+              disabled={isUpdating}
+            >
+              <X className="w-3.5 h-3.5" /> Cancel
+            </button>
+            <Button
+              size="sm"
+              onClick={() => updateGroup()}
+              isLoading={isUpdating}
+              disabled={!editName.trim() || isUpdating}
+            >
+              {!isUpdating && <Check className="w-3.5 h-3.5 mr-1" />}
+              Save
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Metric cards */}
       <div className="grid grid-cols-3 gap-4">

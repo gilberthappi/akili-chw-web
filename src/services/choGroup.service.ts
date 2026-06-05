@@ -83,6 +83,27 @@ export const adminRemoveMember = async (groupId: string, studentId: string): Pro
   await api.delete(`/cho-groups/${groupId}/members/${studentId}`);
 };
 
+export const adminUpdateGroup = async (
+  groupId: string,
+  data: { name?: string; sector?: string; description?: string },
+): Promise<ICHOGroup> => {
+  const res = await api.patch(`/cho-groups/${groupId}`, data);
+  return res.data.data;
+};
+
+export const adminDeleteGroup = async (groupId: string): Promise<void> => {
+  await api.delete(`/cho-groups/${groupId}`);
+};
+
+export const choUpdateMyGroup = async (data: {
+  name?: string;
+  sector?: string;
+  description?: string;
+}): Promise<ICHOGroup> => {
+  const res = await api.patch("/cho-groups/mine", data);
+  return res.data.data;
+};
+
 // ─── Admin: promote / demote ──────────────────────────────────────────────────
 
 export const adminPromoteToCHO = async (
