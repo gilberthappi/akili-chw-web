@@ -521,40 +521,57 @@ export const Feedbacks: React.FC = () => {
     return queryString ? `?${queryString}` : '';
   };
 
-  // Export data function
-  const exportData = async (keyword?: string) => {
-    if (isExporting) return; // Prevent double clicks
-    
+  // Export data function — exports only the currently active tab, respecting all active filters
+  const exportData = async () => {
+    if (isExporting) return;
+
     setIsExporting(true);
-    
+
     try {
       const params = new URLSearchParams();
-      
-      // Add search query if provided
-      if (keyword) params.append('searchq', keyword);
-      
-      // Add filter parameters
+
+      // Only include the current tab's type
+      const tabToParam: Record<string, string> = {
+        slide: 'includeFeedbacks',
+        chapter: 'includeChapterReviews',
+        section: 'includeSectionReviews',
+        course: 'includeCourseReviews',
+        system: 'includeSystemReviews',
+      };
+      params.append(tabToParam[selectedTab], 'true');
+
+      // Pass the active tab's current search term
+      const tabSearch: Record<string, string> = {
+        slide: slideSearch,
+        chapter: chapterSearch,
+        section: sectionSearch,
+        course: courseSearch,
+        system: systemSearch,
+      };
+      const currentSearch = tabSearch[selectedTab];
+      if (currentSearch) params.append('searchq', currentSearch);
+
+      // Pass active filter parameters
       if (filters.district) params.append('district', filters.district);
       if (filters.sector) params.append('sector', filters.sector);
       if (filters.startDate) params.append('startDate', filters.startDate);
       if (filters.endDate) params.append('endDate', filters.endDate);
-      
-      // Add include parameters only for enabled review types
-      if (filters.includeFeedbacks) params.append('includeFeedbacks', 'true');
-      if (filters.includeSystemReviews) params.append('includeSystemReviews', 'true');
-      if (filters.includeCourseReviews) params.append('includeCourseReviews', 'true');
-      if (filters.includeSectionReviews) params.append('includeSectionReviews', 'true');
-      if (filters.includeChapterReviews) params.append('includeChapterReviews', 'true');
-      
-      const queryString = params.toString();
-      const queryParams = queryString ? `?${queryString}` : '';
-      
-      const blob = await exportReviews(queryParams);
+
+      const tabFileNames: Record<string, string> = {
+        slide: 'slide-feedbacks',
+        chapter: 'chapter-reviews',
+        section: 'section-reviews',
+        course: 'course-reviews',
+        system: 'system-reviews',
+      };
+      const filename = `${tabFileNames[selectedTab]}-${new Date().toISOString().split('T')[0]}.xlsx`;
+
+      const blob = await exportReviews(`?${params.toString()}`);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.style.display = 'none';
       a.href = url;
-      a.download = 'reviews-export.xlsx';
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
