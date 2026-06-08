@@ -1,4 +1,4 @@
-import { useState, useCallback, Fragment } from "react";
+import { useState, useCallback, useRef, useEffect, Fragment } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -9,6 +9,7 @@ import {
   Phone,
   Trash2,
   ChevronRight,
+  ChevronDown,
   X,
   AlertTriangle,
 } from "lucide-react";
@@ -17,10 +18,17 @@ import { debounce } from "lodash";
 import toast from "react-hot-toast";
 import {
   adminGetAllGroups,
-  adminCreateGroup,
+  adminPromoteToCHO,
+  adminUpdateGroup,
   adminDeleteGroup,
 } from "@/services/choGroup.service";
 import { getAllStudentsNoPagination, IStudent } from "@/services/students.service";
+import {
+  getDistrictOptions,
+  getSectorOptions,
+  getCellOptions,
+  getVillageOptions,
+} from "@/hooks/locations";
 import { ICHOGroup } from "@/types";
 
 import { Button } from "@/components/common/Button";
@@ -44,104 +52,205 @@ const Avatar = ({ name, photo, size = "w-9 h-9" }: { name: string; photo: string
   );
 };
 
-/* ─── Student search picker ──────────────────────────────────────────────── */
-const StudentSearchPicker = ({
+/* ─── CHW combobox picker ────────────────────────────────────────────────── */
+const CHWCombobox = ({
   label,
-  placeholder,
-  onSelect,
-  resetKey,
+  value,
+  onChange,
 }: {
   label: string;
-  placeholder: string;
-  onSelect: (student: IStudent) => void;
-  resetKey?: number;
+  value: IStudent | null;
+  onChange: (student: IStudent | null) => void;
 }) => {
-  const [term, setTerm] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
-  const [selected, setSelected] = useState<IStudent | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const debouncedSet = useCallback(debounce((v: string) => setDebounced(v), 350), []);
 
-  const handleChange = (v: string) => {
-    setTerm(v);
-    setSelected(null);
-    debouncedSet(v);
-  };
-
   const { data: resp, isFetching } = useQuery({
-    queryKey: ["student-search-admin", debounced, resetKey],
-    queryFn: () => getAllStudentsNoPagination(`?searchq=${encodeURIComponent(debounced)}`),
-    enabled: debounced.length > 1,
+    queryKey: ["chw-picker", debounced],
+    queryFn: () =>
+      getAllStudentsNoPagination(
+        debounced
+          ? `?role=TRAINEE&searchq=${encodeURIComponent(debounced)}`
+          : "?role=TRAINEE",
+      ),
+    enabled: isOpen,
   });
 
-  const results: IStudent[] = resp?.data ?? [];
+  // Focus search input when dropdown opens (avoids autoFocus conflicting with Dialog focus trap)
+  useEffect(() => {
+    if (isOpen) searchInputRef.current?.focus();
+  }, [isOpen]);
 
-  const pick = (s: IStudent) => {
-    setSelected(s);
-    setTerm(s.fullName);
-    setDebounced("");
-    onSelect(s);
-  };
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [isOpen]);
+
+  const all: IStudent[] = resp?.data ?? [];
+  const students = search ? all : all.slice(0, 10);
 
   return (
-    <div className="space-y-1">
-      {label && <label className="text-xs font-semibold text-gray-600">{label}</label>}
+    <div className="space-y-1" ref={containerRef}>
+      <label className="text-xs font-semibold text-gray-600">{label}</label>
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-        <input
-          type="text"
-          value={term}
-          onChange={(e) => handleChange(e.target.value)}
-          placeholder={placeholder}
-          className="w-full pl-9 pr-8 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD]"
-        />
-        {isFetching && (
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 border-2 border-[#3363AD]/30 border-t-[#3363AD] rounded-full animate-spin" />
-        )}
-        {selected && (
-          <button type="button" onClick={() => { setSelected(null); setTerm(""); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-            <X className="w-3.5 h-3.5" />
-          </button>
+        <button
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => setIsOpen((o) => !o)}
+          className={`w-full flex items-center justify-between px-3 py-2 border rounded-lg text-sm focus:outline-none bg-white text-left transition-colors ${
+            isOpen
+              ? "border-[#3363AD] ring-2 ring-[#3363AD]/30"
+              : "border-gray-200 hover:border-gray-300"
+          }`}
+        >
+          {value ? (
+            <span className="flex items-center gap-2 min-w-0">
+              <Avatar name={value.fullName} photo={null} size="w-6 h-6" />
+              <span className="truncate font-medium text-gray-800">{value.fullName}</span>
+            </span>
+          ) : (
+            <span className="text-gray-400">Select a CHW…</span>
+          )}
+          <span className="flex items-center gap-1 shrink-0 ml-2">
+            {value && (
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={(e) => { e.stopPropagation(); onChange(null); }}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); onChange(null); } }}
+                className="text-gray-400 hover:text-gray-600 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </span>
+            )}
+            <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-150 ${isOpen ? "rotate-180" : ""}`} />
+          </span>
+        </button>
+
+        {isOpen && (
+          <div className="absolute z-20 mt-1 w-full bg-white border border-gray-100 rounded-xl shadow-lg overflow-hidden">
+            <div className="p-2 border-b border-gray-100">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                {isFetching && (
+                  <div className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3 h-3 border-2 border-[#3363AD]/30 border-t-[#3363AD] rounded-full animate-spin" />
+                )}
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={search}
+                  onChange={(e) => { setSearch(e.target.value); debouncedSet(e.target.value); }}
+                  placeholder="Search CHW by name…"
+                  className="w-full pl-8 pr-8 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD]"
+                />
+              </div>
+            </div>
+            <div className="max-h-48 overflow-y-auto">
+              {!isFetching && students.length === 0 && (
+                <p className="text-xs text-gray-400 text-center py-5">
+                  {search ? "No CHWs match your search." : "No CHWs available."}
+                </p>
+              )}
+              {isFetching && students.length === 0 && (
+                <div className="flex justify-center py-5">
+                  <div className="w-5 h-5 border-2 border-[#3363AD]/30 border-t-[#3363AD] rounded-full animate-spin" />
+                </div>
+              )}
+              {students.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => {
+                    onChange(s);
+                    setIsOpen(false);
+                    setSearch("");
+                    setDebounced("");
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 text-left transition-colors"
+                >
+                  <Avatar name={s.fullName} photo={null} size="w-8 h-8" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-800 truncate">{s.fullName}</p>
+                    {s.phoneNumber && (
+                      <p className="text-xs text-gray-400 flex items-center gap-1">
+                        <Phone className="w-3 h-3" />{s.phoneNumber}
+                      </p>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
         )}
       </div>
-      {debounced.length > 1 && results.length > 0 && !selected && (
-        <div className="border border-gray-100 rounded-lg shadow-lg bg-white max-h-44 overflow-y-auto z-10 relative">
-          {results.map((s) => (
-            <button key={s.id} type="button" onClick={() => pick(s)} className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 text-left transition-colors">
-              <Avatar name={s.fullName} photo={null} size="w-8 h-8" />
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-gray-800 truncate">{s.fullName}</p>
-                {s.phoneNumber && (
-                  <p className="text-xs text-gray-400 flex items-center gap-1">
-                    <Phone className="w-3 h-3" />{s.phoneNumber}
-                  </p>
-                )}
-              </div>
-            </button>
-          ))}
-        </div>
-      )}
-      {debounced.length > 1 && results.length === 0 && !isFetching && (
-        <p className="text-xs text-gray-400 px-1">No results found.</p>
-      )}
     </div>
   );
 };
 
 /* ─── Create Group Modal ─────────────────────────────────────────────────── */
+const selectCls = "w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD] bg-white disabled:bg-gray-50 disabled:text-gray-400";
+
 const CreateGroupModal = ({ open, onClose }: { open: boolean; onClose: () => void }) => {
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
+  const [district, setDistrict] = useState("");
   const [sector, setSector] = useState("");
+  const [cell, setCell] = useState("");
+  const [village, setVillage] = useState("");
   const [description, setDescription] = useState("");
   const [choStudent, setChoStudent] = useState<IStudent | null>(null);
 
+  const districtOpts = getDistrictOptions();
+  const sectorOpts = district ? getSectorOptions(district) : [];
+  const cellOpts = sector ? getCellOptions(sector) : [];
+  const villageOpts = cell ? getVillageOptions(cell) : [];
+
+  const handleDistrictChange = (v: string) => { setDistrict(v); setSector(""); setCell(""); setVillage(""); };
+  const handleSectorChange = (v: string) => { setSector(v); setCell(""); setVillage(""); };
+  const handleCellChange = (v: string) => { setCell(v); setVillage(""); };
+
+  const handleCHWSelect = (s: IStudent | null) => {
+    setChoStudent(s);
+    if (s) {
+      setDistrict(s.district ?? "");
+      setSector(s.sector ?? "");
+      setCell(s.cell ?? "");
+      setVillage(s.village ?? "");
+    } else {
+      setDistrict(""); setSector(""); setCell(""); setVillage("");
+    }
+  };
+
+  const resetForm = () => {
+    setName(""); setDistrict(""); setSector(""); setCell(""); setVillage("");
+    setDescription(""); setChoStudent(null);
+  };
+
   const { mutate, isPending } = useMutation({
-    mutationFn: () => adminCreateGroup({ name, choStudentId: choStudent!.id, sector: sector || undefined, description: description || undefined }),
+    mutationFn: async () => {
+      const { group } = await adminPromoteToCHO(choStudent!.userId, name.trim());
+      const locationStr = [district, sector, cell, village].filter(Boolean).join(" / ");
+      if (locationStr || description.trim()) {
+        await adminUpdateGroup(group.id, {
+          sector: locationStr || undefined,
+          description: description.trim() || undefined,
+        });
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-cho-groups"] });
       toast.success("CHO group created successfully.");
-      setName(""); setSector(""); setDescription(""); setChoStudent(null);
+      resetForm();
       onClose();
     },
     onError: (error: any) => {
@@ -157,30 +266,74 @@ const CreateGroupModal = ({ open, onClose }: { open: boolean; onClose: () => voi
         <Transition.Child as={Fragment} enter="ease-out duration-200" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in duration-150" leaveFrom="opacity-100" leaveTo="opacity-0">
           <div className="fixed inset-0 bg-black/40" />
         </Transition.Child>
-        <div className="fixed inset-0 flex items-center justify-center p-4">
+        <div className="fixed inset-0 flex items-center justify-center p-4 overflow-y-auto">
           <Transition.Child as={Fragment} enter="ease-out duration-200" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="ease-in duration-150" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
-            <Dialog.Panel className="w-full max-w-md bg-white rounded-2xl shadow-xl p-6 space-y-5">
+            <Dialog.Panel className="w-full max-w-md bg-white rounded-2xl shadow-xl p-6 space-y-5 my-auto">
               <div>
                 <Dialog.Title className="text-lg font-bold text-gray-900">Create CHO Group</Dialog.Title>
-                <Dialog.Description className="text-sm text-gray-500 mt-0.5">Assign a CHO and name a new group.</Dialog.Description>
+                <Dialog.Description className="text-sm text-gray-500 mt-0.5">
+                  The selected CHW will be promoted to CHO and assigned to lead the group.
+                </Dialog.Description>
               </div>
               <div className="space-y-3">
+                {/* Group name */}
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-gray-600">Group Name *</label>
-                  <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Kigali North Group" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD]" />
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="e.g. Kigali North Group"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD]"
+                  />
                 </div>
-                <StudentSearchPicker label="Community Health Officer (CHO) *" placeholder="Search CHO by name…" onSelect={setChoStudent} />
+
+                {/* CHW combobox */}
+                <CHWCombobox
+                  label="Community Health Worker (CHW) *"
+                  value={choStudent}
+                  onChange={handleCHWSelect}
+                />
+
+                {/* Location cascade */}
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-gray-600">Sector (optional)</label>
-                  <input type="text" value={sector} onChange={(e) => setSector(e.target.value)} placeholder="e.g. Nyarugenge" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD]" />
+                  <label className="text-xs font-semibold text-gray-600 flex items-center gap-1">
+                    <MapPin className="w-3 h-3" /> Area (optional)
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <select value={district} onChange={(e) => handleDistrictChange(e.target.value)} className={selectCls}>
+                      <option value="">District</option>
+                      {districtOpts.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+                    </select>
+                    <select value={sector} onChange={(e) => handleSectorChange(e.target.value)} disabled={!district} className={selectCls}>
+                      <option value="">Sector</option>
+                      {sectorOpts.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+                    </select>
+                    <select value={cell} onChange={(e) => handleCellChange(e.target.value)} disabled={!sector} className={selectCls}>
+                      <option value="">Cell</option>
+                      {cellOpts.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+                    </select>
+                    <select value={village} onChange={(e) => setVillage(e.target.value)} disabled={!cell} className={selectCls}>
+                      <option value="">Village</option>
+                      {villageOpts.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+                    </select>
+                  </div>
                 </div>
+
+                {/* Description */}
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-gray-600">Description (optional)</label>
-                  <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="Brief description…" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD] resize-none" />
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    rows={2}
+                    placeholder="Brief description…"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD] resize-none"
+                  />
                 </div>
               </div>
               <div className="flex gap-3">
-                <Button variant="ghost" size="sm" className="flex-1" onClick={onClose} disabled={isPending}>Cancel</Button>
+                <Button variant="ghost" size="sm" className="flex-1" onClick={() => { resetForm(); onClose(); }} disabled={isPending}>Cancel</Button>
                 <Button size="sm" className="flex-1" onClick={() => mutate()} disabled={!canSubmit} isLoading={isPending}>
                   {!isPending && <Plus className="w-3.5 h-3.5 mr-1.5" />}
                   Create Group
