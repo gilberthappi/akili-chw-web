@@ -275,6 +275,10 @@ const RoutesProvider = () => {
           ),
         },
         {
+          path: "admin/cho-groups",
+          element: <Navigate to="/students" replace />,
+        },
+        {
           path: "admin/cho-groups/:id",
           element: (
             <ProtectedRoute allowedRoles={["ADMIN", "STAFF"]}>
