@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect, Fragment } from "react";
+import { useState, useCallback, Fragment } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -65,8 +65,6 @@ const CHWCombobox = ({
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
-  const containerRef = useRef<HTMLDivElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const debouncedSet = useCallback(debounce((v: string) => setDebounced(v), 350), []);
 
@@ -81,80 +79,69 @@ const CHWCombobox = ({
     enabled: isOpen,
   });
 
-  // Focus search input when dropdown opens (avoids autoFocus conflicting with Dialog focus trap)
-  useEffect(() => {
-    if (isOpen) searchInputRef.current?.focus();
-  }, [isOpen]);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    if (isOpen) document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [isOpen]);
-
   const all: IStudent[] = resp?.data ?? [];
   const students = search ? all : all.slice(0, 10);
 
+  const handleContainerBlur = (e: React.FocusEvent<HTMLDivElement>) => {
+    // Close only when focus leaves this container entirely
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsOpen(false);
+    }
+  };
+
   return (
-    <div className="space-y-1" ref={containerRef}>
+    <div className="space-y-1" onBlur={handleContainerBlur}>
       <label className="text-xs font-semibold text-gray-600">{label}</label>
       <div className="relative">
-        <button
-          type="button"
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => setIsOpen((o) => !o)}
-          className={`w-full flex items-center justify-between px-3 py-2 border rounded-lg text-sm focus:outline-none bg-white text-left transition-colors ${
-            isOpen
-              ? "border-[#3363AD] ring-2 ring-[#3363AD]/30"
-              : "border-gray-200 hover:border-gray-300"
-          }`}
-        >
-          {value ? (
-            <span className="flex items-center gap-2 min-w-0">
-              <Avatar name={value.fullName} photo={null} size="w-6 h-6" />
-              <span className="truncate font-medium text-gray-800">{value.fullName}</span>
-            </span>
-          ) : (
-            <span className="text-gray-400">Select a CHW…</span>
-          )}
-          <span className="flex items-center gap-1 shrink-0 ml-2">
-            {value && (
-              <span
-                role="button"
-                tabIndex={0}
-                onClick={(e) => { e.stopPropagation(); onChange(null); }}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); onChange(null); } }}
-                className="text-gray-400 hover:text-gray-600 cursor-pointer"
-              >
-                <X className="w-3.5 h-3.5" />
-              </span>
+        {isOpen ? (
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+            {isFetching && (
+              <div className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3 h-3 border-2 border-[#3363AD]/30 border-t-[#3363AD] rounded-full animate-spin" />
             )}
-            <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-150 ${isOpen ? "rotate-180" : ""}`} />
-          </span>
-        </button>
+            <input
+              autoFocus
+              type="text"
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); debouncedSet(e.target.value); }}
+              placeholder="Search CHW by name…"
+              className="w-full pl-8 pr-8 py-2 border border-[#3363AD] ring-2 ring-[#3363AD]/30 rounded-lg text-sm focus:outline-none bg-white"
+            />
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setIsOpen(true)}
+            className="w-full flex items-center justify-between px-3 py-2 border border-gray-200 hover:border-gray-300 rounded-lg text-sm focus:outline-none bg-white text-left transition-colors"
+          >
+            {value ? (
+              <span className="flex items-center gap-2 min-w-0">
+                <Avatar name={value.fullName} photo={null} size="w-6 h-6" />
+                <span className="truncate font-medium text-gray-800">{value.fullName}</span>
+              </span>
+            ) : (
+              <span className="text-gray-400">Select a CHW…</span>
+            )}
+            <span className="flex items-center gap-1 shrink-0 ml-2">
+              {value && (
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={(e) => { e.stopPropagation(); onChange(null); }}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); onChange(null); } }}
+                  className="text-gray-400 hover:text-gray-600 cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </span>
+              )}
+              <ChevronDown className="w-4 h-4 text-gray-400" />
+            </span>
+          </button>
+        )}
 
         {isOpen && (
           <div className="absolute z-20 mt-1 w-full bg-white border border-gray-100 rounded-xl shadow-lg overflow-hidden">
-            <div className="p-2 border-b border-gray-100">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-                {isFetching && (
-                  <div className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3 h-3 border-2 border-[#3363AD]/30 border-t-[#3363AD] rounded-full animate-spin" />
-                )}
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  value={search}
-                  onChange={(e) => { setSearch(e.target.value); debouncedSet(e.target.value); }}
-                  placeholder="Search CHW by name…"
-                  className="w-full pl-8 pr-8 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD]"
-                />
-              </div>
-            </div>
             <div className="max-h-48 overflow-y-auto">
               {!isFetching && students.length === 0 && (
                 <p className="text-xs text-gray-400 text-center py-5">
@@ -170,6 +157,8 @@ const CHWCombobox = ({
                 <button
                   key={s.id}
                   type="button"
+                  tabIndex={-1}
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
                     onChange(s);
                     setIsOpen(false);
