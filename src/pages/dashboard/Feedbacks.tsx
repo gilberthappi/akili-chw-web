@@ -521,50 +521,36 @@ export const Feedbacks: React.FC = () => {
     return queryString ? `?${queryString}` : '';
   };
 
-  // Export data function — exports only the currently active tab, respecting all active filters
+  // Export data function — exports all selected chip types as separate sheets in one workbook
   const exportData = async () => {
     if (isExporting) return;
-
     setIsExporting(true);
 
     try {
       const params = new URLSearchParams();
 
-      // Only include the current tab's type
-      const tabToParam: Record<string, string> = {
-        slide: 'includeFeedbacks',
-        chapter: 'includeChapterReviews',
-        section: 'includeSectionReviews',
-        course: 'includeCourseReviews',
-        system: 'includeSystemReviews',
-      };
-      params.append(tabToParam[selectedTab], 'true');
+      // Send each chip's current selected state directly
+      params.append('includeFeedbacks', filters.includeFeedbacks.toString());
+      params.append('includeChapterReviews', filters.includeChapterReviews.toString());
+      params.append('includeSectionReviews', filters.includeSectionReviews.toString());
+      params.append('includeCourseReviews', filters.includeCourseReviews.toString());
+      params.append('includeSystemReviews', filters.includeSystemReviews.toString());
 
-      // Pass the active tab's current search term
-      const tabSearch: Record<string, string> = {
-        slide: slideSearch,
-        chapter: chapterSearch,
-        section: sectionSearch,
-        course: courseSearch,
-        system: systemSearch,
-      };
-      const currentSearch = tabSearch[selectedTab];
-      if (currentSearch) params.append('searchq', currentSearch);
-
-      // Pass active filter parameters
+      // Pass active location/date filter parameters
       if (filters.district) params.append('district', filters.district);
       if (filters.sector) params.append('sector', filters.sector);
       if (filters.startDate) params.append('startDate', filters.startDate);
       if (filters.endDate) params.append('endDate', filters.endDate);
 
-      const tabFileNames: Record<string, string> = {
-        slide: 'slide-feedbacks',
-        chapter: 'chapter-reviews',
-        section: 'section-reviews',
-        course: 'course-reviews',
-        system: 'system-reviews',
-      };
-      const filename = `${tabFileNames[selectedTab]}-${new Date().toISOString().split('T')[0]}.xlsx`;
+      // Build filename from which chips are selected
+      const selected: string[] = [];
+      if (filters.includeFeedbacks) selected.push('slides');
+      if (filters.includeChapterReviews) selected.push('chapters');
+      if (filters.includeSectionReviews) selected.push('sections');
+      if (filters.includeCourseReviews) selected.push('courses');
+      if (filters.includeSystemReviews) selected.push('system');
+      const typePart = selected.length === 5 ? 'all-reviews' : selected.join('-');
+      const filename = `${typePart}-${new Date().toISOString().split('T')[0]}.xlsx`;
 
       const blob = await exportReviews(`?${params.toString()}`);
       const url = window.URL.createObjectURL(blob);
