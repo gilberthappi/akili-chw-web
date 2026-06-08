@@ -451,16 +451,10 @@ const DashboardLayout = ({
       roles: ["CHO"],
     },
     {
-      label: "CHW",
+      label: "CHW & CHO",
       icon: <Users className='w-4 h-4' />,
       path: "/students",
-      roles: ["ADMIN","DEVELOPER" ,"TRAINER", "STAFF"],
-    },
-    {
-      label: "CHO",
-      icon: <UsersRound className='w-4 h-4' />,
-      path: "/admin/cho-groups",
-      roles: ["ADMIN", "STAFF"],
+      roles: ["ADMIN", "DEVELOPER", "TRAINER", "STAFF"],
     },
     {
       label: "My Certificates",

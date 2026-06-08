@@ -41,7 +41,6 @@ import MidTest from "@/pages/dashboard/MidTest";
 import FinalTestPage from "@/pages/dashboard/FinalTestPage";
 import CHOGroupPage from "@/pages/dashboard/CHOGroup";
 import CHOGroupInvitePage from "@/pages/dashboard/CHOGroupInvite";
-import AdminCHOGroupsPage from "@/pages/dashboard/AdminCHOGroups";
 import AdminCHOGroupDetailPage from "@/pages/dashboard/AdminCHOGroupDetail";
 
 const RoutesProvider = () => {
@@ -277,11 +276,7 @@ const RoutesProvider = () => {
         },
         {
           path: "admin/cho-groups",
-          element: (
-            <ProtectedRoute allowedRoles={["ADMIN", "STAFF"]}>
-              <AdminCHOGroupsPage />
-            </ProtectedRoute>
-          ),
+          element: <Navigate to="/students" replace />,
         },
         {
           path: "admin/cho-groups/:id",
