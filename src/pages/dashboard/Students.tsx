@@ -1,4 +1,4 @@
-import { useState, useCallback, Fragment } from "react";
+import { useState, useCallback, Fragment, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -9,9 +9,12 @@ import {
   Phone,
   Trash2,
   ChevronRight,
+  ChevronLeft,
   ChevronDown,
   X,
   AlertTriangle,
+  ArrowUpDown,
+  Calendar,
 } from "lucide-react";
 import { Dialog, Transition } from "@headlessui/react";
 import { debounce } from "lodash";
@@ -365,6 +368,57 @@ const StudentsPage = () => {
 
   const groups = data?.groups ?? [];
 
+  // ── Group list filters / sorting / pagination ────────────────────────────
+  const [groupSearch, setGroupSearch] = useState("");
+  const [groupSort, setGroupSort] = useState<"newest" | "oldest" | "a-z" | "z-a" | "date-range">("newest");
+  const [groupDateFrom, setGroupDateFrom] = useState("");
+  const [groupDateTo, setGroupDateTo] = useState("");
+  const [groupPage, setGroupPage] = useState(1);
+  const GROUP_PAGE_SIZE = 7;
+
+  const filteredGroups = useMemo(() => {
+    let result = [...groups];
+    if (groupSearch.trim()) {
+      const q = groupSearch.toLowerCase();
+      result = result.filter(
+        (g) =>
+          g.name.toLowerCase().includes(q) ||
+          (g.cho?.user?.fullNames ?? "").toLowerCase().includes(q) ||
+          (g.sector ?? "").toLowerCase().includes(q),
+      );
+    }
+    if (groupSort === "date-range") {
+      if (groupDateFrom) result = result.filter((g) => new Date(g.createdAt) >= new Date(groupDateFrom));
+      if (groupDateTo) {
+        const to = new Date(groupDateTo);
+        to.setHours(23, 59, 59, 999);
+        result = result.filter((g) => new Date(g.createdAt) <= to);
+      }
+      result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    } else {
+      result.sort((a, b) => {
+        if (groupSort === "a-z") return a.name.localeCompare(b.name);
+        if (groupSort === "z-a") return b.name.localeCompare(a.name);
+        if (groupSort === "oldest") return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+    }
+    return result;
+  }, [groups, groupSearch, groupSort, groupDateFrom, groupDateTo]);
+
+  const groupTotalPages = Math.max(1, Math.ceil(filteredGroups.length / GROUP_PAGE_SIZE));
+  const pagedGroups = filteredGroups.slice((groupPage - 1) * GROUP_PAGE_SIZE, groupPage * GROUP_PAGE_SIZE);
+
+  const groupPaginationRange = (): (number | "...")[] => {
+    if (groupTotalPages <= 7) return Array.from({ length: groupTotalPages }, (_, i) => i + 1);
+    const pages: (number | "...")[] = [1];
+    if (groupPage > 3) pages.push("...");
+    for (let i = Math.max(2, groupPage - 1); i <= Math.min(groupTotalPages - 1, groupPage + 1); i++) pages.push(i);
+    if (groupPage < groupTotalPages - 2) pages.push("...");
+    pages.push(groupTotalPages);
+    return pages;
+  };
+
   const { mutate: deleteGroup, isPending: isDeleting } = useMutation({
     mutationFn: (groupId: string) => adminDeleteGroup(groupId),
     onSuccess: () => {
@@ -378,8 +432,8 @@ const StudentsPage = () => {
   });
 
   const skeletons = (
-    <div className="space-y-3 animate-pulse">
-      {[...Array(4)].map((_, i) => <div key={i} className="h-20 bg-gray-100 rounded-xl" />)}
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 animate-pulse">
+      {[...Array(6)].map((_, i) => <div key={i} className="h-40 bg-gray-100 rounded-2xl" />)}
     </div>
   );
 
@@ -456,37 +510,171 @@ const StudentsPage = () => {
               <p className="text-gray-400 text-sm">Click "New Group" to create the first one, or promote a CHW to CHO.</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {groups.map((group) => (
-                <div key={group.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center gap-4 hover:shadow-md transition-shadow">
-                  <div className="w-11 h-11 rounded-xl bg-[#EBF0F9] flex items-center justify-center shrink-0">
-                    <Users className="w-5 h-5 text-[#3363AD]" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-900 truncate">{group.name}</p>
-                    <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-0.5">
-                      {group.cho?.user && (
-                        <p className="text-xs text-gray-500 flex items-center gap-1"><Users className="w-3 h-3" />CHO: {group.cho.user.fullNames}</p>
-                      )}
-                      {group.sector && (
-                        <p className="text-xs text-gray-500 flex items-center gap-1"><MapPin className="w-3 h-3" />{group.sector}</p>
-                      )}
-                      <p className="text-xs text-gray-500 flex items-center gap-1">
-                        <Users className="w-3 h-3" />
-                        {(group._count?.members ?? 0) + (group.cho?.user ? 1 : 0)} member{(group._count?.members ?? 0) + (group.cho?.user ? 1 : 0) !== 1 ? "s" : ""}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button type="button" onClick={() => navigate(`/admin/cho-groups/${group.id}`)} className="flex items-center gap-1.5 text-sm font-semibold text-[#3363AD] hover:underline">
-                      Manage <ChevronRight className="w-4 h-4" />
-                    </button>
-                    <button type="button" onClick={() => setPendingDelete(group)} className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors" title="Delete group">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+            <div className="space-y-5">
+              {/* ── Toolbar ─────────────────────────────────────────────── */}
+              <div className="flex flex-col sm:flex-row gap-3">
+                {/* Search */}
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={groupSearch}
+                    onChange={(e) => { setGroupSearch(e.target.value); setGroupPage(1); }}
+                    placeholder="Search groups, CHO name, or location…"
+                    className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD] bg-white"
+                  />
                 </div>
-              ))}
+                {/* Sort */}
+                <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                  <ArrowUpDown className="w-4 h-4 text-gray-400 shrink-0" />
+                  <select
+                    value={groupSort}
+                    onChange={(e) => { setGroupSort(e.target.value as typeof groupSort); setGroupPage(1); }}
+                    className="border border-gray-200 rounded-xl text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD] bg-white"
+                  >
+                    <option value="newest">Newest first</option>
+                    <option value="oldest">Oldest first</option>
+                    <option value="a-z">Name A → Z</option>
+                    <option value="z-a">Name Z → A</option>
+                    <option value="date-range">Date range</option>
+                  </select>
+                  {groupSort === "date-range" && (
+                    <>
+                      <input
+                        type="date"
+                        value={groupDateFrom}
+                        onChange={(e) => { setGroupDateFrom(e.target.value); setGroupPage(1); }}
+                        className="border border-gray-200 rounded-xl text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD] bg-white"
+                      />
+                      <span className="text-gray-400 text-sm">to</span>
+                      <input
+                        type="date"
+                        value={groupDateTo}
+                        onChange={(e) => { setGroupDateTo(e.target.value); setGroupPage(1); }}
+                        className="border border-gray-200 rounded-xl text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD] bg-white"
+                      />
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Result count */}
+              <p className="text-xs text-gray-400">
+                {filteredGroups.length} group{filteredGroups.length !== 1 ? "s" : ""}{groupSearch.trim() ? " found" : " total"}
+              </p>
+
+              {filteredGroups.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+                  <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center">
+                    <Search className="w-5 h-5 text-gray-300" />
+                  </div>
+                  <p className="text-gray-500 font-medium text-sm">No groups match your search</p>
+                </div>
+              ) : (
+                <>
+                  {/* ── Grid ──────────────────────────────────────────────── */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {pagedGroups.map((group) => {
+                      const memberCount = (group._count?.members ?? 0) + (group.cho?.user ? 1 : 0);
+                      return (
+                        <div
+                          key={group.id}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => navigate(`/admin/cho-groups/${group.id}`)}
+                          onKeyDown={(e) => e.key === "Enter" && navigate(`/admin/cho-groups/${group.id}`)}
+                          className="group bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col gap-4 hover:shadow-lg hover:border-[#3363AD]/30 transition-all cursor-pointer"
+                        >
+                          {/* Icon + name */}
+                          <div className="flex items-start gap-3">
+                            <div className="w-11 h-11 rounded-xl bg-[#EBF0F9] flex items-center justify-center shrink-0">
+                              <Users className="w-5 h-5 text-[#3363AD]" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-bold text-gray-900 truncate group-hover:text-[#3363AD] transition-colors">{group.name}</p>
+                              {group.cho?.user && (
+                                <p className="text-xs text-gray-500 mt-0.5 truncate">CHO: {group.cho.user.fullNames}</p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Meta */}
+                          <div className="flex flex-col gap-1.5">
+                            {group.sector && (
+                              <p className="text-xs text-gray-500 flex items-center gap-1.5">
+                                <MapPin className="w-3.5 h-3.5 shrink-0 text-gray-400" />{group.sector}
+                              </p>
+                            )}
+                            <p className="text-xs text-gray-500 flex items-center gap-1.5">
+                              <Users className="w-3.5 h-3.5 shrink-0 text-gray-400" />
+                              {memberCount} member{memberCount !== 1 ? "s" : ""}
+                            </p>
+                            <p className="text-xs text-gray-400 flex items-center gap-1.5">
+                              <Calendar className="w-3.5 h-3.5 shrink-0" />
+                              {new Date(group.createdAt).toLocaleDateString()}
+                            </p>
+                          </div>
+
+                          {/* Footer */}
+                          <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                            <span className="text-xs font-semibold text-[#3363AD] flex items-center gap-1">
+                              Manage <ChevronRight className="w-3.5 h-3.5" />
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setPendingDelete(group); }}
+                              className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                              title="Delete group"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* ── Pagination ─────────────────────────────────────────── */}
+                  {groupTotalPages > 1 && (
+                    <div className="flex items-center justify-center gap-1.5 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setGroupPage((p) => Math.max(1, p - 1))}
+                        disabled={groupPage === 1}
+                        className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+                      {groupPaginationRange().map((p, i) =>
+                        p === "..." ? (
+                          <span key={`e-${i}`} className="w-8 h-8 flex items-center justify-center text-gray-400 text-sm select-none">…</span>
+                        ) : (
+                          <button
+                            key={p}
+                            type="button"
+                            onClick={() => setGroupPage(p as number)}
+                            className={`w-8 h-8 rounded-lg text-sm font-semibold transition-colors ${
+                              groupPage === p
+                                ? "bg-[#3363AD] text-white"
+                                : "border border-gray-200 text-gray-600 hover:bg-gray-50"
+                            }`}
+                          >
+                            {p}
+                          </button>
+                        ),
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setGroupPage((p) => Math.min(groupTotalPages, p + 1))}
+                        disabled={groupPage === groupTotalPages}
+                        className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           )}
         </>
