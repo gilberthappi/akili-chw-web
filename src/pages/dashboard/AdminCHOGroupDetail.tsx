@@ -18,6 +18,7 @@ import {
   Pencil,
   Check,
   CheckCircle2,
+  AlertTriangle,
 } from "lucide-react";
 import { Dialog, Transition } from "@headlessui/react";
 import {
@@ -174,7 +175,7 @@ const AdminCHOGroupDetailPage = () => {
 
   // Add / remove members
   const [addStudent, setAddStudent] = useState<IStudent | null>(null);
-  const [removingId, setRemovingId] = useState<string | null>(null);
+  const [pendingRemove, setPendingRemove] = useState<ICHOGroupMember | null>(null);
 
   // Demote CHO
   const [showDemote, setShowDemote] = useState(false);
@@ -216,11 +217,11 @@ const AdminCHOGroupDetailPage = () => {
       queryClient.invalidateQueries({ queryKey: ["admin-cho-group-detail", id] });
       queryClient.invalidateQueries({ queryKey: ["admin-cho-groups"] });
       toast.success("CHW removed from group.");
-      setRemovingId(null);
+      setPendingRemove(null);
     },
     onError: (error: any) => {
       toast.error(error?.response?.data?.message ?? "Failed to remove member.");
-      setRemovingId(null);
+      setPendingRemove(null);
     },
   });
 
@@ -311,20 +312,11 @@ const AdminCHOGroupDetailPage = () => {
 
   return (
     <div className="space-y-6">
-      {/* Back + title */}
+      {/* Title + actions */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => navigate("/admin/cho-groups")}
-            className="p-2 rounded-xl hover:bg-gray-100 text-gray-500 transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <div>
-            <h2 className="text-2xl font-bold text-[#333333]">{group.name}</h2>
-            <p className="text-sm text-gray-500">Group details and management</p>
-          </div>
+        <div>
+          <h2 className="text-2xl font-bold text-[#333333]">{group.name}</h2>
+          <p className="text-sm text-gray-500">Group details and management</p>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -624,57 +616,102 @@ const AdminCHOGroupDetailPage = () => {
           </div>
         ) : (
           <div className="divide-y divide-gray-50">
-            {members.map((m) => {
-              const isBeingRemoved = removingId === m.studentId && isRemoving;
-              return (
-                <div
-                  key={m.id}
-                  className="flex items-center gap-4 py-3 first:pt-0 last:pb-0"
-                >
-                  <Avatar name={m.student.user.fullNames} photo={m.student.user.photo} size="w-10 h-10" />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-900 truncate">{m.student.user.fullNames}</p>
-                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
-                      {m.student.user.phoneNumber && (
-                        <p className="text-xs text-gray-500 flex items-center gap-1">
-                          <Phone className="w-3 h-3" />
-                          {m.student.user.phoneNumber}
-                        </p>
-                      )}
-                      {m.student.user.district && (
-                        <p className="text-xs text-gray-500 flex items-center gap-1">
-                          <MapPin className="w-3 h-3" />
-                          {m.student.user.district}
-                          {m.student.user.sector ? ` / ${m.student.user.sector}` : ""}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <p className="text-xs text-gray-400 shrink-0 hidden sm:block">
-                    Joined {formatDate(m.joinedAt)}
-                  </p>
-                  <button
-                    type="button"
-                    disabled={isRemoving}
-                    onClick={() => {
-                      setRemovingId(m.studentId);
-                      removeMember(m.studentId);
-                    }}
-                    className="p-2 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-40 shrink-0"
-                    title="Remove from group"
-                  >
-                    {isBeingRemoved ? (
-                      <div className="w-4 h-4 border-2 border-red-300 border-t-red-500 rounded-full animate-spin" />
-                    ) : (
-                      <Trash2 className="w-4 h-4" />
+            {members.map((m) => (
+              <div
+                key={m.id}
+                className="flex items-center gap-4 py-3 first:pt-0 last:pb-0"
+              >
+                <Avatar name={m.student.user.fullNames} photo={m.student.user.photo} size="w-10 h-10" />
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-gray-900 truncate">{m.student.user.fullNames}</p>
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+                    {m.student.user.phoneNumber && (
+                      <p className="text-xs text-gray-500 flex items-center gap-1">
+                        <Phone className="w-3 h-3" />
+                        {m.student.user.phoneNumber}
+                      </p>
                     )}
-                  </button>
+                    {m.student.user.district && (
+                      <p className="text-xs text-gray-500 flex items-center gap-1">
+                        <MapPin className="w-3 h-3" />
+                        {m.student.user.district}
+                        {m.student.user.sector ? ` / ${m.student.user.sector}` : ""}
+                      </p>
+                    )}
+                  </div>
                 </div>
-              );
-            })}
+                <p className="text-xs text-gray-400 shrink-0 hidden sm:block">
+                  Joined {formatDate(m.joinedAt)}
+                </p>
+                <button
+                  type="button"
+                  disabled={isRemoving}
+                  onClick={() => setPendingRemove(m)}
+                  className="p-2 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-40 shrink-0"
+                  title="Remove from group"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
           </div>
         )}
       </div>
+
+      {/* Remove member confirmation modal */}
+      <Transition appear show={!!pendingRemove} as={Fragment}>
+        <Dialog as="div" className="relative z-50" onClose={() => !isRemoving && setPendingRemove(null)}>
+          <Transition.Child
+            as={Fragment}
+            enter="ease-out duration-200" enterFrom="opacity-0" enterTo="opacity-100"
+            leave="ease-in duration-150" leaveFrom="opacity-100" leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-black/40" />
+          </Transition.Child>
+          <div className="fixed inset-0 flex items-center justify-center p-4">
+            <Transition.Child
+              as={Fragment}
+              enter="ease-out duration-200" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100"
+              leave="ease-in duration-150" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95"
+            >
+              <Dialog.Panel className="w-full max-w-sm bg-white rounded-2xl shadow-xl p-6">
+                <div className="flex flex-col items-center text-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center">
+                    <AlertTriangle className="w-5 h-5 text-red-500" />
+                  </div>
+                  <div>
+                    <Dialog.Title className="text-lg font-bold text-gray-900">Remove Member</Dialog.Title>
+                    <Dialog.Description className="text-sm text-gray-500 mt-1">
+                      Remove <span className="font-semibold text-gray-800">{pendingRemove?.student.user.fullNames}</span> from this group?
+                      They will lose access to group activities. This cannot be undone.
+                    </Dialog.Description>
+                  </div>
+                </div>
+                <div className="flex gap-3 mt-6">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => setPendingRemove(null)}
+                    disabled={isRemoving}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="flex-1 !bg-red-500 hover:!bg-red-600"
+                    onClick={() => pendingRemove && removeMember(pendingRemove.studentId)}
+                    isLoading={isRemoving}
+                  >
+                    {!isRemoving && <Trash2 className="w-3.5 h-3.5 mr-1.5" />}
+                    Remove
+                  </Button>
+                </div>
+              </Dialog.Panel>
+            </Transition.Child>
+          </div>
+        </Dialog>
+      </Transition>
 
       {/* Delete confirmation modal */}
       <Transition appear show={showDeleteConfirm} as={Fragment}>
