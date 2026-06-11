@@ -993,7 +993,7 @@ export const Feedbacks: React.FC = () => {
         actionBtn={exportBtn}
         columns={[
         {
-          title: "Student",
+          title: "CHW",
           key: "student",
           render: (row: IChapterReview) => (
             <div className="flex items-center gap-2">
@@ -1066,7 +1066,7 @@ export const Feedbacks: React.FC = () => {
         actionBtn={exportBtn}
         columns={[
         {
-          title: "Student",
+          title: "CHW",
           key: "student",
           render: (row: ISectionReview) => (
             <div className="flex items-center gap-2">
@@ -1139,7 +1139,7 @@ export const Feedbacks: React.FC = () => {
         actionBtn={exportBtn}
         columns={[
         {
-          title: "Student",
+          title: "CHW",
           key: "student",
           render: (row: ICourseReview) => (
             <div className="flex items-center gap-2">

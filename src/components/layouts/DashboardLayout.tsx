@@ -410,7 +410,7 @@ const DashboardLayout = ({
           icon: <BarChart2 className='w-4 h-4' />,
         },
         {
-          label: "Learning",
+          label: "CHW",
           path: "/analytics/student",
           icon: <Users className='w-4 h-4' />,
         },
@@ -496,7 +496,7 @@ const DashboardLayout = ({
     },
 
     {
-      label: "Settings",
+      label: "My Settings",
       path: "/settings",
       roles: ["ADMIN", "TRAINER", "TRAINEE", "DEVELOPER", "CHO"],
       icon: <Cog8ToothIcon className='w-5 h-5' />,

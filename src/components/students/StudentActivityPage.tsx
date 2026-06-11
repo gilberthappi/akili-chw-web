@@ -168,7 +168,7 @@ const StudentActivityPage: React.FC = () => {
       <div className="flex items-center justify-center py-24">
         <div className="flex flex-col items-center gap-3">
           <div className="w-10 h-10 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-          <p className="text-sm text-gray-400">Loading student data...</p>
+          <p className="text-sm text-gray-400">Loading CHW data...</p>
         </div>
       </div>
     );
@@ -182,12 +182,12 @@ const StudentActivityPage: React.FC = () => {
             <XCircle className="w-6 h-6 text-red-500" />
           </div>
           <h3 className="text-base font-semibold text-[#333333] mb-1">
-            {error ? 'Failed to load student' : 'Student not found'}
+            {error ? 'Failed to load CHW' : 'CHW not found'}
           </h3>
           <p className="text-sm text-gray-400 mb-6">
             {error
-              ? 'An error occurred while fetching student data.'
-              : 'This student does not exist or was removed.'}
+              ? 'An error occurred while fetching CHW data.'
+              : 'This CHW does not exist or was removed.'}
           </p>
           <div className="flex items-center justify-center gap-3">
             <button
@@ -200,7 +200,7 @@ const StudentActivityPage: React.FC = () => {
               onClick={() => navigate('/students')}
               className="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50 transition-all"
             >
-              Back to Students
+              Back to CHWs
             </button>
           </div>
         </div>
@@ -255,9 +255,9 @@ const StudentActivityPage: React.FC = () => {
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div>
-          <h2 className="text-3xl font-bold text-[#333333]">Student Activity Dashboard</h2>
+          <h2 className="text-3xl font-bold text-[#333333]">CHW Activity Dashboard</h2>
           <p className="text-sm text-gray-500 mt-0.5">
-            Track and analyze student performance and engagement
+            Track and analyze CHW performance and engagement
           </p>
         </div>
       </div>
@@ -849,7 +849,7 @@ const StudentActivityPage: React.FC = () => {
                                 {question.correctAnswers.map((a) => a.label).join(', ')}
                               </span>
                               <span>
-                                <strong className="text-gray-500">Student answered:</strong>{' '}
+                                <strong className="text-gray-500">CHW answered:</strong>{' '}
                                 {question.studentSelectedAnswers.length > 0
                                   ? question.studentSelectedAnswers.join(', ')
                                   : 'No answer selected'}
@@ -926,7 +926,7 @@ const StudentActivityPage: React.FC = () => {
               <MessageSquare className="w-10 h-10 text-gray-300 mx-auto mb-3" />
               <p className="font-semibold text-[#333333] mb-1">No Reviews Yet</p>
               <p className="text-sm text-gray-400">
-                This student hasn't provided any reviews or feedback yet.
+                This CHW hasn't provided any reviews or feedback yet.
               </p>
             </div>
           )}
