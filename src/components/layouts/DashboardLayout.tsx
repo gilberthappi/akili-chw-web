@@ -481,13 +481,12 @@ const DashboardLayout = ({
       roles: ["ADMIN", "TRAINER", "TRAINEE", "DEVELOPER", "CHO"],
       icon: <Calendar className='w-5 h-5' />,
     },
-    // {
-    //   label: "Messaging",
-    //   icon: <MessageSquare className='w-4 h-4' />,
-    //   path: "/messaging",
-    //   roles: ["ADMIN", "TRAINER", "TRAINEE", "DEVELOPER", "CHO"],
-    //   industries: ["SFH", "WELTEL", "RBC"],
-    // },
+    {
+      label: "Messaging",
+      icon: <MessageSquare className='w-4 h-4' />,
+      path: "/messaging",
+      roles: ["ADMIN", "TRAINER", "TRAINEE", "DEVELOPER", "CHO", "STAFF"],
+    },
     {
       label: "Announcement",
       path: "/announcement",

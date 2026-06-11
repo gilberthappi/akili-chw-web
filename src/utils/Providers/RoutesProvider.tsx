@@ -110,8 +110,7 @@ const RoutesProvider = () => {
           path: "messaging",
           element: (
             <ProtectedRoute
-              allowedRoles={["ADMIN", "TRAINEE", "TRAINER","DEVELOPER"]}
-              allowedIndustries={["SFH","RBC","WELTEL"]}
+              allowedRoles={["ADMIN", "TRAINEE", "TRAINER", "DEVELOPER", "CHO", "STAFF"]}
             >
               <Messaging />
             </ProtectedRoute>

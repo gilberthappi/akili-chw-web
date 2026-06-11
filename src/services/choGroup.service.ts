@@ -59,7 +59,9 @@ export const adminGetAllGroups = async (
 export const adminCreateGroup = async (data: {
   name: string;
   choStudentId: string;
-  sector?: string;
+  sectors?: string[];
+  cells?: string[];
+  villages?: string[];
   description?: string;
 }): Promise<ICHOGroup> => {
   const res = await api.post("/cho-groups/", data);
@@ -85,7 +87,7 @@ export const adminRemoveMember = async (groupId: string, studentId: string): Pro
 
 export const adminUpdateGroup = async (
   groupId: string,
-  data: { name?: string; sector?: string; description?: string },
+  data: { name?: string; sectors?: string[]; cells?: string[]; villages?: string[]; description?: string },
 ): Promise<ICHOGroup> => {
   const res = await api.patch(`/cho-groups/${groupId}`, data);
   return res.data.data;
@@ -97,7 +99,12 @@ export const adminDeleteGroup = async (groupId: string): Promise<void> => {
 
 export const choUpdateMyGroup = async (data: {
   name?: string;
-  sector?: string;
+  district?: string;
+  sectors?: string[];
+  cells?: string[];
+  villages?: string[];
+  cell?: string;
+  village?: string;
   description?: string;
 }): Promise<ICHOGroup> => {
   const res = await api.patch("/cho-groups/mine", data);
