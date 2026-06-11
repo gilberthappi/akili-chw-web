@@ -410,7 +410,7 @@ const DashboardLayout = ({
           icon: <BarChart2 className='w-4 h-4' />,
         },
         {
-          label: "Student",
+          label: "Learning",
           path: "/analytics/student",
           icon: <Users className='w-4 h-4' />,
         },
@@ -462,12 +462,12 @@ const DashboardLayout = ({
       path: "/my-certificates",
       roles: ["TRAINEE", "CHO"],
     },
-    {
-      label: "Certificates",
-      icon: <Award className='w-4 h-4' />,
-      path: "/certificates",
-      roles: ["ADMIN", "TRAINER", "DEVELOPER", "STAFF"],
-    },
+    // {
+    //   label: "Certificates",
+    //   icon: <Award className='w-4 h-4' />,
+    //   path: "/certificates",
+    //   roles: ["ADMIN", "TRAINER", "DEVELOPER", "STAFF"],
+    // },
     {
       label: "Feedbacks",
       icon: <MessageCircle className='w-4 h-4' />,
@@ -481,13 +481,13 @@ const DashboardLayout = ({
       roles: ["ADMIN", "TRAINER", "TRAINEE", "DEVELOPER", "CHO"],
       icon: <Calendar className='w-5 h-5' />,
     },
-    {
-      label: "Messaging",
-      icon: <MessageSquare className='w-4 h-4' />,
-      path: "/messaging",
-      roles: ["ADMIN", "TRAINER", "TRAINEE", "DEVELOPER", "CHO"],
-      industries: ["SFH", "WELTEL", "RBC"],
-    },
+    // {
+    //   label: "Messaging",
+    //   icon: <MessageSquare className='w-4 h-4' />,
+    //   path: "/messaging",
+    //   roles: ["ADMIN", "TRAINER", "TRAINEE", "DEVELOPER", "CHO"],
+    //   industries: ["SFH", "WELTEL", "RBC"],
+    // },
     {
       label: "Announcement",
       path: "/announcement",
