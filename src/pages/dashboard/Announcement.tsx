@@ -4,8 +4,7 @@ import {
   PlusIcon,
   PencilIcon,
   TrashIcon,
-  EyeIcon,
-  EyeSlashIcon,
+  MegaphoneIcon,
   MagnifyingGlassIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
@@ -35,11 +34,17 @@ const Announcement: React.FC = () => {
     isOpen: boolean;
     announcement: IAnnouncement | null;
   }>({ isOpen: false, announcement: null });
+  const [publishConfirm, setPublishConfirm] = useState<{
+    isOpen: boolean;
+    title: string;
+    onConfirm: (() => void) | null;
+  }>({ isOpen: false, title: "", onConfirm: null });
 
   const [formData, setFormData] = useState({
     title: "",
     body: "",
     segment: "",
+    category: "",
     publishAt: new Date().toISOString().split("T")[0],
     validUntil: "",
     priority: "medium" as "high" | "medium" | "low",
@@ -123,20 +128,16 @@ const Announcement: React.FC = () => {
     },
   });
 
-  const toggleStatusMutation = useMutation({
-    mutationFn: (id: string) => {
-      const announcement = announcements.find((a) => a.id === id);
-      if (!announcement) throw new Error("Announcement not found");
-      const newStatus = announcement.status === "published" ? "draft" : "published";
-      return updateAnnouncement(id, { status: newStatus });
-    },
+  const publishMutation = useMutation({
+    mutationFn: (id: string) => updateAnnouncement(id, { status: "published" }),
     onSuccess: () => {
-      toast.success("Announcement status updated");
+      toast.success("Announcement published successfully");
       queryClient.invalidateQueries({ queryKey: ["announcements"] });
+      setPublishConfirm({ isOpen: false, title: "", onConfirm: null });
     },
     onError: (error: unknown) => {
       const errorMessage =
-        error instanceof Error ? error.message : "Error updating announcement";
+        error instanceof Error ? error.message : "Error publishing announcement";
       toast.error(errorMessage);
     },
   });
@@ -146,6 +147,7 @@ const Announcement: React.FC = () => {
       title: "",
       body: "",
       segment: "",
+      category: "",
       publishAt: new Date().toISOString().split("T")[0],
       validUntil: "",
       priority: "medium",
@@ -163,7 +165,7 @@ const Announcement: React.FC = () => {
       const matchesPriority =
         priorityFilter === "all" || announcement.priority === priorityFilter;
       const matchesCategory =
-        categoryFilter === "all" || announcement.segment === categoryFilter;
+        categoryFilter === "all" || announcement.category === categoryFilter;
       return matchesSearch && matchesStatus && matchesPriority && matchesCategory;
     });
   }, [announcements, searchTerm, statusFilter, priorityFilter, categoryFilter]);
@@ -204,6 +206,7 @@ const Announcement: React.FC = () => {
       title: announcement.title,
       body: announcement.body,
       segment: announcement.segment,
+      category: announcement.category || "",
       publishAt: announcement.publishAt.split("T")[0],
       validUntil: announcement.validUntil ? announcement.validUntil.split("T")[0] : "",
       priority: announcement.priority || "medium",
@@ -221,11 +224,29 @@ const Announcement: React.FC = () => {
       title: formData.title,
       body: formData.body,
       segment: formData.segment,
+      category: formData.category,
       publishAt: formData.publishAt,
       validUntil: formData.validUntil || null,
       priority: formData.priority,
       status: formData.status,
     };
+
+    if (formData.status === "published") {
+      setPublishConfirm({
+        isOpen: true,
+        title: formData.title,
+        onConfirm: () => {
+          setPublishConfirm({ isOpen: false, title: "", onConfirm: null });
+          if (editingAnnouncement) {
+            updateMutation.mutate({ id: editingAnnouncement.id, payload });
+          } else {
+            createMutation.mutate(payload);
+          }
+        },
+      });
+      return;
+    }
+
     if (editingAnnouncement) {
       updateMutation.mutate({ id: editingAnnouncement.id, payload });
     } else {
@@ -242,8 +263,12 @@ const Announcement: React.FC = () => {
     deleteMutation.mutate(deleteConfirm.announcement.id);
   };
 
-  const handleToggleStatus = (id: string) => {
-    toggleStatusMutation.mutate(id);
+  const handlePublishRequest = (announcement: IAnnouncement) => {
+    setPublishConfirm({
+      isOpen: true,
+      title: announcement.title,
+      onConfirm: () => publishMutation.mutate(announcement.id),
+    });
   };
 
   const hasActiveFilters =
@@ -459,39 +484,40 @@ const Announcement: React.FC = () => {
                       <span className="px-2 py-0.5 rounded-md bg-primary/10 text-primary font-medium">
                         {announcement.segment}
                       </span>
+                      {announcement.category && (
+                        <span className="px-2 py-0.5 rounded-md bg-purple-50 text-purple-600 font-medium">
+                          {announcement.category}
+                        </span>
+                      )}
                     </div>
                   </div>
 
-                  {/* Actions */}
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    <button
-                      onClick={() => handleToggleStatus(announcement.id)}
-                      title={
-                        announcement.status === "published" ? "Unpublish" : "Publish"
-                      }
-                      className="p-2 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all duration-150"
-                    >
-                      {announcement.status === "published" ? (
-                        <EyeSlashIcon className="w-4 h-4" />
-                      ) : (
-                        <EyeIcon className="w-4 h-4" />
-                      )}
-                    </button>
-                    <button
-                      onClick={() => handleEditAnnouncement(announcement)}
-                      title="Edit"
-                      className="p-2 rounded-lg text-primary hover:bg-primary/10 transition-all duration-150"
-                    >
-                      <PencilIcon className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteAnnouncement(announcement)}
-                      title="Delete"
-                      className="p-2 rounded-lg text-red-500 hover:bg-red-50 transition-all duration-150"
-                    >
-                      <TrashIcon className="w-4 h-4" />
-                    </button>
-                  </div>
+                  {/* Actions — only available for draft announcements */}
+                  {announcement.status === "draft" && (
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        onClick={() => handlePublishRequest(announcement)}
+                        title="Publish"
+                        className="p-2 rounded-lg text-green-600 hover:bg-green-50 transition-all duration-150"
+                      >
+                        <MegaphoneIcon className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleEditAnnouncement(announcement)}
+                        title="Edit"
+                        className="p-2 rounded-lg text-primary hover:bg-primary/10 transition-all duration-150"
+                      >
+                        <PencilIcon className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteAnnouncement(announcement)}
+                        title="Delete"
+                        className="p-2 rounded-lg text-red-500 hover:bg-red-50 transition-all duration-150"
+                      >
+                        <TrashIcon className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -544,6 +570,28 @@ const Announcement: React.FC = () => {
 
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                Category
+              </label>
+              <select
+                className={`w-full ${selectClass}`}
+                value={formData.category}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, category: e.target.value }))
+                }
+              >
+                <option value="">No category</option>
+                {categories.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
                 Priority Level
               </label>
               <select
@@ -559,6 +607,25 @@ const Announcement: React.FC = () => {
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
                 <option value="high">High</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                Status
+              </label>
+              <select
+                className={`w-full ${selectClass}`}
+                value={formData.status}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    status: e.target.value as "draft" | "published",
+                  }))
+                }
+              >
+                <option value="draft">Save as Draft</option>
+                <option value="published">Publish Immediately</option>
               </select>
             </div>
           </div>
@@ -606,25 +673,6 @@ const Announcement: React.FC = () => {
                 }
               />
             </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-              Status
-            </label>
-            <select
-              className={`w-full ${selectClass}`}
-              value={formData.status}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  status: e.target.value as "draft" | "published",
-                }))
-              }
-            >
-              <option value="draft">Save as Draft</option>
-              <option value="published">Publish Immediately</option>
-            </select>
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
@@ -680,6 +728,51 @@ const Announcement: React.FC = () => {
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-600 text-white font-medium text-sm hover:bg-red-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {deleteMutation.isPending ? "Deleting..." : "Delete"}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Publish Confirmation Modal */}
+      <Modal
+        isOpen={publishConfirm.isOpen}
+        onClose={() => setPublishConfirm({ isOpen: false, title: "", onConfirm: null })}
+        title="Publish Announcement"
+      >
+        <div className="space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+              <MegaphoneIcon className="w-5 h-5 text-green-600" />
+            </div>
+            <div>
+              <p className="text-gray-700 text-sm">
+                You are about to publish{" "}
+                <span className="font-semibold text-[#333333]">
+                  "{publishConfirm.title}"
+                </span>
+                . Once published, this announcement will be sent to all targeted users and <span className="font-medium text-gray-800">cannot be edited or deleted</span>.
+              </p>
+              <p className="text-xs text-gray-400 mt-2">Are you sure you want to proceed?</p>
+            </div>
+          </div>
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+            <Button
+              variant="outline"
+              onClick={() => setPublishConfirm({ isOpen: false, title: "", onConfirm: null })}
+              disabled={publishMutation.isPending || createMutation.isPending || updateMutation.isPending}
+              className="px-5 rounded-xl disabled:opacity-50"
+            >
+              Cancel
+            </Button>
+            <button
+              onClick={() => publishConfirm.onConfirm?.()}
+              disabled={publishMutation.isPending || createMutation.isPending || updateMutation.isPending}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-green-600 text-white font-medium text-sm hover:bg-green-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <MegaphoneIcon className="w-4 h-4" />
+              {publishMutation.isPending || createMutation.isPending || updateMutation.isPending
+                ? "Publishing..."
+                : "Yes, Publish"}
             </button>
           </div>
         </div>
