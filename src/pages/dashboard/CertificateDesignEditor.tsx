@@ -318,10 +318,16 @@ const CertificateDesignEditor: React.FC = () => {
       const canvas = fabricRef.current;
       if (!canvas) return;
       const canvasJson = canvas.toJSON(["tokenKey", "token"]);
+      // Capture a small JPEG thumbnail at the current viewport size
+      const thumbnail = canvas.toDataURL({ format: "jpeg", quality: 0.6 });
       setIsSaving(true);
       try {
-        await updateCertificateTemplate(templateId, { canvasJson });
+        await updateCertificateTemplate(templateId, { canvasJson, thumbnail });
         setSavedTick(n => n + 1);
+        // Refresh the sidebar card immediately without a round-trip
+        setTemplates(prev =>
+          prev.map(t => t.id === templateId ? { ...t, thumbnail } : t)
+        );
       } catch {
         // interceptor shows toast
       } finally {
@@ -443,14 +449,19 @@ const CertificateDesignEditor: React.FC = () => {
     if (!file) return;
     const canvas = fabricRef.current;
     if (!canvas) return;
-    const url = URL.createObjectURL(file);
-    const img = await FabricImage.fromURL(url);
+    // Use data URL so the src survives canvas.toJSON() / loadFromJSON() across page loads
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload  = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+    const img = await FabricImage.fromURL(dataUrl);
     img.scaleToWidth(Math.min(300, CANVAS_WIDTH * 0.35));
     img.set({ left: 100, top: 100 });
     canvas.add(img);
     canvas.setActiveObject(img);
     canvas.renderAll();
-    URL.revokeObjectURL(url);
     e.target.value = "";
   }, []);
 
@@ -501,22 +512,27 @@ const CertificateDesignEditor: React.FC = () => {
       if (!file) return;
       const canvas = fabricRef.current;
       if (!canvas) return;
-      const url = URL.createObjectURL(file);
 
-      // Load via HTMLImageElement first to get reliable naturalWidth/naturalHeight
+      // Use data URL so the src survives canvas.toJSON() / loadFromJSON() across page loads
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload  = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      // Load via HTMLImageElement to get reliable naturalWidth/naturalHeight
       const htmlImg = await new Promise<HTMLImageElement>((resolve, reject) => {
         const el = new Image();
         el.onload  = () => resolve(el);
         el.onerror = reject;
-        el.src = url;
+        el.src = dataUrl;
       });
 
       const natW = htmlImg.naturalWidth  || CANVAS_WIDTH;
       const natH = htmlImg.naturalHeight || CANVAS_HEIGHT;
 
-      // Center the image on the canvas. Fabric draws objects from their center
-      // point, so setting left/top to the canvas midpoint with originX/Y='center'
-      // guarantees the image fills the canvas regardless of Fabric version behavior.
+      // left/top = canvas center + originX/Y='center' so the image fills the full canvas
       const img = new FabricImage(htmlImg, {
         left:    CANVAS_WIDTH  / 2,
         top:     CANVAS_HEIGHT / 2,
@@ -531,7 +547,6 @@ const CertificateDesignEditor: React.FC = () => {
       canvas.backgroundImage = img;
       canvas.backgroundColor = "";
       canvas.renderAll();
-      URL.revokeObjectURL(url);
       e.target.value = "";
       saveSnapshot();
     },
