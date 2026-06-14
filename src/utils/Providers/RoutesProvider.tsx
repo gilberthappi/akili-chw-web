@@ -191,26 +191,6 @@ const RoutesProvider = () => {
           ),
         },
         {
-          path: "certificates/design",
-          element: (
-            <ProtectedRoute
-              allowedRoles={["TRAINER", "ADMIN", "DEVELOPER"]}
-            >
-              <CertificateDesignEditor />
-            </ProtectedRoute>
-          ),
-        },
-        {
-          path: "certificates/design/:id",
-          element: (
-            <ProtectedRoute
-              allowedRoles={["TRAINER", "ADMIN", "DEVELOPER"]}
-            >
-              <CertificateDesignEditor />
-            </ProtectedRoute>
-          ),
-        },
-        {
           path: "calender",
           element: <Calendar />,
         },
@@ -286,6 +266,28 @@ const RoutesProvider = () => {
           ),
         },
       ],
+    },
+
+    // ── Certificate builder (no sidebar, full-screen editor) ─────────
+    {
+      path: "/certificates/design",
+      element: (
+        <ProtectedRoute allowedRoles={["TRAINER", "ADMIN", "DEVELOPER"]}>
+          <div className="h-screen overflow-hidden">
+            <CertificateDesignEditor />
+          </div>
+        </ProtectedRoute>
+      ),
+    },
+    {
+      path: "/certificates/design/:id",
+      element: (
+        <ProtectedRoute allowedRoles={["TRAINER", "ADMIN", "DEVELOPER"]}>
+          <div className="h-screen overflow-hidden">
+            <CertificateDesignEditor />
+          </div>
+        </ProtectedRoute>
+      ),
     },
 
     // ── Course builder (no sidebar, full-screen editor) ───────────────
