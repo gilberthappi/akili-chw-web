@@ -1,4 +1,11 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import {
+  Canvas as FabricCanvas,
+  IText,
+  Rect,
+  FabricImage,
+  type FabricObject,
+} from "fabric";
 import {
   Plus,
   Search,
@@ -23,46 +30,17 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { IWorkshopCertificate } from "@/types/certificates.d";
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-interface CanvasElement {
-  id: string;
-  type: "text" | "image" | "shape" | "qr";
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  content: string;
-  rotation: number;
-  opacity: number;
-  locked: boolean;
-  visible: boolean;
-  fill?: string;
-  stroke?: string;
-  fontSize?: number;
-  fontWeight?: string;
-  textAlign?: "left" | "center" | "right";
-  borderRadius?: number;
-  token?: string;
-}
-
-interface DesignCanvasProps {
-  certificate?: IWorkshopCertificate;
-  onSave?: (certificate: IWorkshopCertificate) => void;
-}
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const CANVAS_WIDTH = 1056;   // 11in @ 96dpi — landscape
-const CANVAS_HEIGHT = 816;   // 8.5in @ 96dpi
+const CANVAS_WIDTH  = 1056; // 11in @ 96 dpi — landscape
+const CANVAS_HEIGHT = 816;  // 8.5in @ 96 dpi
 
 const MOCK_TEMPLATES = [
   { id: "new", name: "New template" },
-  { id: "t1", name: "Vent and Defib" },
-  { id: "t2", name: "DHMC01" },
-  { id: "t3", name: "One Health Exchange" },
+  { id: "t1",  name: "Vent and Defib" },
+  { id: "t2",  name: "DHMC01" },
+  { id: "t3",  name: "One Health Exchange" },
 ];
 
 const ELEMENT_SECTIONS = [
@@ -138,279 +116,257 @@ const BG_COLORS = [
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-const CertificateDesignEditor: React.FC<DesignCanvasProps> = ({
-  certificate,
-  onSave,
-}) => {
-  const navigate = useNavigate();
-  const canvasRef  = useRef<HTMLDivElement>(null);
+const CertificateDesignEditor: React.FC = () => {
+  const navigate     = useNavigate();
+  const canvasElRef  = useRef<HTMLCanvasElement>(null);
+  const fabricRef    = useRef<FabricCanvas | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [activeTab,     setActiveTab]     = useState<"certificates" | "link-certificates">("certificates");
-  const [rightTab,      setRightTab]      = useState<"elements" | "backgrounds">("elements");
+  // Refs for history — avoids stale-closure issues in fabric event handlers
+  const historyRef    = useRef<string[]>([]);
+  const historyIdxRef = useRef(-1);
+  const historyLock   = useRef(false);
+
+  // Zoom ref mirrors zoom state so async callbacks always see current value
+  const zoomRef = useRef(75);
+
+  // UI state
+  const [activeTab,      setActiveTab]      = useState<"certificates" | "link-certificates">("certificates");
+  const [rightTab,       setRightTab]       = useState<"elements" | "backgrounds">("elements");
   const [activeTemplate, setActiveTemplate] = useState("new");
-  const [searchQuery,   setSearchQuery]   = useState("");
+  const [searchQuery,    setSearchQuery]    = useState("");
+  const [zoom,           setZoom]           = useState(75);
 
-  // ── Canvas state ────────────────────────────────────────────────────────────
+  // Canvas-driven re-render trigger — reading refs in JSX won't auto-update
+  const [, setTick] = useState(0);
+  const bumpTick = useCallback(() => setTick((n) => n + 1), []);
 
-  const initial: CanvasElement[] = [
-    {
-      id: "bg-1", type: "shape",
-      x: 0, y: 0, width: CANVAS_WIDTH, height: CANVAS_HEIGHT,
-      content: "", rotation: 0, opacity: 1,
-      locked: true, visible: true,
-      fill: "#ffffff", stroke: "none", borderRadius: 0,
-    },
-  ];
+  // Selected fabric object (reference to the live Fabric object)
+  const [selectedObj, setSelectedObj] = useState<FabricObject | null>(null);
 
-  const [elements,      setElements]      = useState<CanvasElement[]>(initial);
-  const [selectedId,    setSelectedId]    = useState<string>("");
-  const [zoom,          setZoom]          = useState(75);
-  const [history,       setHistory]       = useState<CanvasElement[][]>([initial]);
-  const [historyIndex,  setHistoryIndex]  = useState(0);
+  // ── Zoom ────────────────────────────────────────────────────────────────────
 
-  // ── History ─────────────────────────────────────────────────────────────────
+  const changeZoom = useCallback((next: number) => {
+    const clamped = Math.max(25, Math.min(200, next));
+    zoomRef.current = clamped;
+    setZoom(clamped);
+  }, []);
 
-  const push = (next: CanvasElement[]) => {
-    const h = history.slice(0, historyIndex + 1);
-    h.push(next);
-    setHistory(h);
-    setHistoryIndex(h.length - 1);
-    setElements(next);
-  };
+  // ── History ──────────────────────────────────────────────────────────────────
 
-  const undo = () => {
-    if (historyIndex > 0) {
-      const i = historyIndex - 1;
-      setHistoryIndex(i);
-      setElements(history[i]);
-    }
-  };
+  const saveSnapshot = useCallback(() => {
+    const canvas = fabricRef.current;
+    if (!canvas || historyLock.current) return;
+    const json = JSON.stringify(canvas.toJSON(["tokenKey", "token"]));
+    const h = historyRef.current.slice(0, historyIdxRef.current + 1);
+    h.push(json);
+    historyRef.current    = h;
+    historyIdxRef.current = h.length - 1;
+    bumpTick();
+  }, [bumpTick]);
 
-  const redo = () => {
-    if (historyIndex < history.length - 1) {
-      const i = historyIndex + 1;
-      setHistoryIndex(i);
-      setElements(history[i]);
-    }
-  };
+  const applySnapshot = useCallback(async (idx: number) => {
+    const canvas = fabricRef.current;
+    if (!canvas) return;
+    historyLock.current = true;
+    await canvas.loadFromJSON(JSON.parse(historyRef.current[idx]));
+    const scale = zoomRef.current / 100;
+    canvas.setZoom(scale);
+    canvas.setDimensions({ width: CANVAS_WIDTH * scale, height: CANVAS_HEIGHT * scale });
+    canvas.renderAll();
+    historyLock.current   = false;
+    historyIdxRef.current = idx;
+    setSelectedObj(null);
+    bumpTick();
+  }, [bumpTick]);
 
-  const updateElement = (id: string, updates: Partial<CanvasElement>) =>
-    push(elements.map((el) => (el.id === id ? { ...el, ...updates } : el)));
+  const undo = useCallback(() => {
+    if (historyIdxRef.current > 0) applySnapshot(historyIdxRef.current - 1);
+  }, [applySnapshot]);
 
-  // ── Add elements ────────────────────────────────────────────────────────────
+  const redo = useCallback(() => {
+    if (historyIdxRef.current < historyRef.current.length - 1)
+      applySnapshot(historyIdxRef.current + 1);
+  }, [applySnapshot]);
 
-  const addElement = (key: string) => {
+  // ── Fabric init ──────────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    const el = canvasElRef.current;
+    if (!el || fabricRef.current) return;
+
+    const scale  = zoomRef.current / 100;
+    const canvas = new FabricCanvas(el, {
+      width:                  CANVAS_WIDTH  * scale,
+      height:                 CANVAS_HEIGHT * scale,
+      backgroundColor:        "#ffffff",
+      preserveObjectStacking: true,
+    });
+    canvas.setZoom(scale);
+    fabricRef.current = canvas;
+
+    const onSelectChange = () => {
+      setSelectedObj(canvas.getActiveObject() ?? null);
+      bumpTick();
+    };
+    canvas.on("selection:created", onSelectChange);
+    canvas.on("selection:updated", onSelectChange);
+    canvas.on("selection:cleared", () => { setSelectedObj(null); bumpTick(); });
+    canvas.on("object:modified",   saveSnapshot);
+    canvas.on("object:added",      saveSnapshot);
+    canvas.on("object:removed",    saveSnapshot);
+
+    // Seed history with empty canvas state
+    historyRef.current    = [JSON.stringify(canvas.toJSON())];
+    historyIdxRef.current = 0;
+    bumpTick();
+
+    return () => {
+      canvas.dispose();
+      fabricRef.current = null;
+    };
+  }, [saveSnapshot, bumpTick]);
+
+  // ── Sync zoom to canvas ───────────────────────────────────────────────────────
+
+  useEffect(() => {
+    const canvas = fabricRef.current;
+    if (!canvas) return;
+    const scale = zoom / 100;
+    canvas.setZoom(scale);
+    canvas.setDimensions({ width: CANVAS_WIDTH * scale, height: CANVAS_HEIGHT * scale });
+  }, [zoom]);
+
+  // ── Add elements ──────────────────────────────────────────────────────────────
+
+  const addElement = useCallback((key: string) => {
+    const canvas = fabricRef.current;
+    if (!canvas) return;
+
     if (key === "image") { fileInputRef.current?.click(); return; }
 
     if (key === "qr") {
-      const el: CanvasElement = {
-        id: `qr-${Date.now()}`, type: "qr",
-        x: 200, y: 200, width: 120, height: 120,
-        content: "{{qrCode}}", rotation: 0, opacity: 1,
-        locked: false, visible: true, token: "{{qrCode}}",
-      };
-      push([...elements, el]);
-      setSelectedId(el.id);
+      const r = new Rect({
+        left: 300, top: 300, width: 120, height: 120,
+        fill: "#f9fafb", stroke: "#9ca3af", strokeWidth: 1,
+        strokeDashArray: [5, 5], rx: 4, ry: 4,
+      });
+      (r as Record<string, unknown>).tokenKey = "qr";
+      canvas.add(r);
+      canvas.setActiveObject(r);
+      canvas.renderAll();
       return;
     }
 
-    const display = DISPLAY_LABEL[key] ?? "New text";
+    const content = key === "text" ? "New text" : (DISPLAY_LABEL[key] ?? "New text");
     const token   = TOKEN_VALUE[key];
-    const el: CanvasElement = {
-      id: `${key}-${Date.now()}`, type: "text",
-      x: 200, y: 200, width: 320, height: 50,
-      content: display, rotation: 0, opacity: 1,
-      locked: false, visible: true,
-      fontSize: 20, fontWeight: "normal", textAlign: "center",
-      fill: "#333333",
-      ...(token ? { token } : {}),
-    };
-    push([...elements, el]);
-    setSelectedId(el.id);
-  };
+    const isToken = !!token;
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const t = new IText(content, {
+      left:       300,
+      top:        300,
+      fontSize:   key === "text" ? 20 : 22,
+      fill:       "#334155",
+      fontFamily: "Arial",
+      textAlign:  "center",
+      fontStyle:  isToken ? "italic" : "normal",
+    });
+    if (token)   (t as Record<string, unknown>).token    = token;
+    if (isToken) (t as Record<string, unknown>).tokenKey = key;
+
+    canvas.add(t);
+    canvas.setActiveObject(t);
+    canvas.renderAll();
+  }, []);
+
+  // ── Image upload ──────────────────────────────────────────────────────────────
+
+  const handleImageUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const el: CanvasElement = {
-        id: `image-${Date.now()}`, type: "image",
-        x: 100, y: 100, width: 200, height: 150,
-        content: ev.target?.result as string,
-        rotation: 0, opacity: 1, locked: false, visible: true,
-      };
-      push([...elements, el]);
-      setSelectedId(el.id);
-    };
-    reader.readAsDataURL(file);
+    const canvas = fabricRef.current;
+    if (!canvas) return;
+    const url = URL.createObjectURL(file);
+    const img = await FabricImage.fromURL(url);
+    img.scaleToWidth(Math.min(300, CANVAS_WIDTH * 0.35));
+    img.set({ left: 100, top: 100 });
+    canvas.add(img);
+    canvas.setActiveObject(img);
+    canvas.renderAll();
+    URL.revokeObjectURL(url);
     e.target.value = "";
-  };
+  }, []);
 
-  const deleteElement = (id: string) => {
-    if (id === "bg-1") return;
-    push(elements.filter((el) => el.id !== id));
-    setSelectedId("");
-  };
+  // ── Canvas operations ─────────────────────────────────────────────────────────
 
-  const duplicateElement = (id: string) => {
-    const el = elements.find((e) => e.id === id);
-    if (!el) return;
-    const copy = { ...el, id: `${el.type}-${Date.now()}`, x: el.x + 20, y: el.y + 20 };
-    push([...elements, copy]);
-    setSelectedId(copy.id);
-  };
+  const deleteSelected = useCallback(() => {
+    const canvas = fabricRef.current;
+    const obj    = canvas?.getActiveObject();
+    if (!canvas || !obj) return;
+    canvas.remove(obj);
+    canvas.discardActiveObject();
+    setSelectedObj(null);
+    canvas.renderAll();
+  }, []);
 
-  // ── Drag ────────────────────────────────────────────────────────────────────
+  const duplicateSelected = useCallback(async () => {
+    const canvas = fabricRef.current;
+    const obj    = canvas?.getActiveObject();
+    if (!canvas || !obj) return;
+    const cloned = await obj.clone();
+    cloned.set({ left: (cloned.left ?? 0) + 20, top: (cloned.top ?? 0) + 20 });
+    canvas.add(cloned);
+    canvas.setActiveObject(cloned);
+    canvas.renderAll();
+  }, []);
 
-  const handleMouseDown = (e: React.MouseEvent, id: string) => {
-    if (e.button !== 0) return;
-    const el = elements.find((x) => x.id === id);
-    if (!el || el.locked) return;
-    e.preventDefault();
-    setSelectedId(id);
+  const updateSelected = useCallback((props: Record<string, unknown>) => {
+    const canvas = fabricRef.current;
+    const obj    = canvas?.getActiveObject();
+    if (!canvas || !obj) return;
+    (obj as Record<string, unknown> & { set: (p: Record<string, unknown>) => void }).set(props);
+    canvas.renderAll();
+    bumpTick();
+  }, [bumpTick]);
 
-    const sx = e.clientX, sy = e.clientY;
-    const ex = el.x,      ey = el.y;
-    const scale = zoom / 100;
+  const setBackground = useCallback((color: string) => {
+    const canvas = fabricRef.current;
+    if (!canvas) return;
+    canvas.backgroundColor = color;
+    canvas.renderAll();
+  }, []);
 
-    const onMove = (mv: MouseEvent) =>
-      updateElement(id, {
-        x: ex + (mv.clientX - sx) / scale,
-        y: ey + (mv.clientY - sy) / scale,
-      });
+  // ── Derived ───────────────────────────────────────────────────────────────────
 
-    const onUp = () => {
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup",   onUp);
-    };
-
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup",   onUp);
-  };
-
-  // ── Render canvas element ────────────────────────────────────────────────────
-
-  const renderElement = (el: CanvasElement) => {
-    const scale  = zoom / 100;
-    const active = el.id === selectedId;
-
-    const base: React.CSSProperties = {
-      position:    "absolute",
-      left:        `${el.x * scale}px`,
-      top:         `${el.y * scale}px`,
-      width:       `${el.width  * scale}px`,
-      height:      `${el.height * scale}px`,
-      opacity:     el.opacity,
-      transform:   `rotate(${el.rotation}deg)`,
-      cursor:      el.locked ? "default" : "move",
-      display:     el.visible ? undefined : "none",
-      outline:     active ? "2px solid #2563eb" : undefined,
-      outlineOffset: active ? "2px" : undefined,
-    };
-
-    if (el.type === "text") {
-      return (
-        <div
-          key={el.id}
-          style={{
-            ...base,
-            fontSize:   `${(el.fontSize ?? 20) * scale}px`,
-            fontWeight: el.fontWeight ?? "normal",
-            color:      el.fill ?? "#333",
-            textAlign:  el.textAlign ?? "center",
-            display:    el.visible ? "flex" : "none",
-            alignItems: "center",
-            justifyContent:
-              el.textAlign === "left"  ? "flex-start" :
-              el.textAlign === "right" ? "flex-end"   : "center",
-            padding: "4px",
-            userSelect: "none",
-          }}
-          onMouseDown={(e) => handleMouseDown(e, el.id)}
-          onDoubleClick={() => {
-            const t = prompt("Edit text:", el.content);
-            if (t !== null) updateElement(el.id, { content: t });
-          }}
-        >
-          {el.content}
-        </div>
-      );
-    }
-
-    if (el.type === "image") {
-      return (
-        <img
-          key={el.id}
-          src={el.content}
-          style={{ ...base, objectFit: "contain" }}
-          onMouseDown={(e) => handleMouseDown(e, el.id)}
-          alt=""
-          draggable={false}
-        />
-      );
-    }
-
-    if (el.type === "qr") {
-      return (
-        <div
-          key={el.id}
-          style={{
-            ...base,
-            display:         el.visible ? "flex" : "none",
-            flexDirection:   "column",
-            alignItems:      "center",
-            justifyContent:  "center",
-            backgroundColor: "#fff",
-            border:          "1px solid #d1d5db",
-            gap:             "4px",
-          }}
-          onMouseDown={(e) => handleMouseDown(e, el.id)}
-        >
-          <QrCode className="w-6 h-6 text-gray-400" />
-          <span style={{ fontSize: `${10 * scale}px`, color: "#9ca3af" }}>QR Code</span>
-        </div>
-      );
-    }
-
-    if (el.type === "shape") {
-      return (
-        <div
-          key={el.id}
-          style={{
-            ...base,
-            backgroundColor: el.fill ?? "#fff",
-            border:
-              el.stroke && el.stroke !== "none"
-                ? `1px solid ${el.stroke}`
-                : undefined,
-            borderRadius: `${el.borderRadius ?? 0}px`,
-          }}
-          onMouseDown={(e) => handleMouseDown(e, el.id)}
-        />
-      );
-    }
-
-    return null;
-  };
-
-  // ── Derived ─────────────────────────────────────────────────────────────────
-
-  const selected = elements.find((el) => el.id === selectedId);
   const filteredTemplates = MOCK_TEMPLATES.filter((t) =>
     t.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // ── Render ──────────────────────────────────────────────────────────────────
+  const canUndo = historyIdxRef.current > 0;
+  const canRedo = historyIdxRef.current < historyRef.current.length - 1;
+
+  // Properties from selected object — read live from fabric object reference
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sel        = selectedObj as any;
+  const selLeft    = sel ? Math.round(sel.left  ?? 0) : 0;
+  const selTop     = sel ? Math.round(sel.top   ?? 0) : 0;
+  const selW       = sel ? Math.round((sel.width  ?? 0) * (sel.scaleX ?? 1)) : 0;
+  const selH       = sel ? Math.round((sel.height ?? 0) * (sel.scaleY ?? 1)) : 0;
+  const selIsText  = selectedObj instanceof IText;
+  const selFontSz  = selIsText ? (sel.fontSize  ?? 20)        : 20;
+  const selColor   = selIsText ? (sel.fill       ?? "#334155") : "#334155";
+  const selBold    = selIsText && sel.fontWeight === "bold";
+  const selAlign   = selIsText ? (sel.textAlign  ?? "center")  : "center";
+  const selOpacity = sel ? (sel.opacity ?? 1) : 1;
+
+  // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
     <div className="h-screen flex flex-col bg-white overflow-hidden select-none">
 
-      {/* ── Top bar ───────────────────────────────────────────────────────── */}
+      {/* ── Top bar ─────────────────────────────────────────────────────────── */}
       <header className="h-12 border-b border-gray-200 flex items-center px-4 gap-3 shrink-0 bg-white z-10">
 
-        {/* Back */}
         <button
           onClick={() => navigate("/certificates")}
           className="p-1.5 hover:bg-gray-100 rounded-md text-gray-500 transition-colors"
@@ -429,7 +385,7 @@ const CertificateDesignEditor: React.FC<DesignCanvasProps> = ({
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-5 h-12 text-sm font-medium border-b-2 transition-colors capitalize ${
+              className={`px-5 h-12 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === tab
                   ? "border-blue-600 text-blue-600"
                   : "border-transparent text-gray-500 hover:text-gray-700"
@@ -444,7 +400,7 @@ const CertificateDesignEditor: React.FC<DesignCanvasProps> = ({
         <div className="flex items-center gap-2">
           <button
             onClick={undo}
-            disabled={historyIndex === 0}
+            disabled={!canUndo}
             className="p-1.5 hover:bg-gray-100 rounded disabled:opacity-30 transition-colors"
             title="Undo"
           >
@@ -452,7 +408,7 @@ const CertificateDesignEditor: React.FC<DesignCanvasProps> = ({
           </button>
           <button
             onClick={redo}
-            disabled={historyIndex === history.length - 1}
+            disabled={!canRedo}
             className="p-1.5 hover:bg-gray-100 rounded disabled:opacity-30 transition-colors"
             title="Redo"
           >
@@ -462,16 +418,16 @@ const CertificateDesignEditor: React.FC<DesignCanvasProps> = ({
           <div className="h-5 w-px bg-gray-200 mx-1" />
 
           <button
-            onClick={() => toast.success("Mock generation coming soon")}
+            onClick={() => toast.success("PDF generation coming in Step 5")}
             className="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50 font-medium text-gray-700 transition-colors whitespace-nowrap"
           >
             Generate Mock Certificate
           </button>
 
-          {/* Zoom */}
+          {/* Zoom controls */}
           <div className="flex items-center border border-gray-200 rounded-md overflow-hidden ml-1">
             <button
-              onClick={() => setZoom((z) => Math.max(25, z - 10))}
+              onClick={() => changeZoom(zoom - 10)}
               className="px-2 py-1.5 hover:bg-gray-100 transition-colors border-r border-gray-200"
             >
               <ZoomOut className="w-3.5 h-3.5 text-gray-600" />
@@ -480,7 +436,7 @@ const CertificateDesignEditor: React.FC<DesignCanvasProps> = ({
               {zoom}%
             </span>
             <button
-              onClick={() => setZoom((z) => Math.min(200, z + 10))}
+              onClick={() => changeZoom(zoom + 10)}
               className="px-2 py-1.5 hover:bg-gray-100 transition-colors border-l border-gray-200"
             >
               <ZoomIn className="w-3.5 h-3.5 text-gray-600" />
@@ -489,7 +445,7 @@ const CertificateDesignEditor: React.FC<DesignCanvasProps> = ({
         </div>
       </header>
 
-      {/* ── Body ──────────────────────────────────────────────────────────── */}
+      {/* ── Body ────────────────────────────────────────────────────────────── */}
       <div className="flex-1 flex overflow-hidden">
 
         {/* Left — Template list */}
@@ -497,9 +453,7 @@ const CertificateDesignEditor: React.FC<DesignCanvasProps> = ({
           <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-100">
             <span className="text-sm font-semibold text-gray-700">
               Certificates{" "}
-              <span className="text-gray-400 font-normal text-xs">
-                {MOCK_TEMPLATES.length}
-              </span>
+              <span className="text-gray-400 font-normal text-xs">{MOCK_TEMPLATES.length}</span>
             </span>
             <button
               className="p-1 hover:bg-gray-100 rounded-md text-gray-500 transition-colors"
@@ -533,7 +487,6 @@ const CertificateDesignEditor: React.FC<DesignCanvasProps> = ({
                     : "border-transparent hover:border-gray-200"
                 }`}
               >
-                {/* Thumbnail placeholder */}
                 <div className="w-full aspect-[4/3] bg-gray-50 border border-gray-100 rounded-t-md flex items-center justify-center p-3">
                   <div className="w-full h-full bg-white border border-gray-200 rounded shadow-sm flex flex-col items-center justify-center gap-1">
                     <div className="h-1 w-8 bg-gray-200 rounded" />
@@ -542,46 +495,47 @@ const CertificateDesignEditor: React.FC<DesignCanvasProps> = ({
                   </div>
                 </div>
                 <div className="px-1.5 py-1.5">
-                  <p className="text-xs font-medium text-gray-700 truncate">
-                    {tmpl.name}
-                  </p>
+                  <p className="text-xs font-medium text-gray-700 truncate">{tmpl.name}</p>
                 </div>
               </button>
             ))}
           </div>
         </aside>
 
-        {/* Center — Canvas */}
+        {/* Center — Canvas area */}
         <main
           className="flex-1 bg-[#e8e8e8] overflow-auto"
           onClick={(e) => {
-            if (e.target === e.currentTarget) setSelectedId("");
+            if (e.target === e.currentTarget) {
+              fabricRef.current?.discardActiveObject();
+              fabricRef.current?.renderAll();
+              setSelectedObj(null);
+            }
           }}
         >
-          {activeTab === "certificates" ? (
-            <div className="min-h-full flex items-center justify-center p-12">
-              <div
-                ref={canvasRef}
-                style={{
-                  width:           `${CANVAS_WIDTH * (zoom / 100)}px`,
-                  height:          `${CANVAS_HEIGHT * (zoom / 100)}px`,
-                  position:        "relative",
-                  backgroundColor: "#ffffff",
-                  boxShadow:       "0 4px 32px rgba(0,0,0,0.18)",
-                }}
-                onClick={(e) => {
-                  if (e.target === e.currentTarget) setSelectedId("");
-                }}
-              >
-                {elements.map((el) => renderElement(el))}
-              </div>
+          {/*
+            Keep canvas element always in DOM (display:none to hide, not unmount)
+            so Fabric keeps its state when switching between tabs.
+          */}
+          <div
+            className="min-h-full flex items-center justify-center p-12"
+            style={{ display: activeTab === "certificates" ? "flex" : "none" }}
+          >
+            <div
+              style={{
+                boxShadow: "0 4px 32px rgba(0,0,0,0.18)",
+                lineHeight: 0,
+                display: "inline-block",
+              }}
+            >
+              <canvas ref={canvasElRef} />
             </div>
-          ) : (
+          </div>
+
+          {activeTab === "link-certificates" && (
             <div className="flex items-center justify-center h-full">
               <div className="text-center space-y-2">
-                <p className="text-sm font-medium text-gray-500">
-                  Link Certificates
-                </p>
+                <p className="text-sm font-medium text-gray-500">Link Certificates</p>
                 <p className="text-xs text-gray-400">
                   Assign a certificate template to a course
                 </p>
@@ -647,7 +601,7 @@ const CertificateDesignEditor: React.FC<DesignCanvasProps> = ({
                   {BG_COLORS.map((color) => (
                     <button
                       key={color}
-                      onClick={() => updateElement("bg-1", { fill: color })}
+                      onClick={() => setBackground(color)}
                       title={color}
                       className="w-9 h-9 rounded-md border border-gray-200 hover:scale-110 transition-transform shadow-sm"
                       style={{ backgroundColor: color }}
@@ -655,7 +609,6 @@ const CertificateDesignEditor: React.FC<DesignCanvasProps> = ({
                   ))}
                 </div>
               </div>
-
               <div>
                 <p className="text-[10px] font-semibold text-gray-400 tracking-widest uppercase mb-2">
                   Background Image
@@ -667,24 +620,23 @@ const CertificateDesignEditor: React.FC<DesignCanvasProps> = ({
             </div>
           )}
 
-          {/* Properties panel — shown when an element is selected */}
-          {selected && selected.id !== "bg-1" && (
+          {/* Properties panel — shown when a canvas object is selected */}
+          {selectedObj && (
             <div className="border-t border-gray-200 p-4 space-y-3 shrink-0 bg-white">
-              {/* Header row */}
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">
                   Properties
                 </span>
                 <div className="flex items-center gap-1">
                   <button
-                    onClick={() => duplicateElement(selected.id)}
+                    onClick={duplicateSelected}
                     className="p-1 hover:bg-gray-100 rounded text-gray-500 transition-colors"
                     title="Duplicate"
                   >
                     <Copy className="w-3.5 h-3.5" />
                   </button>
                   <button
-                    onClick={() => deleteElement(selected.id)}
+                    onClick={deleteSelected}
                     className="p-1 hover:bg-red-50 rounded text-red-500 transition-colors"
                     title="Delete"
                   >
@@ -693,56 +645,77 @@ const CertificateDesignEditor: React.FC<DesignCanvasProps> = ({
                 </div>
               </div>
 
-              {/* Position + Size */}
+              {/* Position */}
               <div className="grid grid-cols-2 gap-2">
-                {(["x", "y", "width", "height"] as const).map((prop) => (
-                  <div key={prop}>
-                    <label className="text-[9px] font-semibold text-gray-400 uppercase">
-                      {prop}
-                    </label>
-                    <input
-                      type="number"
-                      value={Math.round(selected[prop] as number)}
-                      onChange={(e) =>
-                        updateElement(selected.id, { [prop]: Number(e.target.value) })
-                      }
-                      className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:border-blue-400"
-                    />
-                  </div>
-                ))}
+                <div>
+                  <label className="text-[9px] font-semibold text-gray-400 uppercase">X</label>
+                  <input
+                    type="number"
+                    value={selLeft}
+                    onChange={(e) => updateSelected({ left: Number(e.target.value) })}
+                    className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:border-blue-400"
+                  />
+                </div>
+                <div>
+                  <label className="text-[9px] font-semibold text-gray-400 uppercase">Y</label>
+                  <input
+                    type="number"
+                    value={selTop}
+                    onChange={(e) => updateSelected({ top: Number(e.target.value) })}
+                    className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:border-blue-400"
+                  />
+                </div>
+                <div>
+                  <label className="text-[9px] font-semibold text-gray-400 uppercase">W</label>
+                  <input
+                    type="number"
+                    value={selW}
+                    onChange={(e) => {
+                      const w = (sel?.width ?? 1);
+                      if (w > 0) updateSelected({ scaleX: Number(e.target.value) / w });
+                    }}
+                    className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:border-blue-400"
+                  />
+                </div>
+                <div>
+                  <label className="text-[9px] font-semibold text-gray-400 uppercase">H</label>
+                  <input
+                    type="number"
+                    value={selH}
+                    onChange={(e) => {
+                      const h = (sel?.height ?? 1);
+                      if (h > 0) updateSelected({ scaleY: Number(e.target.value) / h });
+                    }}
+                    className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:border-blue-400"
+                  />
+                </div>
               </div>
 
               {/* Text controls */}
-              {selected.type === "text" && (
+              {selIsText && (
                 <div className="flex items-center gap-2">
                   <input
                     type="number"
                     min={8}
                     max={120}
-                    value={selected.fontSize ?? 20}
-                    onChange={(e) =>
-                      updateElement(selected.id, { fontSize: Number(e.target.value) })
-                    }
+                    value={selFontSz}
+                    onChange={(e) => updateSelected({ fontSize: Number(e.target.value) })}
                     className="w-16 px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:border-blue-400"
                     title="Font size"
                   />
                   <input
                     type="color"
-                    value={selected.fill ?? "#333333"}
-                    onChange={(e) =>
-                      updateElement(selected.id, { fill: e.target.value })
-                    }
+                    value={typeof selColor === "string" ? selColor : "#334155"}
+                    onChange={(e) => updateSelected({ fill: e.target.value })}
                     className="w-8 h-7 rounded border border-gray-200 cursor-pointer"
                     title="Text color"
                   />
                   <button
                     onClick={() =>
-                      updateElement(selected.id, {
-                        fontWeight: selected.fontWeight === "bold" ? "normal" : "bold",
-                      })
+                      updateSelected({ fontWeight: selBold ? "normal" : "bold" })
                     }
                     className={`px-2 py-1 text-xs border rounded font-bold transition-colors ${
-                      selected.fontWeight === "bold"
+                      selBold
                         ? "bg-gray-800 text-white border-gray-800"
                         : "border-gray-200 text-gray-600 hover:bg-gray-50"
                     }`}
@@ -751,16 +724,17 @@ const CertificateDesignEditor: React.FC<DesignCanvasProps> = ({
                   </button>
                   <button
                     onClick={() =>
-                      updateElement(selected.id, {
+                      updateSelected({
                         textAlign:
-                          selected.textAlign === "center" ? "left" :
-                          selected.textAlign === "left"   ? "right" : "center",
+                          selAlign === "center" ? "left"
+                          : selAlign === "left"   ? "right"
+                          : "center",
                       })
                     }
                     className="px-2 py-1 text-xs border border-gray-200 rounded text-gray-600 hover:bg-gray-50 transition-colors"
-                    title="Text align"
+                    title="Toggle text align"
                   >
-                    {selected.textAlign === "left" ? "L" : selected.textAlign === "right" ? "R" : "C"}
+                    {selAlign === "left" ? "L" : selAlign === "right" ? "R" : "C"}
                   </button>
                 </div>
               )}
@@ -768,17 +742,15 @@ const CertificateDesignEditor: React.FC<DesignCanvasProps> = ({
               {/* Opacity */}
               <div>
                 <label className="text-[9px] font-semibold text-gray-400 uppercase">
-                  Opacity — {Math.round(selected.opacity * 100)}%
+                  Opacity — {Math.round(selOpacity * 100)}%
                 </label>
                 <input
                   type="range"
                   min={0}
                   max={1}
                   step={0.05}
-                  value={selected.opacity}
-                  onChange={(e) =>
-                    updateElement(selected.id, { opacity: Number(e.target.value) })
-                  }
+                  value={selOpacity}
+                  onChange={(e) => updateSelected({ opacity: Number(e.target.value) })}
                   className="w-full accent-blue-600"
                 />
               </div>
