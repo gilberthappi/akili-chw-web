@@ -112,6 +112,20 @@ const TOKEN_VALUE: Record<string, string> = {
   "instructor-name": "{{instructorName}}",
 };
 
+const MOCK_TOKENS: Record<string, string> = {
+  "{{studentName}}":     "John Doe",
+  "{{certificateCode}}": "CHW-2026-001234",
+  "{{currentDate}}":     "17 Kamena 2026",
+  "{{courseName}}":      "Community Health Worker Training",
+  "{{courseDetails}}":   "Advanced Community Health Worker Program",
+  "{{progress}}":        "100%",
+  "{{courseDuration}}":  "12 Weeks",
+  "{{startDate}}":       "01 Mutarama 2026",
+  "{{endDate}}":         "17 Kamena 2026",
+  "{{studentCode}}":     "STU-2026-001",
+  "{{instructorName}}":  "Dr. Jane Smith",
+};
+
 const BG_COLORS = [
   "#ffffff", "#f8fafc", "#eff6ff", "#f0fdf4",
   "#fefce8", "#fdf2f8", "#0f172a", "#1e3a5f",
@@ -162,6 +176,9 @@ const CertificateDesignEditor: React.FC = () => {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [isDeleting,      setIsDeleting]      = useState(false);
 
+  // Mock certificate generation
+  const [isGeneratingMock, setIsGeneratingMock] = useState(false);
+
   // Canvas-driven re-render trigger
   const [, setTick]          = useState(0);
   const bumpTick             = useCallback(() => setTick(n => n + 1), []);
@@ -178,12 +195,28 @@ const CertificateDesignEditor: React.FC = () => {
     setZoom(clamped);
   }, []);
 
+  // ── Custom-prop restore ───────────────────────────────────────────────────────
+  // Fabric v7's loadFromJSON only restores known class properties; it drops
+  // arbitrary custom props (token, tokenKey) that we set on IText objects.
+  // Call this after every loadFromJSON to re-stamp them from the raw JSON.
+  const reapplyCustomProps = useCallback((rawJson: unknown) => {
+    const canvas = fabricRef.current;
+    if (!canvas) return;
+    const objs = (rawJson as { objects?: Record<string, unknown>[] }).objects ?? [];
+    canvas.getObjects().forEach((obj, i) => {
+      const raw = objs[i];
+      if (!raw) return;
+      if (raw.token)    (obj as Record<string, unknown>).token    = raw.token;
+      if (raw.tokenKey) (obj as Record<string, unknown>).tokenKey = raw.tokenKey;
+    });
+  }, []);
+
   // ── History ───────────────────────────────────────────────────────────────────
 
   const saveSnapshot = useCallback(() => {
     const canvas = fabricRef.current;
     if (!canvas || historyLock.current) return;
-    const json = JSON.stringify(canvas.toJSON(["tokenKey", "token"]));
+    const json = JSON.stringify(canvas.toObject(["tokenKey", "token"]));
     const h = historyRef.current.slice(0, historyIdxRef.current + 1);
     h.push(json);
     historyRef.current    = h;
@@ -196,7 +229,9 @@ const CertificateDesignEditor: React.FC = () => {
     const canvas = fabricRef.current;
     if (!canvas) return;
     historyLock.current = true;
-    await canvas.loadFromJSON(JSON.parse(historyRef.current[idx]));
+    const parsed = JSON.parse(historyRef.current[idx]);
+    await canvas.loadFromJSON(parsed);
+    reapplyCustomProps(parsed);
     const scale = zoomRef.current / 100;
     canvas.setZoom(scale);
     canvas.setDimensions({ width: CANVAS_WIDTH * scale, height: CANVAS_HEIGHT * scale });
@@ -205,7 +240,7 @@ const CertificateDesignEditor: React.FC = () => {
     historyIdxRef.current = idx;
     setSelectedObj(null);
     bumpTick();
-  }, [bumpTick]);
+  }, [bumpTick, reapplyCustomProps]);
 
   const undo = useCallback(() => {
     if (historyIdxRef.current > 0) applySnapshot(historyIdxRef.current - 1);
@@ -243,7 +278,7 @@ const CertificateDesignEditor: React.FC = () => {
     canvas.on("object:added",      saveSnapshot);
     canvas.on("object:removed",    saveSnapshot);
 
-    historyRef.current    = [JSON.stringify(canvas.toJSON())];
+    historyRef.current    = [JSON.stringify(canvas.toObject())];
     historyIdxRef.current = 0;
     setCanvasReady(true);
     bumpTick();
@@ -285,13 +320,14 @@ const CertificateDesignEditor: React.FC = () => {
       const tpl = await getCertificateTemplate(id);
       historyLock.current = true;
       await canvas.loadFromJSON(tpl.canvasJson);
+      reapplyCustomProps(tpl.canvasJson);
       const scale = zoomRef.current / 100;
       canvas.setZoom(scale);
       canvas.setDimensions({ width: CANVAS_WIDTH * scale, height: CANVAS_HEIGHT * scale });
       canvas.renderAll();
       historyLock.current = false;
       // Reset history so undo/redo starts fresh after load
-      historyRef.current    = [JSON.stringify(canvas.toJSON(["tokenKey", "token"]))];
+      historyRef.current    = [JSON.stringify(canvas.toObject(["tokenKey", "token"]))];
       historyIdxRef.current = 0;
       setTemplateId(tpl.id);
       setTemplateName(tpl.name);
@@ -303,7 +339,7 @@ const CertificateDesignEditor: React.FC = () => {
     } finally {
       setIsLoadingCanvas(false);
     }
-  }, [bumpTick]);
+  }, [bumpTick, reapplyCustomProps]);
 
   useEffect(() => {
     if (!canvasReady || !routeId) return;
@@ -317,7 +353,7 @@ const CertificateDesignEditor: React.FC = () => {
     const timer = setTimeout(async () => {
       const canvas = fabricRef.current;
       if (!canvas) return;
-      const canvasJson = canvas.toJSON(["tokenKey", "token"]);
+      const canvasJson = canvas.toObject(["tokenKey", "token"]);
       // Capture a small JPEG thumbnail at the current viewport size
       const thumbnail = canvas.toDataURL({ format: "jpeg", quality: 0.6 });
       setIsSaving(true);
@@ -385,7 +421,7 @@ const CertificateDesignEditor: React.FC = () => {
           canvas.backgroundColor = "#ffffff";
           canvas.renderAll();
           historyLock.current = false;
-          historyRef.current    = [JSON.stringify(canvas.toJSON())];
+          historyRef.current    = [JSON.stringify(canvas.toObject())];
           historyIdxRef.current = 0;
         }
         setTemplateId(null);
@@ -553,6 +589,72 @@ const CertificateDesignEditor: React.FC = () => {
     [saveSnapshot],
   );
 
+  // ── Generate Mock Certificate ─────────────────────────────────────────────────
+
+  const generateMockCertificate = useCallback(async () => {
+    const canvas = fabricRef.current;
+    if (!canvas) return;
+    setIsGeneratingMock(true);
+    try {
+      // Display-label → mock value table (fallback for templates saved before
+      // the toObject fix, where token/tokenKey were never persisted to JSON).
+      const labelToMock: Record<string, string> = {};
+      Object.entries(DISPLAY_LABEL).forEach(([key, label]) => {
+        const tkn = TOKEN_VALUE[key];
+        if (tkn && MOCK_TOKENS[tkn]) labelToMock[label] = MOCK_TOKENS[tkn];
+      });
+
+      // canvas.toObject (NOT toJSON) correctly forwards the extra-properties
+      // array to each object's serialiser so token/tokenKey appear in the JSON.
+      const json = JSON.parse(JSON.stringify(canvas.toObject(["tokenKey", "token"])));
+
+      (json.objects as Record<string, unknown>[]).forEach((obj) => {
+        const token    = obj.token    as string | undefined;
+        const tokenKey = obj.tokenKey as string | undefined;
+        const text     = obj.text     as string | undefined;
+
+        // Priority: explicit token string → tokenKey lookup → display-label text
+        const mock =
+          (token    ? MOCK_TOKENS[token]                        : undefined) ??
+          (tokenKey ? MOCK_TOKENS[TOKEN_VALUE[tokenKey] ?? ""]  : undefined) ??
+          (text     ? labelToMock[text]                          : undefined);
+
+        if (mock) {
+          obj.text      = mock;
+          obj.fontStyle = "normal";
+        }
+      });
+
+      // Render at full 1 : 1 resolution in a hidden off-screen canvas
+      const tempEl = document.createElement("canvas");
+      tempEl.style.cssText = "position:absolute;left:-9999px;top:-9999px;visibility:hidden;";
+      document.body.appendChild(tempEl);
+
+      const tempCanvas = new FabricCanvas(tempEl, {
+        width:           CANVAS_WIDTH,
+        height:          CANVAS_HEIGHT,
+        backgroundColor: "#ffffff",
+        preserveObjectStacking: true,
+      });
+      await tempCanvas.loadFromJSON(json);
+      tempCanvas.renderAll();
+
+      const dataUrl = tempCanvas.toDataURL({ format: "png", quality: 1 });
+      tempCanvas.dispose();
+      document.body.removeChild(tempEl);
+
+      // Wrap in a letter-landscape PDF (11 × 8.5 in = 792 × 612 pt)
+      const { jsPDF } = await import("jspdf");
+      const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: "letter" });
+      pdf.addImage(dataUrl, "PNG", 0, 0, 792, 612);
+      pdf.save(`${templateName || "certificate"}-preview.pdf`);
+    } catch {
+      toast.error("Failed to generate preview PDF");
+    } finally {
+      setIsGeneratingMock(false);
+    }
+  }, [templateName]);
+
   // ── Derived ───────────────────────────────────────────────────────────────────
 
   const filteredTemplates = templates.filter(t =>
@@ -654,9 +756,11 @@ const CertificateDesignEditor: React.FC = () => {
           <div className="h-5 w-px bg-gray-200 mx-1" />
 
           <button
-            onClick={() => toast.success("PDF generation coming in Step 5")}
-            className="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50 font-medium text-gray-700 transition-colors whitespace-nowrap"
+            onClick={generateMockCertificate}
+            disabled={isGeneratingMock}
+            className="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50 font-medium text-gray-700 transition-colors whitespace-nowrap disabled:opacity-50 flex items-center gap-1.5"
           >
+            {isGeneratingMock && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
             Generate Mock Certificate
           </button>
 
