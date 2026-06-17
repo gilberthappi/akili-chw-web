@@ -42,6 +42,7 @@ import FinalTestPage from "@/pages/dashboard/FinalTestPage";
 import CHOGroupPage from "@/pages/dashboard/CHOGroup";
 import CHOGroupInvitePage from "@/pages/dashboard/CHOGroupInvite";
 import AdminCHOGroupDetailPage from "@/pages/dashboard/AdminCHOGroupDetail";
+import VerifyCertificate from "@/pages/VerifyCertificate";
 
 const RoutesProvider = () => {
   const router = createBrowserRouter([
@@ -356,6 +357,11 @@ const RoutesProvider = () => {
     {
       path: "/terms",
       element: <Terms />,
+      errorElement: <ErrorPage />,
+    },
+    {
+      path: "/verify/:code",
+      element: <VerifyCertificate />,
       errorElement: <ErrorPage />,
     },
     {
