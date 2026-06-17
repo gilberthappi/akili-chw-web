@@ -516,14 +516,34 @@ const CertificateDesignEditor: React.FC = () => {
     if (!file) return;
     const canvas = fabricRef.current;
     if (!canvas) return;
-    // Use data URL so the src survives canvas.toJSON() / loadFromJSON() across page loads
     const dataUrl = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.onload  = () => resolve(reader.result as string);
       reader.onerror = reject;
       reader.readAsDataURL(file);
     });
-    const img = await FabricImage.fromURL(dataUrl);
+    // Normalize to PNG so pdf-lib can always embed it (it only supports PNG & JPEG).
+    // Browsers can decode any format they support (WebP, AVIF, GIF…), so we draw
+    // the image to an off-screen canvas and export as PNG once at upload time.
+    const normalizedUrl = await new Promise<string>((resolve) => {
+      if (dataUrl.startsWith("data:image/png") || dataUrl.startsWith("data:image/jpeg")) {
+        resolve(dataUrl);
+        return;
+      }
+      const htmlImg = new Image();
+      htmlImg.onload = () => {
+        const off = document.createElement("canvas");
+        off.width  = htmlImg.naturalWidth;
+        off.height = htmlImg.naturalHeight;
+        const ctx = off.getContext("2d");
+        if (!ctx) { resolve(dataUrl); return; }
+        ctx.drawImage(htmlImg, 0, 0);
+        resolve(off.toDataURL("image/png"));
+      };
+      htmlImg.onerror = () => resolve(dataUrl);
+      htmlImg.src = dataUrl;
+    });
+    const img = await FabricImage.fromURL(normalizedUrl);
     img.scaleToWidth(Math.min(300, CANVAS_WIDTH * 0.35));
     img.set({ left: 100, top: 100 });
     canvas.add(img);
