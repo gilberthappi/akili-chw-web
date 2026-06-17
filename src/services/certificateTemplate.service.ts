@@ -40,3 +40,22 @@ export const updateCertificateTemplate = async (
 export const deleteCertificateTemplate = async (id: string): Promise<void> => {
   await api.delete(`/certificate-templates/${id}`);
 };
+
+export interface LinkedCourse {
+  id: string;
+  title: string;
+  coverIcon: string;
+}
+
+export const getLinkedCourses = async (templateId: string): Promise<LinkedCourse[]> => {
+  const res = await api.get(`/certificate-templates/${templateId}/courses`);
+  return (res.data?.data as LinkedCourse[]) ?? [];
+};
+
+export const linkTemplateToCourse = async (templateId: string, courseId: string): Promise<void> => {
+  await api.post(`/certificate-templates/${templateId}/link`, { courseId });
+};
+
+export const unlinkTemplateFromCourse = async (templateId: string, courseId: string): Promise<void> => {
+  await api.delete(`/certificate-templates/${templateId}/link/${courseId}`);
+};

@@ -39,8 +39,14 @@ import {
   createCertificateTemplate,
   updateCertificateTemplate,
   deleteCertificateTemplate,
+  getLinkedCourses,
+  linkTemplateToCourse,
+  unlinkTemplateFromCourse,
   type CertificateTemplateSummary,
+  type LinkedCourse,
 } from "@/services/certificateTemplate.service";
+import { getAllCoursesNoPagination } from "@/services/course.service";
+import type { ICourse } from "@/types";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -178,6 +184,12 @@ const CertificateDesignEditor: React.FC = () => {
 
   // Mock certificate generation
   const [isGeneratingMock, setIsGeneratingMock] = useState(false);
+
+  // Link Certificates tab
+  const [allCourses,      setAllCourses]      = useState<ICourse[]>([]);
+  const [linkedCourseIds, setLinkedCourseIds] = useState<Set<string>>(new Set());
+  const [isLinkLoading,   setIsLinkLoading]   = useState(false);
+  const [togglingId,      setTogglingId]      = useState<string | null>(null);
 
   // Canvas-driven re-render trigger
   const [, setTick]          = useState(0);
@@ -345,6 +357,25 @@ const CertificateDesignEditor: React.FC = () => {
     if (!canvasReady || !routeId) return;
     loadTemplate(routeId);
   }, [canvasReady, routeId, loadTemplate]);
+
+  // ── Link-Certificates tab: load courses + current links ──────────────────────
+
+  useEffect(() => {
+    if (activeTab !== "link-certificates" || !templateId) return;
+    let cancelled = false;
+    setIsLinkLoading(true);
+    Promise.all([
+      getAllCoursesNoPagination(),
+      getLinkedCourses(templateId),
+    ]).then(([coursesRes, linked]) => {
+      if (cancelled) return;
+      setAllCourses((coursesRes.data as ICourse[]) ?? []);
+      setLinkedCourseIds(new Set(linked.map((c: LinkedCourse) => c.id)));
+    }).catch(() => {}).finally(() => {
+      if (!cancelled) setIsLinkLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [activeTab, templateId]);
 
   // ── Auto-save (debounced 1.5 s after any canvas mutation) ────────────────────
 
@@ -655,6 +686,26 @@ const CertificateDesignEditor: React.FC = () => {
     }
   }, [templateName]);
 
+  // ── Link/unlink toggle ───────────────────────────────────────────────────────
+
+  const toggleCourseLink = useCallback(async (courseId: string) => {
+    if (!templateId || togglingId) return;
+    setTogglingId(courseId);
+    try {
+      if (linkedCourseIds.has(courseId)) {
+        await unlinkTemplateFromCourse(templateId, courseId);
+        setLinkedCourseIds(prev => { const s = new Set(prev); s.delete(courseId); return s; });
+      } else {
+        await linkTemplateToCourse(templateId, courseId);
+        setLinkedCourseIds(prev => new Set(prev).add(courseId));
+      }
+    } catch {
+      // interceptor shows toast
+    } finally {
+      setTogglingId(null);
+    }
+  }, [templateId, linkedCourseIds, togglingId]);
+
   // ── Derived ───────────────────────────────────────────────────────────────────
 
   const filteredTemplates = templates.filter(t =>
@@ -926,13 +977,77 @@ const CertificateDesignEditor: React.FC = () => {
           </div>
 
           {activeTab === "link-certificates" && (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-center space-y-2">
-                <p className="text-sm font-medium text-gray-500">Link Certificates</p>
-                <p className="text-xs text-gray-400">
-                  Assign a certificate template to a course
+            <div className="flex-1 flex flex-col overflow-hidden">
+              <div className="p-4 border-b border-gray-200 shrink-0">
+                <h2 className="text-sm font-semibold text-gray-800">Link to Courses</h2>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {templateId
+                    ? `Assign "${templateName}" as the completion certificate for courses`
+                    : "Select a template first"}
                 </p>
               </div>
+
+              {!templateId ? (
+                <div className="flex-1 flex items-center justify-center text-sm text-gray-400">
+                  Open a template to link it to courses
+                </div>
+              ) : isLinkLoading ? (
+                <div className="flex-1 flex items-center justify-center">
+                  <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                </div>
+              ) : allCourses.length === 0 ? (
+                <div className="flex-1 flex items-center justify-center text-sm text-gray-400">
+                  No courses found
+                </div>
+              ) : (
+                <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
+                  {allCourses.map(course => {
+                    const linked  = linkedCourseIds.has(course.id);
+                    const loading = togglingId === course.id;
+                    return (
+                      <div
+                        key={course.id}
+                        className={`flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors ${linked ? "bg-blue-50/50" : ""}`}
+                      >
+                        <img
+                          src={course.coverIcon}
+                          alt={course.title}
+                          className="w-9 h-9 rounded object-cover shrink-0 bg-gray-100"
+                          onError={e => { (e.target as HTMLImageElement).src = ""; }}
+                        />
+                        <span className="flex-1 text-sm text-gray-800 line-clamp-2 leading-snug">
+                          {course.title}
+                        </span>
+                        <button
+                          onClick={() => toggleCourseLink(course.id)}
+                          disabled={!!togglingId}
+                          className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-colors disabled:opacity-50 ${
+                            linked
+                              ? "bg-blue-600 text-white hover:bg-blue-700"
+                              : "border border-gray-300 text-gray-400 hover:border-blue-400 hover:text-blue-500"
+                          }`}
+                        >
+                          {loading
+                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            : linked
+                              ? <Check className="w-3.5 h-3.5" />
+                              : <Plus className="w-3.5 h-3.5" />
+                          }
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {templateId && !isLinkLoading && linkedCourseIds.size > 0 && (
+                <div className="px-4 py-2.5 border-t border-gray-200 bg-gray-50 shrink-0">
+                  <p className="text-xs text-gray-500">
+                    Linked to <span className="font-semibold text-blue-600">{linkedCourseIds.size}</span>{" "}
+                    {linkedCourseIds.size === 1 ? "course" : "courses"}
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </main>
