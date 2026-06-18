@@ -59,3 +59,11 @@ export const linkTemplateToCourse = async (templateId: string, courseId: string)
 export const unlinkTemplateFromCourse = async (templateId: string, courseId: string): Promise<void> => {
   await api.delete(`/certificate-templates/${templateId}/link/${courseId}`);
 };
+
+export const previewCertificateTemplate = async (
+  templateId: string,
+  canvasJson: Record<string, unknown>,
+): Promise<string> => {
+  const res = await api.post(`/certificate-templates/${templateId}/preview`, { canvasJson });
+  return res.data?.data?.pdf as string; // base64-encoded PDF
+};

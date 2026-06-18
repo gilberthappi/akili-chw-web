@@ -41,6 +41,7 @@ import {
   getLinkedCourses,
   linkTemplateToCourse,
   unlinkTemplateFromCourse,
+  previewCertificateTemplate,
   type CertificateTemplateSummary,
   type LinkedCourse,
 } from "@/services/certificateTemplate.service";
@@ -151,19 +152,6 @@ const TOKEN_VALUE: Record<string, string> = {
   "instructor-name": "{{instructorName}}",
 };
 
-const MOCK_TOKENS: Record<string, string> = {
-  "{{studentName}}":     "John Doe",
-  "{{certificateCode}}": "CHW-2026-001234",
-  "{{currentDate}}":     "17 Kamena 2026",
-  "{{courseName}}":      "Community Health Worker Training",
-  "{{courseDetails}}":   "Advanced Community Health Worker Program",
-  "{{progress}}":        "100%",
-  "{{courseDuration}}":  "12 Weeks",
-  "{{startDate}}":       "01 Mutarama 2026",
-  "{{endDate}}":         "17 Kamena 2026",
-  "{{studentCode}}":     "STU-2026-001",
-  "{{instructorName}}":  "Dr. Jane Smith",
-};
 
 const BG_COLORS = [
   "#ffffff", "#f8fafc", "#eff6ff", "#f0fdf4",
@@ -678,67 +666,34 @@ const CertificateDesignEditor: React.FC = () => {
 
   const generateMockCertificate = useCallback(async () => {
     const canvas = fabricRef.current;
-    if (!canvas) return;
+    if (!canvas || !templateId) {
+      toast.error("Save the template first before generating a preview");
+      return;
+    }
     setIsGeneratingMock(true);
     try {
-      // Display-label → mock value table (fallback for templates saved before
-      // the toObject fix, where token/tokenKey were never persisted to JSON).
-      const labelToMock: Record<string, string> = {};
-      Object.entries(DISPLAY_LABEL).forEach(([key, label]) => {
-        const tkn = TOKEN_VALUE[key];
-        if (tkn && MOCK_TOKENS[tkn]) labelToMock[label] = MOCK_TOKENS[tkn];
-      });
+      // Send the current canvas JSON (including unsaved changes) to the backend
+      // so the preview always reflects what the user sees right now.
+      const canvasJson = canvas.toObject(["tokenKey", "token"]) as Record<string, unknown>;
+      const base64Pdf  = await previewCertificateTemplate(templateId, canvasJson);
 
-      // canvas.toObject (NOT toJSON) correctly forwards the extra-properties
-      // array to each object's serialiser so token/tokenKey appear in the JSON.
-      const json = JSON.parse(JSON.stringify(canvas.toObject(["tokenKey", "token"])));
-
-      (json.objects as Record<string, unknown>[]).forEach((obj) => {
-        const token    = obj.token    as string | undefined;
-        const tokenKey = obj.tokenKey as string | undefined;
-        const text     = obj.text     as string | undefined;
-
-        // Priority: explicit token string → tokenKey lookup → display-label text
-        const mock =
-          (token    ? MOCK_TOKENS[token]                        : undefined) ??
-          (tokenKey ? MOCK_TOKENS[TOKEN_VALUE[tokenKey] ?? ""]  : undefined) ??
-          (text     ? labelToMock[text]                          : undefined);
-
-        if (mock) {
-          obj.text      = mock;
-          obj.fontStyle = "normal";
-        }
-      });
-
-      // Render at full 1 : 1 resolution in a hidden off-screen canvas
-      const tempEl = document.createElement("canvas");
-      tempEl.style.cssText = "position:absolute;left:-9999px;top:-9999px;visibility:hidden;";
-      document.body.appendChild(tempEl);
-
-      const tempCanvas = new FabricCanvas(tempEl, {
-        width:           CANVAS_WIDTH,
-        height:          CANVAS_HEIGHT,
-        backgroundColor: "#ffffff",
-        preserveObjectStacking: true,
-      });
-      await tempCanvas.loadFromJSON(json);
-      tempCanvas.renderAll();
-
-      const dataUrl = tempCanvas.toDataURL({ format: "png", quality: 1 });
-      tempCanvas.dispose();
-      document.body.removeChild(tempEl);
-
-      // Wrap in a letter-landscape PDF (11 × 8.5 in = 792 × 612 pt)
-      const { jsPDF } = await import("jspdf");
-      const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: "letter" });
-      pdf.addImage(dataUrl, "PNG", 0, 0, 792, 612);
-      pdf.save(`${templateName || "certificate"}-preview.pdf`);
+      // Decode base64 → Blob → trigger download
+      const bytes = Uint8Array.from(atob(base64Pdf), (c) => c.charCodeAt(0));
+      const blob  = new Blob([bytes], { type: "application/pdf" });
+      const url   = URL.createObjectURL(blob);
+      const a     = document.createElement("a");
+      a.href      = url;
+      a.download  = `${templateName || "certificate"}-preview.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     } catch {
       toast.error("Failed to generate preview PDF");
     } finally {
       setIsGeneratingMock(false);
     }
-  }, [templateName]);
+  }, [templateId, templateName]);
 
   // ── Link/unlink toggle ───────────────────────────────────────────────────────
 
