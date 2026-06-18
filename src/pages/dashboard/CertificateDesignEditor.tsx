@@ -31,6 +31,7 @@ import {
   X,
 } from "lucide-react";
 import { HexColorPicker } from "react-colorful";
+import { Ruler, RULER_THICKNESS } from "@/components/certificate/Ruler";
 import { useNavigate, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
@@ -171,10 +172,12 @@ function rgbToHex(r: number, g: number, b: number): string {
 const CertificateDesignEditor: React.FC = () => {
   const navigate      = useNavigate();
   const { id: routeId } = useParams<{ id: string }>();
-  const canvasElRef    = useRef<HTMLCanvasElement>(null);
-  const fabricRef      = useRef<FabricCanvas | null>(null);
-  const fileInputRef   = useRef<HTMLInputElement>(null);
-  const bgFileInputRef = useRef<HTMLInputElement>(null);
+  const canvasElRef      = useRef<HTMLCanvasElement>(null);
+  const fabricRef        = useRef<FabricCanvas | null>(null);
+  const fileInputRef     = useRef<HTMLInputElement>(null);
+  const bgFileInputRef   = useRef<HTMLInputElement>(null);
+  const scrollRef        = useRef<HTMLDivElement>(null);
+  const canvasWrapperRef = useRef<HTMLDivElement>(null);
 
   // Refs for history — avoids stale-closure issues in fabric event handlers
   const historyRef    = useRef<string[]>([]);
@@ -194,6 +197,19 @@ const CertificateDesignEditor: React.FC = () => {
   const [rightTab,       setRightTab]       = useState<"elements" | "backgrounds">("elements");
   const [searchQuery,    setSearchQuery]    = useState("");
   const [zoom,           setZoom]           = useState(75);
+
+  // Ruler state
+  const [canvasStartX, setCanvasStartX] = useState(0);
+  const [canvasStartY, setCanvasStartY] = useState(0);
+  const [scrollX,      setScrollX]      = useState(0);
+  const [scrollY,      setScrollY]      = useState(0);
+  const [mouseX,       setMouseX]       = useState<number | undefined>(undefined);
+  const [mouseY,       setMouseY]       = useState<number | undefined>(undefined);
+
+  // Guide lines
+  type Guide = { id: string; orientation: "h" | "v"; position: number };
+  const [guides,     setGuides]     = useState<Guide[]>([]);
+  const [dragGuide,  setDragGuide]  = useState<{ orientation: "h" | "v"; position: number; existingId?: string } | null>(null);
 
   // Template management
   const [templates,       setTemplates]       = useState<CertificateTemplateSummary[]>([]);
@@ -333,6 +349,8 @@ const CertificateDesignEditor: React.FC = () => {
     historyIdxRef.current = 0;
     setCanvasReady(true);
     bumpTick();
+    // Measure canvas position for rulers after first render
+    requestAnimationFrame(() => updateCanvasStart());
 
     return () => {
       canvas.dispose();
@@ -844,6 +862,120 @@ const CertificateDesignEditor: React.FC = () => {
   const selAlign   = selIsText ? (sel.textAlign  ?? "center")  : "center";
   const selOpacity = sel ? (sel.opacity ?? 1) : 1;
 
+  // ── Guide drag ────────────────────────────────────────────────────────────────
+
+  const isDraggingGuide   = dragGuide !== null;
+  const dragOrientation   = dragGuide?.orientation;
+  const dragExistingId    = dragGuide?.existingId;
+
+  useEffect(() => {
+    if (!isDraggingGuide) return;
+
+    const toCanvasCoords = (clientX: number, clientY: number) => {
+      const wr = canvasWrapperRef.current?.getBoundingClientRect();
+      if (!wr) return { x: 0, y: 0 };
+      const scale = zoomRef.current / 100;
+      return { x: (clientX - wr.left) / scale, y: (clientY - wr.top) / scale };
+    };
+
+    const onMove = (e: MouseEvent) => {
+      const { x, y } = toCanvasCoords(e.clientX, e.clientY);
+      const pos = dragOrientation === "v" ? x : y;
+      setDragGuide(prev => prev ? { ...prev, position: pos } : null);
+    };
+
+    const onUp = (e: MouseEvent) => {
+      const { x, y } = toCanvasCoords(e.clientX, e.clientY);
+      const inCanvas = x >= 0 && x <= CANVAS_WIDTH && y >= 0 && y <= CANVAS_HEIGHT;
+      const pos      = dragOrientation === "v" ? x : y;
+
+      if (inCanvas) {
+        if (dragExistingId) {
+          setGuides(gs => gs.map(g => g.id === dragExistingId ? { ...g, position: pos } : g));
+        } else {
+          setGuides(gs => [...gs, { id: crypto.randomUUID(), orientation: dragOrientation!, position: pos }]);
+        }
+      } else if (dragExistingId) {
+        setGuides(gs => gs.filter(g => g.id !== dragExistingId));
+      }
+      setDragGuide(null);
+    };
+
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup",   onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup",   onUp);
+    };
+  }, [isDraggingGuide, dragOrientation, dragExistingId]);
+
+  // Override body cursor while dragging a guide
+  useEffect(() => {
+    if (!dragGuide) { document.body.style.cursor = ""; return; }
+    document.body.style.cursor = dragGuide.orientation === "h" ? "ns-resize" : "ew-resize";
+    return () => { document.body.style.cursor = ""; };
+  }, [dragGuide?.orientation, dragGuide !== null]);
+
+  const startGuideFromRuler = useCallback((orientation: "h" | "v") => (e: React.MouseEvent) => {
+    e.preventDefault();
+    const wr = canvasWrapperRef.current?.getBoundingClientRect();
+    if (!wr) return;
+    const scale = zoomRef.current / 100;
+    const pos   = orientation === "v"
+      ? (e.clientX - wr.left) / scale
+      : (e.clientY - wr.top)  / scale;
+    setDragGuide({ orientation, position: pos });
+  }, []);
+
+  const startDragExistingGuide = useCallback((e: React.MouseEvent, guide: Guide) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragGuide({ orientation: guide.orientation, position: guide.position, existingId: guide.id });
+  }, []);
+
+  const deleteGuide = useCallback((id: string) => {
+    setGuides(gs => gs.filter(g => g.id !== id));
+  }, []);
+
+  // ── Ruler helpers ─────────────────────────────────────────────────────────────
+
+  const updateCanvasStart = useCallback(() => {
+    const scroll  = scrollRef.current;
+    const wrapper = canvasWrapperRef.current;
+    if (!scroll || !wrapper) return;
+    const sr = scroll.getBoundingClientRect();
+    const wr = wrapper.getBoundingClientRect();
+    setCanvasStartX(wr.left - sr.left + scroll.scrollLeft);
+    setCanvasStartY(wr.top  - sr.top  + scroll.scrollTop);
+  }, []);
+
+  // Recompute canvas origin when zoom changes (canvas size changes → centering shifts)
+  useEffect(() => {
+    updateCanvasStart();
+  }, [zoom, updateCanvasStart]);
+
+  // Recompute on window resize
+  useEffect(() => {
+    window.addEventListener("resize", updateCanvasStart);
+    return () => window.removeEventListener("resize", updateCanvasStart);
+  }, [updateCanvasStart]);
+
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setScrollX(el.scrollLeft);
+    setScrollY(el.scrollTop);
+    updateCanvasStart();
+  }, [updateCanvasStart]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    setMouseX(e.clientX - rect.left);
+    setMouseY(e.clientY - rect.top);
+  }, []);
+
   // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
@@ -1072,43 +1204,169 @@ const CertificateDesignEditor: React.FC = () => {
         </aside>
 
         {/* Center — Canvas area */}
-        <main
-          className="flex-1 bg-[#e8e8e8] overflow-auto flex flex-col"
-          onClick={e => {
-            if (e.target === e.currentTarget) {
-              fabricRef.current?.discardActiveObject();
-              fabricRef.current?.renderAll();
-              setSelectedObj(null);
-            }
-          }}
-        >
-          {/*
-            Keep canvas element always in DOM (display:none to hide, not unmount)
-            so Fabric keeps its state when switching between tabs.
-            flex-1 gives this div a definite height (= main's height) so
-            items-center / justify-center reliably center the canvas.
-          */}
+        <main className="flex-1 bg-[#e8e8e8] overflow-hidden flex flex-col">
+
+          {/* Canvas tab — rulers + scrollable canvas (always mounted so Fabric keeps state) */}
           <div
-            className="flex-1 flex items-center justify-center p-12"
+            className="flex-1 flex flex-col overflow-hidden"
             style={{ display: activeTab === "certificates" ? "flex" : "none" }}
           >
-            <div
-              style={{
-                position: "relative",
-                boxShadow: "0 4px 32px rgba(0,0,0,0.18)",
-                lineHeight: 0,
-                flexShrink: 0,
-              }}
-            >
-              <canvas ref={canvasElRef} />
-              {isLoadingCanvas && (
-                <div
-                  className="absolute inset-0 flex items-center justify-center bg-white/70"
-                  style={{ pointerEvents: "none" }}
-                >
-                  <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+            {/* Ruler row: corner + horizontal ruler */}
+            <div className="flex shrink-0" style={{ height: RULER_THICKNESS }}>
+              <div style={{
+                width: RULER_THICKNESS, height: RULER_THICKNESS, flexShrink: 0,
+                background: "#e8e8e8", borderRight: "1px solid #ddd", borderBottom: "1px solid #ddd",
+              }} />
+              <Ruler
+                orientation="horizontal"
+                canvasSize={CANVAS_WIDTH}
+                zoom={zoom}
+                canvasStart={canvasStartX}
+                scrollOffset={scrollX}
+                mousePos={mouseX}
+                onMouseDown={startGuideFromRuler("h")}
+              />
+            </div>
+
+            {/* Content row: vertical ruler + scrollable canvas */}
+            <div className="flex flex-1 overflow-hidden">
+              <Ruler
+                orientation="vertical"
+                canvasSize={CANVAS_HEIGHT}
+                zoom={zoom}
+                canvasStart={canvasStartY}
+                scrollOffset={scrollY}
+                mousePos={mouseY}
+                onMouseDown={startGuideFromRuler("v")}
+              />
+
+              {/* Scrollable canvas viewport */}
+              <div
+                ref={scrollRef}
+                className="flex-1 overflow-auto"
+                onScroll={handleScroll}
+                onMouseMove={handleMouseMove}
+                onMouseLeave={() => { setMouseX(undefined); setMouseY(undefined); }}
+                onClick={e => {
+                  if (e.target === e.currentTarget) {
+                    fabricRef.current?.discardActiveObject();
+                    fabricRef.current?.renderAll();
+                    setSelectedObj(null);
+                  }
+                }}
+              >
+                <div className="flex items-center justify-center p-12 min-h-full min-w-full">
+                  <div
+                    ref={canvasWrapperRef}
+                    style={{
+                      position: "relative",
+                      boxShadow: "0 4px 32px rgba(0,0,0,0.18)",
+                      lineHeight: 0,
+                      flexShrink: 0,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <canvas ref={canvasElRef} />
+
+                    {/* ── Guide lines overlay ──────────────────────────────── */}
+                    {(() => {
+                      const scale = zoom / 100;
+                      return (
+                        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
+
+                          {/* Ghost line while dragging from ruler */}
+                          {dragGuide && (
+                            <div style={{
+                              position: "absolute",
+                              ...(dragGuide.orientation === "h"
+                                ? { top: dragGuide.position * scale - 0.5, left: 0, right: 0, height: 1 }
+                                : { left: dragGuide.position * scale - 0.5, top: 0, bottom: 0, width: 1 }),
+                              background: "rgba(79,142,247,0.85)",
+                              pointerEvents: "none",
+                            }}>
+                              {/* Position tooltip */}
+                              <div style={{
+                                position: "absolute",
+                                ...(dragGuide.orientation === "h"
+                                  ? { left: 4, top: 2 }
+                                  : { top: 4, left: 2 }),
+                                background: "#4f8ef7",
+                                color: "#fff",
+                                fontSize: 10,
+                                padding: "1px 4px",
+                                borderRadius: 3,
+                                whiteSpace: "nowrap",
+                                pointerEvents: "none",
+                              }}>
+                                {dragGuide.orientation === "h"
+                                  ? `Y: ${Math.round(dragGuide.position)}px`
+                                  : `X: ${Math.round(dragGuide.position)}px`}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Placed guides */}
+                          {guides
+                            .filter(g => g.id !== dragGuide?.existingId)
+                            .map(guide => {
+                              const pos = guide.position * scale;
+                              const isH = guide.orientation === "h";
+                              return (
+                                <div
+                                  key={guide.id}
+                                  style={{
+                                    position: "absolute",
+                                    ...(isH
+                                      ? { top: pos - 4, left: 0, right: 0, height: 8 }
+                                      : { left: pos - 4, top: 0, bottom: 0, width: 8 }),
+                                    cursor: isH ? "ns-resize" : "ew-resize",
+                                    pointerEvents: "auto",
+                                  }}
+                                  onMouseDown={e => startDragExistingGuide(e, guide)}
+                                  onDoubleClick={() => deleteGuide(guide.id)}
+                                  title="Drag to move · Double-click to delete"
+                                >
+                                  {/* Visible line */}
+                                  <div style={{
+                                    position: "absolute",
+                                    ...(isH
+                                      ? { top: 3.5, left: 0, right: 0, height: 1 }
+                                      : { left: 3.5, top: 0, bottom: 0, width: 1 }),
+                                    background: "#4f8ef7",
+                                  }} />
+                                  {/* Position label at left/top edge */}
+                                  <div style={{
+                                    position: "absolute",
+                                    ...(isH ? { left: 4, top: -14 } : { top: 4, left: 2 }),
+                                    background: "#4f8ef7",
+                                    color: "#fff",
+                                    fontSize: 9,
+                                    padding: "1px 3px",
+                                    borderRadius: 2,
+                                    whiteSpace: "nowrap",
+                                    opacity: 0.85,
+                                    pointerEvents: "none",
+                                  }}>
+                                    {isH ? `${Math.round(guide.position)}` : `${Math.round(guide.position)}`}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      );
+                    })()}
+
+                    {isLoadingCanvas && (
+                      <div
+                        className="absolute inset-0 flex items-center justify-center bg-white/70"
+                        style={{ pointerEvents: "none" }}
+                      >
+                        <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+                      </div>
+                    )}
+                  </div>
                 </div>
-              )}
+              </div>
             </div>
           </div>
 
