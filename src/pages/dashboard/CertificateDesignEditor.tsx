@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
   Canvas as FabricCanvas,
   IText,
-  Rect,
   FabricImage,
   type FabricObject,
 } from "fabric";
@@ -52,6 +51,40 @@ import type { ICourse } from "@/types";
 
 const CANVAS_WIDTH  = 1056; // 11in @ 96 dpi — landscape
 const CANVAS_HEIGHT = 816;  // 8.5in @ 96 dpi
+
+function makeQrPlaceholderSvg(): string {
+  const c = 10; // px per module; 21 modules → 210px square
+  const finder = (x: number, y: number) =>
+    `<rect x="${x}" y="${y}" width="${7*c}" height="${7*c}" fill="#111"/>` +
+    `<rect x="${x+c}" y="${y+c}" width="${5*c}" height="${5*c}" fill="white"/>` +
+    `<rect x="${x+2*c}" y="${y+2*c}" width="${3*c}" height="${3*c}" fill="#111"/>`;
+  // scattered data modules to make it look like a real QR code
+  const data: [number, number][] = [
+    [8,0],[10,0],[12,0],[9,1],[13,1],[8,2],[11,2],[9,3],[12,3],[10,4],[13,4],[8,5],[11,5],
+    [8,6],[10,6],[12,6], // timing row
+    [6,8],[6,10],[6,12], // timing col
+    // alignment pattern (bottom-right)
+    [14,14],[15,14],[16,14],[17,14],[18,14],
+    [14,15],[18,15],[14,16],[16,16],[18,16],[14,17],[18,17],
+    [14,18],[15,18],[16,18],[17,18],[18,18],
+    // data scatter
+    [8,8],[10,8],[14,8],[17,8],[20,8],
+    [9,9],[12,9],[16,9],[19,9],
+    [8,10],[11,10],[15,10],[18,10],[20,10],
+    [10,11],[13,11],[17,11],
+    [9,12],[12,12],[16,12],[20,12],
+    [8,13],[11,13],[14,13],[19,13],[20,13],
+    [8,15],[12,15],[20,15],[9,16],[13,16],[20,16],
+    [8,17],[10,17],[15,17],[17,17],[20,17],
+    [9,18],[12,18],[19,18],[8,19],[11,19],[13,19],[18,19],[20,19],
+    [9,20],[10,20],[12,20],[15,20],[17,20],[19,20],
+  ];
+  const rects = data
+    .map(([col, row]) => `<rect x="${col*c}" y="${row*c}" width="${c}" height="${c}" fill="#111"/>`)
+    .join("");
+  const size = 21 * c;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><rect width="${size}" height="${size}" fill="white"/>${finder(0, 0)}${finder(14*c, 0)}${finder(0, 14*c)}${rects}</svg>`;
+}
 
 const ELEMENT_SECTIONS = [
   {
@@ -476,15 +509,16 @@ const CertificateDesignEditor: React.FC = () => {
     if (key === "image") { fileInputRef.current?.click(); return; }
 
     if (key === "qr") {
-      const r = new Rect({
-        left: 300, top: 300, width: 120, height: 120,
-        fill: "#f9fafb", stroke: "#9ca3af", strokeWidth: 1,
-        strokeDashArray: [5, 5], rx: 4, ry: 4,
+      const svg = makeQrPlaceholderSvg();
+      const dataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+      FabricImage.fromURL(dataUrl).then((img) => {
+        img.scaleToWidth(100);
+        img.set({ left: 300, top: 300 });
+        (img as Record<string, unknown>).tokenKey = "qr";
+        canvas.add(img);
+        canvas.setActiveObject(img);
+        canvas.renderAll();
       });
-      (r as Record<string, unknown>).tokenKey = "qr";
-      canvas.add(r);
-      canvas.setActiveObject(r);
-      canvas.renderAll();
       return;
     }
 
