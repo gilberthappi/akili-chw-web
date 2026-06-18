@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import ReactDOM from "react-dom";
 import {
   Canvas as FabricCanvas,
   IText,
+  Textbox,
   FabricImage,
   type FabricObject,
 } from "fabric";
@@ -29,6 +31,9 @@ import {
   Loader2,
   Check,
   X,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
 } from "lucide-react";
 import { HexColorPicker } from "react-colorful";
 import { Ruler, RULER_THICKNESS } from "@/components/certificate/Ruler";
@@ -57,6 +62,42 @@ import type { ICourse } from "@/types";
 
 const CANVAS_WIDTH  = 1056; // 11in @ 96 dpi — landscape
 const CANVAS_HEIGHT = 816;  // 8.5in @ 96 dpi
+
+const FONT_FAMILIES = [
+  "Arial", "Helvetica", "Georgia", "Times New Roman",
+  "Courier New", "Verdana", "Trebuchet MS", "Impact",
+  "Comic Sans MS", "Palatino Linotype", "Garamond",
+];
+
+// ── Toolbar helpers ───────────────────────────────────────────────────────────
+
+const TbDivider = () => (
+  <div style={{ width: 1, height: 20, background: "#e5e7eb", margin: "0 2px", flexShrink: 0 }} />
+);
+
+const TbBtn = ({
+  children, active, title, onMouseDown,
+}: {
+  children: React.ReactNode;
+  active?: boolean;
+  title?: string;
+  onMouseDown: () => void;
+}) => (
+  <button
+    onMouseDown={e => { e.preventDefault(); onMouseDown(); }}
+    title={title}
+    style={{
+      width: 28, height: 28,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      borderRadius: 4, border: "none",
+      background: active ? "#e0e7ff" : "transparent",
+      color: active ? "#4338ca" : "#374151",
+      cursor: "pointer", flexShrink: 0,
+    }}
+  >
+    {children}
+  </button>
+);
 
 function makeQrPlaceholderSvg(): string {
   const c = 10; // px per module; 21 modules → 210px square
@@ -597,9 +638,10 @@ const CertificateDesignEditor: React.FC = () => {
     const token   = TOKEN_VALUE[key];
     const isToken = !!token;
 
-    const t = new IText(content, {
+    const t = new Textbox(content, {
       left:       300,
       top:        300,
+      width:      400,
       fontSize:   key === "text" ? 20 : 22,
       fill:       "#334155",
       fontFamily: "Arial",
@@ -855,12 +897,14 @@ const CertificateDesignEditor: React.FC = () => {
   const selTop     = sel ? Math.round(sel.top   ?? 0) : 0;
   const selW       = sel ? Math.round((sel.width  ?? 0) * (sel.scaleX ?? 1)) : 0;
   const selH       = sel ? Math.round((sel.height ?? 0) * (sel.scaleY ?? 1)) : 0;
-  const selIsText  = selectedObj instanceof IText;
-  const selFontSz  = selIsText ? (sel.fontSize  ?? 20)        : 20;
-  const selColor   = selIsText ? (sel.fill       ?? "#334155") : "#334155";
-  const selBold    = selIsText && sel.fontWeight === "bold";
-  const selAlign   = selIsText ? (sel.textAlign  ?? "center")  : "center";
-  const selOpacity = sel ? (sel.opacity ?? 1) : 1;
+  const selIsText    = selectedObj instanceof IText;
+  const selFontSz    = selIsText ? (sel.fontSize   ?? 20)        : 20;
+  const selColor     = selIsText ? (sel.fill        ?? "#334155") : "#334155";
+  const selBold      = selIsText && sel.fontWeight === "bold";
+  const selItalic    = selIsText && sel.fontStyle  === "italic";
+  const selAlign     = selIsText ? (sel.textAlign   ?? "center")  : "center";
+  const selFontFamily = selIsText ? (sel.fontFamily ?? "Arial")   : "Arial";
+  const selOpacity   = sel ? (sel.opacity ?? 1) : 1;
 
   // ── Guide drag ────────────────────────────────────────────────────────────────
 
@@ -915,6 +959,39 @@ const CertificateDesignEditor: React.FC = () => {
     document.body.style.cursor = dragGuide.orientation === "h" ? "ns-resize" : "ew-resize";
     return () => { document.body.style.cursor = ""; };
   }, [dragGuide?.orientation, dragGuide !== null]);
+
+  // Keyboard shortcuts for selected canvas objects
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const canvas = fabricRef.current;
+      if (!canvas) return;
+      const active = canvas.getActiveObject();
+      if (!active) return;
+      // Don't intercept when typing in inputs or when fabric IText is in edit mode
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return;
+      if (active instanceof IText && (active as unknown as { isEditing: boolean }).isEditing) return;
+      const ctrl = e.ctrlKey || e.metaKey;
+      if (ctrl && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        const isBold = (active as Record<string, unknown>).fontWeight === "bold";
+        updateSelected({ fontWeight: isBold ? "normal" : "bold" });
+      } else if (ctrl && e.key.toLowerCase() === "i") {
+        e.preventDefault();
+        const isItalic = (active as Record<string, unknown>).fontStyle === "italic";
+        updateSelected({ fontStyle: isItalic ? "normal" : "italic" });
+      } else if (e.key === "Delete") {
+        e.preventDefault();
+        deleteSelected();
+      } else if (e.key === "Escape") {
+        canvas.discardActiveObject();
+        canvas.renderAll();
+        setSelectedObj(null);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [updateSelected, deleteSelected]);
 
   const startGuideFromRuler = useCallback((orientation: "h" | "v") => (e: React.MouseEvent) => {
     e.preventDefault();
@@ -1841,6 +1918,121 @@ const CertificateDesignEditor: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* ── Floating text toolbar ──────────────────────────────────────────── */}
+      {selIsText && selectedObj && activeTab === "certificates" && (() => {
+        const scale = zoom / 100;
+        const wr = canvasWrapperRef.current?.getBoundingClientRect();
+        if (!wr) return null;
+
+        const objLeft = (sel?.left   ?? 0) * scale;
+        const objTop  = (sel?.top    ?? 0) * scale;
+        const objH    = (sel?.height ?? 20) * (sel?.scaleY ?? 1) * scale;
+
+        const TOOLBAR_H = 86;
+        const GAP = 5;
+
+        let fixedTop  = wr.top + objTop - TOOLBAR_H - GAP;
+        let fixedLeft = wr.left + objLeft;
+        if (fixedTop < 56) fixedTop = wr.top + objTop + objH + GAP;
+        fixedLeft = Math.max(8, Math.min(fixedLeft, window.innerWidth - 520));
+
+        return ReactDOM.createPortal(
+          <div
+            style={{ position: "fixed", left: fixedLeft, top: fixedTop, zIndex: 9999 }}
+            onMouseDown={e => e.preventDefault()}
+          >
+            <div style={{
+              display: "flex", flexDirection: "column", gap: 2,
+              background: "#fff",
+              border: "1px solid #e2e8f0",
+              borderRadius: 8,
+              padding: "5px 8px",
+              boxShadow: "0 4px 20px rgba(0,0,0,0.13)",
+            }}>
+              {/* Row 1: color · font family · font size */}
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <label style={{ position: "relative", width: 22, height: 22, cursor: "pointer", flexShrink: 0 }}>
+                  <span style={{
+                    display: "block", width: 22, height: 22, borderRadius: "50%",
+                    background: typeof selColor === "string" ? selColor : "#334155",
+                    border: "2px solid rgba(0,0,0,0.15)",
+                  }} />
+                  <input
+                    type="color"
+                    value={typeof selColor === "string" && /^#[0-9a-fA-F]{6}$/.test(selColor) ? selColor : "#334155"}
+                    onChange={e => updateSelected({ fill: e.target.value })}
+                    style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", height: "100%" }}
+                  />
+                </label>
+                <TbDivider />
+                <select
+                  value={selFontFamily}
+                  onChange={e => updateSelected({ fontFamily: e.target.value })}
+                  onMouseDown={e => e.stopPropagation()}
+                  style={{
+                    fontSize: 12, border: "1px solid #e5e7eb", borderRadius: 4,
+                    padding: "2px 4px", outline: "none", background: "#fff",
+                    cursor: "pointer", width: 120, height: 26,
+                  }}
+                >
+                  {FONT_FAMILIES.map(f => <option key={f} value={f}>{f}</option>)}
+                </select>
+                <TbDivider />
+                <input
+                  type="number"
+                  min={8} max={200}
+                  value={selFontSz}
+                  onChange={e => updateSelected({ fontSize: Math.max(8, Number(e.target.value)) })}
+                  onMouseDown={e => e.stopPropagation()}
+                  style={{
+                    width: 42, height: 26, fontSize: 12, textAlign: "center",
+                    border: "1px solid #e5e7eb", borderRadius: 4,
+                    padding: "2px 4px", outline: "none", background: "#fff",
+                  }}
+                />
+                <span style={{ fontSize: 11, color: "#9ca3af" }}>px</span>
+              </div>
+
+              {/* Row 2: alignment · bold · italic · delete */}
+              <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                <TbBtn active={selAlign === "left"} title="Align left" onMouseDown={() => updateSelected({ textAlign: "left" })}>
+                  <AlignLeft size={13} />
+                </TbBtn>
+                <TbBtn active={selAlign === "center"} title="Align center" onMouseDown={() => updateSelected({ textAlign: "center" })}>
+                  <AlignCenter size={13} />
+                </TbBtn>
+                <TbBtn active={selAlign === "right"} title="Align right" onMouseDown={() => updateSelected({ textAlign: "right" })}>
+                  <AlignRight size={13} />
+                </TbBtn>
+                <TbDivider />
+                <TbBtn active={selBold} title="Bold (Ctrl+B)" onMouseDown={() => updateSelected({ fontWeight: selBold ? "normal" : "bold" })}>
+                  <span style={{ fontWeight: 700, fontSize: 13, lineHeight: 1 }}>B</span>
+                </TbBtn>
+                <TbBtn active={selItalic} title="Italic (Ctrl+I)" onMouseDown={() => updateSelected({ fontStyle: selItalic ? "normal" : "italic" })}>
+                  <em style={{ fontStyle: "italic", fontSize: 13, fontWeight: 600, lineHeight: 1 }}>I</em>
+                </TbBtn>
+                <TbDivider />
+                <TbBtn title="Duplicate" onMouseDown={() => { duplicateSelected(); }}>
+                  <Copy size={13} />
+                </TbBtn>
+                <button
+                  onMouseDown={e => { e.preventDefault(); deleteSelected(); }}
+                  title="Delete"
+                  style={{
+                    width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center",
+                    borderRadius: 4, border: "none", background: "transparent",
+                    color: "#ef4444", cursor: "pointer", flexShrink: 0,
+                  }}
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        );
+      })()}
     </div>
   );
 };
