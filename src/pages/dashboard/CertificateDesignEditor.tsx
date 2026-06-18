@@ -30,6 +30,7 @@ import {
   Check,
   X,
 } from "lucide-react";
+import { HexColorPicker } from "react-colorful";
 import { useNavigate, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
@@ -153,11 +154,14 @@ const TOKEN_VALUE: Record<string, string> = {
 };
 
 
-const BG_COLORS = [
-  "#ffffff", "#f8fafc", "#eff6ff", "#f0fdf4",
-  "#fefce8", "#fdf2f8", "#0f172a", "#1e3a5f",
-  "#166534", "#7f1d1d",
-];
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return m ? { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) } : null;
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+  return `#${[r, g, b].map(v => Math.max(0, Math.min(255, v)).toString(16).padStart(2, "0")).join("")}`;
+}
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -209,6 +213,14 @@ const CertificateDesignEditor: React.FC = () => {
 
   // Mock certificate generation
   const [isGeneratingMock, setIsGeneratingMock] = useState(false);
+
+  // Recently used background images (session only — data URLs can be large)
+  const [recentBgImages, setRecentBgImages] = useState<string[]>([]);
+
+  // Background color picker
+  const [pickerColor, setPickerColor] = useState("#ffffff");
+  const [hexDraft,    setHexDraft]    = useState("ffffff");
+  const hexFocused = useRef(false);
 
   // Link Certificates tab
   const [allCourses,      setAllCourses]      = useState<ICourse[]>([]);
@@ -370,6 +382,11 @@ const CertificateDesignEditor: React.FC = () => {
       setTemplateName(tpl.name);
       setSelectedObj(null);
       setDirtyCount(0);
+      // Sync bg color picker with loaded template background
+      const loadedBg = (canvas.backgroundColor as string) || "#ffffff";
+      const validBg = /^#[0-9a-fA-F]{6}$/.test(loadedBg) ? loadedBg : "#ffffff";
+      setPickerColor(validBg);
+      setHexDraft(validBg.replace("#", ""));
       bumpTick();
     } catch {
       // error shown by api interceptor
@@ -644,11 +661,48 @@ const CertificateDesignEditor: React.FC = () => {
     bumpTick();
   }, [bumpTick]);
 
-  const setBackground = useCallback((color: string) => {
+  const applyBgColor = useCallback((color: string) => {
     const canvas = fabricRef.current;
     if (!canvas) return;
     canvas.backgroundImage = undefined;
     canvas.backgroundColor = color;
+    canvas.renderAll();
+  }, []);
+
+  const setBackground = useCallback((color: string) => {
+    applyBgColor(color);
+    setPickerColor(color);
+    if (!hexFocused.current) setHexDraft(color.replace("#", ""));
+    saveSnapshot();
+  }, [applyBgColor, saveSnapshot]);
+
+  const applyBackgroundDataUrl = useCallback(async (dataUrl: string) => {
+    const canvas = fabricRef.current;
+    if (!canvas) return;
+
+    const htmlImg = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload  = () => resolve(el);
+      el.onerror = reject;
+      el.src = dataUrl;
+    });
+
+    const natW = htmlImg.naturalWidth  || CANVAS_WIDTH;
+    const natH = htmlImg.naturalHeight || CANVAS_HEIGHT;
+
+    const img = new FabricImage(htmlImg, {
+      left:    CANVAS_WIDTH  / 2,
+      top:     CANVAS_HEIGHT / 2,
+      originX: 'center' as const,
+      originY: 'center' as const,
+      scaleX:  CANVAS_WIDTH  / natW,
+      scaleY:  CANVAS_HEIGHT / natH,
+      selectable: false,
+      evented:    false,
+    });
+
+    canvas.backgroundImage = img;
+    canvas.backgroundColor = "";
     canvas.renderAll();
     saveSnapshot();
   }, [saveSnapshot]);
@@ -668,36 +722,17 @@ const CertificateDesignEditor: React.FC = () => {
         reader.readAsDataURL(file);
       });
 
-      // Load via HTMLImageElement to get reliable naturalWidth/naturalHeight
-      const htmlImg = await new Promise<HTMLImageElement>((resolve, reject) => {
-        const el = new Image();
-        el.onload  = () => resolve(el);
-        el.onerror = reject;
-        el.src = dataUrl;
+      await applyBackgroundDataUrl(dataUrl);
+
+      // Track recent backgrounds (deduplicate, cap at 5)
+      setRecentBgImages(prev => {
+        const filtered = prev.filter(u => u !== dataUrl);
+        return [dataUrl, ...filtered].slice(0, 5);
       });
 
-      const natW = htmlImg.naturalWidth  || CANVAS_WIDTH;
-      const natH = htmlImg.naturalHeight || CANVAS_HEIGHT;
-
-      // left/top = canvas center + originX/Y='center' so the image fills the full canvas
-      const img = new FabricImage(htmlImg, {
-        left:    CANVAS_WIDTH  / 2,
-        top:     CANVAS_HEIGHT / 2,
-        originX: 'center' as const,
-        originY: 'center' as const,
-        scaleX:  CANVAS_WIDTH  / natW,
-        scaleY:  CANVAS_HEIGHT / natH,
-        selectable: false,
-        evented:    false,
-      });
-
-      canvas.backgroundImage = img;
-      canvas.backgroundColor = "";
-      canvas.renderAll();
       e.target.value = "";
-      saveSnapshot();
     },
-    [saveSnapshot],
+    [applyBackgroundDataUrl],
   );
 
   // ── Generate Mock Certificate ─────────────────────────────────────────────────
@@ -1172,17 +1207,76 @@ const CertificateDesignEditor: React.FC = () => {
                 <p className="text-[10px] font-semibold text-gray-400 tracking-widest uppercase mb-3">
                   Background Color
                 </p>
-                <div className="grid grid-cols-5 gap-2">
-                  {BG_COLORS.map(color => (
-                    <button
-                      key={color}
-                      onClick={() => setBackground(color)}
-                      title={color}
-                      className="w-9 h-9 rounded-md border border-gray-200 hover:scale-110 transition-transform shadow-sm"
-                      style={{ backgroundColor: color }}
-                    />
-                  ))}
+                {/* Gradient + hue picker */}
+                <div
+                  onPointerUp={() => saveSnapshot()}
+                  className="[&_.react-colorful]:w-full [&_.react-colorful__saturation]:rounded-md [&_.react-colorful__hue]:rounded-md [&_.react-colorful__hue]:mt-2"
+                >
+                  <HexColorPicker
+                    color={pickerColor}
+                    onChange={c => {
+                      setPickerColor(c);
+                      if (!hexFocused.current) setHexDraft(c.replace("#", ""));
+                      applyBgColor(c);
+                    }}
+                  />
                 </div>
+                {/* Hex input */}
+                <div className="mt-3 flex items-center gap-1.5">
+                  <span className="text-xs text-gray-400 font-mono">#</span>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    value={hexDraft}
+                    onFocus={() => { hexFocused.current = true; }}
+                    onChange={e => {
+                      const v = e.target.value.replace(/[^0-9a-fA-F]/g, "");
+                      setHexDraft(v);
+                      if (v.length === 6) {
+                        const c = `#${v}`;
+                        setPickerColor(c);
+                        applyBgColor(c);
+                      }
+                    }}
+                    onBlur={() => {
+                      hexFocused.current = false;
+                      if (hexDraft.length === 6) saveSnapshot();
+                      else { setHexDraft(pickerColor.replace("#", "")); }
+                    }}
+                    onKeyDown={e => { if (e.key === "Enter") e.currentTarget.blur(); }}
+                    className="flex-1 px-2 py-1 text-xs font-mono border border-gray-200 rounded focus:outline-none focus:border-blue-400 uppercase"
+                    placeholder="ffffff"
+                  />
+                </div>
+                {/* RGB inputs */}
+                {(() => {
+                  const rgb = hexToRgb(pickerColor) ?? { r: 255, g: 255, b: 255 };
+                  const setChannel = (channel: "r" | "g" | "b", val: number) => {
+                    const next = { ...rgb, [channel]: Math.max(0, Math.min(255, val)) };
+                    const c = rgbToHex(next.r, next.g, next.b);
+                    setPickerColor(c);
+                    setHexDraft(c.replace("#", ""));
+                    applyBgColor(c);
+                  };
+                  return (
+                    <div className="mt-2 grid grid-cols-3 gap-1.5">
+                      {(["r", "g", "b"] as const).map(ch => (
+                        <div key={ch} className="flex flex-col items-center gap-0.5">
+                          <span className="text-[9px] font-semibold text-gray-400 uppercase">{ch}</span>
+                          <input
+                            type="number"
+                            min={0}
+                            max={255}
+                            value={rgb[ch]}
+                            onChange={e => setChannel(ch, Number(e.target.value))}
+                            onBlur={() => saveSnapshot()}
+                            className="w-full px-1.5 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:border-blue-400 text-center"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
               <div>
                 <p className="text-[10px] font-semibold text-gray-400 tracking-widest uppercase mb-2">
@@ -1195,6 +1289,25 @@ const CertificateDesignEditor: React.FC = () => {
                   + Upload image
                 </button>
               </div>
+              {recentBgImages.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-semibold text-gray-400 tracking-widest uppercase mb-2">
+                    Recent Backgrounds
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {recentBgImages.map((url, i) => (
+                      <button
+                        key={i}
+                        onClick={() => applyBackgroundDataUrl(url)}
+                        className="relative aspect-[4/3] rounded-md overflow-hidden border border-gray-200 hover:border-blue-400 hover:shadow-sm transition-all"
+                        title="Re-apply this background"
+                      >
+                        <img src={url} alt="" className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
