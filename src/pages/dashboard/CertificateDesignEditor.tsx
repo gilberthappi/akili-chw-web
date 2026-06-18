@@ -294,6 +294,9 @@ const CertificateDesignEditor: React.FC = () => {
 
   // Selected fabric object
   const [selectedObj, setSelectedObj] = useState<FabricObject | null>(null);
+  // Keeps the last non-null selection so toolbar onChange handlers (select/input)
+  // can still reach the object even after focus-steal clears canvas selection.
+  const lastSelectedRef = useRef<FabricObject | null>(null);
 
   // ── Zoom ──────────────────────────────────────────────────────────────────────
 
@@ -376,7 +379,9 @@ const CertificateDesignEditor: React.FC = () => {
     fabricRef.current = canvas;
 
     const onSelectChange = () => {
-      setSelectedObj(canvas.getActiveObject() ?? null);
+      const active = canvas.getActiveObject() ?? null;
+      if (active) lastSelectedRef.current = active;
+      setSelectedObj(active);
       bumpTick();
     };
     canvas.on("selection:created", onSelectChange);
@@ -724,12 +729,20 @@ const CertificateDesignEditor: React.FC = () => {
 
   const updateSelected = useCallback((props: Record<string, unknown>) => {
     const canvas = fabricRef.current;
-    const obj    = canvas?.getActiveObject();
+    const obj    = canvas?.getActiveObject() ?? lastSelectedRef.current;
     if (!canvas || !obj) return;
     (obj as Record<string, unknown> & { set: (p: Record<string, unknown>) => void }).set(props);
+    // Recalculate text layout when font-related properties change
+    if (obj instanceof IText) {
+      (obj as unknown as { initDimensions: () => void }).initDimensions();
+      obj.setCoords();
+    }
+    // Re-establish selection in case a toolbar input stole focus and cleared it
+    canvas.setActiveObject(obj);
     canvas.renderAll();
     bumpTick();
-  }, [bumpTick]);
+    saveSnapshot();
+  }, [bumpTick, saveSnapshot]);
 
   const applyBgColor = useCallback((color: string) => {
     const canvas = fabricRef.current;
@@ -1070,21 +1083,7 @@ const CertificateDesignEditor: React.FC = () => {
           <span className="text-sm font-semibold whitespace-nowrap">Certificate Builder</span>
         </button>
 
-        {templateId ? (
-          <>
-            <div className="h-5 w-px bg-gray-200 shrink-0" />
-            <input
-              value={templateName}
-              onChange={e => setTemplateName(e.target.value)}
-              onBlur={handleRenameTemplate}
-              onKeyDown={e => { if (e.key === "Enter") { e.currentTarget.blur(); } }}
-              className="text-sm text-gray-500 border-none outline-none bg-transparent pr-4 border-r border-gray-200 w-36 truncate focus:ring-0"
-              placeholder="Template name"
-            />
-          </>
-        ) : (
-          <div className="h-5 w-px bg-gray-200 shrink-0" />
-        )}
+        <div className="h-5 w-px bg-gray-200 shrink-0" />
 
         {/* Center tabs */}
         <div className="flex-1 flex items-center justify-center">
