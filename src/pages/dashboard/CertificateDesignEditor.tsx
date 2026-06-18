@@ -177,6 +177,10 @@ const CertificateDesignEditor: React.FC = () => {
   // Zoom ref mirrors zoom state so async callbacks always see current value
   const zoomRef = useRef(75);
 
+  // When we auto-create a template and navigate to its URL, skip the loadTemplate
+  // effect for that ID so the canvas isn't wiped before the element is added.
+  const justCreatedIdRef = useRef<string | null>(null);
+
   // ── UI state ─────────────────────────────────────────────────────────────────
 
   const [activeTab,      setActiveTab]      = useState<"certificates" | "link-certificates">("certificates");
@@ -376,6 +380,10 @@ const CertificateDesignEditor: React.FC = () => {
 
   useEffect(() => {
     if (!canvasReady || !routeId) return;
+    if (justCreatedIdRef.current === routeId) {
+      justCreatedIdRef.current = null; // canvas already has the right content, skip reload
+      return;
+    }
     loadTemplate(routeId);
   }, [canvasReady, routeId, loadTemplate]);
 
@@ -488,11 +496,41 @@ const CertificateDesignEditor: React.FC = () => {
     }
   }, [templateId, navigate]);
 
+  // ── Create blank template (from the "Create blank" card in the sidebar) ─────
+
+  const handleCreateBlankTemplate = useCallback(async () => {
+    setIsCreating(true);
+    try {
+      const tpl = await createCertificateTemplate("Untitled");
+      setTemplates(prev => [tpl, ...prev]);
+      navigate(`/certificates/design/${tpl.id}`);
+    } catch {
+      // interceptor shows toast
+    } finally {
+      setIsCreating(false);
+    }
+  }, [navigate]);
+
   // ── Add elements ──────────────────────────────────────────────────────────────
 
-  const addElement = useCallback((key: string) => {
+  const addElement = useCallback(async (key: string) => {
     const canvas = fabricRef.current;
     if (!canvas) return;
+
+    // Auto-create "Untitled" template if none is active yet
+    if (!templateId) {
+      try {
+        const tpl = await createCertificateTemplate("Untitled");
+        justCreatedIdRef.current = tpl.id; // prevent loadTemplate from wiping canvas
+        setTemplates(prev => [tpl, ...prev]);
+        setTemplateId(tpl.id);
+        setTemplateName(tpl.name);
+        navigate(`/certificates/design/${tpl.id}`, { replace: true });
+      } catch {
+        toast.error("Could not create template");
+        return;
+      }
+    }
 
     if (key === "image") { fileInputRef.current?.click(); return; }
 
@@ -529,7 +567,7 @@ const CertificateDesignEditor: React.FC = () => {
     canvas.add(t);
     canvas.setActiveObject(t);
     canvas.renderAll();
-  }, []);
+  }, [templateId, navigate]);
 
   // ── Image upload ──────────────────────────────────────────────────────────────
 
@@ -747,25 +785,27 @@ const CertificateDesignEditor: React.FC = () => {
 
         <button
           onClick={() => navigate("/certificates")}
-          className="p-1.5 hover:bg-gray-100 rounded-md text-gray-500 transition-colors"
+          className="flex items-center gap-1.5 px-1.5 py-1 hover:bg-gray-100 rounded-md text-gray-600 transition-colors shrink-0"
           title="Back to Certificates"
         >
           <ArrowLeft className="w-4 h-4" />
+          <span className="text-sm font-semibold whitespace-nowrap">Certificate Builder</span>
         </button>
 
         {templateId ? (
-          <input
-            value={templateName}
-            onChange={e => setTemplateName(e.target.value)}
-            onBlur={handleRenameTemplate}
-            onKeyDown={e => { if (e.key === "Enter") { e.currentTarget.blur(); } }}
-            className="text-sm font-semibold text-gray-800 border-none outline-none bg-transparent pr-4 border-r border-gray-200 w-44 truncate focus:ring-0"
-            placeholder="Template name"
-          />
+          <>
+            <div className="h-5 w-px bg-gray-200 shrink-0" />
+            <input
+              value={templateName}
+              onChange={e => setTemplateName(e.target.value)}
+              onBlur={handleRenameTemplate}
+              onKeyDown={e => { if (e.key === "Enter") { e.currentTarget.blur(); } }}
+              className="text-sm text-gray-500 border-none outline-none bg-transparent pr-4 border-r border-gray-200 w-36 truncate focus:ring-0"
+              placeholder="Template name"
+            />
+          </>
         ) : (
-          <span className="text-sm font-semibold text-gray-800 pr-4 border-r border-gray-200 whitespace-nowrap">
-            Certificate Builder
-          </span>
+          <div className="h-5 w-px bg-gray-200 shrink-0" />
         )}
 
         {/* Center tabs */}
@@ -882,20 +922,38 @@ const CertificateDesignEditor: React.FC = () => {
           </div>
 
           <div className="flex-1 overflow-y-auto p-3 space-y-2">
+            {/* Create blank — always first */}
+            <div className="group">
+              <button
+                onClick={handleCreateBlankTemplate}
+                disabled={isCreating}
+                className="w-full text-left rounded-lg overflow-hidden border-2 border-dashed border-gray-200 hover:border-blue-400 transition-all disabled:opacity-50"
+              >
+                <div className="w-full aspect-[4/3] flex items-center justify-center bg-gray-50 group-hover:bg-blue-50/40 transition-colors rounded-t-md">
+                  {isCreating ? (
+                    <Loader2 className="w-6 h-6 text-blue-400 animate-spin" />
+                  ) : (
+                    <div className="flex flex-col items-center gap-1.5 text-gray-400 group-hover:text-blue-500 transition-colors">
+                      <div className="w-9 h-9 rounded-full border-2 border-dashed border-current flex items-center justify-center">
+                        <Plus className="w-4 h-4" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="px-1.5 py-1.5">
+                  <p className="text-xs font-medium text-gray-500 group-hover:text-blue-600 transition-colors">
+                    Create blank
+                  </p>
+                </div>
+              </button>
+            </div>
+
             {isLoadingTpls ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
               </div>
-            ) : filteredTemplates.length === 0 ? (
-              <div className="text-center py-8 space-y-2">
-                <p className="text-xs text-gray-400">No templates yet</p>
-                <button
-                  onClick={() => setShowNewModal(true)}
-                  className="text-xs text-blue-600 hover:underline"
-                >
-                  Create one
-                </button>
-              </div>
+            ) : filteredTemplates.length === 0 && !searchQuery ? null : filteredTemplates.length === 0 ? (
+              <p className="text-center text-xs text-gray-400 py-4">No results</p>
             ) : (
               filteredTemplates.map(tmpl => (
                 <div
