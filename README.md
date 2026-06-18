@@ -379,5 +379,5 @@ We would like to thank:
 ## 📝 License <a name="license"></a>
 
 This project is licensed under proprietary terms. See the [LICENSE](./LICENSE) file for details.
-
+d
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
