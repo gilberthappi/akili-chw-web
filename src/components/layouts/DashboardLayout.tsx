@@ -462,12 +462,12 @@ const DashboardLayout = ({
       path: "/my-certificates",
       roles: ["TRAINEE", "CHO"],
     },
-    // {
-    //   label: "Certificates",
-    //   icon: <Award className='w-4 h-4' />,
-    //   path: "/certificates",
-    //   roles: ["ADMIN", "TRAINER", "DEVELOPER", "STAFF"],
-    // },
+    {
+      label: "Certificates",
+      icon: <Award className='w-4 h-4' />,
+      path: "/certificates",
+      roles: ["ADMIN", "TRAINER", "DEVELOPER", "STAFF"],
+    },
     {
       label: "Feedbacks",
       icon: <MessageCircle className='w-4 h-4' />,

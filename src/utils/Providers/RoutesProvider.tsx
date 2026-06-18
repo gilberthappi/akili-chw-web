@@ -42,6 +42,7 @@ import FinalTestPage from "@/pages/dashboard/FinalTestPage";
 import CHOGroupPage from "@/pages/dashboard/CHOGroup";
 import CHOGroupInvitePage from "@/pages/dashboard/CHOGroupInvite";
 import AdminCHOGroupDetailPage from "@/pages/dashboard/AdminCHOGroupDetail";
+import VerifyCertificate from "@/pages/VerifyCertificate";
 
 const RoutesProvider = () => {
   const router = createBrowserRouter([
@@ -191,26 +192,6 @@ const RoutesProvider = () => {
           ),
         },
         {
-          path: "certificates/design",
-          element: (
-            <ProtectedRoute
-              allowedRoles={["TRAINER", "ADMIN", "DEVELOPER"]}
-            >
-              <CertificateDesignEditor />
-            </ProtectedRoute>
-          ),
-        },
-        {
-          path: "certificates/design/:id",
-          element: (
-            <ProtectedRoute
-              allowedRoles={["TRAINER", "ADMIN", "DEVELOPER"]}
-            >
-              <CertificateDesignEditor />
-            </ProtectedRoute>
-          ),
-        },
-        {
           path: "calender",
           element: <Calendar />,
         },
@@ -288,6 +269,28 @@ const RoutesProvider = () => {
       ],
     },
 
+    // ── Certificate builder (no sidebar, full-screen editor) ─────────
+    {
+      path: "/certificates/design",
+      element: (
+        <ProtectedRoute allowedRoles={["TRAINER", "ADMIN", "DEVELOPER"]}>
+          <div className="h-screen overflow-hidden">
+            <CertificateDesignEditor />
+          </div>
+        </ProtectedRoute>
+      ),
+    },
+    {
+      path: "/certificates/design/:id",
+      element: (
+        <ProtectedRoute allowedRoles={["TRAINER", "ADMIN", "DEVELOPER"]}>
+          <div className="h-screen overflow-hidden">
+            <CertificateDesignEditor />
+          </div>
+        </ProtectedRoute>
+      ),
+    },
+
     // ── Course builder (no sidebar, full-screen editor) ───────────────
     {
       path: "/courses/builder",
@@ -354,6 +357,11 @@ const RoutesProvider = () => {
     {
       path: "/terms",
       element: <Terms />,
+      errorElement: <ErrorPage />,
+    },
+    {
+      path: "/verify/:code",
+      element: <VerifyCertificate />,
       errorElement: <ErrorPage />,
     },
     {
