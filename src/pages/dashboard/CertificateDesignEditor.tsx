@@ -45,6 +45,7 @@ import {
   previewCertificateTemplate,
   listBgImages,
   uploadBgImage,
+  deleteBgImage,
   type CertificateTemplateSummary,
   type LinkedCourse,
 } from "@/services/certificateTemplate.service";
@@ -216,8 +217,7 @@ const CertificateDesignEditor: React.FC = () => {
   // Mock certificate generation
   const [isGeneratingMock, setIsGeneratingMock] = useState(false);
 
-  // Recently used background images (session only — data URLs can be large)
-  const [recentBgImages, setRecentBgImages] = useState<string[]>([]);
+  const [recentBgImages, setRecentBgImages] = useState<{ id: string; url: string }[]>([]);
 
   // Background color picker
   const [pickerColor, setPickerColor] = useState("#ffffff");
@@ -365,7 +365,7 @@ const CertificateDesignEditor: React.FC = () => {
 
   useEffect(() => {
     listBgImages()
-      .then(imgs => setRecentBgImages(imgs.map(i => i.url)))
+      .then(imgs => setRecentBgImages(imgs.map(i => ({ id: i.id, url: i.url }))))
       .catch(() => {});
   }, []);
 
@@ -759,8 +759,8 @@ const CertificateDesignEditor: React.FC = () => {
       try {
         const saved = await uploadBgImage(compressed);
         setRecentBgImages(prev => {
-          const filtered = prev.filter(u => u !== saved.url);
-          return [saved.url, ...filtered];
+          const filtered = prev.filter(u => u.url !== saved.url);
+          return [{ id: saved.id, url: saved.url }, ...filtered];
         });
       } catch {
         // upload failed — image is still visible on canvas, just not in recent list
@@ -1329,15 +1329,27 @@ const CertificateDesignEditor: React.FC = () => {
                     Recent Backgrounds
                   </p>
                   <div className="grid grid-cols-2 gap-2">
-                    {recentBgImages.map((url, i) => (
-                      <button
-                        key={i}
-                        onClick={() => applyBackgroundSrc(url)}
-                        className="relative aspect-[4/3] rounded-md overflow-hidden border border-gray-200 hover:border-blue-400 hover:shadow-sm transition-all"
-                        title="Re-apply this background"
-                      >
-                        <img src={url} alt="" className="w-full h-full object-cover" />
-                      </button>
+                    {recentBgImages.map((item) => (
+                      <div key={item.id} className="relative aspect-[4/3] group">
+                        <button
+                          onClick={() => applyBackgroundSrc(item.url)}
+                          className="w-full h-full rounded-md overflow-hidden border border-gray-200 hover:border-blue-400 hover:shadow-sm transition-all"
+                          title="Re-apply this background"
+                        >
+                          <img src={item.url} alt="" className="w-full h-full object-cover" />
+                        </button>
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            await deleteBgImage(item.id);
+                            setRecentBgImages(prev => prev.filter(b => b.id !== item.id));
+                          }}
+                          className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500"
+                          title="Remove from recent"
+                        >
+                          ×
+                        </button>
+                      </div>
                     ))}
                   </div>
                 </div>

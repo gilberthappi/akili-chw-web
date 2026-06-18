@@ -83,3 +83,7 @@ export const uploadBgImage = async (dataUrl: string): Promise<BgImage> => {
   const res = await api.post("/certificate-templates/backgrounds", { dataUrl });
   return res.data?.data as BgImage;
 };
+
+export const deleteBgImage = async (id: string): Promise<void> => {
+  await api.delete(`/certificate-templates/backgrounds/${id}`);
+};
