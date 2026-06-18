@@ -67,3 +67,19 @@ export const previewCertificateTemplate = async (
   const res = await api.post(`/certificate-templates/${templateId}/preview`, { canvasJson });
   return res.data?.data?.pdf as string; // base64-encoded PDF
 };
+
+export interface BgImage {
+  id: string;
+  url: string;
+  createdAt: string;
+}
+
+export const listBgImages = async (): Promise<BgImage[]> => {
+  const res = await api.get("/certificate-templates/backgrounds");
+  return (res.data?.data as BgImage[]) ?? [];
+};
+
+export const uploadBgImage = async (dataUrl: string): Promise<BgImage> => {
+  const res = await api.post("/certificate-templates/backgrounds", { dataUrl });
+  return res.data?.data as BgImage;
+};

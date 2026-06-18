@@ -43,6 +43,8 @@ import {
   linkTemplateToCourse,
   unlinkTemplateFromCourse,
   previewCertificateTemplate,
+  listBgImages,
+  uploadBgImage,
   type CertificateTemplateSummary,
   type LinkedCourse,
 } from "@/services/certificateTemplate.service";
@@ -357,6 +359,14 @@ const CertificateDesignEditor: React.FC = () => {
       .then(setTemplates)
       .catch(() => { /* toast already shown by api interceptor */ })
       .finally(() => setIsLoadingTpls(false));
+  }, []);
+
+  // ── Fetch persisted background images ────────────────────────────────────────
+
+  useEffect(() => {
+    listBgImages()
+      .then(imgs => setRecentBgImages(imgs.map(i => i.url)))
+      .catch(() => {});
   }, []);
 
   // ── Load template from URL param ──────────────────────────────────────────────
@@ -676,15 +686,17 @@ const CertificateDesignEditor: React.FC = () => {
     saveSnapshot();
   }, [applyBgColor, saveSnapshot]);
 
-  const applyBackgroundDataUrl = useCallback(async (dataUrl: string) => {
+  const applyBackgroundSrc = useCallback(async (src: string) => {
     const canvas = fabricRef.current;
     if (!canvas) return;
 
     const htmlImg = await new Promise<HTMLImageElement>((resolve, reject) => {
       const el = new Image();
+      // Required to prevent canvas taint when loading from external URLs (Cloudinary)
+      if (!src.startsWith("data:")) el.crossOrigin = "anonymous";
       el.onload  = () => resolve(el);
       el.onerror = reject;
-      el.src = dataUrl;
+      el.src = src;
     });
 
     const natW = htmlImg.naturalWidth  || CANVAS_WIDTH;
@@ -693,8 +705,8 @@ const CertificateDesignEditor: React.FC = () => {
     const img = new FabricImage(htmlImg, {
       left:    CANVAS_WIDTH  / 2,
       top:     CANVAS_HEIGHT / 2,
-      originX: 'center' as const,
-      originY: 'center' as const,
+      originX: "center" as const,
+      originY: "center" as const,
       scaleX:  CANVAS_WIDTH  / natW,
       scaleY:  CANVAS_HEIGHT / natH,
       selectable: false,
@@ -714,7 +726,6 @@ const CertificateDesignEditor: React.FC = () => {
       const canvas = fabricRef.current;
       if (!canvas) return;
 
-      // Use data URL so the src survives canvas.toJSON() / loadFromJSON() across page loads
       const dataUrl = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload  = () => resolve(reader.result as string);
@@ -722,17 +733,40 @@ const CertificateDesignEditor: React.FC = () => {
         reader.readAsDataURL(file);
       });
 
-      await applyBackgroundDataUrl(dataUrl);
+      // Apply locally as data URL for instant feedback
+      await applyBackgroundSrc(dataUrl);
+      e.target.value = "";
 
-      // Track recent backgrounds (deduplicate, cap at 5)
-      setRecentBgImages(prev => {
-        const filtered = prev.filter(u => u !== dataUrl);
-        return [dataUrl, ...filtered].slice(0, 5);
+      // Compress to JPEG ≤ 1280px before uploading to avoid large payloads
+      const compressed = await new Promise<string>((resolve) => {
+        const tmp = new Image();
+        tmp.onload = () => {
+          const MAX = 1280;
+          const ratio = Math.min(1, MAX / Math.max(tmp.naturalWidth || 1, tmp.naturalHeight || 1));
+          const off = document.createElement("canvas");
+          off.width  = Math.round(tmp.naturalWidth  * ratio);
+          off.height = Math.round(tmp.naturalHeight * ratio);
+          const ctx = off.getContext("2d");
+          if (!ctx) { resolve(dataUrl); return; }
+          ctx.drawImage(tmp, 0, 0, off.width, off.height);
+          resolve(off.toDataURL("image/jpeg", 0.85));
+        };
+        tmp.onerror = () => resolve(dataUrl);
+        tmp.src = dataUrl;
       });
 
-      e.target.value = "";
+      // Upload to backend (Cloudinary) and prepend to persisted recent list
+      try {
+        const saved = await uploadBgImage(compressed);
+        setRecentBgImages(prev => {
+          const filtered = prev.filter(u => u !== saved.url);
+          return [saved.url, ...filtered];
+        });
+      } catch {
+        // upload failed — image is still visible on canvas, just not in recent list
+      }
     },
-    [applyBackgroundDataUrl],
+    [applyBackgroundSrc],
   );
 
   // ── Generate Mock Certificate ─────────────────────────────────────────────────
@@ -1298,7 +1332,7 @@ const CertificateDesignEditor: React.FC = () => {
                     {recentBgImages.map((url, i) => (
                       <button
                         key={i}
-                        onClick={() => applyBackgroundDataUrl(url)}
+                        onClick={() => applyBackgroundSrc(url)}
                         className="relative aspect-[4/3] rounded-md overflow-hidden border border-gray-200 hover:border-blue-400 hover:shadow-sm transition-all"
                         title="Re-apply this background"
                       >
