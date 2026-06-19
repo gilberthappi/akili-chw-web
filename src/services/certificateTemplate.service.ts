@@ -4,6 +4,7 @@ export interface CertificateTemplateSummary {
   id: string;
   name: string;
   thumbnail?: string | null;
+  issuedCount: number;
   createdAt: string;
   updatedAt: string;
 }
