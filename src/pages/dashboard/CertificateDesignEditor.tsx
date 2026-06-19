@@ -846,34 +846,68 @@ const CertificateDesignEditor: React.FC = () => {
 
   const generateMockCertificate = useCallback(async () => {
     const canvas = fabricRef.current;
-    if (!canvas || !templateId) {
-      toast.error("Save the template first before generating a preview");
+    if (!canvas) {
+      toast.error("Canvas not ready");
       return;
     }
     setIsGeneratingMock(true);
     try {
-      // Send the current canvas JSON (including unsaved changes) to the backend
-      // so the preview always reflects what the user sees right now.
-      const canvasJson = canvas.toObject(["tokenKey", "token"]) as Record<string, unknown>;
-      const base64Pdf  = await previewCertificateTemplate(templateId, canvasJson);
+      const MOCK: Record<string, string> = {
+        "{{studentName}}":     "John Doe",
+        "{{certificateCode}}": "CHW-2026-001234",
+        "{{currentDate}}":     new Date().toLocaleDateString("en-US", { day: "2-digit", month: "long", year: "numeric" }),
+        "{{courseName}}":      "Community Health Worker Training",
+        "{{courseDetails}}":   "Advanced Community Health Worker Program",
+        "{{progress}}":        "100%",
+        "{{courseDuration}}":  "12 Weeks",
+        "{{startDate}}":       "01 January 2026",
+        "{{endDate}}":         new Date().toLocaleDateString("en-US", { day: "2-digit", month: "long", year: "numeric" }),
+        "{{studentCode}}":     "STU-2026-001",
+        "{{instructorName}}":  "Dr. Jane Smith",
+      };
+      const TK: Record<string, string> = {
+        "cert-code":      "{{certificateCode}}", "date":            "{{currentDate}}",
+        "course-name":    "{{courseName}}",       "details":         "{{courseDetails}}",
+        "progress":       "{{progress}}",         "duration":        "{{courseDuration}}",
+        "start-date":     "{{startDate}}",        "end-date":        "{{endDate}}",
+        "student-name":   "{{studentName}}",      "student-code":    "{{studentCode}}",
+        "instructor-name":"{{instructorName}}",
+      };
 
-      // Decode base64 → Blob → trigger download
-      const bytes = Uint8Array.from(atob(base64Pdf), (c) => c.charCodeAt(0));
-      const blob  = new Blob([bytes], { type: "application/pdf" });
-      const url   = URL.createObjectURL(blob);
-      const a     = document.createElement("a");
-      a.href      = url;
-      a.download  = `${templateName || "certificate"}-preview.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch {
+      // Clone canvas JSON and replace tokens with mock values
+      const cloned = JSON.parse(JSON.stringify(canvas.toObject(["tokenKey", "token"])));
+      for (const obj of cloned.objects ?? []) {
+        const val =
+          (obj.token    ? MOCK[obj.token]              : undefined) ??
+          (obj.tokenKey ? MOCK[TK[obj.tokenKey] ?? ""] : undefined);
+        if (val !== undefined) obj.text = val;
+      }
+
+      // Render off-screen at full resolution
+      const { StaticCanvas } = await import("fabric");
+      const el  = document.createElement("canvas");
+      document.body.appendChild(el);
+      const tmp = new StaticCanvas(el, { width: CANVAS_WIDTH, height: CANVAS_HEIGHT });
+      await tmp.loadFromJSON(cloned);
+      tmp.setZoom(1);
+      tmp.setDimensions({ width: CANVAS_WIDTH, height: CANVAS_HEIGHT });
+      tmp.renderAll();
+      const dataUrl = tmp.toDataURL({ format: "png", multiplier: 2 });
+      tmp.dispose();
+      document.body.removeChild(el);
+
+      // Wrap PNG in a PDF and download
+      const { jsPDF } = await import("jspdf");
+      const pdf = new jsPDF({ orientation: "landscape", unit: "px", format: [CANVAS_WIDTH, CANVAS_HEIGHT] });
+      pdf.addImage(dataUrl, "PNG", 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+      pdf.save(`${templateName || "certificate"}-preview.pdf`);
+    } catch (err) {
+      console.error("Mock certificate error:", err);
       toast.error("Failed to generate preview PDF");
     } finally {
       setIsGeneratingMock(false);
     }
-  }, [templateId, templateName]);
+  }, [templateName]);
 
   // ── Link/unlink toggle ───────────────────────────────────────────────────────
 
