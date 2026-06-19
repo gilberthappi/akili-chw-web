@@ -72,6 +72,7 @@
     "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-auth-kit": "^2.12.7",
+    "react-colorful": "^5.7.0",
     "react-data-table-component": "^7.7.0",
     "react-day-picker": "^8.10.1",
     "react-dom": "^18.3.1",

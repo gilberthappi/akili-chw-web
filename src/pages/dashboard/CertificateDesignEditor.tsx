@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import ReactDOM from "react-dom";
 import {
   Canvas as FabricCanvas,
   IText,
+  Textbox,
   FabricImage,
   type FabricObject,
 } from "fabric";
@@ -29,7 +31,12 @@ import {
   Loader2,
   Check,
   X,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
 } from "lucide-react";
+import { HexColorPicker } from "react-colorful";
+import { Ruler, RULER_THICKNESS } from "@/components/certificate/Ruler";
 import { useNavigate, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
@@ -41,6 +48,10 @@ import {
   getLinkedCourses,
   linkTemplateToCourse,
   unlinkTemplateFromCourse,
+  previewCertificateTemplate,
+  listBgImages,
+  uploadBgImage,
+  deleteBgImage,
   type CertificateTemplateSummary,
   type LinkedCourse,
 } from "@/services/certificateTemplate.service";
@@ -51,6 +62,42 @@ import type { ICourse } from "@/types";
 
 const CANVAS_WIDTH  = 1056; // 11in @ 96 dpi — landscape
 const CANVAS_HEIGHT = 816;  // 8.5in @ 96 dpi
+
+const FONT_FAMILIES = [
+  "Arial", "Helvetica", "Georgia", "Times New Roman",
+  "Courier New", "Verdana", "Trebuchet MS", "Impact",
+  "Comic Sans MS", "Palatino Linotype", "Garamond",
+];
+
+// ── Toolbar helpers ───────────────────────────────────────────────────────────
+
+const TbDivider = () => (
+  <div style={{ width: 1, height: 20, background: "#e5e7eb", margin: "0 2px", flexShrink: 0 }} />
+);
+
+const TbBtn = ({
+  children, active, title, onMouseDown,
+}: {
+  children: React.ReactNode;
+  active?: boolean;
+  title?: string;
+  onMouseDown: () => void;
+}) => (
+  <button
+    onMouseDown={e => { e.preventDefault(); onMouseDown(); }}
+    title={title}
+    style={{
+      width: 28, height: 28,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      borderRadius: 4, border: "none",
+      background: active ? "#e0e7ff" : "transparent",
+      color: active ? "#4338ca" : "#374151",
+      cursor: "pointer", flexShrink: 0,
+    }}
+  >
+    {children}
+  </button>
+);
 
 function makeQrPlaceholderSvg(): string {
   const c = 10; // px per module; 21 modules → 210px square
@@ -151,35 +198,27 @@ const TOKEN_VALUE: Record<string, string> = {
   "instructor-name": "{{instructorName}}",
 };
 
-const MOCK_TOKENS: Record<string, string> = {
-  "{{studentName}}":     "John Doe",
-  "{{certificateCode}}": "CHW-2026-001234",
-  "{{currentDate}}":     "17 Kamena 2026",
-  "{{courseName}}":      "Community Health Worker Training",
-  "{{courseDetails}}":   "Advanced Community Health Worker Program",
-  "{{progress}}":        "100%",
-  "{{courseDuration}}":  "12 Weeks",
-  "{{startDate}}":       "01 Mutarama 2026",
-  "{{endDate}}":         "17 Kamena 2026",
-  "{{studentCode}}":     "STU-2026-001",
-  "{{instructorName}}":  "Dr. Jane Smith",
-};
 
-const BG_COLORS = [
-  "#ffffff", "#f8fafc", "#eff6ff", "#f0fdf4",
-  "#fefce8", "#fdf2f8", "#0f172a", "#1e3a5f",
-  "#166534", "#7f1d1d",
-];
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return m ? { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) } : null;
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+  return `#${[r, g, b].map(v => Math.max(0, Math.min(255, v)).toString(16).padStart(2, "0")).join("")}`;
+}
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 const CertificateDesignEditor: React.FC = () => {
   const navigate      = useNavigate();
   const { id: routeId } = useParams<{ id: string }>();
-  const canvasElRef    = useRef<HTMLCanvasElement>(null);
-  const fabricRef      = useRef<FabricCanvas | null>(null);
-  const fileInputRef   = useRef<HTMLInputElement>(null);
-  const bgFileInputRef = useRef<HTMLInputElement>(null);
+  const canvasElRef      = useRef<HTMLCanvasElement>(null);
+  const fabricRef        = useRef<FabricCanvas | null>(null);
+  const fileInputRef     = useRef<HTMLInputElement>(null);
+  const bgFileInputRef   = useRef<HTMLInputElement>(null);
+  const scrollRef        = useRef<HTMLDivElement>(null);
+  const canvasWrapperRef = useRef<HTMLDivElement>(null);
 
   // Refs for history — avoids stale-closure issues in fabric event handlers
   const historyRef    = useRef<string[]>([]);
@@ -189,12 +228,29 @@ const CertificateDesignEditor: React.FC = () => {
   // Zoom ref mirrors zoom state so async callbacks always see current value
   const zoomRef = useRef(75);
 
+  // When we auto-create a template and navigate to its URL, skip the loadTemplate
+  // effect for that ID so the canvas isn't wiped before the element is added.
+  const justCreatedIdRef = useRef<string | null>(null);
+
   // ── UI state ─────────────────────────────────────────────────────────────────
 
   const [activeTab,      setActiveTab]      = useState<"certificates" | "link-certificates">("certificates");
   const [rightTab,       setRightTab]       = useState<"elements" | "backgrounds">("elements");
   const [searchQuery,    setSearchQuery]    = useState("");
   const [zoom,           setZoom]           = useState(75);
+
+  // Ruler state
+  const [canvasStartX, setCanvasStartX] = useState(0);
+  const [canvasStartY, setCanvasStartY] = useState(0);
+  const [scrollX,      setScrollX]      = useState(0);
+  const [scrollY,      setScrollY]      = useState(0);
+  const [mouseX,       setMouseX]       = useState<number | undefined>(undefined);
+  const [mouseY,       setMouseY]       = useState<number | undefined>(undefined);
+
+  // Guide lines
+  type Guide = { id: string; orientation: "h" | "v"; position: number };
+  const [guides,     setGuides]     = useState<Guide[]>([]);
+  const [dragGuide,  setDragGuide]  = useState<{ orientation: "h" | "v"; position: number; existingId?: string } | null>(null);
 
   // Template management
   const [templates,       setTemplates]       = useState<CertificateTemplateSummary[]>([]);
@@ -218,6 +274,13 @@ const CertificateDesignEditor: React.FC = () => {
   // Mock certificate generation
   const [isGeneratingMock, setIsGeneratingMock] = useState(false);
 
+  const [recentBgImages, setRecentBgImages] = useState<{ id: string; url: string }[]>([]);
+
+  // Background color picker
+  const [pickerColor, setPickerColor] = useState("#ffffff");
+  const [hexDraft,    setHexDraft]    = useState("ffffff");
+  const hexFocused = useRef(false);
+
   // Link Certificates tab
   const [allCourses,      setAllCourses]      = useState<ICourse[]>([]);
   const [linkedCourseIds, setLinkedCourseIds] = useState<Set<string>>(new Set());
@@ -231,6 +294,9 @@ const CertificateDesignEditor: React.FC = () => {
 
   // Selected fabric object
   const [selectedObj, setSelectedObj] = useState<FabricObject | null>(null);
+  // Keeps the last non-null selection so toolbar onChange handlers (select/input)
+  // can still reach the object even after focus-steal clears canvas selection.
+  const lastSelectedRef = useRef<FabricObject | null>(null);
 
   // ── Zoom ──────────────────────────────────────────────────────────────────────
 
@@ -313,7 +379,9 @@ const CertificateDesignEditor: React.FC = () => {
     fabricRef.current = canvas;
 
     const onSelectChange = () => {
-      setSelectedObj(canvas.getActiveObject() ?? null);
+      const active = canvas.getActiveObject() ?? null;
+      if (active) lastSelectedRef.current = active;
+      setSelectedObj(active);
       bumpTick();
     };
     canvas.on("selection:created", onSelectChange);
@@ -327,6 +395,8 @@ const CertificateDesignEditor: React.FC = () => {
     historyIdxRef.current = 0;
     setCanvasReady(true);
     bumpTick();
+    // Measure canvas position for rulers after first render
+    requestAnimationFrame(() => updateCanvasStart());
 
     return () => {
       canvas.dispose();
@@ -355,6 +425,14 @@ const CertificateDesignEditor: React.FC = () => {
       .finally(() => setIsLoadingTpls(false));
   }, []);
 
+  // ── Fetch persisted background images ────────────────────────────────────────
+
+  useEffect(() => {
+    listBgImages()
+      .then(imgs => setRecentBgImages(imgs.map(i => ({ id: i.id, url: i.url }))))
+      .catch(() => {});
+  }, []);
+
   // ── Load template from URL param ──────────────────────────────────────────────
 
   const loadTemplate = useCallback(async (id: string) => {
@@ -378,6 +456,11 @@ const CertificateDesignEditor: React.FC = () => {
       setTemplateName(tpl.name);
       setSelectedObj(null);
       setDirtyCount(0);
+      // Sync bg color picker with loaded template background
+      const loadedBg = (canvas.backgroundColor as string) || "#ffffff";
+      const validBg = /^#[0-9a-fA-F]{6}$/.test(loadedBg) ? loadedBg : "#ffffff";
+      setPickerColor(validBg);
+      setHexDraft(validBg.replace("#", ""));
       bumpTick();
     } catch {
       // error shown by api interceptor
@@ -388,6 +471,10 @@ const CertificateDesignEditor: React.FC = () => {
 
   useEffect(() => {
     if (!canvasReady || !routeId) return;
+    if (justCreatedIdRef.current === routeId) {
+      justCreatedIdRef.current = null; // canvas already has the right content, skip reload
+      return;
+    }
     loadTemplate(routeId);
   }, [canvasReady, routeId, loadTemplate]);
 
@@ -500,11 +587,41 @@ const CertificateDesignEditor: React.FC = () => {
     }
   }, [templateId, navigate]);
 
+  // ── Create blank template (from the "Create blank" card in the sidebar) ─────
+
+  const handleCreateBlankTemplate = useCallback(async () => {
+    setIsCreating(true);
+    try {
+      const tpl = await createCertificateTemplate("Untitled");
+      setTemplates(prev => [tpl, ...prev]);
+      navigate(`/certificates/design/${tpl.id}`);
+    } catch {
+      // interceptor shows toast
+    } finally {
+      setIsCreating(false);
+    }
+  }, [navigate]);
+
   // ── Add elements ──────────────────────────────────────────────────────────────
 
-  const addElement = useCallback((key: string) => {
+  const addElement = useCallback(async (key: string) => {
     const canvas = fabricRef.current;
     if (!canvas) return;
+
+    // Auto-create "Untitled" template if none is active yet
+    if (!templateId) {
+      try {
+        const tpl = await createCertificateTemplate("Untitled");
+        justCreatedIdRef.current = tpl.id; // prevent loadTemplate from wiping canvas
+        setTemplates(prev => [tpl, ...prev]);
+        setTemplateId(tpl.id);
+        setTemplateName(tpl.name);
+        navigate(`/certificates/design/${tpl.id}`, { replace: true });
+      } catch {
+        toast.error("Could not create template");
+        return;
+      }
+    }
 
     if (key === "image") { fileInputRef.current?.click(); return; }
 
@@ -526,9 +643,10 @@ const CertificateDesignEditor: React.FC = () => {
     const token   = TOKEN_VALUE[key];
     const isToken = !!token;
 
-    const t = new IText(content, {
+    const t = new Textbox(content, {
       left:       300,
       top:        300,
+      width:      400,
       fontSize:   key === "text" ? 20 : 22,
       fill:       "#334155",
       fontFamily: "Arial",
@@ -541,7 +659,7 @@ const CertificateDesignEditor: React.FC = () => {
     canvas.add(t);
     canvas.setActiveObject(t);
     canvas.renderAll();
-  }, []);
+  }, [templateId, navigate]);
 
   // ── Image upload ──────────────────────────────────────────────────────────────
 
@@ -611,18 +729,65 @@ const CertificateDesignEditor: React.FC = () => {
 
   const updateSelected = useCallback((props: Record<string, unknown>) => {
     const canvas = fabricRef.current;
-    const obj    = canvas?.getActiveObject();
+    const obj    = canvas?.getActiveObject() ?? lastSelectedRef.current;
     if (!canvas || !obj) return;
     (obj as Record<string, unknown> & { set: (p: Record<string, unknown>) => void }).set(props);
+    // Recalculate text layout when font-related properties change
+    if (obj instanceof IText) {
+      (obj as unknown as { initDimensions: () => void }).initDimensions();
+      obj.setCoords();
+    }
+    // Re-establish selection in case a toolbar input stole focus and cleared it
+    canvas.setActiveObject(obj);
     canvas.renderAll();
     bumpTick();
-  }, [bumpTick]);
+    saveSnapshot();
+  }, [bumpTick, saveSnapshot]);
 
-  const setBackground = useCallback((color: string) => {
+  const applyBgColor = useCallback((color: string) => {
     const canvas = fabricRef.current;
     if (!canvas) return;
     canvas.backgroundImage = undefined;
     canvas.backgroundColor = color;
+    canvas.renderAll();
+  }, []);
+
+  const setBackground = useCallback((color: string) => {
+    applyBgColor(color);
+    setPickerColor(color);
+    if (!hexFocused.current) setHexDraft(color.replace("#", ""));
+    saveSnapshot();
+  }, [applyBgColor, saveSnapshot]);
+
+  const applyBackgroundSrc = useCallback(async (src: string) => {
+    const canvas = fabricRef.current;
+    if (!canvas) return;
+
+    const htmlImg = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      // Required to prevent canvas taint when loading from external URLs (Cloudinary)
+      if (!src.startsWith("data:")) el.crossOrigin = "anonymous";
+      el.onload  = () => resolve(el);
+      el.onerror = reject;
+      el.src = src;
+    });
+
+    const natW = htmlImg.naturalWidth  || CANVAS_WIDTH;
+    const natH = htmlImg.naturalHeight || CANVAS_HEIGHT;
+
+    const img = new FabricImage(htmlImg, {
+      left:    CANVAS_WIDTH  / 2,
+      top:     CANVAS_HEIGHT / 2,
+      originX: "center" as const,
+      originY: "center" as const,
+      scaleX:  CANVAS_WIDTH  / natW,
+      scaleY:  CANVAS_HEIGHT / natH,
+      selectable: false,
+      evented:    false,
+    });
+
+    canvas.backgroundImage = img;
+    canvas.backgroundColor = "";
     canvas.renderAll();
     saveSnapshot();
   }, [saveSnapshot]);
@@ -634,7 +799,6 @@ const CertificateDesignEditor: React.FC = () => {
       const canvas = fabricRef.current;
       if (!canvas) return;
 
-      // Use data URL so the src survives canvas.toJSON() / loadFromJSON() across page loads
       const dataUrl = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload  = () => resolve(reader.result as string);
@@ -642,98 +806,103 @@ const CertificateDesignEditor: React.FC = () => {
         reader.readAsDataURL(file);
       });
 
-      // Load via HTMLImageElement to get reliable naturalWidth/naturalHeight
-      const htmlImg = await new Promise<HTMLImageElement>((resolve, reject) => {
-        const el = new Image();
-        el.onload  = () => resolve(el);
-        el.onerror = reject;
-        el.src = dataUrl;
-      });
-
-      const natW = htmlImg.naturalWidth  || CANVAS_WIDTH;
-      const natH = htmlImg.naturalHeight || CANVAS_HEIGHT;
-
-      // left/top = canvas center + originX/Y='center' so the image fills the full canvas
-      const img = new FabricImage(htmlImg, {
-        left:    CANVAS_WIDTH  / 2,
-        top:     CANVAS_HEIGHT / 2,
-        originX: 'center' as const,
-        originY: 'center' as const,
-        scaleX:  CANVAS_WIDTH  / natW,
-        scaleY:  CANVAS_HEIGHT / natH,
-        selectable: false,
-        evented:    false,
-      });
-
-      canvas.backgroundImage = img;
-      canvas.backgroundColor = "";
-      canvas.renderAll();
+      // Apply locally as data URL for instant feedback
+      await applyBackgroundSrc(dataUrl);
       e.target.value = "";
-      saveSnapshot();
+
+      // Compress to JPEG ≤ 1280px before uploading to avoid large payloads
+      const compressed = await new Promise<string>((resolve) => {
+        const tmp = new Image();
+        tmp.onload = () => {
+          const MAX = 1280;
+          const ratio = Math.min(1, MAX / Math.max(tmp.naturalWidth || 1, tmp.naturalHeight || 1));
+          const off = document.createElement("canvas");
+          off.width  = Math.round(tmp.naturalWidth  * ratio);
+          off.height = Math.round(tmp.naturalHeight * ratio);
+          const ctx = off.getContext("2d");
+          if (!ctx) { resolve(dataUrl); return; }
+          ctx.drawImage(tmp, 0, 0, off.width, off.height);
+          resolve(off.toDataURL("image/jpeg", 0.85));
+        };
+        tmp.onerror = () => resolve(dataUrl);
+        tmp.src = dataUrl;
+      });
+
+      // Upload to backend (Cloudinary) and prepend to persisted recent list
+      try {
+        const saved = await uploadBgImage(compressed);
+        setRecentBgImages(prev => {
+          const filtered = prev.filter(u => u.url !== saved.url);
+          return [{ id: saved.id, url: saved.url }, ...filtered];
+        });
+      } catch {
+        // upload failed — image is still visible on canvas, just not in recent list
+      }
     },
-    [saveSnapshot],
+    [applyBackgroundSrc],
   );
 
   // ── Generate Mock Certificate ─────────────────────────────────────────────────
 
   const generateMockCertificate = useCallback(async () => {
     const canvas = fabricRef.current;
-    if (!canvas) return;
+    if (!canvas) {
+      toast.error("Canvas not ready");
+      return;
+    }
     setIsGeneratingMock(true);
     try {
-      // Display-label → mock value table (fallback for templates saved before
-      // the toObject fix, where token/tokenKey were never persisted to JSON).
-      const labelToMock: Record<string, string> = {};
-      Object.entries(DISPLAY_LABEL).forEach(([key, label]) => {
-        const tkn = TOKEN_VALUE[key];
-        if (tkn && MOCK_TOKENS[tkn]) labelToMock[label] = MOCK_TOKENS[tkn];
-      });
+      const MOCK: Record<string, string> = {
+        "{{studentName}}":     "John Doe",
+        "{{certificateCode}}": "CHW-2026-001234",
+        "{{currentDate}}":     new Date().toLocaleDateString("en-US", { day: "2-digit", month: "long", year: "numeric" }),
+        "{{courseName}}":      "Community Health Worker Training",
+        "{{courseDetails}}":   "Advanced Community Health Worker Program",
+        "{{progress}}":        "100%",
+        "{{courseDuration}}":  "12 Weeks",
+        "{{startDate}}":       "01 January 2026",
+        "{{endDate}}":         new Date().toLocaleDateString("en-US", { day: "2-digit", month: "long", year: "numeric" }),
+        "{{studentCode}}":     "STU-2026-001",
+        "{{instructorName}}":  "Dr. Jane Smith",
+      };
+      const TK: Record<string, string> = {
+        "cert-code":      "{{certificateCode}}", "date":            "{{currentDate}}",
+        "course-name":    "{{courseName}}",       "details":         "{{courseDetails}}",
+        "progress":       "{{progress}}",         "duration":        "{{courseDuration}}",
+        "start-date":     "{{startDate}}",        "end-date":        "{{endDate}}",
+        "student-name":   "{{studentName}}",      "student-code":    "{{studentCode}}",
+        "instructor-name":"{{instructorName}}",
+      };
 
-      // canvas.toObject (NOT toJSON) correctly forwards the extra-properties
-      // array to each object's serialiser so token/tokenKey appear in the JSON.
-      const json = JSON.parse(JSON.stringify(canvas.toObject(["tokenKey", "token"])));
+      // Clone canvas JSON and replace tokens with mock values
+      const cloned = JSON.parse(JSON.stringify(canvas.toObject(["tokenKey", "token"])));
+      for (const obj of cloned.objects ?? []) {
+        const val =
+          (obj.token    ? MOCK[obj.token]              : undefined) ??
+          (obj.tokenKey ? MOCK[TK[obj.tokenKey] ?? ""] : undefined);
+        if (val !== undefined) obj.text = val;
+      }
 
-      (json.objects as Record<string, unknown>[]).forEach((obj) => {
-        const token    = obj.token    as string | undefined;
-        const tokenKey = obj.tokenKey as string | undefined;
-        const text     = obj.text     as string | undefined;
+      // Render off-screen at full resolution
+      const { StaticCanvas } = await import("fabric");
+      const el  = document.createElement("canvas");
+      document.body.appendChild(el);
+      const tmp = new StaticCanvas(el, { width: CANVAS_WIDTH, height: CANVAS_HEIGHT });
+      await tmp.loadFromJSON(cloned);
+      tmp.setZoom(1);
+      tmp.setDimensions({ width: CANVAS_WIDTH, height: CANVAS_HEIGHT });
+      tmp.renderAll();
+      const dataUrl = tmp.toDataURL({ format: "png", multiplier: 2 });
+      tmp.dispose();
+      document.body.removeChild(el);
 
-        // Priority: explicit token string → tokenKey lookup → display-label text
-        const mock =
-          (token    ? MOCK_TOKENS[token]                        : undefined) ??
-          (tokenKey ? MOCK_TOKENS[TOKEN_VALUE[tokenKey] ?? ""]  : undefined) ??
-          (text     ? labelToMock[text]                          : undefined);
-
-        if (mock) {
-          obj.text      = mock;
-          obj.fontStyle = "normal";
-        }
-      });
-
-      // Render at full 1 : 1 resolution in a hidden off-screen canvas
-      const tempEl = document.createElement("canvas");
-      tempEl.style.cssText = "position:absolute;left:-9999px;top:-9999px;visibility:hidden;";
-      document.body.appendChild(tempEl);
-
-      const tempCanvas = new FabricCanvas(tempEl, {
-        width:           CANVAS_WIDTH,
-        height:          CANVAS_HEIGHT,
-        backgroundColor: "#ffffff",
-        preserveObjectStacking: true,
-      });
-      await tempCanvas.loadFromJSON(json);
-      tempCanvas.renderAll();
-
-      const dataUrl = tempCanvas.toDataURL({ format: "png", quality: 1 });
-      tempCanvas.dispose();
-      document.body.removeChild(tempEl);
-
-      // Wrap in a letter-landscape PDF (11 × 8.5 in = 792 × 612 pt)
+      // Wrap PNG in a PDF and download
       const { jsPDF } = await import("jspdf");
-      const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: "letter" });
-      pdf.addImage(dataUrl, "PNG", 0, 0, 792, 612);
+      const pdf = new jsPDF({ orientation: "landscape", unit: "px", format: [CANVAS_WIDTH, CANVAS_HEIGHT] });
+      pdf.addImage(dataUrl, "PNG", 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
       pdf.save(`${templateName || "certificate"}-preview.pdf`);
-    } catch {
+    } catch (err) {
+      console.error("Mock certificate error:", err);
       toast.error("Failed to generate preview PDF");
     } finally {
       setIsGeneratingMock(false);
@@ -775,12 +944,161 @@ const CertificateDesignEditor: React.FC = () => {
   const selTop     = sel ? Math.round(sel.top   ?? 0) : 0;
   const selW       = sel ? Math.round((sel.width  ?? 0) * (sel.scaleX ?? 1)) : 0;
   const selH       = sel ? Math.round((sel.height ?? 0) * (sel.scaleY ?? 1)) : 0;
-  const selIsText  = selectedObj instanceof IText;
-  const selFontSz  = selIsText ? (sel.fontSize  ?? 20)        : 20;
-  const selColor   = selIsText ? (sel.fill       ?? "#334155") : "#334155";
-  const selBold    = selIsText && sel.fontWeight === "bold";
-  const selAlign   = selIsText ? (sel.textAlign  ?? "center")  : "center";
-  const selOpacity = sel ? (sel.opacity ?? 1) : 1;
+  const selIsText    = selectedObj instanceof IText;
+  const selFontSz    = selIsText ? (sel.fontSize   ?? 20)        : 20;
+  const selColor     = selIsText ? (sel.fill        ?? "#334155") : "#334155";
+  const selBold      = selIsText && sel.fontWeight === "bold";
+  const selItalic    = selIsText && sel.fontStyle  === "italic";
+  const selAlign     = selIsText ? (sel.textAlign   ?? "center")  : "center";
+  const selFontFamily = selIsText ? (sel.fontFamily ?? "Arial")   : "Arial";
+  const selOpacity   = sel ? (sel.opacity ?? 1) : 1;
+
+  // ── Guide drag ────────────────────────────────────────────────────────────────
+
+  const isDraggingGuide   = dragGuide !== null;
+  const dragOrientation   = dragGuide?.orientation;
+  const dragExistingId    = dragGuide?.existingId;
+
+  useEffect(() => {
+    if (!isDraggingGuide) return;
+
+    const toCanvasCoords = (clientX: number, clientY: number) => {
+      const wr = canvasWrapperRef.current?.getBoundingClientRect();
+      if (!wr) return { x: 0, y: 0 };
+      const scale = zoomRef.current / 100;
+      return { x: (clientX - wr.left) / scale, y: (clientY - wr.top) / scale };
+    };
+
+    const onMove = (e: MouseEvent) => {
+      const { x, y } = toCanvasCoords(e.clientX, e.clientY);
+      const pos = dragOrientation === "v" ? x : y;
+      setDragGuide(prev => prev ? { ...prev, position: pos } : null);
+    };
+
+    const onUp = (e: MouseEvent) => {
+      const { x, y } = toCanvasCoords(e.clientX, e.clientY);
+      const inCanvas = x >= 0 && x <= CANVAS_WIDTH && y >= 0 && y <= CANVAS_HEIGHT;
+      const pos      = dragOrientation === "v" ? x : y;
+
+      if (inCanvas) {
+        if (dragExistingId) {
+          setGuides(gs => gs.map(g => g.id === dragExistingId ? { ...g, position: pos } : g));
+        } else {
+          setGuides(gs => [...gs, { id: crypto.randomUUID(), orientation: dragOrientation!, position: pos }]);
+        }
+      } else if (dragExistingId) {
+        setGuides(gs => gs.filter(g => g.id !== dragExistingId));
+      }
+      setDragGuide(null);
+    };
+
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup",   onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup",   onUp);
+    };
+  }, [isDraggingGuide, dragOrientation, dragExistingId]);
+
+  // Override body cursor while dragging a guide
+  useEffect(() => {
+    if (!dragGuide) { document.body.style.cursor = ""; return; }
+    document.body.style.cursor = dragGuide.orientation === "h" ? "ns-resize" : "ew-resize";
+    return () => { document.body.style.cursor = ""; };
+  }, [dragGuide?.orientation, dragGuide !== null]);
+
+  // Keyboard shortcuts for selected canvas objects
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const canvas = fabricRef.current;
+      if (!canvas) return;
+      const active = canvas.getActiveObject();
+      if (!active) return;
+      // Don't intercept when typing in inputs or when fabric IText is in edit mode
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return;
+      if (active instanceof IText && (active as unknown as { isEditing: boolean }).isEditing) return;
+      const ctrl = e.ctrlKey || e.metaKey;
+      if (ctrl && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        const isBold = (active as Record<string, unknown>).fontWeight === "bold";
+        updateSelected({ fontWeight: isBold ? "normal" : "bold" });
+      } else if (ctrl && e.key.toLowerCase() === "i") {
+        e.preventDefault();
+        const isItalic = (active as Record<string, unknown>).fontStyle === "italic";
+        updateSelected({ fontStyle: isItalic ? "normal" : "italic" });
+      } else if (e.key === "Delete") {
+        e.preventDefault();
+        deleteSelected();
+      } else if (e.key === "Escape") {
+        canvas.discardActiveObject();
+        canvas.renderAll();
+        setSelectedObj(null);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [updateSelected, deleteSelected]);
+
+  const startGuideFromRuler = useCallback((orientation: "h" | "v") => (e: React.MouseEvent) => {
+    e.preventDefault();
+    const wr = canvasWrapperRef.current?.getBoundingClientRect();
+    if (!wr) return;
+    const scale = zoomRef.current / 100;
+    const pos   = orientation === "v"
+      ? (e.clientX - wr.left) / scale
+      : (e.clientY - wr.top)  / scale;
+    setDragGuide({ orientation, position: pos });
+  }, []);
+
+  const startDragExistingGuide = useCallback((e: React.MouseEvent, guide: Guide) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragGuide({ orientation: guide.orientation, position: guide.position, existingId: guide.id });
+  }, []);
+
+  const deleteGuide = useCallback((id: string) => {
+    setGuides(gs => gs.filter(g => g.id !== id));
+  }, []);
+
+  // ── Ruler helpers ─────────────────────────────────────────────────────────────
+
+  const updateCanvasStart = useCallback(() => {
+    const scroll  = scrollRef.current;
+    const wrapper = canvasWrapperRef.current;
+    if (!scroll || !wrapper) return;
+    const sr = scroll.getBoundingClientRect();
+    const wr = wrapper.getBoundingClientRect();
+    setCanvasStartX(wr.left - sr.left + scroll.scrollLeft);
+    setCanvasStartY(wr.top  - sr.top  + scroll.scrollTop);
+  }, []);
+
+  // Recompute canvas origin when zoom changes (canvas size changes → centering shifts)
+  useEffect(() => {
+    updateCanvasStart();
+  }, [zoom, updateCanvasStart]);
+
+  // Recompute on window resize
+  useEffect(() => {
+    window.addEventListener("resize", updateCanvasStart);
+    return () => window.removeEventListener("resize", updateCanvasStart);
+  }, [updateCanvasStart]);
+
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setScrollX(el.scrollLeft);
+    setScrollY(el.scrollTop);
+    updateCanvasStart();
+  }, [updateCanvasStart]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    setMouseX(e.clientX - rect.left);
+    setMouseY(e.clientY - rect.top);
+  }, []);
 
   // ── Render ────────────────────────────────────────────────────────────────────
 
@@ -792,26 +1110,14 @@ const CertificateDesignEditor: React.FC = () => {
 
         <button
           onClick={() => navigate("/certificates")}
-          className="p-1.5 hover:bg-gray-100 rounded-md text-gray-500 transition-colors"
+          className="flex items-center gap-1.5 px-1.5 py-1 hover:bg-gray-100 rounded-md text-gray-600 transition-colors shrink-0"
           title="Back to Certificates"
         >
           <ArrowLeft className="w-4 h-4" />
+          <span className="text-sm font-semibold whitespace-nowrap">Certificate Builder</span>
         </button>
 
-        {templateId ? (
-          <input
-            value={templateName}
-            onChange={e => setTemplateName(e.target.value)}
-            onBlur={handleRenameTemplate}
-            onKeyDown={e => { if (e.key === "Enter") { e.currentTarget.blur(); } }}
-            className="text-sm font-semibold text-gray-800 border-none outline-none bg-transparent pr-4 border-r border-gray-200 w-44 truncate focus:ring-0"
-            placeholder="Template name"
-          />
-        ) : (
-          <span className="text-sm font-semibold text-gray-800 pr-4 border-r border-gray-200 whitespace-nowrap">
-            Certificate Builder
-          </span>
-        )}
+        <div className="h-5 w-px bg-gray-200 shrink-0" />
 
         {/* Center tabs */}
         <div className="flex-1 flex items-center justify-center">
@@ -927,20 +1233,38 @@ const CertificateDesignEditor: React.FC = () => {
           </div>
 
           <div className="flex-1 overflow-y-auto p-3 space-y-2">
+            {/* Create blank — always first */}
+            <div className="group">
+              <button
+                onClick={handleCreateBlankTemplate}
+                disabled={isCreating}
+                className="w-full text-left rounded-lg overflow-hidden border-2 border-dashed border-gray-200 hover:border-blue-400 transition-all disabled:opacity-50"
+              >
+                <div className="w-full aspect-[4/3] flex items-center justify-center bg-gray-50 group-hover:bg-blue-50/40 transition-colors rounded-t-md">
+                  {isCreating ? (
+                    <Loader2 className="w-6 h-6 text-blue-400 animate-spin" />
+                  ) : (
+                    <div className="flex flex-col items-center gap-1.5 text-gray-400 group-hover:text-blue-500 transition-colors">
+                      <div className="w-9 h-9 rounded-full border-2 border-dashed border-current flex items-center justify-center">
+                        <Plus className="w-4 h-4" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="px-1.5 py-1.5">
+                  <p className="text-xs font-medium text-gray-500 group-hover:text-blue-600 transition-colors">
+                    Create blank
+                  </p>
+                </div>
+              </button>
+            </div>
+
             {isLoadingTpls ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
               </div>
-            ) : filteredTemplates.length === 0 ? (
-              <div className="text-center py-8 space-y-2">
-                <p className="text-xs text-gray-400">No templates yet</p>
-                <button
-                  onClick={() => setShowNewModal(true)}
-                  className="text-xs text-blue-600 hover:underline"
-                >
-                  Create one
-                </button>
-              </div>
+            ) : filteredTemplates.length === 0 && !searchQuery ? null : filteredTemplates.length === 0 ? (
+              <p className="text-center text-xs text-gray-400 py-4">No results</p>
             ) : (
               filteredTemplates.map(tmpl => (
                 <div
@@ -990,43 +1314,169 @@ const CertificateDesignEditor: React.FC = () => {
         </aside>
 
         {/* Center — Canvas area */}
-        <main
-          className="flex-1 bg-[#e8e8e8] overflow-auto flex flex-col"
-          onClick={e => {
-            if (e.target === e.currentTarget) {
-              fabricRef.current?.discardActiveObject();
-              fabricRef.current?.renderAll();
-              setSelectedObj(null);
-            }
-          }}
-        >
-          {/*
-            Keep canvas element always in DOM (display:none to hide, not unmount)
-            so Fabric keeps its state when switching between tabs.
-            flex-1 gives this div a definite height (= main's height) so
-            items-center / justify-center reliably center the canvas.
-          */}
+        <main className="flex-1 bg-[#e8e8e8] overflow-hidden flex flex-col">
+
+          {/* Canvas tab — rulers + scrollable canvas (always mounted so Fabric keeps state) */}
           <div
-            className="flex-1 flex items-center justify-center p-12"
+            className="flex-1 flex flex-col overflow-hidden"
             style={{ display: activeTab === "certificates" ? "flex" : "none" }}
           >
-            <div
-              style={{
-                position: "relative",
-                boxShadow: "0 4px 32px rgba(0,0,0,0.18)",
-                lineHeight: 0,
-                flexShrink: 0,
-              }}
-            >
-              <canvas ref={canvasElRef} />
-              {isLoadingCanvas && (
-                <div
-                  className="absolute inset-0 flex items-center justify-center bg-white/70"
-                  style={{ pointerEvents: "none" }}
-                >
-                  <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+            {/* Ruler row: corner + horizontal ruler */}
+            <div className="flex shrink-0" style={{ height: RULER_THICKNESS }}>
+              <div style={{
+                width: RULER_THICKNESS, height: RULER_THICKNESS, flexShrink: 0,
+                background: "#e8e8e8", borderRight: "1px solid #ddd", borderBottom: "1px solid #ddd",
+              }} />
+              <Ruler
+                orientation="horizontal"
+                canvasSize={CANVAS_WIDTH}
+                zoom={zoom}
+                canvasStart={canvasStartX}
+                scrollOffset={scrollX}
+                mousePos={mouseX}
+                onMouseDown={startGuideFromRuler("h")}
+              />
+            </div>
+
+            {/* Content row: vertical ruler + scrollable canvas */}
+            <div className="flex flex-1 overflow-hidden">
+              <Ruler
+                orientation="vertical"
+                canvasSize={CANVAS_HEIGHT}
+                zoom={zoom}
+                canvasStart={canvasStartY}
+                scrollOffset={scrollY}
+                mousePos={mouseY}
+                onMouseDown={startGuideFromRuler("v")}
+              />
+
+              {/* Scrollable canvas viewport */}
+              <div
+                ref={scrollRef}
+                className="flex-1 overflow-auto"
+                onScroll={handleScroll}
+                onMouseMove={handleMouseMove}
+                onMouseLeave={() => { setMouseX(undefined); setMouseY(undefined); }}
+                onClick={e => {
+                  if (e.target === e.currentTarget) {
+                    fabricRef.current?.discardActiveObject();
+                    fabricRef.current?.renderAll();
+                    setSelectedObj(null);
+                  }
+                }}
+              >
+                <div className="flex items-center justify-center p-12 min-h-full min-w-full">
+                  <div
+                    ref={canvasWrapperRef}
+                    style={{
+                      position: "relative",
+                      boxShadow: "0 4px 32px rgba(0,0,0,0.18)",
+                      lineHeight: 0,
+                      flexShrink: 0,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <canvas ref={canvasElRef} />
+
+                    {/* ── Guide lines overlay ──────────────────────────────── */}
+                    {(() => {
+                      const scale = zoom / 100;
+                      return (
+                        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
+
+                          {/* Ghost line while dragging from ruler */}
+                          {dragGuide && (
+                            <div style={{
+                              position: "absolute",
+                              ...(dragGuide.orientation === "h"
+                                ? { top: dragGuide.position * scale - 0.5, left: 0, right: 0, height: 1 }
+                                : { left: dragGuide.position * scale - 0.5, top: 0, bottom: 0, width: 1 }),
+                              background: "rgba(79,142,247,0.85)",
+                              pointerEvents: "none",
+                            }}>
+                              {/* Position tooltip */}
+                              <div style={{
+                                position: "absolute",
+                                ...(dragGuide.orientation === "h"
+                                  ? { left: 4, top: 2 }
+                                  : { top: 4, left: 2 }),
+                                background: "#4f8ef7",
+                                color: "#fff",
+                                fontSize: 10,
+                                padding: "1px 4px",
+                                borderRadius: 3,
+                                whiteSpace: "nowrap",
+                                pointerEvents: "none",
+                              }}>
+                                {dragGuide.orientation === "h"
+                                  ? `Y: ${Math.round(dragGuide.position)}px`
+                                  : `X: ${Math.round(dragGuide.position)}px`}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Placed guides */}
+                          {guides
+                            .filter(g => g.id !== dragGuide?.existingId)
+                            .map(guide => {
+                              const pos = guide.position * scale;
+                              const isH = guide.orientation === "h";
+                              return (
+                                <div
+                                  key={guide.id}
+                                  style={{
+                                    position: "absolute",
+                                    ...(isH
+                                      ? { top: pos - 4, left: 0, right: 0, height: 8 }
+                                      : { left: pos - 4, top: 0, bottom: 0, width: 8 }),
+                                    cursor: isH ? "ns-resize" : "ew-resize",
+                                    pointerEvents: "auto",
+                                  }}
+                                  onMouseDown={e => startDragExistingGuide(e, guide)}
+                                  onDoubleClick={() => deleteGuide(guide.id)}
+                                  title="Drag to move · Double-click to delete"
+                                >
+                                  {/* Visible line */}
+                                  <div style={{
+                                    position: "absolute",
+                                    ...(isH
+                                      ? { top: 3.5, left: 0, right: 0, height: 1 }
+                                      : { left: 3.5, top: 0, bottom: 0, width: 1 }),
+                                    background: "#4f8ef7",
+                                  }} />
+                                  {/* Position label at left/top edge */}
+                                  <div style={{
+                                    position: "absolute",
+                                    ...(isH ? { left: 4, top: -14 } : { top: 4, left: 2 }),
+                                    background: "#4f8ef7",
+                                    color: "#fff",
+                                    fontSize: 9,
+                                    padding: "1px 3px",
+                                    borderRadius: 2,
+                                    whiteSpace: "nowrap",
+                                    opacity: 0.85,
+                                    pointerEvents: "none",
+                                  }}>
+                                    {isH ? `${Math.round(guide.position)}` : `${Math.round(guide.position)}`}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      );
+                    })()}
+
+                    {isLoadingCanvas && (
+                      <div
+                        className="absolute inset-0 flex items-center justify-center bg-white/70"
+                        style={{ pointerEvents: "none" }}
+                      >
+                        <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+                      </div>
+                    )}
+                  </div>
                 </div>
-              )}
+              </div>
             </div>
           </div>
 
@@ -1159,17 +1609,76 @@ const CertificateDesignEditor: React.FC = () => {
                 <p className="text-[10px] font-semibold text-gray-400 tracking-widest uppercase mb-3">
                   Background Color
                 </p>
-                <div className="grid grid-cols-5 gap-2">
-                  {BG_COLORS.map(color => (
-                    <button
-                      key={color}
-                      onClick={() => setBackground(color)}
-                      title={color}
-                      className="w-9 h-9 rounded-md border border-gray-200 hover:scale-110 transition-transform shadow-sm"
-                      style={{ backgroundColor: color }}
-                    />
-                  ))}
+                {/* Gradient + hue picker */}
+                <div
+                  onPointerUp={() => saveSnapshot()}
+                  className="[&_.react-colorful]:w-full [&_.react-colorful__saturation]:rounded-md [&_.react-colorful__hue]:rounded-md [&_.react-colorful__hue]:mt-2"
+                >
+                  <HexColorPicker
+                    color={pickerColor}
+                    onChange={c => {
+                      setPickerColor(c);
+                      if (!hexFocused.current) setHexDraft(c.replace("#", ""));
+                      applyBgColor(c);
+                    }}
+                  />
                 </div>
+                {/* Hex input */}
+                <div className="mt-3 flex items-center gap-1.5">
+                  <span className="text-xs text-gray-400 font-mono">#</span>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    value={hexDraft}
+                    onFocus={() => { hexFocused.current = true; }}
+                    onChange={e => {
+                      const v = e.target.value.replace(/[^0-9a-fA-F]/g, "");
+                      setHexDraft(v);
+                      if (v.length === 6) {
+                        const c = `#${v}`;
+                        setPickerColor(c);
+                        applyBgColor(c);
+                      }
+                    }}
+                    onBlur={() => {
+                      hexFocused.current = false;
+                      if (hexDraft.length === 6) saveSnapshot();
+                      else { setHexDraft(pickerColor.replace("#", "")); }
+                    }}
+                    onKeyDown={e => { if (e.key === "Enter") e.currentTarget.blur(); }}
+                    className="flex-1 px-2 py-1 text-xs font-mono border border-gray-200 rounded focus:outline-none focus:border-blue-400 uppercase"
+                    placeholder="ffffff"
+                  />
+                </div>
+                {/* RGB inputs */}
+                {(() => {
+                  const rgb = hexToRgb(pickerColor) ?? { r: 255, g: 255, b: 255 };
+                  const setChannel = (channel: "r" | "g" | "b", val: number) => {
+                    const next = { ...rgb, [channel]: Math.max(0, Math.min(255, val)) };
+                    const c = rgbToHex(next.r, next.g, next.b);
+                    setPickerColor(c);
+                    setHexDraft(c.replace("#", ""));
+                    applyBgColor(c);
+                  };
+                  return (
+                    <div className="mt-2 grid grid-cols-3 gap-1.5">
+                      {(["r", "g", "b"] as const).map(ch => (
+                        <div key={ch} className="flex flex-col items-center gap-0.5">
+                          <span className="text-[9px] font-semibold text-gray-400 uppercase">{ch}</span>
+                          <input
+                            type="number"
+                            min={0}
+                            max={255}
+                            value={rgb[ch]}
+                            onChange={e => setChannel(ch, Number(e.target.value))}
+                            onBlur={() => saveSnapshot()}
+                            className="w-full px-1.5 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:border-blue-400 text-center"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
               <div>
                 <p className="text-[10px] font-semibold text-gray-400 tracking-widest uppercase mb-2">
@@ -1182,6 +1691,37 @@ const CertificateDesignEditor: React.FC = () => {
                   + Upload image
                 </button>
               </div>
+              {recentBgImages.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-semibold text-gray-400 tracking-widest uppercase mb-2">
+                    Recent Backgrounds
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {recentBgImages.map((item) => (
+                      <div key={item.id} className="relative aspect-[4/3] group">
+                        <button
+                          onClick={() => applyBackgroundSrc(item.url)}
+                          className="w-full h-full rounded-md overflow-hidden border border-gray-200 hover:border-blue-400 hover:shadow-sm transition-all"
+                          title="Re-apply this background"
+                        >
+                          <img src={item.url} alt="" className="w-full h-full object-cover" />
+                        </button>
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            await deleteBgImage(item.id);
+                            setRecentBgImages(prev => prev.filter(b => b.id !== item.id));
+                          }}
+                          className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500"
+                          title="Remove from recent"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1411,6 +1951,121 @@ const CertificateDesignEditor: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* ── Floating text toolbar ──────────────────────────────────────────── */}
+      {selIsText && selectedObj && activeTab === "certificates" && (() => {
+        const scale = zoom / 100;
+        const wr = canvasWrapperRef.current?.getBoundingClientRect();
+        if (!wr) return null;
+
+        const objLeft = (sel?.left   ?? 0) * scale;
+        const objTop  = (sel?.top    ?? 0) * scale;
+        const objH    = (sel?.height ?? 20) * (sel?.scaleY ?? 1) * scale;
+
+        const TOOLBAR_H = 86;
+        const GAP = 5;
+
+        let fixedTop  = wr.top + objTop - TOOLBAR_H - GAP;
+        let fixedLeft = wr.left + objLeft;
+        if (fixedTop < 56) fixedTop = wr.top + objTop + objH + GAP;
+        fixedLeft = Math.max(8, Math.min(fixedLeft, window.innerWidth - 520));
+
+        return ReactDOM.createPortal(
+          <div
+            style={{ position: "fixed", left: fixedLeft, top: fixedTop, zIndex: 9999 }}
+            onMouseDown={e => e.preventDefault()}
+          >
+            <div style={{
+              display: "flex", flexDirection: "column", gap: 2,
+              background: "#fff",
+              border: "1px solid #e2e8f0",
+              borderRadius: 8,
+              padding: "5px 8px",
+              boxShadow: "0 4px 20px rgba(0,0,0,0.13)",
+            }}>
+              {/* Row 1: color · font family · font size */}
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <label style={{ position: "relative", width: 22, height: 22, cursor: "pointer", flexShrink: 0 }}>
+                  <span style={{
+                    display: "block", width: 22, height: 22, borderRadius: "50%",
+                    background: typeof selColor === "string" ? selColor : "#334155",
+                    border: "2px solid rgba(0,0,0,0.15)",
+                  }} />
+                  <input
+                    type="color"
+                    value={typeof selColor === "string" && /^#[0-9a-fA-F]{6}$/.test(selColor) ? selColor : "#334155"}
+                    onChange={e => updateSelected({ fill: e.target.value })}
+                    style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", height: "100%" }}
+                  />
+                </label>
+                <TbDivider />
+                <select
+                  value={selFontFamily}
+                  onChange={e => updateSelected({ fontFamily: e.target.value })}
+                  onMouseDown={e => e.stopPropagation()}
+                  style={{
+                    fontSize: 12, border: "1px solid #e5e7eb", borderRadius: 4,
+                    padding: "2px 4px", outline: "none", background: "#fff",
+                    cursor: "pointer", width: 120, height: 26,
+                  }}
+                >
+                  {FONT_FAMILIES.map(f => <option key={f} value={f}>{f}</option>)}
+                </select>
+                <TbDivider />
+                <input
+                  type="number"
+                  min={8} max={200}
+                  value={selFontSz}
+                  onChange={e => updateSelected({ fontSize: Math.max(8, Number(e.target.value)) })}
+                  onMouseDown={e => e.stopPropagation()}
+                  style={{
+                    width: 42, height: 26, fontSize: 12, textAlign: "center",
+                    border: "1px solid #e5e7eb", borderRadius: 4,
+                    padding: "2px 4px", outline: "none", background: "#fff",
+                  }}
+                />
+                <span style={{ fontSize: 11, color: "#9ca3af" }}>px</span>
+              </div>
+
+              {/* Row 2: alignment · bold · italic · delete */}
+              <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                <TbBtn active={selAlign === "left"} title="Align left" onMouseDown={() => updateSelected({ textAlign: "left" })}>
+                  <AlignLeft size={13} />
+                </TbBtn>
+                <TbBtn active={selAlign === "center"} title="Align center" onMouseDown={() => updateSelected({ textAlign: "center" })}>
+                  <AlignCenter size={13} />
+                </TbBtn>
+                <TbBtn active={selAlign === "right"} title="Align right" onMouseDown={() => updateSelected({ textAlign: "right" })}>
+                  <AlignRight size={13} />
+                </TbBtn>
+                <TbDivider />
+                <TbBtn active={selBold} title="Bold (Ctrl+B)" onMouseDown={() => updateSelected({ fontWeight: selBold ? "normal" : "bold" })}>
+                  <span style={{ fontWeight: 700, fontSize: 13, lineHeight: 1 }}>B</span>
+                </TbBtn>
+                <TbBtn active={selItalic} title="Italic (Ctrl+I)" onMouseDown={() => updateSelected({ fontStyle: selItalic ? "normal" : "italic" })}>
+                  <em style={{ fontStyle: "italic", fontSize: 13, fontWeight: 600, lineHeight: 1 }}>I</em>
+                </TbBtn>
+                <TbDivider />
+                <TbBtn title="Duplicate" onMouseDown={() => { duplicateSelected(); }}>
+                  <Copy size={13} />
+                </TbBtn>
+                <button
+                  onMouseDown={e => { e.preventDefault(); deleteSelected(); }}
+                  title="Delete"
+                  style={{
+                    width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center",
+                    borderRadius: 4, border: "none", background: "transparent",
+                    color: "#ef4444", cursor: "pointer", flexShrink: 0,
+                  }}
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        );
+      })()}
     </div>
   );
 };
