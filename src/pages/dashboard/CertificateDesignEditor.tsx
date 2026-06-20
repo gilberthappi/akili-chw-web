@@ -273,6 +273,7 @@ const CertificateDesignEditor: React.FC = () => {
 
   // Mock certificate generation
   const [isGeneratingMock, setIsGeneratingMock] = useState(false);
+  const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
 
   const [recentBgImages, setRecentBgImages] = useState<{ id: string; url: string }[]>([]);
 
@@ -896,11 +897,12 @@ const CertificateDesignEditor: React.FC = () => {
       tmp.dispose();
       document.body.removeChild(el);
 
-      // Wrap PNG in a PDF and download
+      // Wrap PNG in a PDF and open preview modal
       const { jsPDF } = await import("jspdf");
       const pdf = new jsPDF({ orientation: "landscape", unit: "px", format: [CANVAS_WIDTH, CANVAS_HEIGHT] });
       pdf.addImage(dataUrl, "PNG", 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-      pdf.save(`${templateName || "certificate"}-preview.pdf`);
+      const blob = pdf.output("blob");
+      setPreviewPdfUrl(URL.createObjectURL(blob));
     } catch (err) {
       console.error("Mock certificate error:", err);
       toast.error("Failed to generate preview PDF");
@@ -1172,7 +1174,7 @@ const CertificateDesignEditor: React.FC = () => {
             className="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50 font-medium text-gray-700 transition-colors whitespace-nowrap disabled:opacity-50 flex items-center gap-1.5"
           >
             {isGeneratingMock && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-            Generate Mock Certificate
+            Preview Certificate
           </button>
 
           {/* Zoom controls */}
@@ -1952,6 +1954,15 @@ const CertificateDesignEditor: React.FC = () => {
         </div>
       )}
 
+      {/* ── Mock Certificate Preview Modal ───────────────────────────────────── */}
+      {previewPdfUrl && (
+        <PreviewModal
+          url={previewPdfUrl}
+          fileName={`${templateName || "certificate"}-preview.pdf`}
+          onClose={() => { URL.revokeObjectURL(previewPdfUrl); setPreviewPdfUrl(null); }}
+        />
+      )}
+
       {/* ── Floating text toolbar ──────────────────────────────────────────── */}
       {selIsText && selectedObj && activeTab === "certificates" && (() => {
         const scale = zoom / 100;
@@ -2071,3 +2082,44 @@ const CertificateDesignEditor: React.FC = () => {
 };
 
 export default CertificateDesignEditor;
+
+function PreviewModal({ url, fileName, onClose }: { url: string; fileName: string; onClose: () => void }) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-xl shadow-2xl flex flex-col w-full max-w-5xl"
+        style={{ height: "90vh" }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+          <h3 className="text-sm font-semibold text-gray-900">Certificate Preview</h3>
+          <div className="flex items-center gap-2">
+            <a
+              href={url}
+              download={fileName}
+              className="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition"
+            >
+              Download
+            </a>
+            <button
+              onClick={onClose}
+              className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+        <iframe src={url} className="flex-1 w-full rounded-b-xl" title="Certificate Preview" />
+      </div>
+    </div>
+  );
+}
