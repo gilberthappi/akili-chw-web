@@ -52,9 +52,11 @@ import {
   listBgImages,
   uploadBgImage,
   deleteBgImage,
+  getMockTokenValues,
   type CertificateTemplateSummary,
   type LinkedCourse,
 } from "@/services/certificateTemplate.service";
+import { renderCertificateFromCanvas } from "@/utils/renderCertificate";
 import { getAllCoursesNoPagination } from "@/services/course.service";
 import type { ICourse } from "@/types";
 
@@ -847,69 +849,20 @@ const CertificateDesignEditor: React.FC = () => {
 
   const generateMockCertificate = useCallback(async () => {
     const canvas = fabricRef.current;
-    if (!canvas) {
-      toast.error("Canvas not ready");
-      return;
-    }
+    if (!canvas) { toast.error("Canvas not ready"); return; }
     setIsGeneratingMock(true);
     try {
-      const MOCK: Record<string, string> = {
-        "{{studentName}}":     "John Doe",
-        "{{certificateCode}}": "CHW-2026-001234",
-        "{{currentDate}}":     new Date().toLocaleDateString("en-US", { day: "2-digit", month: "long", year: "numeric" }),
-        "{{courseName}}":      "Community Health Worker Training",
-        "{{courseDetails}}":   "Advanced Community Health Worker Program",
-        "{{progress}}":        "100%",
-        "{{courseDuration}}":  "12 Weeks",
-        "{{startDate}}":       "01 January 2026",
-        "{{endDate}}":         new Date().toLocaleDateString("en-US", { day: "2-digit", month: "long", year: "numeric" }),
-        "{{studentCode}}":     "STU-2026-001",
-        "{{instructorName}}":  "Dr. Jane Smith",
-      };
-      const TK: Record<string, string> = {
-        "cert-code":      "{{certificateCode}}", "date":            "{{currentDate}}",
-        "course-name":    "{{courseName}}",       "details":         "{{courseDetails}}",
-        "progress":       "{{progress}}",         "duration":        "{{courseDuration}}",
-        "start-date":     "{{startDate}}",        "end-date":        "{{endDate}}",
-        "student-name":   "{{studentName}}",      "student-code":    "{{studentCode}}",
-        "instructor-name":"{{instructorName}}",
-      };
-
-      // Clone canvas JSON and replace tokens with mock values
-      const cloned = JSON.parse(JSON.stringify(canvas.toObject(["tokenKey", "token"])));
-      for (const obj of cloned.objects ?? []) {
-        const val =
-          (obj.token    ? MOCK[obj.token]              : undefined) ??
-          (obj.tokenKey ? MOCK[TK[obj.tokenKey] ?? ""] : undefined);
-        if (val !== undefined) obj.text = val;
-      }
-
-      // Render off-screen at full resolution
-      const { StaticCanvas } = await import("fabric");
-      const el  = document.createElement("canvas");
-      document.body.appendChild(el);
-      const tmp = new StaticCanvas(el, { width: CANVAS_WIDTH, height: CANVAS_HEIGHT });
-      await tmp.loadFromJSON(cloned);
-      tmp.setZoom(1);
-      tmp.setDimensions({ width: CANVAS_WIDTH, height: CANVAS_HEIGHT });
-      tmp.renderAll();
-      const dataUrl = tmp.toDataURL({ format: "png", multiplier: 2 });
-      tmp.dispose();
-      document.body.removeChild(el);
-
-      // Wrap PNG in a PDF and open preview modal
-      const { jsPDF } = await import("jspdf");
-      const pdf = new jsPDF({ orientation: "landscape", unit: "px", format: [CANVAS_WIDTH, CANVAS_HEIGHT] });
-      pdf.addImage(dataUrl, "PNG", 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-      const blob = pdf.output("blob");
-      setPreviewPdfUrl(URL.createObjectURL(blob));
+      const { certId, tokenValues } = await getMockTokenValues();
+      const canvasJson = canvas.toObject(["tokenKey", "token"]);
+      const blobUrl = await renderCertificateFromCanvas(canvasJson, tokenValues, certId);
+      setPreviewPdfUrl(blobUrl);
     } catch (err) {
       console.error("Mock certificate error:", err);
-      toast.error("Failed to generate preview PDF");
+      toast.error("Failed to generate preview");
     } finally {
       setIsGeneratingMock(false);
     }
-  }, [templateName]);
+  }, []);
 
   // ── Link/unlink toggle ───────────────────────────────────────────────────────
 

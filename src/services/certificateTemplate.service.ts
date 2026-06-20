@@ -61,6 +61,16 @@ export const unlinkTemplateFromCourse = async (templateId: string, courseId: str
   await api.delete(`/certificate-templates/${templateId}/link/${courseId}`);
 };
 
+export interface MockTokenData {
+  certId: string;
+  tokenValues: Record<string, string>;
+}
+
+export const getMockTokenValues = async (): Promise<MockTokenData> => {
+  const res = await api.get("/certificate-templates/mock-tokens");
+  return res.data?.data as MockTokenData;
+};
+
 export const previewCertificateTemplate = async (
   templateId: string,
   canvasJson: Record<string, unknown>,
