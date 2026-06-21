@@ -53,6 +53,26 @@ export const generateCertificate = async (courseId: string): Promise<IMyCertific
   return res.data?.data as IMyCertificate;
 };
 
+export interface ICertificatePrepareData {
+  certId: string;
+  tokenValues: Record<string, string>;
+  canvasJson: string | null;
+}
+
+export const prepareCertificate = async (courseId: string): Promise<ICertificatePrepareData> => {
+  const res = await api.post("/certificates/prepare", { courseId });
+  return res.data?.data as ICertificatePrepareData;
+};
+
+export const storeCertificatePdf = async (
+  certId: string,
+  courseId: string,
+  base64Pdf: string,
+): Promise<IMyCertificate> => {
+  const res = await api.post("/certificates/store-pdf", { certId, courseId, base64Pdf });
+  return res.data?.data as IMyCertificate;
+};
+
 export const regenerateCertificate = async (certificateId: string): Promise<IMyCertificate> => {
   const res = await api.post(`/certificates/regenerate/${certificateId}`);
   return res.data?.data as IMyCertificate;

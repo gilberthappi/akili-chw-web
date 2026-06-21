@@ -52,9 +52,11 @@ import {
   listBgImages,
   uploadBgImage,
   deleteBgImage,
+  getMockTokenValues,
   type CertificateTemplateSummary,
   type LinkedCourse,
 } from "@/services/certificateTemplate.service";
+import { renderCertificateFromCanvas } from "@/utils/renderCertificate";
 import { getAllCoursesNoPagination } from "@/services/course.service";
 import type { ICourse } from "@/types";
 
@@ -273,6 +275,7 @@ const CertificateDesignEditor: React.FC = () => {
 
   // Mock certificate generation
   const [isGeneratingMock, setIsGeneratingMock] = useState(false);
+  const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
 
   const [recentBgImages, setRecentBgImages] = useState<{ id: string; url: string }[]>([]);
 
@@ -846,68 +849,20 @@ const CertificateDesignEditor: React.FC = () => {
 
   const generateMockCertificate = useCallback(async () => {
     const canvas = fabricRef.current;
-    if (!canvas) {
-      toast.error("Canvas not ready");
-      return;
-    }
+    if (!canvas) { toast.error("Canvas not ready"); return; }
     setIsGeneratingMock(true);
     try {
-      const MOCK: Record<string, string> = {
-        "{{studentName}}":     "John Doe",
-        "{{certificateCode}}": "CHW-2026-001234",
-        "{{currentDate}}":     new Date().toLocaleDateString("en-US", { day: "2-digit", month: "long", year: "numeric" }),
-        "{{courseName}}":      "Community Health Worker Training",
-        "{{courseDetails}}":   "Advanced Community Health Worker Program",
-        "{{progress}}":        "100%",
-        "{{courseDuration}}":  "12 Weeks",
-        "{{startDate}}":       "01 January 2026",
-        "{{endDate}}":         new Date().toLocaleDateString("en-US", { day: "2-digit", month: "long", year: "numeric" }),
-        "{{studentCode}}":     "STU-2026-001",
-        "{{instructorName}}":  "Dr. Jane Smith",
-      };
-      const TK: Record<string, string> = {
-        "cert-code":      "{{certificateCode}}", "date":            "{{currentDate}}",
-        "course-name":    "{{courseName}}",       "details":         "{{courseDetails}}",
-        "progress":       "{{progress}}",         "duration":        "{{courseDuration}}",
-        "start-date":     "{{startDate}}",        "end-date":        "{{endDate}}",
-        "student-name":   "{{studentName}}",      "student-code":    "{{studentCode}}",
-        "instructor-name":"{{instructorName}}",
-      };
-
-      // Clone canvas JSON and replace tokens with mock values
-      const cloned = JSON.parse(JSON.stringify(canvas.toObject(["tokenKey", "token"])));
-      for (const obj of cloned.objects ?? []) {
-        const val =
-          (obj.token    ? MOCK[obj.token]              : undefined) ??
-          (obj.tokenKey ? MOCK[TK[obj.tokenKey] ?? ""] : undefined);
-        if (val !== undefined) obj.text = val;
-      }
-
-      // Render off-screen at full resolution
-      const { StaticCanvas } = await import("fabric");
-      const el  = document.createElement("canvas");
-      document.body.appendChild(el);
-      const tmp = new StaticCanvas(el, { width: CANVAS_WIDTH, height: CANVAS_HEIGHT });
-      await tmp.loadFromJSON(cloned);
-      tmp.setZoom(1);
-      tmp.setDimensions({ width: CANVAS_WIDTH, height: CANVAS_HEIGHT });
-      tmp.renderAll();
-      const dataUrl = tmp.toDataURL({ format: "png", multiplier: 2 });
-      tmp.dispose();
-      document.body.removeChild(el);
-
-      // Wrap PNG in a PDF and download
-      const { jsPDF } = await import("jspdf");
-      const pdf = new jsPDF({ orientation: "landscape", unit: "px", format: [CANVAS_WIDTH, CANVAS_HEIGHT] });
-      pdf.addImage(dataUrl, "PNG", 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-      pdf.save(`${templateName || "certificate"}-preview.pdf`);
+      const { certId, tokenValues } = await getMockTokenValues();
+      const canvasJson = canvas.toObject(["tokenKey", "token"]);
+      const blobUrl = await renderCertificateFromCanvas(canvasJson, tokenValues, certId);
+      setPreviewPdfUrl(blobUrl);
     } catch (err) {
       console.error("Mock certificate error:", err);
-      toast.error("Failed to generate preview PDF");
+      toast.error("Failed to generate preview");
     } finally {
       setIsGeneratingMock(false);
     }
-  }, [templateName]);
+  }, []);
 
   // ── Link/unlink toggle ───────────────────────────────────────────────────────
 
@@ -1172,7 +1127,7 @@ const CertificateDesignEditor: React.FC = () => {
             className="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50 font-medium text-gray-700 transition-colors whitespace-nowrap disabled:opacity-50 flex items-center gap-1.5"
           >
             {isGeneratingMock && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-            Generate Mock Certificate
+            Preview Certificate
           </button>
 
           {/* Zoom controls */}
@@ -1952,6 +1907,15 @@ const CertificateDesignEditor: React.FC = () => {
         </div>
       )}
 
+      {/* ── Mock Certificate Preview Modal ───────────────────────────────────── */}
+      {previewPdfUrl && (
+        <PreviewModal
+          url={previewPdfUrl}
+          fileName={`${templateName || "certificate"}-preview.pdf`}
+          onClose={() => { URL.revokeObjectURL(previewPdfUrl); setPreviewPdfUrl(null); }}
+        />
+      )}
+
       {/* ── Floating text toolbar ──────────────────────────────────────────── */}
       {selIsText && selectedObj && activeTab === "certificates" && (() => {
         const scale = zoom / 100;
@@ -2071,3 +2035,44 @@ const CertificateDesignEditor: React.FC = () => {
 };
 
 export default CertificateDesignEditor;
+
+function PreviewModal({ url, fileName, onClose }: { url: string; fileName: string; onClose: () => void }) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-xl shadow-2xl flex flex-col w-full max-w-5xl"
+        style={{ height: "90vh" }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+          <h3 className="text-sm font-semibold text-gray-900">Certificate Preview</h3>
+          <div className="flex items-center gap-2">
+            <a
+              href={url}
+              download={fileName}
+              className="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition"
+            >
+              Download
+            </a>
+            <button
+              onClick={onClose}
+              className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+        <iframe src={url} className="flex-1 w-full rounded-b-xl" title="Certificate Preview" />
+      </div>
+    </div>
+  );
+}
