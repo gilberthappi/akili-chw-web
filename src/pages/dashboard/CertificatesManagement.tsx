@@ -126,7 +126,7 @@ export default function CertificatesManagement() {
         <StatCard label="Total Certificates" value={stats.total} color="text-gray-900" />
         <StatCard label="Active" value={stats.active} color="text-green-600" sub="Linked to a course" />
         <StatCard label="Draft" value={stats.draft} color="text-yellow-600" sub="Not linked yet" />
-        <StatCard label="Issued" value={stats.issued} color="text-blue-600" sub="Certificates given" />
+        <StatCard label="Issued" value={stats.issued} color="text-primary" sub="Certificates given" />
       </div>
 
       {/* Filters */}
@@ -148,7 +148,7 @@ export default function CertificatesManagement() {
               onClick={() => setStatusFilter(s)}
               className={`px-3 py-1 text-sm rounded-md font-medium transition ${
                 statusFilter === s
-                  ? "bg-blue-600 text-white"
+                  ? "bg-primary text-white"
                   : "text-gray-600 hover:bg-gray-100"
               }`}
             >
