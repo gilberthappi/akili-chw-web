@@ -136,6 +136,17 @@ function mapICourseToCourseBuilderData(course: ICourse): CourseBuilderData {
   };
 }
 
+/** Map sequential slide index to persisted slideNumber, reserving activityAt for mid-test. */
+function getSlideNumberForSave(
+  slideIndex: number,
+  activityAt?: number,
+  hasMidTest = false,
+): number {
+  const base = slideIndex + 1;
+  if (!hasMidTest || !activityAt || activityAt < 1) return base;
+  return base >= activityAt ? base + 1 : base;
+}
+
 function buildApiPayload(data: CourseBuilderData): Record<string, unknown> {
   return {
     title: data.title,
@@ -164,7 +175,11 @@ function buildApiPayload(data: CourseBuilderData): Record<string, unknown> {
           .sort((a, b) => a.order - b.order)
           .map((slide, sli) => ({
             note: slide.title,
-            slideNumber: sli + 1,
+            slideNumber: getSlideNumberForSave(
+              sli,
+              chapter.activityAt,
+              !!chapter.midTest,
+            ),
             file: slide.fileUrl,
             isPublished: true,
           })),
