@@ -78,6 +78,55 @@ export const regenerateCertificate = async (certificateId: string): Promise<IMyC
   return res.data?.data as IMyCertificate;
 };
 
+export interface IIssuedCertificate {
+  id: string;
+  createdAt: string;
+  pdf: string | null;
+  student: {
+    user: {
+      id: string;
+      fullNames: string;
+      phoneNumber: string;
+      district: string | null;
+      sector: string | null;
+    };
+  };
+  course: {
+    id: string;
+    title: string;
+    coverIcon: string | null;
+    certificateTemplate: { id: string; name: string } | null;
+  };
+}
+
+export interface IIssuedCertificatesResponse {
+  data: IIssuedCertificate[];
+  totalItems: number;
+  currentPage: number;
+  itemsPerPage: number;
+}
+
+export const getAllCertificates = async (params?: {
+  searchq?: string;
+  limit?: number;
+  page?: number;
+  templateId?: string;
+  courseId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}): Promise<IIssuedCertificatesResponse> => {
+  const query = new URLSearchParams();
+  if (params?.searchq) query.set("searchq", params.searchq);
+  if (params?.limit) query.set("limit", String(params.limit));
+  if (params?.page) query.set("page", String(params.page));
+  if (params?.templateId) query.set("templateId", params.templateId);
+  if (params?.courseId) query.set("courseId", params.courseId);
+  if (params?.dateFrom) query.set("dateFrom", params.dateFrom);
+  if (params?.dateTo) query.set("dateTo", params.dateTo);
+  const res = await api.get(`/certificates/all?${query.toString()}`);
+  return res.data as IIssuedCertificatesResponse;
+};
+
 export const regenerateMyCertificate = async (courseId: string): Promise<IMyCertificate> => {
   const res = await api.post(`/certificates/my-certificate/regenerate/${courseId}`);
   return res.data?.data as IMyCertificate;

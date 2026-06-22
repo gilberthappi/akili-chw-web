@@ -126,7 +126,14 @@ export default function CertificatesManagement() {
         <StatCard label="Total Certificates" value={stats.total} color="text-gray-900" />
         <StatCard label="Active" value={stats.active} color="text-green-600" sub="Linked to a course" />
         <StatCard label="Draft" value={stats.draft} color="text-yellow-600" sub="Not linked yet" />
-        <StatCard label="Issued" value={stats.issued} color="text-primary" sub="Certificates given" />
+        <StatCard
+          label="Issued"
+          value={stats.issued}
+          color="text-primary"
+          sub="Certificates given"
+          onClick={() => navigate("/certificates/issued")}
+          actionLabel="View all →"
+        />
       </div>
 
       {/* Filters */}
@@ -256,9 +263,23 @@ export default function CertificatesManagement() {
                   </div>
 
                   {/* Issued count */}
-                  <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                    <Users className="w-3.5 h-3.5" />
-                    <span>{t.issuedCount} issued</span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                      <Users className="w-3.5 h-3.5" />
+                      <span>{t.issuedCount} issued</span>
+                    </div>
+                    {t.issuedCount > 0 && (
+                      <button
+                        onClick={() =>
+                          navigate("/certificates/issued", {
+                            state: { templateId: t.id, templateName: t.name },
+                          })
+                        }
+                        className="text-xs font-medium text-blue-600 hover:text-blue-800 underline underline-offset-2 transition"
+                      >
+                        View issued ({t.issuedCount})
+                      </button>
+                    )}
                   </div>
 
                   {/* Actions */}
@@ -328,17 +349,27 @@ function StatCard({
   value,
   color,
   sub,
+  onClick,
+  actionLabel,
 }: {
   label: string;
   value: number;
   color: string;
   sub?: string;
+  onClick?: () => void;
+  actionLabel?: string;
 }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4">
-      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">{label}</p>
+    <div
+      className={`bg-white rounded-xl border border-gray-200 p-4 flex flex-col gap-0.5 ${onClick ? "cursor-pointer hover:border-blue-300 hover:shadow-sm transition" : ""}`}
+      onClick={onClick}
+    >
+      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</p>
       <p className={`text-3xl font-bold ${color}`}>{value}</p>
-      {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
+      {sub && <p className="text-xs text-gray-400">{sub}</p>}
+      {actionLabel && onClick && (
+        <p className="text-xs text-blue-500 mt-1 font-medium">{actionLabel}</p>
+      )}
     </div>
   );
 }
