@@ -597,6 +597,8 @@ export interface ICourse {
   coverIcon: string;
   description: string;
   isPublished: boolean;
+  pendingNotificationType?: 'created' | 'updated' | null;
+  lastNotifiedAt?: string | null;
   createdAt: string;
   updatedAt: string;
   staff: IStaff;

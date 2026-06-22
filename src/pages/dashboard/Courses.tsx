@@ -144,7 +144,7 @@ const CoursesPage = () => {
             <h2 className="text-3xl font-bold text-[#333333]">Courses</h2>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <Link
+            {/* <Link
               to={"/courses/new"}
               className={`flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 font-medium text-white ${transitionClass} hover:bg-[#4d81d2]`}
             >
@@ -152,15 +152,17 @@ const CoursesPage = () => {
                 <LuCirclePlus />
               </span>
               <span>New Course</span>
-            </Link>
+            </Link> */}
 
             <button
               type="button"
               onClick={() => setShowCourseBuilderModal(true)}
               className={`flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 font-medium text-white ${transitionClass} hover:bg-[#4d81d2]`}
             >
-              <span className="text-xl">🏗️</span>
-              <span>Course Builder</span>
+               <span className="text-xl">
+                <LuCirclePlus />
+              </span>
+              <span>New Course</span>
             </button>
           </div>
         </div>

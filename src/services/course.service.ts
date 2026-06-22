@@ -41,6 +41,13 @@ export const updateCourse = async (
   })).data;
 };
 
+export const notifyCourseUsers = async (
+  courseId: string,
+  roles?: Array<'TRAINEE' | 'TESTER' | 'CHO' | 'TRAINER' | 'STAFF' | 'ADMIN'>,
+): Promise<IResponse<{ course: ICourse; notifiedCount: number; eventType: string }>> => {
+  return (await api.post(`/courses/${courseId}/notify-users`, { roles })).data;
+};
+
 export const deleteCourse = async (id: string): Promise<number> => {
   return (await api.delete(`/courses/${id}`)).data;
 };
