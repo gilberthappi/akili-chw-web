@@ -2608,7 +2608,7 @@ const Calendar: React.FC = () => {
                 </p>
               </div>
 
-              <div className='flex items-center justify-end gap-3 pt-6 border-t'>
+              <div className='flex items-center justify-end gap-3 pt-6 border-t flex-wrap'>
                 <button
                   onClick={() => setShowDetailsModal(false)}
                   disabled={deleteEventMutation.isPending}
@@ -2616,6 +2616,18 @@ const Calendar: React.FC = () => {
                 >
                   Close
                 </button>
+                {isAdmin && selectedEvent.meetingType === 'EBUMENYI_MEETING' && (
+                  <button
+                    onClick={() => {
+                      setShowDetailsModal(false);
+                      navigate(`/attendance/${selectedEvent.id}`);
+                    }}
+                    className='flex items-center gap-2 px-4 py-2 bg-blue-50 text-primary border border-primary/20 rounded-lg font-medium hover:bg-blue-100 transition-colors'
+                  >
+                    <Users className='w-4 h-4' />
+                    Attendance
+                  </button>
+                )}
                 {selectedEvent.amOwner && (
                   <>
                     <button
