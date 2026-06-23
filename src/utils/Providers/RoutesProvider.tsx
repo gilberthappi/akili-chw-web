@@ -43,6 +43,7 @@ import CHOGroupPage from "@/pages/dashboard/CHOGroup";
 import CHOGroupInvitePage from "@/pages/dashboard/CHOGroupInvite";
 import AdminCHOGroupDetailPage from "@/pages/dashboard/AdminCHOGroupDetail";
 import VerifyCertificate from "@/pages/VerifyCertificate";
+import IssuedCertificatesPage from "@/pages/dashboard/IssuedCertificatesPage";
 
 const RoutesProvider = () => {
   const router = createBrowserRouter([
@@ -188,6 +189,14 @@ const RoutesProvider = () => {
               allowedRoles={["TRAINER", "ADMIN", "DEVELOPER"]}
             >
               <Certificates />
+            </ProtectedRoute>
+          ),
+        },
+        {
+          path: "certificates/issued",
+          element: (
+            <ProtectedRoute allowedRoles={["TRAINER", "ADMIN", "DEVELOPER"]}>
+              <IssuedCertificatesPage />
             </ProtectedRoute>
           ),
         },

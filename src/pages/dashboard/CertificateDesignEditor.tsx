@@ -273,6 +273,10 @@ const CertificateDesignEditor: React.FC = () => {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [isDeleting,      setIsDeleting]      = useState(false);
 
+  // Inline rename in sidebar
+  const [editingId,   setEditingId]   = useState<string | null>(null);
+  const [editingName, setEditingName] = useState("");
+
   // Mock certificate generation
   const [isGeneratingMock, setIsGeneratingMock] = useState(false);
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
@@ -604,6 +608,21 @@ const CertificateDesignEditor: React.FC = () => {
       setIsCreating(false);
     }
   }, [navigate]);
+
+  // ── Rename template from sidebar (inline double-click) ───────────────────────
+
+  const handleSidebarRename = useCallback(async (id: string, name: string) => {
+    const trimmed = name.trim();
+    setEditingId(null);
+    if (!trimmed) return;
+    try {
+      await updateCertificateTemplate(id, { name: trimmed });
+      setTemplates(prev => prev.map(t => t.id === id ? { ...t, name: trimmed } : t));
+      if (id === templateId) setTemplateName(trimmed);
+    } catch {
+      // interceptor shows toast
+    }
+  }, [templateId]);
 
   // ── Add elements ──────────────────────────────────────────────────────────────
 
@@ -1166,9 +1185,10 @@ const CertificateDesignEditor: React.FC = () => {
               )}
             </span>
             <button
-              onClick={() => setShowNewModal(true)}
-              className="p-1 hover:bg-gray-100 rounded-md text-gray-500 transition-colors"
-              title="New template"
+              onClick={handleCreateBlankTemplate}
+              disabled={isCreating}
+              className="p-1 hover:bg-gray-100 rounded-md text-gray-500 transition-colors disabled:opacity-40"
+              title="New blank template"
             >
               <Plus className="w-4 h-4" />
             </button>
@@ -1226,9 +1246,10 @@ const CertificateDesignEditor: React.FC = () => {
                   key={tmpl.id}
                   className="group relative"
                 >
+                  {/* Thumbnail — click to navigate */}
                   <button
                     onClick={() => navigate(`/certificates/design/${tmpl.id}`)}
-                    className={`w-full text-left rounded-lg overflow-hidden border-2 transition-all ${
+                    className={`w-full rounded-t-lg overflow-hidden border-2 transition-all ${
                       templateId === tmpl.id
                         ? "border-blue-500 shadow-sm"
                         : "border-transparent hover:border-gray-200"
@@ -1249,10 +1270,32 @@ const CertificateDesignEditor: React.FC = () => {
                         </div>
                       )}
                     </div>
-                    <div className="px-1.5 py-1.5">
-                      <p className="text-xs font-medium text-gray-700 truncate">{tmpl.name}</p>
-                    </div>
                   </button>
+
+                  {/* Name row — double-click to rename */}
+                  <div className="px-1.5 py-1.5">
+                    {editingId === tmpl.id ? (
+                      <input
+                        autoFocus
+                        value={editingName}
+                        onChange={e => setEditingName(e.target.value)}
+                        onBlur={() => handleSidebarRename(tmpl.id, editingName)}
+                        onKeyDown={e => {
+                          if (e.key === "Enter") e.currentTarget.blur();
+                          if (e.key === "Escape") setEditingId(null);
+                        }}
+                        className="w-full text-xs font-medium border border-blue-400 rounded px-1.5 py-0.5 focus:outline-none bg-white"
+                      />
+                    ) : (
+                      <p
+                        className="text-xs font-medium text-gray-700 truncate cursor-text select-none"
+                        onDoubleClick={() => { setEditingId(tmpl.id); setEditingName(tmpl.name); }}
+                        title="Double-click to rename"
+                      >
+                        {tmpl.name}
+                      </p>
+                    )}
+                  </div>
 
                   {/* Delete button — visible on hover */}
                   <button
