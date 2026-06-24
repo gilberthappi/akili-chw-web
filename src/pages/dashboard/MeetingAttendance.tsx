@@ -1,8 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import {
-  ArrowLeftIcon,
   MagnifyingGlassIcon,
   ArrowDownTrayIcon,
   UserGroupIcon,
@@ -10,7 +9,7 @@ import {
   ClockIcon,
 } from '@heroicons/react/24/outline';
 import api from '@/services/api';
-import { getBackendURL } from '@/config/api.config';
+import ExcelJS from 'exceljs';
 
 interface UserRoleEntry {
   name: string;
@@ -70,7 +69,6 @@ const formatDuration = (sec: number): string => {
 
 const MeetingAttendance: React.FC = () => {
   const { eventId } = useParams<{ eventId: string }>();
-  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
 
   const { data, isLoading } = useQuery({
@@ -141,36 +139,129 @@ const MeetingAttendance: React.FC = () => {
     );
   });
 
-  const handleExport = () => {
-    const url = `${getBackendURL()}/api/attendance/event/${eventId}/export`;
+  const handleExport = async () => {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Attendance');
+
+    const PRIMARY   = '3363AD';
+    const HOST_BG   = 'FEF3C7'; // amber-100
+    const REG_BG    = 'EFF6FF'; // blue-50
+    const GUEST_BG  = 'FFF7ED'; // orange-50
+    const WHITE     = 'FFFFFF';
+    const DARK      = '1E293B';
+
+    const colDefs = [
+      { header: 'Name',     key: 'name',     width: 28 },
+      { header: 'Email',    key: 'email',    width: 28 },
+      { header: 'Role',     key: 'role',     width: 14 },
+      { header: 'Gender',   key: 'gender',   width: 10 },
+      { header: 'District', key: 'district', width: 16 },
+      { header: 'Sector',   key: 'sector',   width: 16 },
+      { header: 'Cell',     key: 'cell',     width: 16 },
+      { header: 'Village',  key: 'village',  width: 16 },
+      { header: 'Type',     key: 'type',     width: 12 },
+      { header: 'Duration', key: 'duration', width: 14 },
+    ];
+
+    // ── Title row ──────────────────────────────────────────────
+    ws.mergeCells(1, 1, 1, colDefs.length);
+    const titleCell = ws.getCell('A1');
+    titleCell.value = `Meeting Attendance${eventTitle ? ' — ' + eventTitle : ''}`;
+    titleCell.font = { bold: true, size: 14, color: { argb: WHITE } };
+    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: PRIMARY } };
+    titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    ws.getRow(1).height = 30;
+
+    // ── Summary row ────────────────────────────────────────────
+    ws.mergeCells(2, 1, 2, colDefs.length);
+    const summaryCell = ws.getCell('A2');
+    summaryCell.value =
+      `Total: ${attendees.length}   |   Registered: ${registered.length}   |   Guests: ${guests.length}   |   Avg Duration: ${formatDuration(avgDurationSec)}`;
+    summaryCell.font = { italic: true, size: 10, color: { argb: '64748B' } };
+    summaryCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    summaryCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F1F5F9' } };
+    ws.getRow(2).height = 20;
+
+    // ── Blank spacer ───────────────────────────────────────────
+    ws.addRow([]);
+
+    // ── Column headers ─────────────────────────────────────────
+    ws.columns = colDefs.map((c) => ({ key: c.key, width: c.width }));
+    const headerRow = ws.addRow(colDefs.map((c) => c.header));
+    headerRow.height = 22;
+    headerRow.eachCell((cell) => {
+      cell.font = { bold: true, color: { argb: WHITE }, size: 11 };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: PRIMARY } };
+      cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      cell.border = {
+        bottom: { style: 'medium', color: { argb: WHITE } },
+      };
+    });
+
+    // ── Data rows ──────────────────────────────────────────────
+    attendees.forEach((a, i) => {
+      const row = ws.addRow({
+        name:     a.isHost ? `${a.name} (Host)` : a.name,
+        email:    a.email ?? '—',
+        role:     a.isGuest ? 'Guest' : a.role,
+        gender:   a.gender,
+        district: a.district,
+        sector:   a.sector,
+        cell:     a.cell,
+        village:  a.village,
+        type:     a.isGuest ? 'Guest' : 'Registered',
+        duration: formatDuration(a.totalDurationSec),
+      });
+
+      const bg = a.isHost ? HOST_BG : a.isGuest ? GUEST_BG : i % 2 === 0 ? WHITE : REG_BG;
+      row.height = 18;
+      row.eachCell((cell) => {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
+        cell.font = { color: { argb: DARK }, bold: a.isHost };
+        cell.alignment = { vertical: 'middle' };
+        cell.border = {
+          bottom: { style: 'thin', color: { argb: 'E2E8F0' } },
+        };
+      });
+
+      // Left accent bar for host
+      if (a.isHost) {
+        row.getCell(1).border = {
+          left:   { style: 'medium', color: { argb: PRIMARY } },
+          bottom: { style: 'thin',   color: { argb: 'E2E8F0' } },
+        };
+      }
+    });
+
+    // ── Freeze panes ───────────────────────────────────────────
+    ws.views = [{ state: 'frozen', ySplit: 4 }];
+
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `attendance-${eventId}.csv`;
+    link.download = `attendance-${eventTitle ?? eventId}.xlsx`;
     link.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate('/calender')}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
-          >
-            <ArrowLeftIcon className="w-5 h-5 text-gray-600" />
-          </button>
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Meeting Attendance</h1>
-            {eventTitle && <p className="text-sm text-gray-500 mt-0.5">{eventTitle}</p>}
-          </div>
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Meeting Attendance</h1>
+          {eventTitle && <p className="text-sm text-gray-500 mt-0.5">{eventTitle}</p>}
         </div>
         <button
           onClick={handleExport}
           className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-[#4d81d2] transition-colors flex-shrink-0"
         >
           <ArrowDownTrayIcon className="w-4 h-4" />
-          Export CSV
+          Export Excel
         </button>
       </div>
 
