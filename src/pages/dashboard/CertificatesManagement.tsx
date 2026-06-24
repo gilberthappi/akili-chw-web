@@ -114,7 +114,7 @@ export default function CertificatesManagement() {
         </div>
         <button
           onClick={() => navigate("/certificates/design")}
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition"
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-[#2B5493] transition"
         >
           <Plus className="w-4 h-4" />
           Create New Certificate

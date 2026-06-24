@@ -1185,7 +1185,7 @@ const CertificateDesignEditor: React.FC = () => {
               )}
             </span>
             <button
-              onClick={handleCreateBlankTemplate}
+              onClick={() => { setShowNewModal(true); setNewTemplateName(""); }}
               disabled={isCreating}
               className="p-1 hover:bg-gray-100 rounded-md text-gray-500 transition-colors disabled:opacity-40"
               title="New blank template"
@@ -1211,7 +1211,7 @@ const CertificateDesignEditor: React.FC = () => {
             {/* Create blank — always first */}
             <div className="group">
               <button
-                onClick={handleCreateBlankTemplate}
+                onClick={() => { setShowNewModal(true); setNewTemplateName(""); }}
                 disabled={isCreating}
                 className="w-full text-left rounded-lg overflow-hidden border-2 border-dashed border-gray-200 hover:border-blue-400 transition-all disabled:opacity-50"
               >
