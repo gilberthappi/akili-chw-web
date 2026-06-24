@@ -18,6 +18,7 @@ export const Dashboard: React.FC = () => {
     role: "TRAINEE",
     year: "",
     month: "",
+    hospitalId: "",
   });
 
   const userRoles: string[] = user?.roles

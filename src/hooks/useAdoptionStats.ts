@@ -10,8 +10,10 @@ import {
   ICourseDurationStats,
   IRecentActivityFeed,
 } from "@/types";
-import api from "@/services/api";
+import { getAllHospitals } from "@/services/hospitals.service";
 import {
+  getCourseAnalytics,
+  getStudentAnalytics,
   getTestScoreAnalytics,
   getCommunicationsAnalytics,
   getDemographicsAnalytics,
@@ -27,6 +29,7 @@ export interface AnalyticsFilters {
   role?: string;
   year?: string;
   month?: string;
+  hospitalId?: string;
 }
 
 interface AdoptionStats {
@@ -92,14 +95,14 @@ export const useAdoptionStats = (filters: AnalyticsFilters = {}): AdoptionStats 
       if (filters.role) qsParams.append("role", filters.role);
       if (filters.year) qsParams.append("year", filters.year);
       if (filters.month) qsParams.append("month", filters.month);
-      
+      if (filters.hospitalId) qsParams.append("hospitalId", filters.hospitalId);
+
       const qs = qsParams.toString();
-      const qsPrefix = qs ? `?${qs}` : "";
 
       const results = await Promise.allSettled([
-        api.get("/hospitals/"), // We can append it to hospitals if hospitals endpoint supports it, but probably it doesn't. Leaving as is.
-        api.get(`/export/dashboard/course/analytics${qsPrefix}`),
-        api.get(`/export/dashboard/student/analytics${qsPrefix}`),
+        getAllHospitals(),
+        getCourseAnalytics(qs),
+        getStudentAnalytics(qs),
         getTestScoreAnalytics(qs),
         getCommunicationsAnalytics(qs),
         getDemographicsAnalytics(qs),
@@ -111,22 +114,21 @@ export const useAdoptionStats = (filters: AnalyticsFilters = {}): AdoptionStats 
       let hospitalList: IHospital[] = [];
       const hospitalsRes = results[0];
       if (hospitalsRes.status === "fulfilled") {
-        const raw = hospitalsRes.value?.data;
-        hospitalList = raw?.data ?? raw ?? [];
+        hospitalList = hospitalsRes.value?.data ?? [];
         setHospitals(hospitalList);
       }
 
       const analyticsRes = results[1];
       if (analyticsRes.status === "fulfilled") {
-        const d = analyticsRes.value?.data?.data;
+        const d = analyticsRes.value?.data;
         setCourseAnalytics(d ?? null);
         setEnrollmentTrends(d?.enrollmentTrends ?? []);
       }
 
       const studentRes = results[2];
       if (studentRes.status === "fulfilled") {
-        const d = studentRes.value?.data?.data;
-        setAvgStudyTime(d?.avgStudyTime ?? 0);
+        const d = studentRes.value?.data;
+        setAvgStudyTime(d?.avgStudyTime?.value ?? 0);
       }
 
       const testRes = results[3];
@@ -170,6 +172,7 @@ export const useAdoptionStats = (filters: AnalyticsFilters = {}): AdoptionStats 
     filters.role,
     filters.year,
     filters.month,
+    filters.hospitalId,
   ]);
 
   useEffect(() => {
