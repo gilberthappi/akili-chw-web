@@ -44,7 +44,10 @@ import { getPublicHospitals } from "@/services/hospitals.service";
 
 const EBUMENYI_SCHEDULE_URL =
   import.meta.env.VITE_EBUMENYI_MEET_API_URL ||
-  "https://meeting.ebumenyi.online/api/meetings/schedule";
+  "http://localhost:3000/api/meetings/schedule";
+
+// Derive the meeting app base URL from the schedule URL (strip /api/meetings/schedule)
+const EBUMENYI_MEET_BASE_URL = EBUMENYI_SCHEDULE_URL.replace(/\/api\/meetings\/schedule\/?$/, "");
 
 function buildEventBackendPayload(eventData: any) {
   const [startTimeStr, endTimeStr] = eventData.time.split(" - ");
@@ -643,7 +646,23 @@ const Calendar: React.FC = () => {
   const formatLocation = (location: string) => {
     if (!location) return "";
 
-    // Check if it's a URL
+    // Check if it's a meeting URL — extract the meeting ID and rebuild with the local base URL
+    const meetingIdMatch = location.match(/\/meeting\/([a-z0-9-]+)/i);
+    if (meetingIdMatch) {
+      const meetingHref = `${EBUMENYI_MEET_BASE_URL}/meeting/${meetingIdMatch[1]}`;
+      return (
+        <a
+          href={meetingHref}
+          target='_blank'
+          rel='noopener noreferrer'
+          className='text-blue-600 hover:text-blue-800 underline'
+        >
+          Virtual Meeting
+        </a>
+      );
+    }
+
+    // Non-meeting URLs (physical location etc.)
     const urlPattern = /^https?:\/\//i;
     if (urlPattern.test(location)) {
       return (
@@ -653,7 +672,7 @@ const Calendar: React.FC = () => {
           rel='noopener noreferrer'
           className='text-blue-600 hover:text-blue-800 underline'
         >
-          Virtual Meeting
+          {location}
         </a>
       );
     }
@@ -3529,7 +3548,7 @@ const Calendar: React.FC = () => {
               </button>
               <button
                 onClick={() => {
-                  window.open("https://meeting.ebumenyi.online/sign-in", "_blank");
+                  window.open("http://localhost:3000/sign-in", "_blank");
                   setShowSignInModal(false);
                 }}
                 className='px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-900'
