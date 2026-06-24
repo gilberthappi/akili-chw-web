@@ -289,10 +289,11 @@ const CertificateDesignEditor: React.FC = () => {
   const hexFocused = useRef(false);
 
   // Link Certificates tab
-  const [allCourses,      setAllCourses]      = useState<ICourse[]>([]);
-  const [linkedCourseIds, setLinkedCourseIds] = useState<Set<string>>(new Set());
-  const [isLinkLoading,   setIsLinkLoading]   = useState(false);
-  const [togglingId,      setTogglingId]      = useState<string | null>(null);
+  const [allCourses,       setAllCourses]       = useState<ICourse[]>([]);
+  const [courseTemplateMap, setCourseTemplateMap] = useState<Record<string, { id: string; name: string } | null>>({});
+  const [isLinkLoading,    setIsLinkLoading]    = useState(false);
+  const [linkModalCourse,  setLinkModalCourse]  = useState<ICourse | null>(null);
+  const [isLinkingSaving,  setIsLinkingSaving]  = useState(false);
 
   // Canvas-driven re-render trigger
   const [, setTick]          = useState(0);
@@ -488,21 +489,34 @@ const CertificateDesignEditor: React.FC = () => {
   // ── Link-Certificates tab: load courses + current links ──────────────────────
 
   useEffect(() => {
-    if (activeTab !== "link-certificates" || !templateId) return;
+    if (activeTab !== "link-certificates") return;
     let cancelled = false;
     setIsLinkLoading(true);
-    Promise.all([
-      getAllCoursesNoPagination(),
-      getLinkedCourses(templateId),
-    ]).then(([coursesRes, linked]) => {
-      if (cancelled) return;
-      setAllCourses((coursesRes.data as ICourse[]) ?? []);
-      setLinkedCourseIds(new Set(linked.map((c: LinkedCourse) => c.id)));
-    }).catch(() => {}).finally(() => {
-      if (!cancelled) setIsLinkLoading(false);
-    });
+    (async () => {
+      try {
+        const [coursesRes, tpls] = await Promise.all([
+          getAllCoursesNoPagination(),
+          listCertificateTemplates(),
+        ]);
+        if (cancelled) return;
+        setAllCourses((coursesRes.data as ICourse[]) ?? []);
+        const linkedResults = await Promise.all(
+          tpls.map(t => getLinkedCourses(t.id).then(courses => ({ tpl: t, courses })).catch(() => ({ tpl: t, courses: [] as LinkedCourse[] })))
+        );
+        if (cancelled) return;
+        const map: Record<string, { id: string; name: string } | null> = {};
+        linkedResults.forEach(({ tpl, courses }) => {
+          courses.forEach(c => { map[c.id] = { id: tpl.id, name: tpl.name }; });
+        });
+        setCourseTemplateMap(map);
+      } catch {
+        // interceptor shows toast
+      } finally {
+        if (!cancelled) setIsLinkLoading(false);
+      }
+    })();
     return () => { cancelled = true; };
-  }, [activeTab, templateId]);
+  }, [activeTab]);
 
   // ── Auto-save (debounced 1.5 s after any canvas mutation) ────────────────────
 
@@ -883,25 +897,32 @@ const CertificateDesignEditor: React.FC = () => {
     }
   }, []);
 
-  // ── Link/unlink toggle ───────────────────────────────────────────────────────
+  // ── Link/change/unlink certificate for a course ──────────────────────────────
 
-  const toggleCourseLink = useCallback(async (courseId: string) => {
-    if (!templateId || togglingId) return;
-    setTogglingId(courseId);
+  const handleLinkCertificate = useCallback(async (course: ICourse, newTemplateId: string | null) => {
+    if (isLinkingSaving) return;
+    setIsLinkingSaving(true);
     try {
-      if (linkedCourseIds.has(courseId)) {
-        await unlinkTemplateFromCourse(templateId, courseId);
-        setLinkedCourseIds(prev => { const s = new Set(prev); s.delete(courseId); return s; });
-      } else {
-        await linkTemplateToCourse(templateId, courseId);
-        setLinkedCourseIds(prev => new Set(prev).add(courseId));
+      const existing = courseTemplateMap[course.id];
+      if (existing && existing.id !== newTemplateId) {
+        await unlinkTemplateFromCourse(existing.id, course.id);
       }
+      if (newTemplateId && newTemplateId !== existing?.id) {
+        await linkTemplateToCourse(newTemplateId, course.id);
+      }
+      const tpl = newTemplateId ? templates.find(t => t.id === newTemplateId) : null;
+      setCourseTemplateMap(prev => ({
+        ...prev,
+        [course.id]: tpl ? { id: tpl.id, name: tpl.name } : null,
+      }));
+      setLinkModalCourse(null);
+      toast.success(newTemplateId ? "Certificate linked" : "Certificate unlinked");
     } catch {
       // interceptor shows toast
     } finally {
-      setTogglingId(null);
+      setIsLinkingSaving(false);
     }
-  }, [templateId, linkedCourseIds, togglingId]);
+  }, [isLinkingSaving, courseTemplateMap, templates]);
 
   // ── Derived ───────────────────────────────────────────────────────────────────
 
@@ -1481,19 +1502,13 @@ const CertificateDesignEditor: React.FC = () => {
           {activeTab === "link-certificates" && (
             <div className="flex-1 flex flex-col overflow-hidden">
               <div className="p-4 border-b border-gray-200 shrink-0">
-                <h2 className="text-sm font-semibold text-gray-800">Link to Courses</h2>
+                <h2 className="text-sm font-semibold text-gray-800">Link Courses to Certificates</h2>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  {templateId
-                    ? `Assign "${templateName}" as the completion certificate for courses`
-                    : "Select a template first"}
+                  Click a course to assign or change its certificate
                 </p>
               </div>
 
-              {!templateId ? (
-                <div className="flex-1 flex items-center justify-center text-sm text-gray-400">
-                  Open a template to link it to courses
-                </div>
-              ) : isLinkLoading ? (
+              {isLinkLoading ? (
                 <div className="flex-1 flex items-center justify-center">
                   <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
                 </div>
@@ -1502,54 +1517,77 @@ const CertificateDesignEditor: React.FC = () => {
                   No courses found
                 </div>
               ) : (
-                <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
-                  {allCourses.map(course => {
-                    const linked  = linkedCourseIds.has(course.id);
-                    const loading = togglingId === course.id;
-                    return (
-                      <div
-                        key={course.id}
-                        className={`flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors ${linked ? "bg-blue-50/50" : ""}`}
-                      >
-                        <img
-                          src={course.coverIcon}
-                          alt={course.title}
-                          className="w-9 h-9 rounded object-cover shrink-0 bg-gray-100"
-                          onError={e => { (e.target as HTMLImageElement).src = ""; }}
-                        />
-                        <span className="flex-1 text-sm text-gray-800 line-clamp-2 leading-snug">
-                          {course.title}
-                        </span>
+                <div className="flex-1 overflow-y-auto p-5">
+                  <div className="grid grid-cols-3 gap-5">
+                    {allCourses.map(course => {
+                      const linked = courseTemplateMap[course.id];
+                      const isThisTemplate = linked?.id === templateId;
+                      return (
                         <button
-                          onClick={() => toggleCourseLink(course.id)}
-                          disabled={!!togglingId}
-                          className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-colors disabled:opacity-50 ${
-                            linked
-                              ? "bg-blue-600 text-white hover:bg-blue-700"
-                              : "border border-gray-300 text-gray-400 hover:border-blue-400 hover:text-blue-500"
+                          key={course.id}
+                          onClick={() => setLinkModalCourse(course)}
+                          className={`text-left rounded-xl border overflow-hidden hover:shadow-md transition-all ${
+                            isThisTemplate
+                              ? "border-blue-400 bg-blue-50/30"
+                              : linked
+                                ? "border-green-300 bg-green-50/20"
+                                : "border-gray-200 bg-white"
                           }`}
                         >
-                          {loading
-                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            : linked
-                              ? <Check className="w-3.5 h-3.5" />
-                              : <Plus className="w-3.5 h-3.5" />
-                          }
+                          <div className="w-full h-52 bg-gray-100 overflow-hidden">
+                            {course.coverIcon ? (
+                              <img
+                                src={course.coverIcon}
+                                alt={course.title}
+                                className="w-full h-full object-cover"
+                                onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
+                                <BookOpen className="w-10 h-10 text-gray-300" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="px-3 py-2.5">
+                            <p className="text-sm font-semibold text-gray-800 line-clamp-1 leading-snug mb-2">
+                              {course.title}
+                            </p>
+                            {linked ? (
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium max-w-full ${
+                                isThisTemplate
+                                  ? "bg-blue-100 text-blue-700"
+                                  : "bg-green-100 text-green-700"
+                              }`}>
+                                <Check className="w-3 h-3 shrink-0" />
+                                <span className="truncate">{linked.name}</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs text-gray-400 bg-gray-100">
+                                <Plus className="w-3 h-3" />
+                                No certificate
+                              </span>
+                            )}
+                          </div>
                         </button>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 
-              {templateId && !isLinkLoading && linkedCourseIds.size > 0 && (
-                <div className="px-4 py-2.5 border-t border-gray-200 bg-gray-50 shrink-0">
-                  <p className="text-xs text-gray-500">
-                    Linked to <span className="font-semibold text-blue-600">{linkedCourseIds.size}</span>{" "}
-                    {linkedCourseIds.size === 1 ? "course" : "courses"}
-                  </p>
-                </div>
-              )}
+              {!isLinkLoading && templateId && (() => {
+                const count = Object.values(courseTemplateMap).filter(t => t?.id === templateId).length;
+                return count > 0 ? (
+                  <div className="px-4 py-2.5 border-t border-gray-200 bg-gray-50 shrink-0">
+                    <p className="text-xs text-gray-500">
+                      <span className="font-semibold text-blue-600">"{templateName}"</span>{" "}
+                      linked to{" "}
+                      <span className="font-semibold text-blue-600">{count}</span>{" "}
+                      {count === 1 ? "course" : "courses"}
+                    </p>
+                  </div>
+                ) : null;
+              })()}
             </div>
           )}
         </main>
@@ -1946,6 +1984,84 @@ const CertificateDesignEditor: React.FC = () => {
                 Delete
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Link Certificate Modal ───────────────────────────────────────────── */}
+      {linkModalCourse && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-6" onClick={() => !isLinkingSaving && setLinkModalCourse(null)}>
+          <div className="bg-white rounded-xl w-[720px] max-w-full shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold text-gray-900 truncate">Link Certificate</h3>
+                <p className="text-xs text-gray-500 mt-0.5 truncate">{linkModalCourse.title}</p>
+              </div>
+              <button
+                onClick={() => !isLinkingSaving && setLinkModalCourse(null)}
+                className="ml-3 p-1 shrink-0 hover:bg-gray-100 rounded text-gray-400"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 max-h-[72vh] overflow-y-auto">
+              {/* Remove link option */}
+              {courseTemplateMap[linkModalCourse.id] && (
+                <button
+                  onClick={() => handleLinkCertificate(linkModalCourse, null)}
+                  disabled={isLinkingSaving}
+                  className="w-full mb-4 flex items-center gap-2 px-3 py-2 text-xs text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition disabled:opacity-50"
+                >
+                  <X className="w-3.5 h-3.5 shrink-0" />
+                  Remove current certificate link
+                </button>
+              )}
+
+              {/* Certificate template cards */}
+              <div className="grid grid-cols-3 gap-3">
+                {templates.map(tpl => {
+                  const isLinked = courseTemplateMap[linkModalCourse.id]?.id === tpl.id;
+                  return (
+                    <button
+                      key={tpl.id}
+                      onClick={() => !isLinked && handleLinkCertificate(linkModalCourse, tpl.id)}
+                      disabled={isLinkingSaving || isLinked}
+                      className={`text-left rounded-xl border overflow-hidden transition-all disabled:cursor-default ${
+                        isLinked
+                          ? "border-blue-500 ring-2 ring-blue-400/40"
+                          : "border-gray-200 hover:border-blue-300 hover:shadow-md"
+                      }`}
+                    >
+                      <div className="w-full h-44 bg-gradient-to-br from-blue-50 to-indigo-100 overflow-hidden">
+                        {tpl.thumbnail ? (
+                          <img src={tpl.thumbnail} alt={tpl.name} className="w-full h-full object-cover object-top" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <FileText className="w-8 h-8 text-blue-200" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="px-3 py-2.5 flex items-start gap-1.5">
+                        {isLinked && <Check className="w-3.5 h-3.5 text-blue-600 shrink-0 mt-0.5" />}
+                        <p className="text-sm font-medium text-gray-700 line-clamp-2 leading-snug">{tpl.name}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {templates.length === 0 && (
+                <p className="text-sm text-center text-gray-400 py-6">No certificate templates yet</p>
+              )}
+            </div>
+
+            {isLinkingSaving && (
+              <div className="px-5 py-3 border-t border-gray-100 flex items-center gap-2 text-xs text-gray-500">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                Saving…
+              </div>
+            )}
           </div>
         </div>
       )}
