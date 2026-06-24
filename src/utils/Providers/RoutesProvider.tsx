@@ -31,6 +31,7 @@ import Calendar from "@/pages/dashboard/Calender";
 import MeetingRecordings from "@/pages/dashboard/MeetingRecordings";
 import WatchRecordings from "@/pages/dashboard/WatchRecordings";
 import MeetingAttendance from "@/pages/dashboard/MeetingAttendance";
+import MeetingsList from "@/pages/dashboard/MeetingsList";
 import Help from "@/pages/dashboard/Help";
 import Hospitals from "@/pages/dashboard/Hospitals";
 import Announcement from "@/pages/dashboard/Announcement";
@@ -226,6 +227,14 @@ const RoutesProvider = () => {
           element: (
             <ProtectedRoute allowedRoles={["ADMIN", "TRAINER", "DEVELOPER", "STAFF"]}>
               <MeetingAttendance />
+            </ProtectedRoute>
+          ),
+        },
+        {
+          path: "meetings",
+          element: (
+            <ProtectedRoute allowedRoles={["ADMIN", "TRAINER", "DEVELOPER", "STAFF"]}>
+              <MeetingsList />
             </ProtectedRoute>
           ),
         },

@@ -1472,6 +1472,15 @@ const Calendar: React.FC = () => {
             </p>
           </div>
           <div className='flex items-center gap-3'>
+            {isAdmin && (
+              <button
+                onClick={() => navigate('/meetings')}
+                className='flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors'
+              >
+                <Users className='w-4 h-4' />
+                View Meetings
+              </button>
+            )}
             <button
               onClick={() => navigate(isAdmin ? "/recordings" : "/recordings/watch")}
               className='flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors'
