@@ -1390,6 +1390,15 @@ const Calendar: React.FC = () => {
                           : "scheduled",
                       )}
                       <div className='flex gap-1'>
+                        {isAdmin && event.meetingType === 'EBUMENYI_MEETING' && (
+                          <button
+                            onClick={() => navigate(`/attendance/${event.id}`)}
+                            className='p-1 text-gray-400 hover:text-green-600'
+                            title='View attendance'
+                          >
+                            <Users className='w-4 h-4' />
+                          </button>
+                        )}
                         <button
                           onClick={() => handleViewEvent(event)}
                           className='p-1 text-gray-400 hover:text-blue-600'
