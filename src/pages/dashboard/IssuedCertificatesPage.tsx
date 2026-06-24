@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import {
-  ArrowLeft,
   Search,
   Award,
   X,
@@ -32,7 +31,6 @@ import { formatDate } from "@/utils/formats/formats";
 const PAGE_SIZE = 15;
 
 export default function IssuedCertificatesPage() {
-  const navigate = useNavigate();
   const location = useLocation();
 
   // Pre-selection from navigation state (coming from template card)
@@ -341,12 +339,6 @@ export default function IssuedCertificatesPage() {
       {/* Header */}
       <div className="mb-6 flex items-start justify-between gap-4">
         <div className="flex items-start gap-3">
-          <button
-            onClick={() => navigate("/certificates")}
-            className="mt-0.5 p-1.5 rounded-lg text-gray-500 hover:bg-gray-200 transition"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </button>
           <div>
             <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
               <Award className="w-6 h-6 text-blue-600" />
