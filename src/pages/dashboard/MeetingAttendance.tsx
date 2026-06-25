@@ -81,22 +81,45 @@ const MeetingAttendance: React.FC = () => {
       return (res.data?.data ?? []) as AttendanceRecord[];
     },
     enabled: !!eventId,
+    staleTime: Infinity,        // attendance report is static — don't re-fetch automatically
+    refetchOnWindowFocus: false,
   });
 
   const records = data ?? [];
   const eventTitle = records[0]?.event?.title;
 
-  // Group by user — sum duration for repeat joins within the same meeting.
-  // For records where the participant never left (durationSec is null), estimate
-  // duration as time elapsed since joinedAt so their time is still counted.
+  // Group by user — sum duration across all sessions in the same meeting.
   const attendees = useMemo<AggregatedAttendee[]>(() => {
-    const now = Date.now();
     const hostId = records[0]?.event?.createdById ?? null;
+
+    // Find the latest recorded leave time across ALL participants.
+    // Registered users who left properly have leftAt set — we use the maximum
+    // as a proxy for when the meeting ended, so we can cap guests whose
+    // leftAt was never recorded (closed tab / disconnected without calling leave).
+    const meetingEndMs = records.reduce((max, r) => {
+      if (!r.leftAt) return max;
+      const t = new Date(r.leftAt).getTime();
+      return t > max ? t : max;
+    }, 0);
+
     const map = new Map<string, AggregatedAttendee>();
     for (const r of records) {
       const key = r.userId ?? `guest:${r.guestName ?? 'unknown'}`;
-      const estimatedDuration = r.durationSec ??
-        Math.round((now - new Date(r.joinedAt).getTime()) / 1000);
+      const joinedMs = new Date(r.joinedAt).getTime();
+
+      let estimatedDuration: number;
+      if (r.leftAt) {
+        // Session closed — compute from timestamps (durationSec can be 0 on fast leave)
+        const fromTs = Math.round((new Date(r.leftAt).getTime() - joinedMs) / 1000);
+        estimatedDuration = (r.durationSec && r.durationSec > 0) ? r.durationSec : fromTs;
+      } else if (meetingEndMs > joinedMs) {
+        // leftAt never recorded, but we know the meeting ended (other participants left later)
+        // Cap here so the duration is frozen at meeting-end instead of growing with time
+        estimatedDuration = Math.round((meetingEndMs - joinedMs) / 1000);
+      } else {
+        // Cannot determine end time — show unknown rather than an ever-growing estimate
+        estimatedDuration = 0;
+      }
 
       if (!map.has(key)) {
         map.set(key, {
