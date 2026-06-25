@@ -67,9 +67,12 @@ const formatDuration = (sec: number): string => {
   return `${m}m ${s}s`;
 };
 
+const PAGE_SIZE = 15;
+
 const MeetingAttendance: React.FC = () => {
   const { eventId } = useParams<{ eventId: string }>();
   const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState(1);
 
   const { data, isLoading } = useQuery({
     queryKey: ['attendance', eventId],
@@ -138,6 +141,10 @@ const MeetingAttendance: React.FC = () => {
       (a.email ?? '').toLowerCase().includes(term)
     );
   });
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const paginated = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const handleExport = async () => {
     const wb = new ExcelJS.Workbook();
@@ -317,7 +324,7 @@ const MeetingAttendance: React.FC = () => {
           type="text"
           placeholder="Search by name or email..."
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
           className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
         />
       </div>
@@ -351,7 +358,7 @@ const MeetingAttendance: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {filtered.map((attendee) => (
+                {paginated.map((attendee) => (
                   <tr key={attendee.key} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
@@ -403,7 +410,7 @@ const MeetingAttendance: React.FC = () => {
 
             {/* Mobile card list */}
             <div className="sm:hidden divide-y divide-gray-100">
-              {filtered.map((attendee) => (
+              {paginated.map((attendee) => (
                 <div key={attendee.key} className="p-4 space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -442,6 +449,55 @@ const MeetingAttendance: React.FC = () => {
           </>
         )}
       </div>
+
+      {/* Pagination */}
+      {!isLoading && filtered.length > PAGE_SIZE && (
+        <div className="flex items-center justify-between gap-4 text-sm">
+          <p className="text-gray-500">
+            Showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, filtered.length)} of {filtered.length}
+          </p>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={safePage === 1}
+              className="px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Previous
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter((p) => p === 1 || p === totalPages || Math.abs(p - safePage) <= 1)
+              .reduce<(number | '…')[]>((acc, p, idx, arr) => {
+                if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push('…');
+                acc.push(p);
+                return acc;
+              }, [])
+              .map((p, i) =>
+                p === '…' ? (
+                  <span key={`ellipsis-${i}`} className="px-2 text-gray-400">…</span>
+                ) : (
+                  <button
+                    key={p}
+                    onClick={() => setPage(p as number)}
+                    className={`w-9 h-9 rounded-lg border text-sm font-medium transition-colors ${
+                      safePage === p
+                        ? 'bg-primary text-white border-primary'
+                        : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                )
+              )}
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={safePage === totalPages}
+              className="px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
