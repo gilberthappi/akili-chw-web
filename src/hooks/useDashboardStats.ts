@@ -49,6 +49,7 @@ export const useDashboardStats = ({
     if (filters?.role)     qsParams.append("role",     filters.role);
     if (filters?.year)     qsParams.append("year",     filters.year);
     if (filters?.month)    qsParams.append("month",    filters.month);
+    if (filters?.hospitalId) qsParams.append("hospitalId", filters.hospitalId);
     const qs = qsParams.toString() ? `?${qsParams.toString()}` : "";
 
     try {
@@ -74,7 +75,7 @@ export const useDashboardStats = ({
     } finally {
       setIsLoading(false);
     }
-  }, [isContentManager, filters?.district, filters?.province, filters?.gender, filters?.role, filters?.year, filters?.month]);
+  }, [isContentManager, filters?.district, filters?.province, filters?.gender, filters?.role, filters?.year, filters?.month, filters?.hospitalId]);
 
   useEffect(() => {
     if (enabled) fetchAll();

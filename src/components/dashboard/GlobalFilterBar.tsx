@@ -1,7 +1,8 @@
 import React from "react";
 import { Filter, X } from "lucide-react";
 import { IDashboardFilters } from "@/types";
-import ComboboxField, { IOptionFieldOption } from "@/components/common/form/ComboboxField";
+import { IOptionFieldOption } from "@/components/common/form/ComboboxField";
+import { HospitalFilterSelect } from "./HospitalFilterSelect";
 
 interface GlobalFilterBarProps {
   filters: IDashboardFilters;
@@ -22,6 +23,23 @@ const EMPTY: IDashboardFilters = {
 const ROLE_LABELS: Record<string, string> = {
   TRAINEE: "CHW",
   TESTER: "Tester",
+  CHO: "CHO",
+};
+
+const ROLE_OPTIONS: { value: string; label: string }[] = [
+  { value: "TRAINEE", label: "CHW" },
+  { value: "TESTER", label: "Tester" },
+  { value: "CHO", label: "CHO" },
+];
+
+const FILTER_CHIP_LABELS: Record<keyof IDashboardFilters, string> = {
+  province: "Province",
+  district: "District",
+  gender: "Gender",
+  role: "Role",
+  year: "Year",
+  month: "Month",
+  hospitalId: "Hospital",
 };
 
 const SELECT_CLS = "text-xs border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-[#3363AD] bg-white transition-colors";
@@ -102,16 +120,19 @@ export const GlobalFilterBar: React.FC<GlobalFilterBarProps> = ({
         <select
           value={filters.role}
           onChange={(e) => set("role")(e.target.value)}
-          className={`${SELECT_CLS} min-w-[70px] ${
+          className={`${SELECT_CLS} min-w-[80px] ${
             filters.role
               ? "border-[#3363AD] text-[#3363AD] font-medium"
               : "border-gray-200 text-gray-600"
           }`}
-          title="CHW Role"
+          title="Role"
         >
-          <option value="">CHW Role</option>
-          <option value="TRAINEE">CHW</option>
-          <option value="TESTER">Tester</option>
+          <option value="">All roles</option>
+          {ROLE_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
         </select>
         {years.length > 0 && (
           <SelectFilter
@@ -130,29 +151,14 @@ export const GlobalFilterBar: React.FC<GlobalFilterBarProps> = ({
           />
         )}
 
-        {/* Hospital combobox — styled to match SelectFilter via arbitrary variant overrides */}
-        <div className={`
-          w-[140px]
-          [&_input]:!py-0.5 [&_input]:!text-xs [&_input]:!leading-4
-          [&_.overflow-hidden]:![box-shadow:none]
-          [&_.overflow-hidden]:!rounded
-          [&_.overflow-hidden]:!border
-          ${filters.hospitalId
-            ? "[&_.overflow-hidden]:!border-[#3363AD] [&_input]:!text-[#3363AD] [&_input]:!font-medium"
-            : "[&_.overflow-hidden]:!border-gray-200 [&_input]:!text-gray-600"
+        <HospitalFilterSelect
+          value={filters.hospitalId}
+          options={hospitals}
+          onSearch={onHospitalSearch}
+          onChange={(value) =>
+            onChange({ ...filters, hospitalId: value, province: "", district: "" })
           }
-        `}>
-          <ComboboxField
-            placeholder="Hospital"
-            options={hospitals}
-            defaultValue={filters.hospitalId}
-            margin={false}
-            onSearch={onHospitalSearch}
-            onChange={(value) =>
-              onChange({ ...filters, hospitalId: value, province: "", district: "" })
-            }
-          />
-        </div>
+        />
 
         {hasActiveFilters && (
           <button
@@ -173,10 +179,13 @@ export const GlobalFilterBar: React.FC<GlobalFilterBarProps> = ({
             {Object.entries(filters)
               .filter(([, v]) => v !== "")
               .map(([key, value]) => {
-                let label = value;
-                if (key === "role") label = ROLE_LABELS[value] ?? value;
-                else if (key === "hospitalId")
-                  label = hospitals.find((h) => h.value === value)?.label ?? value;
+                const filterKey = key as keyof IDashboardFilters;
+                let displayValue = value;
+                if (filterKey === "role") displayValue = ROLE_LABELS[value] ?? value;
+                else if (filterKey === "hospitalId")
+                  displayValue =
+                    hospitals.find((h) => h.value === value)?.label ?? "Selected hospital";
+                const label = `${FILTER_CHIP_LABELS[filterKey]}: ${displayValue}`;
                 return (
                   <span
                     key={key}
@@ -185,7 +194,7 @@ export const GlobalFilterBar: React.FC<GlobalFilterBarProps> = ({
                   >
                     {label}
                     <button
-                      onClick={() => set(key as keyof IDashboardFilters)("")}
+                      onClick={() => set(filterKey)("")}
                       className="hover:text-red-500 transition-colors"
                     >
                       <X size={8} />

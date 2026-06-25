@@ -4,9 +4,13 @@ import { LearnerSection } from "@/components/dashboard/LearnerSection";
 import { AdoptionSection } from "@/components/dashboard/AdoptionSection";
 import { DeveloperSection } from "@/components/dashboard/DeveloperSection";
 import { CHOSection } from "@/components/dashboard/CHOSection";
+import { DashboardGlobalFilters } from "@/components/dashboard/DashboardGlobalFilters";
 import { useAuth } from "@/hooks/useAuth";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { IDashboardFilters } from "@/types";
+
+const hasActiveFilters = (filters: IDashboardFilters) =>
+  Object.values(filters).some((value) => value !== "");
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
@@ -15,7 +19,7 @@ export const Dashboard: React.FC = () => {
     province: "",
     district: "",
     gender: "",
-    role: "TRAINEE",
+    role: "",
     year: "",
     month: "",
     hospitalId: "",
@@ -47,6 +51,8 @@ export const Dashboard: React.FC = () => {
 
   const isLearner = isAnyOf("TRAINEE", "TESTER", "CHO");
   const isCHO = is("CHO");
+  const showAnalyticsFilters = needsAnalytics;
+  const filtersActive = hasActiveFilters(filters);
   const hour = new Date().getHours();
   const greeting =
     hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
@@ -72,8 +78,9 @@ export const Dashboard: React.FC = () => {
           </p>
         </div>
 
-        {/* Filters will be injected here by AdoptionSection */}
-        <div id='global-filters-container' className='flex-shrink-0' />
+        {showAnalyticsFilters && (
+          <DashboardGlobalFilters filters={filters} onChange={setFilters} />
+        )}
       </div>
 
       {isAnyOf("ADMIN", "STAFF", "DEVELOPER") && (

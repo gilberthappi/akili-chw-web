@@ -10,7 +10,7 @@ import {
   ICourseDurationStats,
   IRecentActivityFeed,
 } from "@/types";
-import { getAllHospitals } from "@/services/hospitals.service";
+import { getAllHospitals, listAllHospitals } from "@/services/hospitals.service";
 import {
   getCourseAnalytics,
   getStudentAnalytics,
@@ -100,7 +100,7 @@ export const useAdoptionStats = (filters: AnalyticsFilters = {}): AdoptionStats 
       const qs = qsParams.toString();
 
       const results = await Promise.allSettled([
-        getAllHospitals(),
+        listAllHospitals(),
         getCourseAnalytics(qs),
         getStudentAnalytics(qs),
         getTestScoreAnalytics(qs),

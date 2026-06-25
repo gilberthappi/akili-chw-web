@@ -8,6 +8,7 @@ import {
 } from "@/types";
 import { IOptionFieldOption } from "@/components/common/form/ComboboxField";
 import { getAllHospitals } from "@/services/hospitals.service";
+import { PROVINCE_DISTRICTS } from "@/utils/constants/provinceDistricts";
 
 interface FilteredData {
   filters: IDashboardFilters;
@@ -28,14 +29,6 @@ interface FilteredData {
   filteredEnrollmentTrends: IEnrollmentTrend[];
   filteredCommTrend: ICommunicationsAnalytics["monthlyTrend"];
 }
-
-const PROVINCE_DISTRICTS: Record<string, string[]> = {
-  "Kigali City": ["Gasabo", "Kicukiro", "Nyarugenge"],
-  "Eastern": ["Bugesera", "Gatsibo", "Kayonza", "Kirehe", "Ngoma", "Nyagatare", "Rwamagana"],
-  "Northern": ["Burera", "Gakenke", "Gicumbi", "Musanze", "Rulindo"],
-  "Southern": ["Gisagara", "Huye", "Kamonyi", "Muhanga", "Nyamagabe", "Nyanza", "Nyaruguru", "Ruhango"],
-  "Western": ["Karongi", "Ngororero", "Nyabihu", "Nyamasheke", "Rubavu", "Rusizi", "Rutsiro"],
-};
 
 interface UseDashboardFiltersInput {
   byProvince: { province: string; totalChws: number; activeChws: number; hospitals: number }[];
