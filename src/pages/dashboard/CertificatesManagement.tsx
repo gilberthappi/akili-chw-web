@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Award,
@@ -16,6 +16,7 @@ import {
   getLinkedCourses,
   deleteCertificateTemplate,
 } from "@/services/certificateTemplate.service";
+import { getAllCertificates } from "@/services/certificates.service";
 import type {
   CertificateTemplateSummary,
   LinkedCourse,
@@ -35,12 +36,17 @@ export default function CertificatesManagement() {
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "draft">("all");
   const [deleteTarget, setDeleteTarget] = useState<TemplateWithCourses | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [totalIssued, setTotalIssued] = useState(0);
+  const cancelledRef = useRef(false);
 
   useEffect(() => {
-    let cancelled = false;
+    cancelledRef.current = false;
     (async () => {
       try {
-        const list = await listCertificateTemplates();
+        const [list, issuedRes] = await Promise.all([
+          listCertificateTemplates(),
+          getAllCertificates({ limit: 1, page: 1 }),
+        ]);
         const withCourses = await Promise.all(
           list.map(async (t) => {
             try {
@@ -51,14 +57,17 @@ export default function CertificatesManagement() {
             }
           })
         );
-        if (!cancelled) setTemplates(withCourses);
+        if (!cancelledRef.current) {
+          setTemplates(withCourses);
+          setTotalIssued(issuedRes.totalItems);
+        }
       } catch {
-        if (!cancelled) toast.error("Failed to load certificate templates");
+        if (!cancelledRef.current) toast.error("Failed to load certificate templates");
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelledRef.current) setLoading(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => { cancelledRef.current = true; };
   }, []);
 
   const getStatus = (t: TemplateWithCourses) =>
@@ -81,8 +90,8 @@ export default function CertificatesManagement() {
     total: templates.length,
     active: templates.filter((t) => t.linkedCourses.length > 0).length,
     draft: templates.filter((t) => t.linkedCourses.length === 0).length,
-    issued: templates.reduce((sum, t) => sum + t.issuedCount, 0),
-  }), [templates]);
+    issued: totalIssued,
+  }), [templates, totalIssued]);
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -114,7 +123,7 @@ export default function CertificatesManagement() {
         </div>
         <button
           onClick={() => navigate("/certificates/design")}
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition"
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-[#2B5493] transition"
         >
           <Plus className="w-4 h-4" />
           Create New Certificate
