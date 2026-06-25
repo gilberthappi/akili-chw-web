@@ -1,10 +1,13 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import {
   IDashboardFilters,
   IDemographicsAnalytics,
   ICommunicationsAnalytics,
   IEnrollmentTrend,
+  IHospital,
 } from "@/types";
+import { IOptionFieldOption } from "@/components/common/form/ComboboxField";
+import { getAllHospitals } from "@/services/hospitals.service";
 
 interface FilteredData {
   filters: IDashboardFilters;
@@ -15,6 +18,8 @@ interface FilteredData {
   availableGenders: string[];
   availableYears: string[];
   availableMonths: string[];
+  availableHospitals: IOptionFieldOption[];
+  handleHospitalSearch: (query: string) => void;
   // Filtered data slices
   filteredByDistrict: IDemographicsAnalytics["byDistrict"];
   filteredByGender: IDemographicsAnalytics["byGender"];
@@ -37,6 +42,7 @@ interface UseDashboardFiltersInput {
   demographics: IDemographicsAnalytics | null;
   enrollmentTrends: IEnrollmentTrend[];
   communications: ICommunicationsAnalytics | null;
+  hospitals: IHospital[];
 }
 
 // Extract year from a month string like "Apr 2026" → "2026"
@@ -48,10 +54,37 @@ const extractMonth = (monthStr: string): string =>
   monthStr.split(" ")[0] ?? "";
 
 export const useDashboardFilters = (
-  { byProvince, demographics, enrollmentTrends, communications }: UseDashboardFiltersInput,
+  { byProvince, demographics, enrollmentTrends, communications, hospitals }: UseDashboardFiltersInput,
   filters: IDashboardFilters,
   setFilters: (f: IDashboardFilters) => void
 ): FilteredData => {
+
+  const [availableHospitals, setAvailableHospitals] = useState<IOptionFieldOption[]>([]);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Seed with the first 10 hospitals from the already-fetched list
+  useEffect(() => {
+    if (hospitals.length > 0) {
+      setAvailableHospitals(
+        hospitals.slice(0, 10).map((h) => ({ value: h.id, label: h.name }))
+      );
+    }
+  }, [hospitals]);
+
+  const handleHospitalSearch = useCallback((query: string) => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(async () => {
+      try {
+        const params = new URLSearchParams({ limit: "20" });
+        if (query) params.set("searchq", query);
+        const res = await getAllHospitals(`?${params.toString()}`);
+        const list: IHospital[] = res?.data ?? [];
+        setAvailableHospitals(list.map((h) => ({ value: h.id, label: h.name })));
+      } catch {
+        // keep existing options on error
+      }
+    }, 300);
+  }, []);
 
   // ── Derive available options ──────────────────────────────────
   const availableProvinces = useMemo(
@@ -147,6 +180,8 @@ export const useDashboardFilters = (
     availableGenders,
     availableYears,
     availableMonths,
+    availableHospitals,
+    handleHospitalSearch,
     filteredByDistrict,
     filteredByGender,
     filteredByAgeGroup,

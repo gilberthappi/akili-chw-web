@@ -47,6 +47,8 @@ export const AdoptionSection: React.FC<AdoptionSectionProps> = ({
     availableGenders,
     availableYears,
     availableMonths,
+    availableHospitals,
+    handleHospitalSearch,
     filteredByDistrict,
     filteredByGender,
     filteredEnrollmentTrends,
@@ -57,6 +59,7 @@ export const AdoptionSection: React.FC<AdoptionSectionProps> = ({
       demographics,
       enrollmentTrends,
       communications,
+      hospitals,
     },
     filters,
     onFiltersChange
@@ -86,6 +89,8 @@ export const AdoptionSection: React.FC<AdoptionSectionProps> = ({
           genders={availableGenders}
           years={availableYears}
           months={availableMonths}
+          hospitals={availableHospitals}
+          onHospitalSearch={handleHospitalSearch}
         />,
         filterPortal
       )}
@@ -100,7 +105,7 @@ export const AdoptionSection: React.FC<AdoptionSectionProps> = ({
           </div>
         )}
 
-        {(filters.district || filters.province || filters.gender || filters.role || filters.year || filters.month) && (
+        {(filters.district || filters.province || filters.gender || filters.role || filters.year || filters.month || filters.hospitalId) && (
           <div className="bg-blue-50/50 border border-blue-100 text-blue-700 px-4 py-3 rounded-lg text-sm flex items-center">
             <svg className="w-5 h-5 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
