@@ -117,8 +117,10 @@ const MeetingAttendance: React.FC = () => {
         // Cap here so the duration is frozen at meeting-end instead of growing with time
         estimatedDuration = Math.round((meetingEndMs - joinedMs) / 1000);
       } else {
-        // Cannot determine end time — show unknown rather than an ever-growing estimate
-        estimatedDuration = 0;
+        // meetingEndMs proxy didn't help (joined after all known exits, or no exits recorded).
+        // Use the backend-provided durationSec as a last resort — it's safe because
+        // staleTime: Infinity means the query never re-fetches, so this value is frozen.
+        estimatedDuration = (r.durationSec && r.durationSec > 0) ? r.durationSec : 0;
       }
 
       if (!map.has(key)) {
