@@ -486,12 +486,16 @@ const Calendar: React.FC = () => {
         };
 
         if (calendarEventId) {
+          // Use the existing short Stream room ID (e.g. "abc-def-ghi") so the
+          // meeting link never changes on edit. Fall back to calendarEventId
+          // only if no room has been assigned yet.
+          const existingStreamRoomId = editingEvent?.streamRoomId as string | undefined;
           const scheduled = await scheduleEbumenyiMeeting({
             startsAt,
             hostEmail: eventData.hostEmail,
             title: eventData.title,
             userId: user.id,
-            meetingId: calendarEventId,
+            meetingId: existingStreamRoomId || calendarEventId,
           });
 
           if (!scheduled) {
