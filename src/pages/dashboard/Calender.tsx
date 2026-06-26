@@ -486,12 +486,17 @@ const Calendar: React.FC = () => {
         };
 
         if (calendarEventId) {
+          const existingStreamRoomId = editingEvent?.streamRoomId as string | undefined;
+          const existingLocation = editingEvent?.location as string | undefined;
+
+          // Notify Stream of the updated start time but don't let it
+          // overwrite the stored link — the room ID is fixed at creation.
           const scheduled = await scheduleEbumenyiMeeting({
             startsAt,
             hostEmail: eventData.hostEmail,
             title: eventData.title,
             userId: user.id,
-            meetingId: calendarEventId,
+            meetingId: existingStreamRoomId || calendarEventId,
           });
 
           if (!scheduled) {
@@ -502,8 +507,10 @@ const Calendar: React.FC = () => {
 
           await updateEvent(calendarEventId, {
             ...payload,
-            location: scheduled.meetingUrl,
-            streamRoomId: scheduled.streamRoomId,
+            // Preserve whatever is already stored; only fill from Stream's
+            // response when the event has no room yet (e.g. old data).
+            location: existingLocation || scheduled.meetingUrl,
+            streamRoomId: existingStreamRoomId || scheduled.streamRoomId,
           });
           finishSuccess();
         } else {

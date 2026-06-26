@@ -59,6 +59,12 @@ interface AggregatedAttendee {
   isHost: boolean;
 }
 
+const ROLE_DISPLAY: Record<string, string> = {
+  TRAINEE: 'CHW',
+};
+
+const displayRole = (role: string) => ROLE_DISPLAY[role.toUpperCase()] ?? role;
+
 const formatDuration = (sec: number): string => {
   if (!sec) return '—';
   const m = Math.floor(sec / 60);
@@ -67,9 +73,12 @@ const formatDuration = (sec: number): string => {
   return `${m}m ${s}s`;
 };
 
+const PAGE_SIZE = 15;
+
 const MeetingAttendance: React.FC = () => {
   const { eventId } = useParams<{ eventId: string }>();
   const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState(1);
 
   const { data, isLoading } = useQuery({
     queryKey: ['attendance', eventId],
@@ -78,22 +87,47 @@ const MeetingAttendance: React.FC = () => {
       return (res.data?.data ?? []) as AttendanceRecord[];
     },
     enabled: !!eventId,
+    staleTime: Infinity,        // attendance report is static — don't re-fetch automatically
+    refetchOnWindowFocus: false,
   });
 
   const records = data ?? [];
   const eventTitle = records[0]?.event?.title;
 
-  // Group by user — sum duration for repeat joins within the same meeting.
-  // For records where the participant never left (durationSec is null), estimate
-  // duration as time elapsed since joinedAt so their time is still counted.
+  // Group by user — sum duration across all sessions in the same meeting.
   const attendees = useMemo<AggregatedAttendee[]>(() => {
-    const now = Date.now();
     const hostId = records[0]?.event?.createdById ?? null;
+
+    // Find the latest recorded leave time across ALL participants.
+    // Registered users who left properly have leftAt set — we use the maximum
+    // as a proxy for when the meeting ended, so we can cap guests whose
+    // leftAt was never recorded (closed tab / disconnected without calling leave).
+    const meetingEndMs = records.reduce((max, r) => {
+      if (!r.leftAt) return max;
+      const t = new Date(r.leftAt).getTime();
+      return t > max ? t : max;
+    }, 0);
+
     const map = new Map<string, AggregatedAttendee>();
     for (const r of records) {
       const key = r.userId ?? `guest:${r.guestName ?? 'unknown'}`;
-      const estimatedDuration = r.durationSec ??
-        Math.round((now - new Date(r.joinedAt).getTime()) / 1000);
+      const joinedMs = new Date(r.joinedAt).getTime();
+
+      let estimatedDuration: number;
+      if (r.leftAt) {
+        // Session closed — compute from timestamps (durationSec can be 0 on fast leave)
+        const fromTs = Math.round((new Date(r.leftAt).getTime() - joinedMs) / 1000);
+        estimatedDuration = (r.durationSec && r.durationSec > 0) ? r.durationSec : fromTs;
+      } else if (meetingEndMs > joinedMs) {
+        // leftAt never recorded, but we know the meeting ended (other participants left later)
+        // Cap here so the duration is frozen at meeting-end instead of growing with time
+        estimatedDuration = Math.round((meetingEndMs - joinedMs) / 1000);
+      } else {
+        // meetingEndMs proxy didn't help (joined after all known exits, or no exits recorded).
+        // Use the backend-provided durationSec as a last resort — it's safe because
+        // staleTime: Infinity means the query never re-fetches, so this value is frozen.
+        estimatedDuration = (r.durationSec && r.durationSec > 0) ? r.durationSec : 0;
+      }
 
       if (!map.has(key)) {
         map.set(key, {
@@ -138,6 +172,10 @@ const MeetingAttendance: React.FC = () => {
       (a.email ?? '').toLowerCase().includes(term)
     );
   });
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const paginated = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const handleExport = async () => {
     const wb = new ExcelJS.Workbook();
@@ -203,7 +241,7 @@ const MeetingAttendance: React.FC = () => {
       const row = ws.addRow({
         name:     a.isHost ? `${a.name} (Host)` : a.name,
         email:    a.email ?? '—',
-        role:     a.isGuest ? 'Guest' : a.role,
+        role:     a.isGuest ? 'Guest' : displayRole(a.role),
         gender:   a.gender,
         district: a.district,
         sector:   a.sector,
@@ -317,7 +355,7 @@ const MeetingAttendance: React.FC = () => {
           type="text"
           placeholder="Search by name or email..."
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
           className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
         />
       </div>
@@ -351,7 +389,7 @@ const MeetingAttendance: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {filtered.map((attendee) => (
+                {paginated.map((attendee) => (
                   <tr key={attendee.key} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
@@ -383,7 +421,7 @@ const MeetingAttendance: React.FC = () => {
                           ? 'bg-orange-100 text-orange-700'
                           : 'bg-blue-100 text-blue-700'
                       }`}>
-                        {attendee.isGuest ? 'Guest' : attendee.role}
+                        {attendee.isGuest ? 'Guest' : displayRole(attendee.role)}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600 capitalize">
@@ -403,7 +441,7 @@ const MeetingAttendance: React.FC = () => {
 
             {/* Mobile card list */}
             <div className="sm:hidden divide-y divide-gray-100">
-              {filtered.map((attendee) => (
+              {paginated.map((attendee) => (
                 <div key={attendee.key} className="p-4 space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -420,7 +458,7 @@ const MeetingAttendance: React.FC = () => {
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                       attendee.isGuest ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'
                     }`}>
-                      {attendee.isGuest ? 'Guest' : attendee.role}
+                      {attendee.isGuest ? 'Guest' : displayRole(attendee.role)}
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-2 text-xs text-gray-500 pl-10">
@@ -442,6 +480,55 @@ const MeetingAttendance: React.FC = () => {
           </>
         )}
       </div>
+
+      {/* Pagination */}
+      {!isLoading && filtered.length > PAGE_SIZE && (
+        <div className="flex items-center justify-between gap-4 text-sm">
+          <p className="text-gray-500">
+            Showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, filtered.length)} of {filtered.length}
+          </p>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={safePage === 1}
+              className="px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Previous
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter((p) => p === 1 || p === totalPages || Math.abs(p - safePage) <= 1)
+              .reduce<(number | '…')[]>((acc, p, idx, arr) => {
+                if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push('…');
+                acc.push(p);
+                return acc;
+              }, [])
+              .map((p, i) =>
+                p === '…' ? (
+                  <span key={`ellipsis-${i}`} className="px-2 text-gray-400">…</span>
+                ) : (
+                  <button
+                    key={p}
+                    onClick={() => setPage(p as number)}
+                    className={`w-9 h-9 rounded-lg border text-sm font-medium transition-colors ${
+                      safePage === p
+                        ? 'bg-primary text-white border-primary'
+                        : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                )
+              )}
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={safePage === totalPages}
+              className="px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

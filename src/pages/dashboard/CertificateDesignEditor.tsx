@@ -1946,7 +1946,7 @@ const CertificateDesignEditor: React.FC = () => {
               <button
                 onClick={handleCreateTemplate}
                 disabled={!newTemplateName.trim() || isCreating}
-                className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center gap-2"
+                className="px-4 py-2 text-sm bg-primary text-white rounded-lg  transition-colors flex items-center gap-2"
               >
                 {isCreating && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 Create

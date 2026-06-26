@@ -8,7 +8,7 @@ import FilterTabs, { TabItem } from "@/components/ui/FilterTabs";
 import CourseList from "@/components/courses/CourseList";
 import CreateCourseModal from "@/components/courseBuilder/CreateCourseModal";
 import { CourseCreationForm } from "@/types/courseBuilder.d";
-import { createCourse, getAllCoursesNoPagination, uploadImage as uploadCourseImage } from "@/services/course.service";
+import { createCourse, getAllCoursesNoPagination, getAllCoursesStats, uploadImage as uploadCourseImage } from "@/services/course.service";
 import { uploadImage } from "@/services/uploader.api";
 import { courseKeys } from "@/utils/constants/queryKeys";
 import type { ICourse } from "@/types";
@@ -47,24 +47,30 @@ const CoursesPage = () => {
     return "all";
   };
 
-  // Fetch all courses once for stats
+  // Fetch accurate counts from dedicated stats endpoint
+  const { data: courseStatsRes } = useQuery({
+    queryKey: [...courseKeys.all, "dashboard-stats"],
+    queryFn: () => getAllCoursesStats(),
+  });
+
+  // Fetch all courses for enrolled / avgRating aggregation
   const { data: allCoursesRes } = useQuery({
-    queryKey: [...courseKeys.all, "stats"],
+    queryKey: [...courseKeys.all, "all-no-pagination"],
     queryFn: () => getAllCoursesNoPagination(),
   });
 
   const stats = useMemo(() => {
+    const total = courseStatsRes?.data?.totalCourses?.value ?? 0;
+    const draft = courseStatsRes?.data?.unpublishedCourses?.value ?? 0;
+    const published = Math.max(0, total - draft);
     const courses = (allCoursesRes?.data as ICourse[]) ?? [];
-    const total = courses.length;
-    const published = courses.filter(c => c.isPublished).length;
-    const draft = total - published;
     const enrolled = courses.reduce((sum, c) => sum + (c.progresses?.length || 0), 0);
     const avgRating =
-      total > 0
-        ? courses.reduce((sum, c) => sum + (c.rating || 0), 0) / total
+      courses.length > 0
+        ? courses.reduce((sum, c) => sum + (c.rating || 0), 0) / courses.length
         : 0;
     return { total, published, draft, enrolled, avgRating };
-  }, [allCoursesRes]);
+  }, [courseStatsRes, allCoursesRes]);
 
   const createCourseMutation = useMutation({ mutationFn: createCourse });
 
