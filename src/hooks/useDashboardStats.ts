@@ -8,7 +8,7 @@ import {
   IDashboardFilters,
 } from "@/types";
 import { DEFAULT_DASHBOARD_FILTERS } from "@/utils/constants/dashboardFilters";
-import { buildDashboardFilterQuery } from "@/utils/dashboardFilterQuery";
+import { dashboardFilterKey, withDashboardFilterQuery } from "@/utils/dashboardFilterQuery";
 import { dashboardKeys } from "@/utils/constants/queryKeys";
 
 const DASHBOARD_CACHE_MS = 1000 * 60 * 30;
@@ -48,19 +48,18 @@ export const useDashboardStats = ({
   );
 
   const activeFilters = filters ?? DEFAULT_DASHBOARD_FILTERS;
-  const qs = buildDashboardFilterQuery(activeFilters);
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: dashboardKeys.stats(activeFilters),
+    queryKey: dashboardKeys.stats(dashboardFilterKey(activeFilters)),
     queryFn: async (): Promise<DashboardStatsResult> => {
+      const statsPath = withDashboardFilterQuery("/courses/dashboard/statistics", activeFilters);
+      const coursePath = withDashboardFilterQuery("/export/dashboard/course/analytics", activeFilters);
+      const studentPath = withDashboardFilterQuery("/export/dashboard/student/analytics", activeFilters);
+
       const [dashRes, courseRes, studentRes] = await Promise.allSettled([
-        api.get(`/courses/dashboard/statistics${qs}`),
-        isContentManager
-          ? api.get(`/export/dashboard/course/analytics${qs}`)
-          : Promise.resolve(null),
-        isContentManager
-          ? api.get(`/export/dashboard/student/analytics${qs}`)
-          : Promise.resolve(null),
+        api.get(statsPath),
+        isContentManager ? api.get(coursePath) : Promise.resolve(null),
+        isContentManager ? api.get(studentPath) : Promise.resolve(null),
       ]);
 
       return {

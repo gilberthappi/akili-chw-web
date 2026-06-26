@@ -23,7 +23,7 @@ import {
   getRecentActivityFeed,
 } from "@/services/analytics.service";
 import { DEFAULT_DASHBOARD_FILTERS } from "@/utils/constants/dashboardFilters";
-import { buildDashboardFilterQuery } from "@/utils/dashboardFilterQuery";
+import { buildDashboardFilterQuery, dashboardFilterKey } from "@/utils/dashboardFilterQuery";
 import { dashboardKeys } from "@/utils/constants/queryKeys";
 
 export type AnalyticsFilters = IDashboardFilters;
@@ -76,7 +76,7 @@ export const useAdoptionStats = (
   const qs = buildDashboardFilterQuery(filters);
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: dashboardKeys.adoption(filters),
+    queryKey: dashboardKeys.adoption(dashboardFilterKey(filters)),
     queryFn: async (): Promise<AdoptionQueryResult> => {
       const results = await Promise.allSettled([
         listAllHospitals(),

@@ -29,10 +29,10 @@ export const studentKeys = {
 
 export const dashboardKeys = {
   all: ["dashboard"] as const,
-  stats: (filters: Record<string, string>) =>
-    [...dashboardKeys.all, "stats", filters] as const,
-  adoption: (filters: Record<string, string>) =>
-    [...dashboardKeys.all, "adoption", filters] as const,
+  stats: (filters: readonly string[]) =>
+    [...dashboardKeys.all, "stats", ...filters] as const,
+  adoption: (filters: readonly string[]) =>
+    [...dashboardKeys.all, "adoption", ...filters] as const,
   filterOptions: () => [...dashboardKeys.all, "filter-options"] as const,
   learner: () => [...dashboardKeys.all, "learner"] as const,
 };
