@@ -59,6 +59,12 @@ interface AggregatedAttendee {
   isHost: boolean;
 }
 
+const ROLE_DISPLAY: Record<string, string> = {
+  TRAINEE: 'CHW',
+};
+
+const displayRole = (role: string) => ROLE_DISPLAY[role.toUpperCase()] ?? role;
+
 const formatDuration = (sec: number): string => {
   if (!sec) return '—';
   const m = Math.floor(sec / 60);
@@ -235,7 +241,7 @@ const MeetingAttendance: React.FC = () => {
       const row = ws.addRow({
         name:     a.isHost ? `${a.name} (Host)` : a.name,
         email:    a.email ?? '—',
-        role:     a.isGuest ? 'Guest' : a.role,
+        role:     a.isGuest ? 'Guest' : displayRole(a.role),
         gender:   a.gender,
         district: a.district,
         sector:   a.sector,
@@ -415,7 +421,7 @@ const MeetingAttendance: React.FC = () => {
                           ? 'bg-orange-100 text-orange-700'
                           : 'bg-blue-100 text-blue-700'
                       }`}>
-                        {attendee.isGuest ? 'Guest' : attendee.role}
+                        {attendee.isGuest ? 'Guest' : displayRole(attendee.role)}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600 capitalize">
@@ -452,7 +458,7 @@ const MeetingAttendance: React.FC = () => {
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                       attendee.isGuest ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'
                     }`}>
-                      {attendee.isGuest ? 'Guest' : attendee.role}
+                      {attendee.isGuest ? 'Guest' : displayRole(attendee.role)}
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-2 text-xs text-gray-500 pl-10">
