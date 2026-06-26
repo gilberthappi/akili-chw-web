@@ -3,6 +3,11 @@ import { Filter, X } from "lucide-react";
 import { IDashboardFilters } from "@/types";
 import { IOptionFieldOption } from "@/components/common/form/ComboboxField";
 import { HospitalFilterSelect } from "./HospitalFilterSelect";
+import {
+  DEFAULT_DASHBOARD_FILTERS,
+  DEFAULT_DASHBOARD_ROLE,
+  hasActiveDashboardFilters,
+} from "@/utils/constants/dashboardFilters";
 
 interface GlobalFilterBarProps {
   filters: IDashboardFilters;
@@ -16,9 +21,7 @@ interface GlobalFilterBarProps {
   onHospitalSearch: (query: string) => void;
 }
 
-const EMPTY: IDashboardFilters = {
-  province: "", district: "", gender: "", role: "", year: "", month: "", hospitalId: "",
-};
+const EMPTY: IDashboardFilters = DEFAULT_DASHBOARD_FILTERS;
 
 const ROLE_LABELS: Record<string, string> = {
   TRAINEE: "CHW",
@@ -76,7 +79,9 @@ export const GlobalFilterBar: React.FC<GlobalFilterBarProps> = ({
   hospitals,
   onHospitalSearch,
 }) => {
-  const hasActiveFilters = Object.values(filters).some((v) => v !== "");
+  const hasActiveFilters = hasActiveDashboardFilters(filters);
+  const isNonDefaultRole =
+    filters.role !== "" && filters.role !== DEFAULT_DASHBOARD_ROLE;
   const set = (key: keyof IDashboardFilters) => (value: string) => {
     if (key === "province") {
       onChange({ ...filters, province: value, district: "" });
@@ -121,7 +126,7 @@ export const GlobalFilterBar: React.FC<GlobalFilterBarProps> = ({
           value={filters.role}
           onChange={(e) => set("role")(e.target.value)}
           className={`${SELECT_CLS} min-w-[80px] ${
-            filters.role
+            isNonDefaultRole
               ? "border-[#3363AD] text-[#3363AD] font-medium"
               : "border-gray-200 text-gray-600"
           }`}
@@ -177,7 +182,11 @@ export const GlobalFilterBar: React.FC<GlobalFilterBarProps> = ({
         <div className="mt-1 pt-1 border-t border-gray-50">
           <div className="flex items-center gap-1 flex-wrap">
             {Object.entries(filters)
-              .filter(([, v]) => v !== "")
+              .filter(([key, v]) => {
+                if (!v) return false;
+                if (key === "role" && v === DEFAULT_DASHBOARD_ROLE) return false;
+                return true;
+              })
               .map(([key, value]) => {
                 const filterKey = key as keyof IDashboardFilters;
                 let displayValue = value;

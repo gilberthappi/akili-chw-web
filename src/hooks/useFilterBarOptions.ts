@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { useMemo, useRef, useCallback, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { IOptionFieldOption } from "@/components/common/form/ComboboxField";
 import { PROVINCE_DISTRICTS } from "@/utils/constants/provinceDistricts";
 import { getAllHospitals } from "@/services/hospitals.service";
@@ -8,68 +9,64 @@ import {
   getDemographicsAnalytics,
 } from "@/services/analytics.service";
 import { IDashboardFilters, IHospital } from "@/types";
+import { dashboardKeys } from "@/utils/constants/queryKeys";
+
+const DASHBOARD_CACHE_MS = 1000 * 60 * 30;
 
 const extractYear = (monthStr: string): string => monthStr.split(" ")[1] ?? "";
 const extractMonth = (monthStr: string): string => monthStr.split(" ")[0] ?? "";
 
 export const useFilterBarOptions = (filters: IDashboardFilters) => {
-  const [availableHospitals, setAvailableHospitals] = useState<IOptionFieldOption[]>([]);
-  const [genders, setGenders] = useState<string[]>([]);
-  const [trendMonths, setTrendMonths] = useState<string[]>([]);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [searchedHospitals, setSearchedHospitals] = useState<IOptionFieldOption[] | null>(
+    null,
+  );
 
-  useEffect(() => {
-    let cancelled = false;
+  const { data: optionsData } = useQuery({
+    queryKey: dashboardKeys.filterOptions(),
+    queryFn: async () => {
+      const [demoRes, courseRes, commRes, hospitalsRes] = await Promise.allSettled([
+        getDemographicsAnalytics(),
+        getCourseAnalytics(),
+        getCommunicationsAnalytics(),
+        getAllHospitals("?limit=10"),
+      ]);
 
-    const loadOptions = async () => {
-      try {
-        const [demoRes, courseRes, commRes, hospitalsRes] = await Promise.allSettled([
-          getDemographicsAnalytics(),
-          getCourseAnalytics(),
-          getCommunicationsAnalytics(),
-          getAllHospitals("?limit=10"),
-        ]);
-
-        if (cancelled) return;
-
-        if (demoRes.status === "fulfilled") {
-          const rows = demoRes.value?.data?.byGender ?? [];
-          setGenders(
-            [...new Set(
-              rows
-                .map((r) =>
-                  r.gender
-                    ? r.gender.charAt(0).toUpperCase() + r.gender.slice(1).toLowerCase()
-                    : "",
-                )
-                .filter(Boolean),
-            )],
-          );
-        }
-
-        const months: string[] = [];
-        if (courseRes.status === "fulfilled") {
-          months.push(...(courseRes.value?.data?.enrollmentTrends ?? []).map((t) => t.month));
-        }
-        if (commRes.status === "fulfilled") {
-          months.push(...(commRes.value?.data?.monthlyTrend ?? []).map((t) => t.month));
-        }
-        setTrendMonths(months);
-
-        if (hospitalsRes.status === "fulfilled") {
-          const list: IHospital[] = hospitalsRes.value?.data ?? [];
-          setAvailableHospitals(list.map((h) => ({ value: h.id, label: h.name })));
-        }
-      } catch {
-        // keep defaults on error
+      let genders: string[] = [];
+      if (demoRes.status === "fulfilled") {
+        const rows = demoRes.value?.data?.byGender ?? [];
+        genders = [
+          ...new Set(
+            rows
+              .map((r) =>
+                r.gender
+                  ? r.gender.charAt(0).toUpperCase() + r.gender.slice(1).toLowerCase()
+                  : "",
+              )
+              .filter(Boolean),
+          ),
+        ];
       }
-    };
 
-    loadOptions();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+      const months: string[] = [];
+      if (courseRes.status === "fulfilled") {
+        months.push(...(courseRes.value?.data?.enrollmentTrends ?? []).map((t) => t.month));
+      }
+      if (commRes.status === "fulfilled") {
+        months.push(...(commRes.value?.data?.monthlyTrend ?? []).map((t) => t.month));
+      }
+
+      let hospitals: IOptionFieldOption[] = [];
+      if (hospitalsRes.status === "fulfilled") {
+        const list: IHospital[] = hospitalsRes.value?.data ?? [];
+        hospitals = list.map((h) => ({ value: h.id, label: h.name }));
+      }
+
+      return { genders, trendMonths: months, hospitals };
+    },
+    staleTime: DASHBOARD_CACHE_MS,
+    gcTime: DASHBOARD_CACHE_MS,
+  });
 
   const handleHospitalSearch = useCallback((query: string) => {
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
@@ -79,12 +76,14 @@ export const useFilterBarOptions = (filters: IDashboardFilters) => {
         if (query) params.set("searchq", query);
         const res = await getAllHospitals(`?${params.toString()}`);
         const list: IHospital[] = res?.data ?? [];
-        setAvailableHospitals(list.map((h) => ({ value: h.id, label: h.name })));
+        setSearchedHospitals(list.map((h) => ({ value: h.id, label: h.name })));
       } catch {
         // keep existing options on error
       }
     }, 300);
   }, []);
+
+  const availableHospitals = searchedHospitals ?? optionsData?.hospitals ?? [];
 
   const availableProvinces = useMemo(
     () => Object.keys(PROVINCE_DISTRICTS).sort(),
@@ -95,6 +94,8 @@ export const useFilterBarOptions = (filters: IDashboardFilters) => {
     if (!filters.province) return [];
     return PROVINCE_DISTRICTS[filters.province] ?? [];
   }, [filters.province]);
+
+  const trendMonths = optionsData?.trendMonths ?? [];
 
   const availableYears = useMemo(
     () => [...new Set(trendMonths.map(extractYear).filter(Boolean))].sort(),
@@ -109,7 +110,7 @@ export const useFilterBarOptions = (filters: IDashboardFilters) => {
   return {
     availableProvinces,
     availableDistricts,
-    availableGenders: genders,
+    availableGenders: optionsData?.genders ?? [],
     availableYears,
     availableMonths,
     availableHospitals,
