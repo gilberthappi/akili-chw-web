@@ -224,6 +224,14 @@ function buildApiPayload(data: CourseBuilderData): Record<string, unknown> {
   };
 }
 
+async function fetchCourseBuilderData(
+  courseId: string,
+): Promise<CourseBuilderData | void> {
+  const freshResponse = await getCourseById(courseId);
+  const freshCourse = freshResponse?.data as ICourse | undefined;
+  if (freshCourse) return mapICourseToCourseBuilderData(freshCourse);
+}
+
 export default function NewCoursesBuilder() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -280,19 +288,9 @@ export default function NewCoursesBuilder() {
   const handleAutoSave = async (updatedCourse: CourseBuilderData): Promise<CourseBuilderData | void> => {
     try {
       const payload = buildApiPayload(updatedCourse);
-      const response = await updateCourse(updatedCourse.id, payload);
-      const savedCourse = (response as { data?: { course?: ICourse } })?.data?.course;
-      if (savedCourse) {
-        return mapICourseToCourseBuilderData(savedCourse);
-      }
-      // Silently fetch fresh data to populate newly-created testIds
-      try {
-        const freshResponse = await getCourseById(updatedCourse.id);
-        const freshCourse = freshResponse?.data as ICourse | undefined;
-        if (freshCourse) return mapICourseToCourseBuilderData(freshCourse);
-      } catch {
-        // silent — testId will update on next successful save
-      }
+      await updateCourse(updatedCourse.id, payload);
+      // Update response is a shallow course — refetch full tree so midTest ids are available.
+      return await fetchCourseBuilderData(updatedCourse.id);
     } catch (error) {
       const rawMsg =
         (error as { response?: { data?: { message?: string } } })?.response
@@ -310,17 +308,11 @@ export default function NewCoursesBuilder() {
   ): Promise<CourseBuilderData | void> => {
     try {
       const payload = buildApiPayload({ ...updatedCourse, isPublished: true });
-      const response = await updateCourse(updatedCourse.id, payload);
-      const course = (response as { data?: { course?: ICourse } })?.data?.course;
+      await updateCourse(updatedCourse.id, payload);
       await queryClient.invalidateQueries({ queryKey: detailQueryKey });
       await queryClient.invalidateQueries({ queryKey: courseKeys.all });
       toast.success("Course published successfully!");
-      if (course) {
-        return mapICourseToCourseBuilderData(course);
-      }
-      const freshResponse = await getCourseById(updatedCourse.id);
-      const freshCourse = freshResponse?.data as ICourse | undefined;
-      if (freshCourse) return mapICourseToCourseBuilderData(freshCourse);
+      return await fetchCourseBuilderData(updatedCourse.id);
     } catch (error) {
       const msg =
         (error as { response?: { data?: { message?: string } } })?.response
