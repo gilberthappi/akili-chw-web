@@ -297,6 +297,7 @@ export interface ICommentThread {
 export interface IAttachment {
   url: string;
   type: "image" | "video" | "audio" | "file";
+  name?: string;
 }
 
 export interface IMessage {
@@ -313,6 +314,7 @@ export interface IMessage {
   isEdited?: boolean;
   readBy?: IReadBy[];
   likes?: number;
+  isLikedByMe?: boolean;
   comments?: ICommentThread[];
 }
 
@@ -335,6 +337,9 @@ export interface IConversation {
   lastMessageId?: string | null;
   participants: IConversationParticipant[];
   lastMessage?: IMessage | null;
+  muted?: boolean;
+  createdById?: string;
+  photo?: string | null;
 }
 
 export interface IParticipant {

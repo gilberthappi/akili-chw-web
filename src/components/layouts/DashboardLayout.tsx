@@ -26,6 +26,7 @@ import {
 import ProfileAvatar from "@/components/profile/ProfileAvatar";
 import { useProfilePhoto } from "@/hooks/useProfilePhoto";
 import { ChatWidget } from "@/components/chat/ChatWidget";
+import { useUnreadCounts } from "@/hooks/useUnreadCounts";
 
 
 const AdminSidebar = ({
@@ -48,6 +49,8 @@ const AdminSidebar = ({
     return window.innerWidth < 768 ? true : window.innerWidth > 750;
   });
   const { photoUrl } = useProfilePhoto();
+  const { data: unreadCounts } = useUnreadCounts();
+  const totalUnread = unreadCounts?.totalUnread || 0;
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   // track nested open state for submenu category items (e.g. Financial / Physical)
   const [openNested, setOpenNested] = useState<Record<string, boolean>>({});
@@ -315,10 +318,24 @@ const AdminSidebar = ({
                         : "text-gray-700 hover:bg-gray-100"
                     } rounded-lg flex items-center space-x-3 py-2.5 px-4 transition-colors duration-200 group`}
                   >
-                    <span className='w-5 flex-shrink-0 text-gray-600'>
+                    <span className='relative w-5 flex-shrink-0 text-gray-600'>
                       {link.icon}
+                      {!isExpanded && link.label === "Messaging" && totalUnread > 0 && (
+                        <span className='absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] px-0.5 bg-red-500 rounded-full flex items-center justify-center text-[9px] leading-none font-bold text-white'>
+                          {totalUnread > 9 ? "9+" : totalUnread}
+                        </span>
+                      )}
                     </span>
-                    {isExpanded && <span className='text-sm'>{link.label}</span>}
+                    {isExpanded && (
+                      <span className='text-sm flex items-center gap-2'>
+                        {link.label}
+                        {link.label === "Messaging" && totalUnread > 0 && (
+                          <span className='min-w-[18px] h-[18px] px-1 bg-red-500 rounded-full flex items-center justify-center text-[10px] leading-none font-bold text-white'>
+                            {totalUnread > 9 ? "9+" : totalUnread}
+                          </span>
+                        )}
+                      </span>
+                    )}
                     {!isExpanded && (
                       <div className='absolute left-20 bg-gray-900 text-white px-2 py-1 rounded text-sm opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap'>
                         {link.label}
@@ -534,7 +551,9 @@ const DashboardLayout = ({
         />
       )}
 
-      <ChatWidget />
+      {/* The AI assistant FAB is fixed to the same viewport corner as the message
+          composer's send button — keep it off the Messaging page to avoid overlap. */}
+      {!location.pathname.startsWith("/messaging") && <ChatWidget />}
     </div>
   );
 };
