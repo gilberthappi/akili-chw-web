@@ -15,6 +15,9 @@ import {
   Edit,
   Trash,
   Pencil,
+  Plus,
+  X,
+  Check,
 } from "lucide-react";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUsers } from '@fortawesome/free-solid-svg-icons';
@@ -28,6 +31,8 @@ import {
   deleteDirectMessage,
   markDirectMessageRead,
   toggleDirectMessageLike,
+  getDirectChatMessages,
+  searchDirectChatMessages,
 } from "@/services/directChat.service";
 import {
   sendGroupMessage,
@@ -38,6 +43,8 @@ import {
   removeGroupParticipant,
   toggleGroupMessageLike,
   deleteGroup,
+  getGroupMessages,
+  searchGroupMessages,
 } from "@/services/groupChat.service";
 import {
   togglePostLike,
@@ -51,6 +58,8 @@ import {
   deleteCommunityPost,
   deleteCommunity,
   ICommunityPostRaw,
+  getCommunityPosts,
+  searchCommunityPosts,
 } from "@/services/community.service";
 import { IDirectMessageRaw } from "@/services/directChat.service";
 import { normalizeMessage, normalizeCommunityPost, stringifyAttachments } from "@/services/messaging.adapter";
@@ -382,7 +391,7 @@ export const Messaging: React.FC = () => {
         text: created.text,
         timestamp: created.timestamp,
         user: created.user
-          ? { id: created.user.id, fullNames: created.user.fullNames, photo: created.user.photo }
+          ? { id: created.user.id, fullNames: created.user.fullNames, photo: created.user.photo ?? undefined }
           : undefined,
         replies: [],
       };
@@ -472,6 +481,10 @@ export const Messaging: React.FC = () => {
   const [showConversationSettings, setShowConversationSettings] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [searchMessagesQuery, setSearchMessagesQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<IMessage[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   const [showDirectChatCreator, setShowDirectChatCreator] = useState(false);
   const [selectedUserForDirectChat, setSelectedUserForDirectChat] = useState<string>("");
   const [newConversationName, setNewConversationName] = useState("");
@@ -479,6 +492,11 @@ export const Messaging: React.FC = () => {
   const [newConversationPhotoPreview, setNewConversationPhotoPreview] = useState<string>("");
   const [isSavingConversationSettings, setIsSavingConversationSettings] = useState(false);
   const [availableUsers, setAvailableUsers] = useState<IUser[]>([]);
+  const [groupPhotoFile, setGroupPhotoFile] = useState<File | null>(null);
+  const [groupPhotoPreview, setGroupPhotoPreview] = useState<string>("");
+  const [communityPhotoFile, setCommunityPhotoFile] = useState<File | null>(null);
+  const [communityPhotoPreview, setCommunityPhotoPreview] = useState<string>("");
+  const [isCreatingConversation, setIsCreatingConversation] = useState(false);
 
   // Communities are blog-style and require a title; derive one from the quick-message text
   // so the plain chat composer can still post into a community.
@@ -766,19 +784,29 @@ export const Messaging: React.FC = () => {
   };
 
   // Create group handler
-  const handleCreateGroup = async (groupName: string, participantIds: string[]) => {
+  const handleCreateGroup = async (groupName: string, participantIds: string[], photoFile: File | null) => {
+    setIsCreatingConversation(true);
     try {
+      let photo: string | undefined;
+      if (photoFile) {
+        const res = await uploadImage(photoFile);
+        if (!res.data) throw new Error("Photo upload failed");
+        photo = res.data.url;
+      }
       const newConversation = await createConversationMutation.mutateAsync({
         type: "group",
         name: groupName,
+        photo,
         participantIds: [user?.id || "", ...participantIds],
       });
-      
+
       setSelectedConversation(newConversation as IConversation);
       toast.success("Group created");
     } catch (error) {
       console.error("Failed to create group:", error);
       toast.error("Failed to create group");
+    } finally {
+      setIsCreatingConversation(false);
     }
   };
 
@@ -786,21 +814,32 @@ export const Messaging: React.FC = () => {
   const handleCreateCommunity = async (
     communityName: string,
     isPublic: boolean = true,
-    participantIds: string[] = []
+    participantIds: string[] = [],
+    photoFile: File | null = null
   ) => {
+    setIsCreatingConversation(true);
     try {
+      let photo: string | undefined;
+      if (photoFile) {
+        const res = await uploadImage(photoFile);
+        if (!res.data) throw new Error("Photo upload failed");
+        photo = res.data.url;
+      }
       const newConversation = await createConversationMutation.mutateAsync({
         type: "community",
         name: communityName,
         isPublic,
+        photo,
         participantIds: [user?.id || "", ...participantIds],
       });
-      
+
       setSelectedConversation(newConversation as IConversation);
       toast.success("Community created");
     } catch (error) {
       console.error("Failed to create community:", error);
       toast.error("Failed to create community");
+    } finally {
+      setIsCreatingConversation(false);
     }
   };
 
@@ -820,17 +859,96 @@ export const Messaging: React.FC = () => {
     }
   };
 
-  // Search messages handler - now integrated
-  // No backend "search messages" endpoint exists — search client-side over the
-  // already-loaded messages of the currently open conversation.
-  const handleSearchMessages = (query: string) => {
-    if (!query.trim()) {
-      toast.error("Enter a search term");
+  // Search messages — hits the backend so results cover the conversation's full
+  // history, not just whatever page happens to be loaded in `messages`.
+  const runSearch = async (query: string) => {
+    if (!selectedConversation || !query.trim()) {
+      setSearchResults([]);
+      setSearchLoading(false);
       return;
     }
-    const lower = query.toLowerCase();
-    const results = messages.filter((m) => m.content?.toLowerCase().includes(lower));
-    toast.success(`Found ${results.length} result${results.length === 1 ? "" : "s"}`);
+    setSearchLoading(true);
+    try {
+      const { id, type } = selectedConversation;
+      let data: IMessage[] = [];
+      if (type === "direct") {
+        const res = await searchDirectChatMessages(id, query, 20, 0);
+        data = res.data.map((m) => normalizeMessage(m, id));
+      } else if (type === "group") {
+        const res = await searchGroupMessages(id, query, 20, 0);
+        data = res.data.map((m) => normalizeMessage(m, id));
+      } else {
+        const res = await searchCommunityPosts(id, query, 20, 0);
+        data = res.data.map((p) => normalizeCommunityPost(p, id));
+      }
+      setSearchResults(data);
+    } catch (error) {
+      console.error("Search failed:", error);
+      toast.error("Search failed. Please try again.");
+      setSearchResults([]);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  // Debounced as-you-type search; typing triggers this on every keystroke.
+  const handleSearchMessages = (query: string) => {
+    setSearchMessagesQuery(query);
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    if (!query.trim()) {
+      setSearchResults([]);
+      setSearchLoading(false);
+      return;
+    }
+    searchDebounceRef.current = setTimeout(() => runSearch(query), 350);
+  };
+
+  // Jump from a search result to its place in the live conversation — fetches the page of
+  // the normal message list containing that message (via its offsetInConversation), swaps
+  // it into view, then scrolls to and briefly highlights the target bubble.
+  const handleJumpToMessage = async (result: IMessage) => {
+    if (!selectedConversation) return;
+    try {
+      const { id, type } = selectedConversation;
+      const targetOffset = Math.max(0, (result.offsetInConversation ?? 0) - 20);
+      let page: IMessage[] = [];
+      if (type === "direct") {
+        const res = await getDirectChatMessages(id, 50, targetOffset);
+        page = res.data.map((m) => normalizeMessage(m, id));
+      } else if (type === "group") {
+        const res = await getGroupMessages(id, 50, targetOffset);
+        page = res.data.map((m) => normalizeMessage(m, id));
+      } else {
+        const res = await getCommunityPosts(id, 50, targetOffset);
+        page = res.data.map((p) => normalizeCommunityPost(p, id));
+      }
+      setMessages(page);
+      setShowSearchModal(false);
+      setSearchMessagesQuery("");
+      setSearchResults([]);
+      setTimeout(() => {
+        document.getElementById(`message-${result.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+        setHighlightedMessageId(result.id);
+        setTimeout(() => setHighlightedMessageId(null), 1500);
+      }, 100);
+    } catch (error) {
+      console.error("Failed to jump to message:", error);
+      toast.error("Couldn't open that message.");
+    }
+  };
+
+  // Wraps the substring of `text` matching `query` in a highlighted <mark>, for search results.
+  const highlightMatch = (text: string, query: string): React.ReactNode => {
+    if (!query.trim()) return text;
+    const idx = text.toLowerCase().indexOf(query.toLowerCase());
+    if (idx === -1) return text;
+    return (
+      <>
+        {text.slice(0, idx)}
+        <mark className="bg-yellow-200 text-inherit rounded-sm px-0.5">{text.slice(idx, idx + query.length)}</mark>
+        {text.slice(idx + query.length)}
+      </>
+    );
   };
 
   // Search conversations handler
@@ -884,111 +1002,84 @@ export const Messaging: React.FC = () => {
 
   return (
     <AudioPlayerProvider>
-      <div className="space-y-6">
-         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                <div className="space-y-1">
-                  <h2 className="text-3xl font-bold text-[#333333]">
-                    Messaging
-                  </h2>
-                  <p className="text-gray-600">Chat with trainers, CHWs, and staff in groups and communities</p>
-                </div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <Button
-            onClick={() => setShowDirectChatCreator(true)}
-            className="flex items-center gap-2"
-          >
-            <MessageSquare size={20} />
-            Direct Message
-          </Button>
-          <Button
-            onClick={() => setShowCreateGroup(true)}
-            variant="outline"
-            className="flex items-center gap-2"
-          >
-            <Users size={20} />
-            Create Group
-          </Button>
-          <Button
-            onClick={() => setShowCreateCommunity(true)}
-            variant="outline"
-            className="flex items-center gap-2"
-          >
-            <FontAwesomeIcon icon={faUsers} size="lg" />
-            Create Community
-          </Button>
-                </div>
-              </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6 h-[calc(100vh-180px)]">
+      <div>
+        <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] h-[calc(100vh-100px)] bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
           {/* Conversations List */}
-          <Card
-            padding={false}
-            className={`overflow-hidden flex-col h-full ${selectedConversation ? "hidden lg:flex" : "flex"}`}
+          <div
+            className={`relative overflow-hidden flex-col h-full border-r border-gray-200 ${selectedConversation ? "hidden lg:flex" : "flex"}`}
           >
+            {/* Branded header strip */}
+            <div className="flex items-center gap-2 px-4 pt-4 pb-2">
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <MessageSquare size={16} className="text-primary" />
+              </div>
+              <span className="text-gray-900 font-semibold">My Chats</span>
+            </div>
+
+            {/* Search bar */}
+            <div className="px-4 pb-3">
+              <Input
+                placeholder="Search..."
+                icon={<Search size={18} className="text-gray-400" />}
+                value={searchQuery}
+                onChange={(e) => handleSearchConversations(e.target.value)}
+                className="bg-white border border-gray-300 rounded-lg"
+              />
+            </div>
+
             {/* Tab Navigation */}
-            <div className="flex border-b border-gray-200">
+            <div className="flex items-center gap-2 px-4 pb-0 border-b border-gray-200">
               <button
                 onClick={() => setActiveTab("direct")}
-                className={`flex-1 px-2 py-3 text-sm font-medium transition-colors ${
+                className={`flex-1 px-2 py-2 border-b-2 text-sm font-medium transition-colors ${
                   activeTab === "direct"
-                    ? "text-[#3363AD] border-b-2 border-[#3363AD] bg-blue-50"
-                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                    ? "text-primary border-primary"
+                    : "text-gray-600 border-transparent hover:text-gray-900"
                 }`}
               >
-                <div className="flex items-center justify-center gap-2">
-                  <MessageSquare size={16} />
+                <div className="flex items-center justify-center gap-1">
                   Chats
                   {unreadMessageCountByType("direct") > 0 && (
                     <span className="min-w-[18px] h-[18px] px-1 bg-red-500 rounded-full flex items-center justify-center text-[10px] leading-none font-bold text-white">
-                      {unreadMessageCountByType("direct") > 9 ? "9+" : unreadMessageCountByType("direct")}
+                      {unreadMessageCountByType("direct")}
                     </span>
                   )}
                 </div>
               </button>
               <button
                 onClick={() => setActiveTab("group")}
-                className={`flex-1 px-2 py-3 text-sm font-medium transition-colors ${
+                className={`flex-1 px-2 py-2 border-b-2 text-sm font-medium transition-colors ${
                   activeTab === "group"
-                    ? "text-[#3363AD] border-b-2 border-[#3363AD] bg-blue-50"
-                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                    ? "text-primary border-primary"
+                    : "text-gray-600 border-transparent hover:text-gray-900"
                 }`}
               >
-                <div className="flex items-center justify-center gap-2">
-                  <Users size={16} />
+                <div className="flex items-center justify-center gap-1">
                   Groups
                   {unreadMessageCountByType("group") > 0 && (
                     <span className="min-w-[18px] h-[18px] px-1 bg-red-500 rounded-full flex items-center justify-center text-[10px] leading-none font-bold text-white">
-                      {unreadMessageCountByType("group") > 9 ? "9+" : unreadMessageCountByType("group")}
+                      {unreadMessageCountByType("group")}
                     </span>
                   )}
                 </div>
               </button>
               <button
                 onClick={() => setActiveTab("community")}
-                className={`flex-1 px-2 py-3 text-sm font-medium transition-colors ${
+                className={`flex-1 px-2 py-2 border-b-2 text-sm font-medium transition-colors ${
                   activeTab === "community"
-                    ? "text-[#3363AD] border-b-2 border-[#3363AD] bg-blue-50"
-                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                    ? "text-primary border-primary"
+                    : "text-gray-600 border-transparent hover:text-gray-900"
                 }`}
               >
-                <div className="flex items-center justify-center gap-2">
-                  <FontAwesomeIcon icon={faUsers} size="1x" />
+                <div className="flex items-center justify-center gap-1">
                   Communities
                   {unreadMessageCountByType("community") > 0 && (
                     <span className="min-w-[18px] h-[18px] px-1 bg-red-500 rounded-full flex items-center justify-center text-[10px] leading-none font-bold text-white">
-                      {unreadMessageCountByType("community") > 9 ? "9+" : unreadMessageCountByType("community")}
+                      {unreadMessageCountByType("community")}
                     </span>
                   )}
                 </div>
               </button>
-            </div>
-            <div className="p-4 border-1 border-gray-200">
-              <Input
-                placeholder="Search conversations..."
-                icon={<Search size={20} />}
-                value={searchQuery}
-                onChange={(e) => handleSearchConversations(e.target.value)}
-              />
             </div>
             <div className="overflow-y-auto flex-1 hide-scrollbar">
               {typedConversations
@@ -1008,18 +1099,67 @@ export const Messaging: React.FC = () => {
                     onClick={() => handleSelectConversation(conv)}
                   />
                 ))}
-              {typedConversations.filter((conv) => conv.type === activeTab).length === 0 && (
-                <div className="p-4 text-center text-gray-500">
-                  <p className="text-sm">No {activeTab} conversations yet</p>
-                  <p className="text-xs mt-1">Create one to get started</p>
-                </div>
-              )}
+              {(() => {
+                const tabConversations = typedConversations.filter((conv) => conv.type === activeTab);
+                if (tabConversations.length === 0) {
+                  return (
+                    <div className="p-4 text-center text-gray-400">
+                      <p className="text-sm">No {activeTab} conversations yet</p>
+                      <p className="text-xs mt-1">Create one to get started</p>
+                    </div>
+                  );
+                }
+                const matchesSearch = tabConversations.some(
+                  (conv) =>
+                    searchQuery === "" ||
+                    conv.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    (conv.type === "direct" &&
+                      conv.participants[0]?.user?.fullNames?.toLowerCase().includes(searchQuery.toLowerCase())),
+                );
+                if (!matchesSearch) {
+                  return (
+                    <div className="p-4 text-center text-gray-400">
+                      <p className="text-sm">No conversations match &quot;{searchQuery}&quot;</p>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
             </div>
-          </Card>
+
+            {/* Tab-aware floating action button: starts a new chat/group/community based on the active tab */}
+            <button
+              onClick={() => {
+                if (activeTab === "direct") setShowDirectChatCreator(true);
+                else if (activeTab === "group") setShowCreateGroup(true);
+                else setShowCreateCommunity(true);
+              }}
+              title={
+                activeTab === "direct"
+                  ? "New direct message"
+                  : activeTab === "group"
+                  ? "Create group"
+                  : "Create community"
+              }
+              className="absolute bottom-20 right-4 z-10 w-12 h-12 rounded-full bg-primary text-white shadow-lg hover:bg-primary/90 flex items-center justify-center transition-colors"
+            >
+              <Plus size={22} />
+            </button>
+
+            {/* Own-avatar footer */}
+            <div className="flex items-center gap-2 px-4 py-3 border-t border-gray-200 flex-shrink-0">
+              <ProfileAvatar
+                name={user?.fullNames || "You"}
+                photo={realPhoto(ownPhotoUrl)}
+                size="w-8 h-8"
+                color="bg-primary text-white"
+              />
+              <span className="text-sm text-gray-700 truncate">{user?.fullNames || "You"}</span>
+            </div>
+          </div>
 
           {/* Chat Area */}
-          <Card
-            padding={false}
+          <div
             className={`h-full min-h-0 overflow-hidden relative flex-col lg:flex-row ${
               selectedConversation ? "flex" : "hidden lg:flex"
             }`}
@@ -1042,19 +1182,25 @@ export const Messaging: React.FC = () => {
 
                 {/* Messages */}
                 <div className="flex-grow overflow-y-auto bg-gray-50 hide-scrollbar min-h-0">
-                  <div className="p-4 space-y-4">
+                  <div className="p-4 space-y-6">
                     {messages.map((message) => {
                       if (message.type === 'blog') {
                         // Blog post style for communities
                         return (
-                          <div key={message.id} className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-200">
+                          <div
+                            key={message.id}
+                            id={`message-${message.id}`}
+                            className={`bg-white rounded-xl p-6 shadow-sm border transition-shadow duration-200 hover:shadow-md ${
+                              highlightedMessageId === message.id ? "ring-4 ring-yellow-300 border-gray-100" : "border-gray-100"
+                            }`}
+                          >
                             <div className="flex items-start gap-4 mb-4">
                               <ProfileAvatar
                                 name={message.sender?.fullNames || 'User'}
                                 photo={realPhoto(message.sender?.photo)}
                                 size="w-12 h-12"
                                 className="text-lg shadow-sm"
-                                color="bg-gradient-to-br from-[#3363AD] to-[#4A7BC7] text-white"
+                                color="bg-gradient-to-br from-primary to-[#4A7BC7] text-white"
                               />
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center justify-between gap-2 mb-2">
@@ -1304,6 +1450,7 @@ export const Messaging: React.FC = () => {
                               })
                             }
                             onToggleLike={() => handleToggleMessageLike(message.id)}
+                            highlighted={highlightedMessageId === message.id}
                           />
                         );
                       }
@@ -1362,99 +1509,158 @@ export const Messaging: React.FC = () => {
             />
             </div>
           )}
-          </Card>
+          </div>
         </div>
       </div>
 
       {/* Create Group Modal */}
       {showCreateGroup && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-md mx-4">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Create New Group</h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Group Name
-                  </label>
-                  <Input 
-                    placeholder="Enter group name" 
-                    value={groupName}
-                    onChange={(e) => setGroupName(e.target.value)}
-                  />
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md !rounded-2xl overflow-hidden" padding={false}>
+            <div className="flex items-center justify-between px-6 pt-6 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Users size={20} className="text-primary" />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Description (Optional)
-                  </label>
-                  <Input 
-                    placeholder="Enter group description" 
-                    value={groupDescription}
-                    onChange={(e) => setGroupDescription(e.target.value)}
+                <h3 className="text-lg font-semibold text-gray-900">Create New Group</h3>
+              </div>
+              <button
+                onClick={() => {
+                  setShowCreateGroup(false);
+                  setGroupName("");
+                  setGroupDescription("");
+                  setSelectedGroupMembers([]);
+                  setGroupPhotoFile(null);
+                  setGroupPhotoPreview("");
+                }}
+                className="p-1 text-gray-400 hover:text-gray-600"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="px-6 space-y-4">
+              <div className="flex justify-center">
+                <label className="relative cursor-pointer group">
+                  <ProfileAvatar
+                    name={groupName || "Group"}
+                    photo={groupPhotoPreview || undefined}
+                    size="w-20 h-20"
+                    color="bg-green-500 text-white"
                   />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Add Members
-                  </label>
-                  <div className="border rounded-md p-2 max-h-64 overflow-y-auto hide-scrollbar">
-                    {availableUsers.length === 0 ? (
-                      <p className="text-sm text-gray-500">No users available</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {availableUsers.map((user) => (
-                          <label key={user.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
-                            <input 
-                              type="checkbox" 
-                              className="rounded"
-                              checked={selectedGroupMembers.includes(user.id)}
+                  <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                    <Pencil size={18} className="text-white" />
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    hidden
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setGroupPhotoFile(file);
+                      setGroupPhotoPreview(URL.createObjectURL(file));
+                    }}
+                  />
+                </label>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                  Group Name
+                </label>
+                <Input
+                  placeholder="Enter group name"
+                  value={groupName}
+                  onChange={(e) => setGroupName(e.target.value)}
+                  className="bg-gray-50 border-gray-200 rounded-xl"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                  Description (Optional)
+                </label>
+                <Input
+                  placeholder="Enter group description"
+                  value={groupDescription}
+                  onChange={(e) => setGroupDescription(e.target.value)}
+                  className="bg-gray-50 border-gray-200 rounded-xl"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                  Add Members
+                </label>
+                <div className="border border-gray-200 rounded-xl p-2 max-h-64 overflow-y-auto hide-scrollbar">
+                  {availableUsers.length === 0 ? (
+                    <p className="text-sm text-gray-500 p-2">No users available</p>
+                  ) : (
+                    <div className="space-y-1">
+                      {availableUsers.map((user) => {
+                        const checked = selectedGroupMembers.includes(user.id);
+                        return (
+                          <label
+                            key={user.id}
+                            className={`flex items-center gap-3 cursor-pointer p-2 rounded-lg transition-colors ${
+                              checked ? "bg-primary/10" : "hover:bg-gray-50"
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              className="hidden"
+                              checked={checked}
                               onChange={(e) => {
                                 if (e.target.checked) {
                                   setSelectedGroupMembers([...selectedGroupMembers, user.id]);
                                 } else {
-                                  setSelectedGroupMembers(selectedGroupMembers.filter(m => m !== user.id));
+                                  setSelectedGroupMembers(selectedGroupMembers.filter((m) => m !== user.id));
                                 }
                               }}
                             />
+                            <ProfileAvatar name={user.fullNames} size="w-8 h-8" color="bg-gray-300 text-gray-700" />
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium text-gray-900 truncate">{user.fullNames}</p>
                               <p className="text-xs text-gray-500 truncate">{user.email}</p>
                             </div>
+                            {checked && <Check size={16} className="text-primary flex-shrink-0" />}
                           </label>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
-              <div className="flex justify-end gap-3 mt-6">
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    setShowCreateGroup(false);
-                    setGroupName("");
-                    setGroupDescription("");
-                    setSelectedGroupMembers([]);
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  onClick={async () => {
-                    if (!groupName.trim()) {
-                      toast.error("Please enter a group name");
-                      return;
-                    }
-                    await handleCreateGroup(groupName, selectedGroupMembers);
-                    setShowCreateGroup(false);
-                    setGroupName("");
-                    setGroupDescription("");
-                    setSelectedGroupMembers([]);
-                  }}
-                >
-                  Create Group
-                </Button>
-              </div>
+            </div>
+            <div className="flex justify-end gap-3 px-6 py-5">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowCreateGroup(false);
+                  setGroupName("");
+                  setGroupDescription("");
+                  setSelectedGroupMembers([]);
+                  setGroupPhotoFile(null);
+                  setGroupPhotoPreview("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                isLoading={isCreatingConversation}
+                onClick={async () => {
+                  if (!groupName.trim()) {
+                    toast.error("Please enter a group name");
+                    return;
+                  }
+                  await handleCreateGroup(groupName, selectedGroupMembers, groupPhotoFile);
+                  setShowCreateGroup(false);
+                  setGroupName("");
+                  setGroupDescription("");
+                  setSelectedGroupMembers([]);
+                  setGroupPhotoFile(null);
+                  setGroupPhotoPreview("");
+                }}
+              >
+                Create Group
+              </Button>
             </div>
           </Card>
         </div>
@@ -1462,118 +1668,187 @@ export const Messaging: React.FC = () => {
 
       {/* Create Community Modal */}
       {showCreateCommunity && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-md mx-4">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Create New Community</h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Community Name
-                  </label>
-                  <Input 
-                    placeholder="Enter community name" 
-                    value={communityName}
-                    onChange={(e) => setCommunitName(e.target.value)}
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md !rounded-2xl overflow-hidden" padding={false}>
+            <div className="flex items-center justify-between px-6 pt-6 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <FontAwesomeIcon icon={faUsers} className="text-primary" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">Create New Community</h3>
+              </div>
+              <button
+                onClick={() => {
+                  setShowCreateCommunity(false);
+                  setCommunitName("");
+                  setCommunitDescription("");
+                  setCommunitCategory("");
+                  setSelectedModerators([]);
+                  setIsCommunityPublic(true);
+                  setCommunityPhotoFile(null);
+                  setCommunityPhotoPreview("");
+                }}
+                className="p-1 text-gray-400 hover:text-gray-600"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="px-6 space-y-4">
+              <div className="flex justify-center">
+                <label className="relative cursor-pointer group">
+                  <ProfileAvatar
+                    name={communityName || "Community"}
+                    photo={communityPhotoPreview || undefined}
+                    size="w-20 h-20"
+                    color="bg-purple-500 text-white"
                   />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Description (Optional)
-                  </label>
-                  <Input 
-                    placeholder="Enter community description" 
-                    value={communityDescription}
-                    onChange={(e) => setCommunitDescription(e.target.value)}
+                  <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                    <Pencil size={18} className="text-white" />
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    hidden
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setCommunityPhotoFile(file);
+                      setCommunityPhotoPreview(URL.createObjectURL(file));
+                    }}
                   />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Category
-                  </label>
-                  <Input 
-                    placeholder="e.g., Training, Support, General" 
-                    value={communityCategory}
-                    onChange={(e) => setCommunitCategory(e.target.value)}
+                </label>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                  Community Name
+                </label>
+                <Input
+                  placeholder="Enter community name"
+                  value={communityName}
+                  onChange={(e) => setCommunitName(e.target.value)}
+                  className="bg-gray-50 border-gray-200 rounded-xl"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                  Description (Optional)
+                </label>
+                <Input
+                  placeholder="Enter community description"
+                  value={communityDescription}
+                  onChange={(e) => setCommunitDescription(e.target.value)}
+                  className="bg-gray-50 border-gray-200 rounded-xl"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                  Category
+                </label>
+                <Input
+                  placeholder="e.g., Training, Support, General"
+                  value={communityCategory}
+                  onChange={(e) => setCommunitCategory(e.target.value)}
+                  className="bg-gray-50 border-gray-200 rounded-xl"
+                />
+              </div>
+              <label className="flex items-center justify-between cursor-pointer border border-gray-200 rounded-xl px-4 py-3">
+                <span className="text-sm font-medium text-gray-700">Public Community</span>
+                <input
+                  type="checkbox"
+                  checked={isCommunityPublic}
+                  onChange={(e) => setIsCommunityPublic(e.target.checked)}
+                  className="hidden"
+                />
+                <span
+                  className={`w-10 h-6 rounded-full relative transition-colors ${isCommunityPublic ? "bg-primary" : "bg-gray-300"}`}
+                >
+                  <span
+                    className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                      isCommunityPublic ? "translate-x-4" : "translate-x-0.5"
+                    }`}
                   />
-                </div>
-                <div>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      checked={isCommunityPublic}
-                      onChange={(e) => setIsCommunityPublic(e.target.checked)}
-                      className="rounded" 
-                    />
-                    <span className="text-sm font-medium text-gray-700">Public Community</span>
-                  </label>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Add Moderators
-                  </label>
-                  <div className="border rounded-md p-2 max-h-64 overflow-y-auto hide-scrollbar">
-                    {availableUsers.length === 0 ? (
-                      <p className="text-sm text-gray-500">No users available</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {availableUsers.map((user) => (
-                          <label key={user.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
-                            <input 
-                              type="checkbox" 
-                              className="rounded"
-                              checked={selectedModerators.includes(user.id)}
+                </span>
+              </label>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                  Add Moderators
+                </label>
+                <div className="border border-gray-200 rounded-xl p-2 max-h-64 overflow-y-auto hide-scrollbar">
+                  {availableUsers.length === 0 ? (
+                    <p className="text-sm text-gray-500 p-2">No users available</p>
+                  ) : (
+                    <div className="space-y-1">
+                      {availableUsers.map((user) => {
+                        const checked = selectedModerators.includes(user.id);
+                        return (
+                          <label
+                            key={user.id}
+                            className={`flex items-center gap-3 cursor-pointer p-2 rounded-lg transition-colors ${
+                              checked ? "bg-primary/10" : "hover:bg-gray-50"
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              className="hidden"
+                              checked={checked}
                               onChange={(e) => {
                                 if (e.target.checked) {
                                   setSelectedModerators([...selectedModerators, user.id]);
                                 } else {
-                                  setSelectedModerators(selectedModerators.filter(m => m !== user.id));
+                                  setSelectedModerators(selectedModerators.filter((m) => m !== user.id));
                                 }
                               }}
                             />
+                            <ProfileAvatar name={user.fullNames} size="w-8 h-8" color="bg-gray-300 text-gray-700" />
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium text-gray-900 truncate">{user.fullNames}</p>
                               <p className="text-xs text-gray-500 truncate">{user.email}</p>
                             </div>
+                            {checked && <Check size={16} className="text-primary flex-shrink-0" />}
                           </label>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
-              <div className="flex justify-end gap-3 mt-6">
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    setShowCreateCommunity(false);
-                    setCommunitName("");
-                    setCommunitDescription("");
-                    setCommunitCategory("");
-                    setSelectedModerators([]);
-                    setIsCommunityPublic(true);
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  onClick={async () => {
-                    if (!communityName.trim()) {
-                      toast.error("Please enter a community name");
-                      return;
-                    }
-                    await handleCreateCommunity(communityName, isCommunityPublic, selectedModerators);
-                    setShowCreateCommunity(false);
-                    setCommunitName("");
-                    setCommunitDescription("");
-                    setCommunitCategory("");
-                    setSelectedModerators([]);
-                    setIsCommunityPublic(true);
-                  }}
-                >
-                  Create Community
-                </Button>
-              </div>
+            </div>
+            <div className="flex justify-end gap-3 px-6 py-5">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowCreateCommunity(false);
+                  setCommunitName("");
+                  setCommunitDescription("");
+                  setCommunitCategory("");
+                  setSelectedModerators([]);
+                  setIsCommunityPublic(true);
+                  setCommunityPhotoFile(null);
+                  setCommunityPhotoPreview("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                isLoading={isCreatingConversation}
+                onClick={async () => {
+                  if (!communityName.trim()) {
+                    toast.error("Please enter a community name");
+                    return;
+                  }
+                  await handleCreateCommunity(communityName, isCommunityPublic, selectedModerators, communityPhotoFile);
+                  setShowCreateCommunity(false);
+                  setCommunitName("");
+                  setCommunitDescription("");
+                  setCommunitCategory("");
+                  setCommunityPhotoFile(null);
+                  setCommunityPhotoPreview("");
+                  setSelectedModerators([]);
+                  setIsCommunityPublic(true);
+                }}
+              >
+                Create Community
+              </Button>
             </div>
           </Card>
         </div>
@@ -1692,28 +1967,38 @@ export const Messaging: React.FC = () => {
                   placeholder="Search in conversation..."
                   icon={<Search size={20} />}
                   value={searchMessagesQuery}
-                  onChange={(e) => setSearchMessagesQuery(e.target.value)}
+                  onChange={(e) => handleSearchMessages(e.target.value)}
                   onKeyPress={(e) => {
                     if (e.key === "Enter") {
-                      handleSearchMessages(searchMessagesQuery);
+                      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+                      runSearch(searchMessagesQuery);
                     }
                   }}
+                  autoFocus
                 />
-                <Button
-                  className="w-full"
-                  onClick={() => {
-                    handleSearchMessages(searchMessagesQuery);
-                  }}
-                >
-                  Search
-                </Button>
-                {messages.length > 0 && (
+                {searchLoading && (
+                  <p className="text-sm text-gray-400 text-center">Searching...</p>
+                )}
+                {!searchLoading && searchMessagesQuery.trim() && searchResults.length === 0 && (
+                  <p className="text-sm text-gray-400 text-center">
+                    No messages found for &quot;{searchMessagesQuery}&quot;
+                  </p>
+                )}
+                {searchResults.length > 0 && (
                   <div className="max-h-96 overflow-y-auto space-y-2">
-                    <p className="text-sm text-gray-600">Found {messages.length} results</p>
-                    {messages.map((msg) => (
-                      <div key={msg.id} className="p-3 border rounded-lg hover:bg-gray-50">
+                    <p className="text-sm text-gray-600">
+                      Found {searchResults.length} result{searchResults.length === 1 ? "" : "s"}
+                    </p>
+                    {searchResults.map((msg) => (
+                      <div
+                        key={msg.id}
+                        className="p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
+                        onClick={() => handleJumpToMessage(msg)}
+                      >
                         <p className="text-sm font-medium">{msg.sender?.fullNames || "Unknown"}</p>
-                        <p className="text-sm text-gray-600 truncate">{msg.content}</p>
+                        <p className="text-sm text-gray-600 truncate">
+                          {highlightMatch(msg.content || "", searchMessagesQuery)}
+                        </p>
                         <p className="text-xs text-gray-400">{new Date(msg.timestamp).toLocaleString()}</p>
                       </div>
                     ))}
@@ -1721,11 +2006,12 @@ export const Messaging: React.FC = () => {
                 )}
               </div>
               <div className="flex justify-end gap-3 mt-6">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={() => {
                     setShowSearchModal(false);
                     setSearchMessagesQuery("");
+                    setSearchResults([]);
                   }}
                 >
                   Close
@@ -1738,68 +2024,82 @@ export const Messaging: React.FC = () => {
 
       {/* Create Direct Chat Modal */}
       {showDirectChatCreator && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-md mx-4">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Start Direct Chat</h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Select User
-                  </label>
-                  <div className="border rounded-md max-h-64 overflow-y-auto hide-scrollbar">
-                    {availableUsers.length === 0 ? (
-                      <div className="p-4 text-sm text-gray-500 text-center">No users available</div>
-                    ) : (
-                      <div className="divide-y">
-                        {availableUsers.map((user) => (
-                          <button
-                            key={user.id}
-                            onClick={() => setSelectedUserForDirectChat(user.id)}
-                            className={`w-full text-left p-3 hover:bg-blue-50 transition-colors ${
-                              selectedUserForDirectChat === user.id ? 'bg-blue-50 border-l-4 border-blue-500' : ''
-                            }`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 bg-[#3363AD] text-white rounded-full flex items-center justify-center font-medium text-sm">
-                                {user.fullNames?.split(' ').map((n: string) => n[0]).join('') || 'U'}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-gray-900">{user.fullNames}</p>
-                                <p className="text-xs text-gray-500 truncate">{user.email}</p>
-                              </div>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md !rounded-2xl overflow-hidden" padding={false}>
+            <div className="flex items-center justify-between px-6 pt-6 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <MessageSquare size={20} className="text-primary" />
                 </div>
+                <h3 className="text-lg font-semibold text-gray-900">Start Direct Chat</h3>
               </div>
-              <div className="flex justify-end gap-3 mt-6">
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
+              <button
+                onClick={() => {
+                  setShowDirectChatCreator(false);
+                  setSelectedUserForDirectChat("");
+                }}
+                className="p-1 text-gray-400 hover:text-gray-600"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="px-6">
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                Select User
+              </label>
+              <div className="border border-gray-200 rounded-xl p-2 max-h-64 overflow-y-auto hide-scrollbar">
+                {availableUsers.length === 0 ? (
+                  <div className="p-4 text-sm text-gray-500 text-center">No users available</div>
+                ) : (
+                  <div className="space-y-1">
+                    {availableUsers.map((user) => {
+                      const selected = selectedUserForDirectChat === user.id;
+                      return (
+                        <button
+                          key={user.id}
+                          onClick={() => setSelectedUserForDirectChat(user.id)}
+                          className={`w-full text-left p-2 rounded-lg transition-colors ${
+                            selected ? "bg-primary/10" : "hover:bg-gray-50"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <ProfileAvatar name={user.fullNames} size="w-9 h-9" color="bg-primary text-white" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900">{user.fullNames}</p>
+                              <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                            </div>
+                            {selected && <Check size={16} className="text-primary flex-shrink-0" />}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 px-6 py-5">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowDirectChatCreator(false);
+                  setSelectedUserForDirectChat("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={async () => {
+                  if (selectedUserForDirectChat.trim()) {
+                    await handleCreateDirectChat(selectedUserForDirectChat);
                     setShowDirectChatCreator(false);
                     setSelectedUserForDirectChat("");
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  onClick={async () => {
-                    if (selectedUserForDirectChat.trim()) {
-                      await handleCreateDirectChat(selectedUserForDirectChat);
-                      setShowDirectChatCreator(false);
-                      setSelectedUserForDirectChat("");
-                    } else {
-                      toast.error("Please select a user");
-                    }
-                  }}
-                >
-                  Create Chat
-                </Button>
-              </div>
+                  } else {
+                    toast.error("Please select a user");
+                  }
+                }}
+              >
+                Create Chat
+              </Button>
             </div>
           </Card>
         </div>

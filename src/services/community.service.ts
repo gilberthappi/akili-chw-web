@@ -32,6 +32,8 @@ export interface ICommunityPostRaw {
   author?: { id: string; fullNames: string; photo?: string | null } | null;
   sender?: { id: string; fullNames: string; photo?: string | null } | null;
   likes?: Array<{ id: string }>;
+  offsetInConversation?: number;
+  comments?: ICommunityCommentRaw[];
 }
 
 export interface ICommunityRaw {
@@ -149,6 +151,19 @@ export const getCommunityPosts = async (
   return (
     await api.get(
       `/communities/${communityId}/posts?limit=${limit}&offset=${offset}`,
+    )
+  ).data;
+};
+
+export const searchCommunityPosts = async (
+  communityId: string,
+  q: string,
+  limit: number = 20,
+  offset: number = 0,
+): Promise<{ data: ICommunityPostRaw[]; total: number }> => {
+  return (
+    await api.get(
+      `/communities/${communityId}/posts/search?q=${encodeURIComponent(q)}&limit=${limit}&offset=${offset}`,
     )
   ).data;
 };

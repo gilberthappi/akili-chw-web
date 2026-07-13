@@ -8,6 +8,7 @@ interface AudioAttachmentProps {
   attachment: IAttachment;
   messageId: string;
   variant: "bubble" | "card";
+  isOwn?: boolean;
 }
 
 const formatTime = (seconds: number): string => {
@@ -17,7 +18,7 @@ const formatTime = (seconds: number): string => {
   return `${m}:${s.toString().padStart(2, "0")}`;
 };
 
-export const AudioAttachment: React.FC<AudioAttachmentProps> = ({ attachment, messageId, variant }) => {
+export const AudioAttachment: React.FC<AudioAttachmentProps> = ({ attachment, messageId, variant, isOwn }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const wavesurferRef = useRef<WaveSurfer | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -30,8 +31,8 @@ export const AudioAttachment: React.FC<AudioAttachmentProps> = ({ attachment, me
     if (!containerRef.current) return;
     const wavesurfer = WaveSurfer.create({
       container: containerRef.current,
-      waveColor: "#CBD5E1",
-      progressColor: "#3363AD",
+      waveColor: isOwn ? "rgba(255,255,255,0.4)" : "#CBD5E1",
+      progressColor: isOwn ? "#ffffff" : "#3363AD",
       cursorWidth: 0,
       barWidth: 2,
       barGap: 1,
@@ -72,20 +73,24 @@ export const AudioAttachment: React.FC<AudioAttachmentProps> = ({ attachment, me
 
   return (
     <div
-      className={`flex items-center gap-3 rounded-2xl bg-gray-50 p-2.5 ${
+      className={`flex items-center gap-3 rounded-2xl p-2.5 ${isOwn ? "bg-white/15" : "bg-gray-50"} ${
         variant === "card" ? "w-full" : "min-w-[190px] max-w-[240px]"
       }`}
     >
       <button
         onClick={togglePlay}
         disabled={!isReady}
-        className="w-9 h-9 flex-shrink-0 rounded-full bg-[#3363AD] hover:bg-[#3363ADCF] disabled:opacity-50 text-white flex items-center justify-center"
+        className={`w-9 h-9 flex-shrink-0 rounded-full disabled:opacity-50 flex items-center justify-center ${
+          isOwn ? "bg-white/25 hover:bg-white/35 text-white" : "bg-primary hover:bg-primary/90 text-white"
+        }`}
       >
-        {isPlaying ? <Pause size={16} className="fill-white" /> : <Play size={16} className="fill-white ml-0.5" />}
+        {isPlaying ? <Pause size={16} className="fill-current" /> : <Play size={16} className="fill-current ml-0.5" />}
       </button>
       <div className="flex-1 min-w-0">
         <div ref={containerRef} className="w-full" />
-        <span className="text-xs text-gray-500">{formatTime(isPlaying || currentTime > 0 ? currentTime : duration)}</span>
+        <span className={`text-xs ${isOwn ? "text-white/70" : "text-gray-500"}`}>
+          {formatTime(isPlaying || currentTime > 0 ? currentTime : duration)}
+        </span>
       </div>
     </div>
   );

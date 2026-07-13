@@ -115,6 +115,19 @@ export const getGroupMessages = async (
   ).data;
 };
 
+export const searchGroupMessages = async (
+  groupId: string,
+  q: string,
+  limit: number = 20,
+  offset: number = 0,
+): Promise<{ data: IDirectMessageRaw[]; total: number }> => {
+  return (
+    await api.get(
+      `/group-chats/${groupId}/messages/search?q=${encodeURIComponent(q)}&limit=${limit}&offset=${offset}`,
+    )
+  ).data;
+};
+
 export const sendGroupMessage = async (
   groupId: string,
   data: { content: string; type?: string; attachments?: string },

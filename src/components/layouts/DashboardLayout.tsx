@@ -322,7 +322,7 @@ const AdminSidebar = ({
                       {link.icon}
                       {!isExpanded && link.label === "Messaging" && totalUnread > 0 && (
                         <span className='absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] px-0.5 bg-red-500 rounded-full flex items-center justify-center text-[9px] leading-none font-bold text-white'>
-                          {totalUnread > 9 ? "9+" : totalUnread}
+                          {totalUnread}
                         </span>
                       )}
                     </span>
@@ -331,7 +331,7 @@ const AdminSidebar = ({
                         {link.label}
                         {link.label === "Messaging" && totalUnread > 0 && (
                           <span className='min-w-[18px] h-[18px] px-1 bg-red-500 rounded-full flex items-center justify-center text-[10px] leading-none font-bold text-white'>
-                            {totalUnread > 9 ? "9+" : totalUnread}
+                            {totalUnread}
                           </span>
                         )}
                       </span>

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Heart, MessageCircle, Edit, Trash, MoreVertical } from "lucide-react";
+import { Heart, MessageCircle, Edit, Trash, MoreVertical, ChevronDown, ChevronUp } from "lucide-react";
 import { Input } from "@/components/common/Input";
 import { Button } from "@/components/common/Button";
 import ProfileAvatar from "@/components/profile/ProfileAvatar";
@@ -7,6 +7,9 @@ import { realPhoto } from "./avatarStyles";
 import { ICommentThread } from "@/types";
 import { addPostComment } from "@/services/community.service";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+
+const REPLIES_PREVIEW_LIMIT = 2;
+const REPLIES_LOAD_MORE_BATCH = 5;
 
 interface CommunityCommentProps {
   comment: ICommentThread;
@@ -36,6 +39,11 @@ export const CommunityComment: React.FC<CommunityCommentProps> = ({
   const [menuOpen, setMenuOpen] = useState(false);
   const { confirm, dialog } = useConfirmDialog();
 
+  // Direct replies to a top-level comment (depth 0) preview a couple by default; replies to a
+  // reply (depth > 0) start fully collapsed — matches the mobile app's comment thread UX.
+  const defaultVisibleReplies = depth === 0 ? REPLIES_PREVIEW_LIMIT : 0;
+  const [visibleRepliesCount, setVisibleRepliesCount] = useState(defaultVisibleReplies);
+
   const isOwn = !!currentUserId && comment.userId === currentUserId;
 
   const handleSubmitReply = async () => {
@@ -54,7 +62,7 @@ export const CommunityComment: React.FC<CommunityCommentProps> = ({
         timestamp: created.timestamp,
         parentId: comment.id,
         user: created.user
-          ? { id: created.user.id, fullNames: created.user.fullNames, photo: created.user.photo }
+          ? { id: created.user.id, fullNames: created.user.fullNames, photo: created.user.photo ?? undefined }
           : undefined,
         replies: [],
       };
@@ -207,22 +215,63 @@ export const CommunityComment: React.FC<CommunityCommentProps> = ({
         )}
       </div>
 
-      {comment.replies && comment.replies.length > 0 && (
-        <div className="space-y-3 mt-3">
-          {comment.replies.map((reply) => (
-            <CommunityComment
-              key={reply.id}
-              comment={reply}
-              postId={postId}
-              currentUserId={currentUserId}
-              depth={depth + 1}
-              onReplyAdded={onReplyAdded}
-              onEdit={onEdit}
-              onDelete={onDelete}
-            />
-          ))}
-        </div>
-      )}
+      {(() => {
+        const totalReplies = comment.replies?.length || 0;
+        if (totalReplies === 0) return null;
+
+        const repliesToShow = (comment.replies || []).slice(0, visibleRepliesCount);
+        const hasMoreReplies = totalReplies > visibleRepliesCount;
+        const isFullyCollapsed = visibleRepliesCount === 0;
+
+        return (
+          <div className="space-y-3 mt-3">
+            {repliesToShow.map((reply) => (
+              <CommunityComment
+                key={reply.id}
+                comment={reply}
+                postId={postId}
+                currentUserId={currentUserId}
+                depth={depth + 1}
+                onReplyAdded={onReplyAdded}
+                onEdit={onEdit}
+                onDelete={onDelete}
+              />
+            ))}
+
+            <div className={`flex items-center gap-4 ${depth > 0 ? "ml-4 sm:ml-8" : ""}`}>
+              {isFullyCollapsed ? (
+                <button
+                  onClick={() => setVisibleRepliesCount(REPLIES_PREVIEW_LIMIT)}
+                  className="text-sm font-medium text-blue-600 hover:text-blue-700"
+                >
+                  View replies ({totalReplies})
+                </button>
+              ) : (
+                hasMoreReplies && (
+                  <button
+                    onClick={() =>
+                      setVisibleRepliesCount((c) => c + REPLIES_LOAD_MORE_BATCH)
+                    }
+                    className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+                  >
+                    <ChevronDown size={14} />
+                    View {Math.min(REPLIES_LOAD_MORE_BATCH, totalReplies - visibleRepliesCount)} more replies
+                  </button>
+                )
+              )}
+              {visibleRepliesCount > defaultVisibleReplies && (
+                <button
+                  onClick={() => setVisibleRepliesCount(defaultVisibleReplies)}
+                  className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+                >
+                  <ChevronUp size={14} />
+                  Hide replies
+                </button>
+              )}
+            </div>
+          </div>
+        );
+      })()}
       {dialog}
     </div>
   );
