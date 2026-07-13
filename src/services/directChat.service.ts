@@ -42,6 +42,7 @@ export interface IDirectMessageRaw {
   timestamp: string;
   sender?: { id: string; fullNames: string; photo?: string | null };
   likes?: Array<{ id: string }>;
+  offsetInConversation?: number;
 }
 
 // ==================== CONVERSATIONS ====================
@@ -99,6 +100,19 @@ export const getDirectChatMessages = async (
   return (
     await api.get(
       `/direct-chats/${chatId}/messages?limit=${limit}&offset=${offset}`,
+    )
+  ).data;
+};
+
+export const searchDirectChatMessages = async (
+  chatId: string,
+  q: string,
+  limit: number = 20,
+  offset: number = 0,
+): Promise<{ data: IDirectMessageRaw[]; total: number }> => {
+  return (
+    await api.get(
+      `/direct-chats/${chatId}/messages/search?q=${encodeURIComponent(q)}&limit=${limit}&offset=${offset}`,
     )
   ).data;
 };

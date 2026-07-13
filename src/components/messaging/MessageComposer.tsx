@@ -1,8 +1,9 @@
 import React, { useRef, useState } from "react";
-import { Paperclip, Send, Mic, Square, X, FileText } from "lucide-react";
+import { Plus, Send, Mic, X, FileText } from "lucide-react";
 import toast from "react-hot-toast";
 import { uploadFileByType, uploadAudio } from "@/services/uploader.api";
 import { IAttachment } from "@/types";
+import { VoiceRecorderBar } from "./VoiceRecorderBar";
 
 interface StagedFile {
   file: File;
@@ -33,15 +34,23 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
   const [staged, setStaged] = useState<StagedFile[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
+  const discardRef = useRef(false);
+  const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const handleFilesSelected = (files: FileList | null) => {
     if (!files || files.length === 0) return;
     const next: StagedFile[] = Array.from(files).map((file) => ({
       file,
-      previewUrl: file.type.startsWith("image/") ? URL.createObjectURL(file) : undefined,
+      previewUrl:
+        file.type.startsWith("image/") || file.type.startsWith("video/")
+          ? URL.createObjectURL(file)
+          : undefined,
       status: "pending",
     }));
     setStaged((prev) => [...prev, ...next]);
@@ -52,31 +61,87 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
     setStaged((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const uploadAndBuildAttachment = async (file: File): Promise<IAttachment> => {
+    const res = file.type.startsWith("audio/")
+      ? await uploadAudio(file, file.name)
+      : await uploadFileByType(file);
+    if (!res.data) throw new Error("Upload failed");
+    return { url: res.data.url, type: attachmentTypeFor(file.type), name: file.name };
+  };
+
+  const clearTimer = () => {
+    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    timerIntervalRef.current = null;
+  };
+
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
       const recorder = new MediaRecorder(stream);
       recordedChunksRef.current = [];
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) recordedChunksRef.current.push(e.data);
       };
-      recorder.onstop = () => {
+      recorder.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+        clearTimer();
+        setIsRecording(false);
+        setIsPaused(false);
+
+        if (discardRef.current) {
+          setElapsedSeconds(0);
+          recordedChunksRef.current = [];
+          return;
+        }
+
         const blob = new Blob(recordedChunksRef.current, { type: "audio/webm" });
         const file = new File([blob], `voice-note-${Date.now()}.webm`, { type: "audio/webm" });
-        setStaged((prev) => [...prev, { file, status: "pending" }]);
+        setElapsedSeconds(0);
+        try {
+          const attachment = await uploadAndBuildAttachment(file);
+          onSend([attachment]);
+        } catch (error) {
+          console.error("Voice note upload failed:", error);
+          toast.error("Failed to send voice message");
+        }
       };
       mediaRecorderRef.current = recorder;
+      discardRef.current = false;
       recorder.start();
       setIsRecording(true);
+      setIsPaused(false);
+      setElapsedSeconds(0);
+      clearTimer();
+      timerIntervalRef.current = setInterval(() => setElapsedSeconds((s) => s + 1), 1000);
     } catch {
       toast.error("Microphone access denied");
     }
   };
 
-  const stopRecording = () => {
+  const handleCancelRecording = () => {
+    discardRef.current = true;
     mediaRecorderRef.current?.stop();
-    setIsRecording(false);
+  };
+
+  const handleTogglePause = () => {
+    const recorder = mediaRecorderRef.current;
+    if (!recorder) return;
+    if (recorder.state === "recording") {
+      recorder.pause();
+      setIsPaused(true);
+      clearTimer();
+    } else if (recorder.state === "paused") {
+      recorder.resume();
+      setIsPaused(false);
+      timerIntervalRef.current = setInterval(() => setElapsedSeconds((s) => s + 1), 1000);
+    }
+  };
+
+  const handleSendRecording = () => {
+    discardRef.current = false;
+    mediaRecorderRef.current?.stop();
   };
 
   const handleSend = async () => {
@@ -87,16 +152,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
     if (staged.length > 0) {
       setIsUploading(true);
       try {
-        const uploaded = await Promise.all(
-          staged.map(async (s) => {
-            const res = s.file.type.startsWith("audio/")
-              ? await uploadAudio(s.file, s.file.name)
-              : await uploadFileByType(s.file);
-            if (!res.data) throw new Error("Upload failed");
-            return { url: res.data.url, type: attachmentTypeFor(s.file.type), name: s.file.name };
-          })
-        );
-        attachments = uploaded;
+        attachments = await Promise.all(staged.map((s) => uploadAndBuildAttachment(s.file)));
       } catch (error) {
         console.error("Attachment upload failed:", error);
         toast.error("Failed to upload attachment");
@@ -112,11 +168,13 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
 
   return (
     <div className="border-t border-gray-200 flex-shrink-0">
-      {staged.length > 0 && (
+      {!isRecording && staged.length > 0 && (
         <div className="flex gap-2 flex-wrap px-4 pt-3">
           {staged.map((s, i) => (
             <div key={i} className="relative">
-              {s.previewUrl ? (
+              {s.previewUrl && s.file.type.startsWith("video/") ? (
+                <video src={s.previewUrl} muted className="w-16 h-16 object-cover rounded-lg border" />
+              ) : s.previewUrl ? (
                 <img src={s.previewUrl} alt={s.file.name} className="w-16 h-16 object-cover rounded-lg border" />
               ) : (
                 <div className="w-16 h-16 flex flex-col items-center justify-center gap-1 rounded-lg border bg-gray-50 text-gray-500 px-1">
@@ -134,7 +192,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
           ))}
         </div>
       )}
-      <div className="p-4 flex items-center gap-2">
+      <div className="p-4 flex items-center">
         <input
           ref={fileInputRef}
           type="file"
@@ -142,43 +200,54 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
           hidden
           onChange={(e) => handleFilesSelected(e.target.files)}
         />
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full flex-shrink-0"
-          title="Attach file"
-        >
-          <Paperclip size={20} />
-        </button>
-        <input
-          type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              handleSend();
-            }
-          }}
-          placeholder={placeholder}
-          className="flex-1 border border-gray-300 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3363AD] min-w-0"
-        />
-        <button
-          onClick={isRecording ? stopRecording : startRecording}
-          className={`p-2 rounded-full flex-shrink-0 ${
-            isRecording ? "text-red-600 bg-red-50" : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
-          }`}
-          title={isRecording ? "Stop recording" : "Record voice message"}
-        >
-          {isRecording ? <Square size={18} /> : <Mic size={20} />}
-        </button>
-        <button
-          onClick={handleSend}
-          disabled={isUploading || (!value.trim() && staged.length === 0)}
-          className="p-2.5 bg-[#3363AD] text-white rounded-full hover:bg-[#3363ADCF] disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
-          title="Send"
-        >
-          <Send size={18} />
-        </button>
+        {isRecording && streamRef.current ? (
+          <VoiceRecorderBar
+            stream={streamRef.current}
+            elapsedSeconds={elapsedSeconds}
+            isPaused={isPaused}
+            onCancel={handleCancelRecording}
+            onTogglePause={handleTogglePause}
+            onSend={handleSendRecording}
+          />
+        ) : (
+          <div className="flex-1 flex items-center gap-1 bg-gray-100 border border-gray-300 rounded-full pl-2 pr-1 py-1 min-w-0">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="p-1.5 text-gray-500 hover:text-gray-700 flex-shrink-0"
+              title="Attach file"
+            >
+              <Plus size={20} />
+            </button>
+            <input
+              type="text"
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
+              placeholder={placeholder}
+              className="flex-1 min-w-0 bg-transparent border-none focus:outline-none text-sm"
+            />
+            <button
+              onClick={startRecording}
+              className="p-1.5 rounded-full flex-shrink-0 text-gray-500 hover:text-gray-700"
+              title="Record voice message"
+            >
+              <Mic size={18} />
+            </button>
+            <button
+              onClick={handleSend}
+              disabled={isUploading || (!value.trim() && staged.length === 0)}
+              className="p-2 bg-primary text-white rounded-full hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+              title="Send"
+            >
+              <Send size={16} />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

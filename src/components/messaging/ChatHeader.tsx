@@ -62,7 +62,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               </span>
             )}
           </div>
-          <p className="text-xs text-gray-500 truncate">
+          <p className={`text-xs truncate ${isDirect && isOnline ? "text-green-600" : "text-gray-500"}`}>
             {isDirect
               ? isOnline === undefined
                 ? "Direct message"

@@ -21,6 +21,8 @@ interface MessageBubbleProps {
   onCancelEdit: () => void;
   onDelete: () => void;
   onToggleLike: () => void;
+  /** Briefly rings the bubble — used to draw attention after jumping here from a search result. */
+  highlighted?: boolean;
 }
 
 export const MessageBubble: React.FC<MessageBubbleProps> = ({
@@ -38,6 +40,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   onCancelEdit,
   onDelete,
   onToggleLike,
+  highlighted,
 }) => {
   const [hovered, setHovered] = useState(false);
 
@@ -52,11 +55,23 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   };
 
   const showEditDelete = isOwn;
+  const isRead = (message.readBy?.length || 0) > 0;
   const attachment = message.attachments?.[0];
   const isEdgeToEdgeMedia = !isEditing && !!attachment && (message.type === "image" || message.type === "video");
+  const isCompactMedia = !isEditing && !!attachment && (message.type === "audio" || message.type === "file");
+
+  const timeLabel = new Date(message.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+  const likesBadge = (message.likes || 0) > 0 && (
+    <span className="flex items-center gap-0.5">
+      <Heart size={11} className="fill-current text-red-400" />
+      {message.likes}
+    </span>
+  );
 
   return (
     <div
+      id={`message-${message.id}`}
       className={`flex items-end gap-2 group ${isOwn ? "justify-end" : "justify-start"}`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -76,9 +91,13 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
             <span className="text-xs text-gray-500 mb-1 ml-1">{message.sender?.fullNames || "User"}</span>
           )}
           <div
-            className={`rounded-2xl shadow-sm max-w-xs lg:max-w-md overflow-hidden ${
-              isOwn ? "bg-[#3363AD] text-white rounded-br-md" : "bg-white text-gray-900 rounded-bl-md border border-gray-200"
-            } ${isEditing || !isEdgeToEdgeMedia ? "px-4 py-3" : ""}`}
+            className={`rounded-2xl shadow-sm overflow-hidden transition-shadow duration-500 ${
+              isEdgeToEdgeMedia ? "w-64" : "max-w-xs lg:max-w-md"
+            } ${
+              isOwn ? "bg-primary text-white" : "bg-white text-gray-900 border border-gray-200"
+            } ${isEditing || (!isEdgeToEdgeMedia && !isCompactMedia) ? "px-4 py-3" : ""} ${isCompactMedia ? "p-2" : ""} ${
+              highlighted ? "ring-4 ring-yellow-300" : ""
+            }`}
           >
             {isEditing ? (
               <div className="space-y-2">
@@ -98,34 +117,42 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                   </button>
                 </div>
               </div>
-            ) : (
-              <>
-                {message.type === "text" && <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>}
-                {isEdgeToEdgeMedia && attachment && (
-                  <MessageMedia attachment={attachment} variant="bubble" messageId={message.id} />
-                )}
-                {message.type !== "text" && !isEdgeToEdgeMedia && attachment && (
-                  <MessageMedia attachment={attachment} variant="bubble" messageId={message.id} />
-                )}
-                {message.type !== "text" && message.content && (
-                  <p className={`text-sm ${isEdgeToEdgeMedia ? "px-4 pt-2" : "mt-2"}`}>{message.content}</p>
-                )}
-                <div className={`flex items-center justify-end gap-1 mt-2 ${isEdgeToEdgeMedia ? "px-4 pb-1" : ""}`}>
-                  {(message.likes || 0) > 0 && (
-                    <span className={`text-xs flex items-center gap-0.5 ${isOwn ? "text-blue-200" : "text-gray-500"}`}>
-                      <Heart size={11} className="fill-current text-red-400" />
-                      {message.likes}
-                    </span>
-                  )}
-                  <span className={`text-xs flex items-center gap-1 ${isOwn ? "text-blue-200" : "text-gray-500"}`}>
-                    {message.isEdited && "Edited · "}
-                    {new Date(message.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                    {isOwn && <CheckCheck size={12} className="text-blue-200" />}
+            ) : message.type === "text" ? (
+              <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+            ) : isEdgeToEdgeMedia && attachment ? (
+              <div className="relative">
+                <MessageMedia attachment={attachment} variant="bubble" messageId={message.id} isOwn={isOwn} />
+                <div className="absolute bottom-2 right-2 flex items-center gap-1 bg-black/50 rounded-full px-2 py-0.5">
+                  {likesBadge && <span className="text-[10px] text-white">{likesBadge}</span>}
+                  <span className="text-[10px] text-white flex items-center gap-1">
+                    {timeLabel}
+                    {isOwn && (
+                      <CheckCheck size={11} className={isRead ? "text-[#34B7F1]" : "text-white/70"} />
+                    )}
                   </span>
                 </div>
-              </>
+                {message.content && (
+                  <p className="text-sm px-1 pt-2">{message.content}</p>
+                )}
+              </div>
+            ) : (
+              attachment && <MessageMedia attachment={attachment} variant="bubble" messageId={message.id} isOwn={isOwn} />
             )}
           </div>
+
+          {/* Timestamp + read receipt: outside the bubble for text/compact-media, matching the reference */}
+          {!isEditing && !isEdgeToEdgeMedia && (
+            <div className={`flex items-center gap-1.5 mt-1 px-1 ${isOwn ? "justify-end" : "justify-start"}`}>
+              {likesBadge && <span className="text-xs text-gray-400 flex items-center gap-0.5">{likesBadge}</span>}
+              <span className="text-xs text-gray-400 flex items-center gap-1">
+                {message.isEdited && "Edited · "}
+                {timeLabel}
+                {isOwn && (
+                  <CheckCheck size={12} className={isRead ? "text-[#34B7F1]" : "text-gray-400"} />
+                )}
+              </span>
+            </div>
+          )}
         </div>
 
         {!isEditing && hovered && (
@@ -163,7 +190,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           photo={realPhoto(ownPhotoUrl)}
           size="w-8 h-8"
           className="text-xs flex-shrink-0"
-          color="bg-[#3363AD] text-white"
+          color="bg-primary text-white"
         />
       )}
     </div>

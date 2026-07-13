@@ -4,7 +4,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faUsers } from "@fortawesome/free-solid-svg-icons";
 import ProfileAvatar from "@/components/profile/ProfileAvatar";
 import { IConversation } from "@/types";
-import { conversationAvatarColor, realPhoto } from "./avatarStyles";
+import { conversationAvatarColor, realPhoto, formatRelativeTime } from "./avatarStyles";
 
 interface ConversationListItemProps {
   conversation: IConversation;
@@ -33,11 +33,23 @@ export const ConversationListItem: React.FC<ConversationListItemProps> = ({
 
   const displayPhoto = isDirect ? conversation.participants[0]?.user?.photo : conversation.photo;
 
+  const mediaPreviewLabel: Record<string, string> = {
+    image: "📷 Photo",
+    video: "🎥 Video",
+    audio: "🎵 Audio",
+    file: "📄 Document",
+  };
+  const lastMessagePreview = conversation.lastMessage
+    ? conversation.lastMessage.content?.trim()
+      ? conversation.lastMessage.content
+      : mediaPreviewLabel[conversation.lastMessage.type] || "Message"
+    : "";
+
   return (
     <div
       onClick={onClick}
-      className={`p-4 border-b border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors ${
-        isActive ? "bg-blue-50" : ""
+      className={`mx-2 my-0.5 p-3 rounded-xl cursor-pointer transition-colors ${
+        isActive ? "bg-primary/10" : "hover:bg-gray-50"
       }`}
     >
       <div className="flex items-start gap-3">
@@ -72,44 +84,23 @@ export const ConversationListItem: React.FC<ConversationListItemProps> = ({
           {conversation.lastMessage ? (
             <p className="text-xs text-gray-600 truncate mb-2">
               {isDirect
-                ? conversation.lastMessage.content
-                : `${conversation.lastMessage.sender?.fullNames || "User"}: ${conversation.lastMessage.content}`}
+                ? lastMessagePreview
+                : `${conversation.lastMessage.sender?.fullNames || "User"}: ${lastMessagePreview}`}
             </p>
           ) : (
             <p className="text-xs text-gray-400 italic mb-2">No messages yet</p>
           )}
-          {!isDirect && (
-            <div className="flex items-center gap-1 flex-wrap">
-              {conversation.participants.slice(0, 3).map((p) => (
-                <div
-                  key={p.userId}
-                  className="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center text-xs font-medium text-white border border-white"
-                  title={p.user?.fullNames}
-                >
-                  {p.user?.fullNames?.split(" ").map((n) => n[0]).join("") || "U"}
-                </div>
-              ))}
-              {conversation.participants.length > 3 && (
-                <div className="w-6 h-6 rounded-full bg-gray-400 flex items-center justify-center text-xs font-bold text-white border border-white">
-                  +{conversation.participants.length - 3}
-                </div>
-              )}
-            </div>
-          )}
         </div>
         <div className="flex flex-col items-end gap-1 flex-shrink-0">
           {conversation.lastMessage && (
-            <span className="text-xs text-gray-500">
-              {new Date(conversation.lastMessage.timestamp).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
+            <span className="text-xs text-gray-500 whitespace-nowrap">
+              {formatRelativeTime(conversation.lastMessage.timestamp)}
             </span>
           )}
           {unreadCount > 0 && (
-            <div className="min-w-[18px] h-[18px] px-1 bg-red-500 rounded-full flex items-center justify-center">
+            <div className="min-w-[18px] h-[18px] px-1 bg-primary rounded-full flex items-center justify-center">
               <span className="text-[10px] leading-none font-bold text-white">
-                {unreadCount > 9 ? "9+" : unreadCount}
+                {unreadCount}
               </span>
             </div>
           )}

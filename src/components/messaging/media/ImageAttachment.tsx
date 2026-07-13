@@ -18,7 +18,7 @@ export const ImageAttachment: React.FC<ImageAttachmentProps> = ({ attachment, va
         onClick={() => setOpen(true)}
         className={
           variant === "bubble"
-            ? "w-[220px] h-[220px] object-cover cursor-pointer block"
+            ? "w-full h-52 object-cover cursor-pointer block"
             : "w-full h-64 object-cover rounded-lg cursor-pointer block"
         }
       />

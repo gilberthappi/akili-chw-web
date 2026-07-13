@@ -1,28 +1,18 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { X, Search, BellOff, Bell, Ban, UserX, Trash2, Pencil, LogOut, AlertTriangle } from "lucide-react";
+import { X, Search, BellOff, Bell, Ban, UserX, Trash2, Pencil, LogOut, AlertTriangle, IdCard, Clock, Globe, SlidersHorizontal } from "lucide-react";
 import toast from "react-hot-toast";
 import { Button } from "@/components/common/Button";
+import ComboboxField from "@/components/common/form/ComboboxField";
 import ProfileAvatar from "@/components/profile/ProfileAvatar";
 import { IConversation, IUser } from "@/types";
-import { conversationAvatarColor, realPhoto } from "./avatarStyles";
+import { conversationAvatarColor, realPhoto, formatRelativeTime } from "./avatarStyles";
 import { useMuteConversation } from "@/hooks/useConversations";
 import { useBlockedUsers, useBlockUser, useUnblockUser } from "@/hooks/useUserRelations";
 import { getDirectChatWithMessages } from "@/services/directChat.service";
 import { useNotificationsContext } from "@/contexts/NotificationsContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
-
-const formatRelativeTime = (iso: string): string => {
-  const diffMs = Date.now() - new Date(iso).getTime();
-  const minutes = Math.floor(diffMs / 60000);
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes} minute${minutes === 1 ? "" : "s"} ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
-  const days = Math.floor(hours / 24);
-  return `${days} day${days === 1 ? "" : "s"} ago`;
-};
 
 interface ContactInfoPanelProps {
   conversation: IConversation;
@@ -83,6 +73,15 @@ export const ContactInfoPanel: React.FC<ContactInfoPanelProps> = ({
   const isBlocked = isDirect && blockedUsers.some((b) => b.user.id === otherParticipant?.userId);
   const { confirm, dialog } = useConfirmDialog();
 
+  // Local time ticks forward every 30s so the Activity section stays accurate without a
+  // full re-render loop elsewhere in the panel.
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(interval);
+  }, []);
+  const localTime = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
   const handleToggleMute = () => {
     muteMutation.mutate(
       { conversationId: conversation.id, type: conversation.type, muted: !conversation.muted },
@@ -125,14 +124,13 @@ export const ContactInfoPanel: React.FC<ContactInfoPanelProps> = ({
 
   return (
     <div className="w-full lg:w-80 border-l border-gray-200 flex flex-col h-full bg-white overflow-y-auto flex-shrink-0">
-      <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-        <h3 className="font-semibold text-gray-900">Details</h3>
+      <div className="flex justify-end p-4 pb-0">
         <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600">
           <X size={18} />
         </button>
       </div>
 
-      <div className="p-6 flex flex-col items-center border-b border-gray-200">
+      <div className="p-6 pt-2 flex flex-col items-center border-b border-gray-200">
         <ProfileAvatar
           name={displayName}
           photo={realPhoto(displayPhoto)}
@@ -159,20 +157,10 @@ export const ContactInfoPanel: React.FC<ContactInfoPanelProps> = ({
         )}
       </div>
 
-      {isDirect && (isOnline || lastSeen) && (
-        <div className="p-4 border-b border-gray-200">
-          <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
-            Activity
-          </h4>
-          <div className="text-sm text-gray-700">
-            {isOnline ? "Online now" : lastSeen ? `Last seen ${formatRelativeTime(lastSeen)}` : null}
-          </div>
-        </div>
-      )}
-
       {isDirect && (
         <div className="p-4 border-b border-gray-200">
-          <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+          <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+            <IdCard size={14} />
             Contact Information
           </h4>
           <div className="space-y-2 text-sm">
@@ -189,6 +177,33 @@ export const ContactInfoPanel: React.FC<ContactInfoPanelProps> = ({
               </div>
             )}
             {!contactDetails && <p className="text-gray-400">Loading...</p>}
+          </div>
+        </div>
+      )}
+
+      {isDirect && (
+        <div className="p-4 border-b border-gray-200">
+          <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+            <Clock size={14} />
+            Activity
+          </h4>
+          <div className="space-y-3">
+            <div className="flex items-start gap-2.5">
+              <Clock size={16} className="text-gray-400 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-xs text-gray-500">Last seen</p>
+                <p className="text-sm text-gray-900">
+                  {isOnline ? "Online now" : lastSeen ? formatRelativeTime(lastSeen) : "Offline"}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2.5">
+              <Globe size={16} className="text-gray-400 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-xs text-gray-500">Local time</p>
+                <p className="text-sm text-gray-900">{localTime}</p>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -215,21 +230,18 @@ export const ContactInfoPanel: React.FC<ContactInfoPanelProps> = ({
               </div>
             ))}
           </div>
-          <div className="flex gap-2 mt-3">
-            <select
-              value={selectedNewMember}
-              onChange={(e) => setSelectedNewMember(e.target.value)}
-              className="flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-sm"
-            >
-              <option value="">Add a member...</option>
-              {availableUsers
-                .filter((u) => !conversation.participants.some((p) => p.userId === u.id))
-                .map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.fullNames}
-                  </option>
-                ))}
-            </select>
+          <div className="flex gap-2 mt-3 items-start">
+            <div className="flex-1 min-w-0">
+              <ComboboxField
+                options={availableUsers
+                  .filter((u) => !conversation.participants.some((p) => p.userId === u.id))
+                  .map((u) => ({ value: u.id, label: u.fullNames }))}
+                defaultValue={selectedNewMember}
+                onChange={(value) => setSelectedNewMember(value)}
+                margin={false}
+                placeholder="Search members to add..."
+              />
+            </div>
             <Button
               size="sm"
               disabled={!selectedNewMember}
@@ -245,7 +257,10 @@ export const ContactInfoPanel: React.FC<ContactInfoPanelProps> = ({
       )}
 
       <div className="p-4">
-        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Actions</h4>
+        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+          <SlidersHorizontal size={14} />
+          Actions
+        </h4>
         <div className="space-y-1">
           <button
             onClick={onSearchInConversation}

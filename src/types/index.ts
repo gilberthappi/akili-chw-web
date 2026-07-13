@@ -316,6 +316,10 @@ export interface IMessage {
   likes?: number;
   isLikedByMe?: boolean;
   comments?: ICommentThread[];
+  /** Only present on search results — this message's 0-based position under the
+   * conversation's normal newest-first pagination, used to jump to the page that
+   * contains it. */
+  offsetInConversation?: number;
 }
 
 export type ConversationType = "direct" | "group" | "community";

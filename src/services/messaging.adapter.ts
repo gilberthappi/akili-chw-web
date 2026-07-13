@@ -60,6 +60,7 @@ export const normalizeMessage = (
   likes: raw.likeCount,
   isLikedByMe: (raw.likes?.length || 0) > 0,
   readBy: raw.readCount ? [{ userId: "", readAt: raw.timestamp }] : [],
+  offsetInConversation: raw.offsetInConversation,
 });
 
 export const normalizeCommunityPost = (
@@ -83,7 +84,8 @@ export const normalizeCommunityPost = (
     (raw.photo ? [{ url: resolveAttachmentUrl(raw.photo), type: "image" as const }] : null),
   timestamp: raw.timestamp,
   likes: raw.likeCount,
-  comments: [],
+  comments: raw.comments?.map((c) => normalizeCommentThread(c, raw.id)) || [],
+  offsetInConversation: raw.offsetInConversation,
 });
 
 const normalizeCommentThread = (

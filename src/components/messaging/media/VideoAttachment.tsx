@@ -7,15 +7,23 @@ interface VideoAttachmentProps {
   variant: "bubble" | "card";
 }
 
+const formatDuration = (seconds: number): string => {
+  if (!isFinite(seconds) || seconds < 0) return "";
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
+};
+
 export const VideoAttachment: React.FC<VideoAttachmentProps> = ({ attachment, variant }) => {
   const [fullscreen, setFullscreen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [duration, setDuration] = useState<number | null>(null);
 
   const boxClass =
     variant === "bubble"
-      ? "w-[220px] h-[165px] relative bg-black flex items-center justify-center overflow-hidden"
+      ? "w-full h-52 relative bg-black flex items-center justify-center overflow-hidden"
       : "w-full h-56 relative bg-black flex items-center justify-center overflow-hidden rounded-lg";
 
   const retry = () => {
@@ -33,7 +41,7 @@ export const VideoAttachment: React.FC<VideoAttachmentProps> = ({ attachment, va
         >
           <AlertCircle size={28} />
           <span className="text-xs text-center px-4">Video can't be opened</span>
-          <span className="text-xs flex items-center gap-1 text-[#3363AD]">
+          <span className="text-xs flex items-center gap-1 text-primary">
             <RotateCcw size={12} />
             Tap to retry
           </span>
@@ -52,6 +60,7 @@ export const VideoAttachment: React.FC<VideoAttachmentProps> = ({ attachment, va
           muted
           className="w-full h-full object-cover"
           onLoadedData={() => setLoading(false)}
+          onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
           onError={() => {
             setLoading(false);
             setError(true);
@@ -63,15 +72,22 @@ export const VideoAttachment: React.FC<VideoAttachmentProps> = ({ attachment, va
           </div>
         )}
         {!loading && (
-          <button
-            onClick={() => setFullscreen(true)}
-            className="absolute inset-0 flex items-center justify-center"
-            title="Play video"
-          >
-            <span className="w-12 h-12 rounded-full bg-black/50 flex items-center justify-center">
-              <Play size={22} className="text-white fill-white ml-0.5" />
-            </span>
-          </button>
+          <>
+            <button
+              onClick={() => setFullscreen(true)}
+              className="absolute inset-0 flex items-center justify-center"
+              title="Play video"
+            >
+              <span className="w-12 h-12 rounded-full bg-black/50 flex items-center justify-center">
+                <Play size={22} className="text-white fill-white ml-0.5" />
+              </span>
+            </button>
+            {duration !== null && formatDuration(duration) && (
+              <span className="absolute bottom-2 left-2 bg-black/60 text-white text-xs rounded-full px-2 py-0.5">
+                {formatDuration(duration)}
+              </span>
+            )}
+          </>
         )}
       </div>
 

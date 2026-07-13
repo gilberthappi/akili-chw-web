@@ -99,6 +99,7 @@ export const useCreateConversation = () => {
     type: ConversationType;
     name?: string;
     isPublic?: boolean;
+    photo?: string;
     participantIds: string[];
   }): Promise<IConversation> => {
     if (data.type === "direct") {
@@ -110,6 +111,7 @@ export const useCreateConversation = () => {
       const group = await createGroup({
         name: data.name || "Group",
         participantIds: data.participantIds,
+        photo: data.photo,
       });
       return normalizeGroupChat(group);
     }
@@ -117,6 +119,7 @@ export const useCreateConversation = () => {
       name: data.name || "Community",
       isPublic: data.isPublic,
       participantIds: data.participantIds,
+      photo: data.photo,
     });
     return normalizeCommunity(community);
   };
