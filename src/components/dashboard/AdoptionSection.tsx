@@ -34,6 +34,7 @@ export const AdoptionSection: React.FC<AdoptionSectionProps> = ({
     courseDuration,
     recentActivity,
     isLoading,
+    isFetching,
     error,
   } = useAdoptionStats(filters);
 
@@ -62,7 +63,7 @@ export const AdoptionSection: React.FC<AdoptionSectionProps> = ({
   if (isLoading && !chwStats) return <SectionSkeleton cards={5} rows={2} />;
 
   return (
-    <div className={`space-y-5 transition-opacity duration-200 ${isLoading ? "opacity-60 pointer-events-none" : "opacity-100"}`}>
+    <div className={`space-y-5 transition-opacity duration-200 ${isFetching ? "opacity-60 pointer-events-none" : "opacity-100"}`}>
       {error && (
         <div
           className='text-sm text-red-500 bg-red-50 border border-red-100

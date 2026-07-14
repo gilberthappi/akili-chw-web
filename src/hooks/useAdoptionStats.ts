@@ -50,6 +50,7 @@ interface AdoptionStats {
   courseDuration: ICourseDurationStats | null;
   recentActivity: IRecentActivityFeed | null;
   isLoading: boolean;
+  isFetching: boolean;
   error: string | null;
   refetch: () => void;
 }
@@ -72,10 +73,11 @@ interface AdoptionQueryResult {
 
 export const useAdoptionStats = (
   filters: AnalyticsFilters = DEFAULT_DASHBOARD_FILTERS,
+  enabled: boolean = true,
 ): AdoptionStats => {
   const qs = buildDashboardFilterQuery(filters);
 
-  const { data, isLoading, error, refetch } = useQuery({
+  const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: dashboardKeys.adoption(dashboardFilterKey(filters)),
     queryFn: async (): Promise<AdoptionQueryResult> => {
       const results = await Promise.allSettled([
@@ -136,6 +138,8 @@ export const useAdoptionStats = (
         recentActivity,
       };
     },
+    enabled,
+    keepPreviousData: true,
     staleTime: DASHBOARD_CACHE_MS,
     gcTime: DASHBOARD_CACHE_MS,
   });
@@ -185,6 +189,7 @@ export const useAdoptionStats = (
     courseDuration: data?.courseDuration ?? null,
     recentActivity: data?.recentActivity ?? null,
     isLoading,
+    isFetching,
     error: error ? "Failed to fetch data. Please try again." : null,
     refetch: () => {
       void refetch();
