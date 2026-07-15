@@ -27,6 +27,9 @@ import ProfileAvatar from "@/components/profile/ProfileAvatar";
 import { useProfilePhoto } from "@/hooks/useProfilePhoto";
 import { ChatWidget } from "@/components/chat/ChatWidget";
 import { useUnreadCounts } from "@/hooks/useUnreadCounts";
+import { postHeartbeat } from "@/services/activity.service";
+
+const HEARTBEAT_INTERVAL_MS = 4 * 60 * 1000; // 4 minutes
 
 
 const AdminSidebar = ({
@@ -400,6 +403,21 @@ const DashboardLayout = ({
       setSidebarVisible(false);
     }
   }, [location.pathname]);
+
+  // Session-duration heartbeat — fire-and-forget telemetry, never blocks the UI.
+  useEffect(() => {
+    if (!user) return;
+
+    const sendHeartbeat = () => {
+      const courseMatch = location.pathname.match(/^\/learn\/([^/]+)/);
+      void postHeartbeat(courseMatch?.[1]);
+    };
+
+    sendHeartbeat();
+    const id = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
+    return () => clearInterval(id);
+     
+  }, [user, location.pathname]);
 
   const handleSidebarToggle = (collapsed: boolean) => {
     if (onSidebarToggle) onSidebarToggle(collapsed);

@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { getMyGroup, getGroupMonitoring } from "@/services/choGroup.service";
 import { ICHOGroupMonitoringMember } from "@/types";
+import { SectionSkeleton } from "./shared/SectionSkeleton";
 
 /* ─── Avatar ─────────────────────────────────────────────────────── */
 const Avatar: React.FC<{ name: string; photo: string | null; size?: string }> = ({
@@ -119,17 +120,21 @@ const StatCard: React.FC<{
 export const CHOSection: React.FC = () => {
   const navigate = useNavigate();
 
-  const { data: group } = useQuery({
+  const { data: group, isLoading: isGroupLoading } = useQuery({
     queryKey: ["cho-group-mine"],
     queryFn: getMyGroup,
     retry: false,
   });
 
-  const { data: monitoring, isLoading } = useQuery({
+  const { data: monitoring, isLoading: isMonitoringLoading } = useQuery({
     queryKey: ["cho-group-monitoring"],
     queryFn: getGroupMonitoring,
     retry: false,
   });
+
+  const isLoading = isGroupLoading || isMonitoringLoading;
+
+  if (isLoading) return <SectionSkeleton cards={4} rows={2} />;
 
   const members = monitoring?.members ?? [];
 
@@ -243,13 +248,7 @@ export const CHOSection: React.FC = () => {
             </button>
           </div>
 
-          {isLoading ? (
-            <div className="space-y-3 animate-pulse">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="h-14 bg-gray-50 rounded-xl" />
-              ))}
-            </div>
-          ) : members.length === 0 ? (
+          {members.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 text-center">
               <div className="w-12 h-12 rounded-xl bg-[#EBF0F9] flex items-center justify-center mb-3">
                 <Users size={20} className="text-[#3363AD]/40" />
