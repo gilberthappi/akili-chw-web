@@ -13,6 +13,9 @@ import { AssessmentOverviewCard } from "./AssessmentOverviewCard";
 import { DemographicsSection } from "./DemographicsSection";
 import { RwandaDistrictMap } from "./RwandaDistrictMap";
 import { CHWStatsCards } from "./CHWStatsCards";
+import { HospitalCoverageTable } from "./HospitalCoverageTable";
+import { MonthlyActiveTrendsChart } from "./MonthlyActiveTrendsChart";
+import { CertificationRateCard } from "./CertificationRateCard";
 
 interface AdoptionSectionProps {
   filters: IDashboardFilters;
@@ -33,6 +36,12 @@ export const AdoptionSection: React.FC<AdoptionSectionProps> = ({
     chwStats,
     courseDuration,
     recentActivity,
+    monthlyActiveTrends,
+    certification,
+    avgStudyTimeByCourse,
+    byProvince,
+    totalChws,
+    registrationRate,
     isLoading,
     isFetching,
     error,
@@ -79,6 +88,7 @@ export const AdoptionSection: React.FC<AdoptionSectionProps> = ({
         <CourseEngagementTable
           courseAnalytics={courseAnalytics}
           testScores={testScores}
+          avgStudyTimeByCourse={avgStudyTimeByCourse}
         />
         <AssessmentOverviewCard chwStats={chwStats} testScores={testScores} />
       </div>
@@ -110,6 +120,17 @@ export const AdoptionSection: React.FC<AdoptionSectionProps> = ({
         />
         <EnrollmentTrendChart trends={filteredEnrollmentTrends} />
       </div>
+
+      <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
+        <MonthlyActiveTrendsChart data={monthlyActiveTrends} />
+        <CertificationRateCard data={certification} filters={filters} />
+      </div>
+
+      {/* <HospitalCoverageTable
+        byProvince={byProvince}
+        totalChws={totalChws}
+        registrationRate={registrationRate}
+      /> */}
 
       {/* District map */}
       <RwandaDistrictMap

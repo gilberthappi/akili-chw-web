@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Phase3Section } from "@/components/dashboard/Phase3Section";
 import { LearnerSection } from "@/components/dashboard/LearnerSection";
 import { AdoptionSection } from "@/components/dashboard/AdoptionSection";
+import { SupervisorResponseCard } from "@/components/dashboard/SupervisorResponseCard";
 import { DeveloperSection } from "@/components/dashboard/DeveloperSection";
 import { CHOSection } from "@/components/dashboard/CHOSection";
 import { DashboardGlobalFilters } from "@/components/dashboard/DashboardGlobalFilters";
@@ -38,7 +39,10 @@ export const Dashboard: React.FC = () => {
     isLoading,
     isFetching: isStatsFetching,
   } = useDashboardStats({ enabled: needsAnalytics, filters });
-  const { isFetching: isAdoptionFetching } = useAdoptionStats(filters, needsAdoption);
+  const { supervisorResponseRate, isFetching: isAdoptionFetching } = useAdoptionStats(
+    filters,
+    needsAdoption,
+  );
   const isRefetching = isStatsFetching || isAdoptionFetching;
 
   const is = (role: string) => userRoles.includes(role);
@@ -108,6 +112,12 @@ export const Dashboard: React.FC = () => {
           hideKpis={isAnyOf("ADMIN", "DEVELOPER")}
           filters={filters}
         />
+      )}
+
+      {isAnyOf("ADMIN", "STAFF", "DEVELOPER") && (
+        <div className="w-full lg:w-1/2">
+          <SupervisorResponseCard data={supervisorResponseRate} />
+        </div>
       )}
 
       {is("DEVELOPER") && <DeveloperSection />}

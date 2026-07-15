@@ -3,7 +3,7 @@ import { ICourseAnalytics, IStudentAnalytics, IDashboardStats, IDashboardFilters
 import { KpiCard } from "./shared/KpiCard";
 import { DashboardSectionHeader } from "./shared/DashboardSectionHeader";
 import { SectionSkeleton } from "./shared/SectionSkeleton";
-// import { TrainingFunnelCard } from "./TrainingFunnelCard";
+import { TrainingFunnelCard } from "./TrainingFunnelCard";
 import { TestScoreCard } from "./TestScoreCard";
 import { RecommendationReviewCard } from "./RecommendationReviewCard";
 import { CertificationCard } from "./CertificationCard";
@@ -96,6 +96,11 @@ export const Phase3Section: React.FC<Phase3SectionProps> = ({
             />
           </div>
         </div>
+      )}
+
+      {/* Training funnel */}
+      {!hideKpis && (
+        <TrainingFunnelCard courses={courseAnalytics?.coursePerformanceMetrics ?? []} />
       )}
     </div>
   );
