@@ -44,6 +44,26 @@ interface AttendanceRecord {
   };
 }
 
+interface InvitedUserProfile {
+  id: string;
+  fullNames: string;
+  email: string;
+  gender: string | null;
+  district: string | null;
+  sector: string | null;
+  cell: string | null;
+  village: string | null;
+  hospital: { name: string } | null;
+  userRoles: UserRoleEntry[];
+}
+
+interface InvitedInfo {
+  total: number;
+  attended: number;
+  pct: number | null;
+  absentees: InvitedUserProfile[];
+}
+
 interface AggregatedAttendee {
   key: string;
   userId: string | null;
@@ -89,7 +109,7 @@ const MeetingAttendance: React.FC = () => {
       const res = await api.get(`/attendance/event/${eventId}`);
       return {
         records: (res.data?.data ?? []) as AttendanceRecord[],
-        invited: (res.data?.invited ?? null) as { total: number; attended: number; pct: number | null } | null,
+        invited: (res.data?.invited ?? null) as InvitedInfo | null,
       };
     },
     enabled: !!eventId,
@@ -187,9 +207,11 @@ const MeetingAttendance: React.FC = () => {
 
   const handleExport = async () => {
     const wb = new ExcelJS.Workbook();
-    const ws = wb.addWorksheet('Attendance');
+    const ws = wb.addWorksheet('Attended');
 
     const PRIMARY   = '3363AD';
+    const ABSENT_RED = 'B91C1C';
+    const ABSENT_BG  = 'FEF2F2'; // red-50
     const HOST_BG   = 'FEF3C7'; // amber-100
     const REG_BG    = 'EFF6FF'; // blue-50
     const GUEST_BG  = 'FFF7ED'; // orange-50
@@ -283,6 +305,81 @@ const MeetingAttendance: React.FC = () => {
 
     // ── Freeze panes ───────────────────────────────────────────
     ws.views = [{ state: 'frozen', ySplit: 4 }];
+
+    // ── Absent sheet ───────────────────────────────────────────
+    // Only internally-invited (registered) participants who never joined.
+    // Guests and externally-invited people are never evaluated for absence
+    // since there's no reliable way to match them to an invite record.
+    const absentees = invited?.absentees ?? [];
+    const wsAbsent = wb.addWorksheet('Absent');
+
+    const absentColDefs = [
+      { header: 'Name',     key: 'name',     width: 28 },
+      { header: 'Email',    key: 'email',    width: 28 },
+      { header: 'Role',     key: 'role',     width: 14 },
+      { header: 'Hospital', key: 'hospital', width: 22 },
+      { header: 'Gender',   key: 'gender',   width: 10 },
+      { header: 'District', key: 'district', width: 16 },
+      { header: 'Sector',   key: 'sector',   width: 16 },
+      { header: 'Cell',     key: 'cell',     width: 16 },
+      { header: 'Village',  key: 'village',  width: 16 },
+    ];
+
+    wsAbsent.mergeCells(1, 1, 1, absentColDefs.length);
+    const absentTitleCell = wsAbsent.getCell('A1');
+    absentTitleCell.value = `Absent — Invited but did not attend${eventTitle ? ' — ' + eventTitle : ''}`;
+    absentTitleCell.font = { bold: true, size: 14, color: { argb: WHITE } };
+    absentTitleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ABSENT_RED } };
+    absentTitleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    wsAbsent.getRow(1).height = 30;
+
+    wsAbsent.mergeCells(2, 1, 2, absentColDefs.length);
+    const absentSummaryCell = wsAbsent.getCell('A2');
+    absentSummaryCell.value =
+      `Invited: ${invited?.total ?? 0}   |   Attended: ${invited?.attended ?? 0}   |   Absent: ${absentees.length}`;
+    absentSummaryCell.font = { italic: true, size: 10, color: { argb: '64748B' } };
+    absentSummaryCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    absentSummaryCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F1F5F9' } };
+    wsAbsent.getRow(2).height = 20;
+
+    wsAbsent.addRow([]);
+
+    wsAbsent.columns = absentColDefs.map((c) => ({ key: c.key, width: c.width }));
+    const absentHeaderRow = wsAbsent.addRow(absentColDefs.map((c) => c.header));
+    absentHeaderRow.height = 22;
+    absentHeaderRow.eachCell((cell) => {
+      cell.font = { bold: true, color: { argb: WHITE }, size: 11 };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ABSENT_RED } };
+      cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      cell.border = {
+        bottom: { style: 'medium', color: { argb: WHITE } },
+      };
+    });
+
+    absentees.forEach((p, i) => {
+      const row = wsAbsent.addRow({
+        name:     p.fullNames,
+        email:    p.email ?? '—',
+        role:     displayRole(p.userRoles?.[0]?.name ?? '—'),
+        hospital: p.hospital?.name ?? '—',
+        gender:   p.gender ?? '—',
+        district: p.district ?? '—',
+        sector:   p.sector ?? '—',
+        cell:     p.cell ?? '—',
+        village:  p.village ?? '—',
+      });
+      row.height = 18;
+      row.eachCell((cell) => {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: i % 2 === 0 ? WHITE : ABSENT_BG } };
+        cell.font = { color: { argb: DARK } };
+        cell.alignment = { vertical: 'middle' };
+        cell.border = {
+          bottom: { style: 'thin', color: { argb: 'E2E8F0' } },
+        };
+      });
+    });
+
+    wsAbsent.views = [{ state: 'frozen', ySplit: 4 }];
 
     const buffer = await wb.xlsx.writeBuffer();
     const blob = new Blob([buffer], {
