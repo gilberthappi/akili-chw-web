@@ -7,6 +7,7 @@ import {
   UserGroupIcon,
   UsersIcon,
   ClockIcon,
+  ChartPieIcon,
 } from '@heroicons/react/24/outline';
 import api from '@/services/api';
 import ExcelJS from 'exceljs';
@@ -86,14 +87,18 @@ const MeetingAttendance: React.FC = () => {
     queryKey: ['attendance', eventId],
     queryFn: async () => {
       const res = await api.get(`/attendance/event/${eventId}`);
-      return (res.data?.data ?? []) as AttendanceRecord[];
+      return {
+        records: (res.data?.data ?? []) as AttendanceRecord[],
+        invited: (res.data?.invited ?? null) as { total: number; attended: number; pct: number | null } | null,
+      };
     },
     enabled: !!eventId,
     staleTime: Infinity,        // attendance report is static — don't re-fetch automatically
     refetchOnWindowFocus: false,
   });
 
-  const records = data ?? [];
+  const records = data?.records ?? [];
+  const invited = data?.invited ?? null;
   const eventTitle = records[0]?.event?.title;
 
   // Group by user — sum duration across all sessions in the same meeting.
@@ -348,6 +353,21 @@ const MeetingAttendance: React.FC = () => {
             <div>
               <p className="text-2xl font-bold text-gray-900">{formatDuration(avgDurationSec)}</p>
               <p className="text-xs text-gray-500 mt-0.5">Avg Duration</p>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-teal-50 flex items-center justify-center flex-shrink-0">
+              <ChartPieIcon className="w-5 h-5 text-teal-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-gray-900">
+                {invited && invited.pct !== null ? `${invited.pct}%` : '—'}
+              </p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Attendance Rate
+                {guests.length > 0 && ` · +${guests.length} guest${guests.length === 1 ? '' : 's'}`}
+              </p>
             </div>
           </div>
         </div>
