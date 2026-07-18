@@ -4,7 +4,7 @@ import { LearnerSection } from "@/components/dashboard/LearnerSection";
 import { AdoptionSection } from "@/components/dashboard/AdoptionSection";
 import { SupervisorResponseCard } from "@/components/dashboard/SupervisorResponseCard";
 import { DeveloperSection } from "@/components/dashboard/DeveloperSection";
-import { CHOSection } from "@/components/dashboard/CHOSection";
+import { CEHOSection } from "@/components/dashboard/CEHOSection";
 import { DashboardGlobalFilters } from "@/components/dashboard/DashboardGlobalFilters";
 import { useAuth } from "@/hooks/useAuth";
 import { IDashboardFilters } from "@/types";
@@ -56,8 +56,8 @@ export const Dashboard: React.FC = () => {
     );
   }
 
-  const isLearner = isAnyOf("TRAINEE", "TESTER", "CHO");
-  const isCHO = is("CHO");
+  const isLearner = isAnyOf("TRAINEE", "TESTER", "CEHO");
+  const isCEHO = is("CEHO");
   const showAnalyticsFilters = needsAnalytics;
   const hour = new Date().getHours();
   const greeting =
@@ -75,7 +75,7 @@ export const Dashboard: React.FC = () => {
       <div className='flex items-center justify-between gap-4 flex-wrap'>
         <div>
           <h1 className='text-xl font-bold text-gray-900'>
-            {isLearner || isCHO
+            {isLearner || isCEHO
               ? `${greeting}, ${user.fullNames}!`
               : `Welcome, ${user.fullNames}!`}
           </h1>
@@ -122,9 +122,9 @@ export const Dashboard: React.FC = () => {
 
       {is("DEVELOPER") && <DeveloperSection />}
 
-      {isAnyOf("TRAINEE", "TESTER", "CHO") && <LearnerSection />}
+      {isAnyOf("TRAINEE", "TESTER", "CEHO") && <LearnerSection />}
 
-      {isCHO && <CHOSection />}
+      {isCEHO && <CEHOSection />}
     </div>
   );
 };

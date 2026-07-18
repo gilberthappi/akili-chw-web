@@ -191,7 +191,7 @@ export const CHWStatsCards: React.FC<CHWStatsCardsProps> = ({
       icon: <UserCheck size={22} />,
       iconBg: "bg-[#3363AD]/10",
       iconColor: "text-[#3363AD]",
-      title: "Total CHO",
+      title: "Total CEHO",
       primary: data?.supervisors.total ?? 0,
       activationRate: data?.supervisors.activationRate ?? 0,
       activationTrend: data?.supervisors.activationTrend,
