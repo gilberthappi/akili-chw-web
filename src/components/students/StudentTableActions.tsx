@@ -64,7 +64,7 @@ const StudentTableActions: FC<StudentTableActionsProps> = ({
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: studentKeys.all });
       queryClient.invalidateQueries({ queryKey: ["admin-ceho-groups"] });
-      toast.success(`${item.fullName} demoted. ${data.newCHO.fullNames} is now the CEHO.`);
+      toast.success(`${item.fullName} demoted. ${data.newCEHO.fullNames} is now the CEHO.`);
       setDemoteOpen(false);
       setNewCEHO(null);
       setDemoteSearch("");

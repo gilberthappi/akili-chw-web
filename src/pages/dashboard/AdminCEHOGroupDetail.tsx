@@ -230,7 +230,7 @@ const AdminCEHOGroupDetailPage = () => {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["admin-ceho-group-detail", id] });
       queryClient.invalidateQueries({ queryKey: ["admin-ceho-groups"] });
-      toast.success(`${data.demotedUser.fullNames} demoted. ${data.newCHO.fullNames} is now the CEHO.`);
+      toast.success(`${data.demotedUser.fullNames} demoted. ${data.newCEHO.fullNames} is now the CEHO.`);
       setShowDemote(false);
       setNewCEHO(null);
       setDemoteTargetId(null);

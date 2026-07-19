@@ -150,7 +150,7 @@ const StudentsList: FC<StudentsListProps> = ({
     roleFilter &&
     ((roleFilter === "TESTER" && canChangeLearnerRole) ||
       (roleFilter === "TRAINEE" && isAdmin) ||
-      (roleFilter === "CHO" && isAdmin));
+      (roleFilter === "CEHO" && isAdmin));
 
   const tableContent = (
     <>

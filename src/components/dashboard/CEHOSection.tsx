@@ -120,13 +120,13 @@ const StatCard: React.FC<{
 export const CEHOSection: React.FC = () => {
   const navigate = useNavigate();
 
-  const { data: group } = useQuery({
+  const { data: group, isLoading: isGroupLoading } = useQuery({
     queryKey: ["ceho-group-mine"],
     queryFn: getMyGroup,
     retry: false,
   });
 
-  const { data: monitoring, isLoading } = useQuery({
+  const { data: monitoring, isLoading: isMonitoringLoading } = useQuery({
     queryKey: ["ceho-group-monitoring"],
     queryFn: getGroupMonitoring,
     retry: false,

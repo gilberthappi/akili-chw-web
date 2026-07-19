@@ -53,7 +53,7 @@ const CARRIED_FILTER_LABELS: Record<keyof CarriedFilters, string> = {
 const CARRIED_ROLE_LABELS: Record<string, string> = {
   TRAINEE: "CHW",
   TESTER: "Tester",
-  CHO: "CHO",
+  CEHO: "CEHO",
 };
 
 export default function IssuedCertificatesPage() {

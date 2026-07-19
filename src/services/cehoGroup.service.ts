@@ -124,7 +124,7 @@ export const adminPromoteToCEHO = async (
 export const adminDemoteToCHW = async (
   userId: string,
   newCehoStudentId: string,
-): Promise<{ demotedUser: { id: string; fullNames: string }; newCHO: { id: string; fullNames: string }; group: ICEHOGroup }> => {
+): Promise<{ demotedUser: { id: string; fullNames: string }; newCEHO: { id: string; fullNames: string }; group: ICEHOGroup }> => {
   const res = await api.patch(`/ceho-groups/demote/${userId}`, { newCehoStudentId });
   return res.data.data;
 };
