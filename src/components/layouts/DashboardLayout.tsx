@@ -429,7 +429,7 @@ const DashboardLayout = ({
     {
       label: "Dashboard",
       path: "/",
-      roles: ["ADMIN", "TRAINEE", "TRAINER", "DEVELOPER", "CHO"],
+      roles: ["ADMIN", "TRAINEE", "TRAINER", "DEVELOPER", "CEHO"],
       icon: <Squares2X2Icon className='w-5 h-5' />,
     },
     {
@@ -477,16 +477,16 @@ const DashboardLayout = ({
       label: "My Learning",
       icon: <GraduationCap className='w-4 h-4' />,
       path: "/my-learning",
-      roles: ["TRAINEE", "CHO"],
+      roles: ["TRAINEE", "CEHO"],
     },
     {
       label: "My Group",
       icon: <UsersRound className='w-4 h-4' />,
-      path: "/cho-group",
-      roles: ["CHO"],
+      path: "/ceho-group",
+      roles: ["CEHO"],
     },
     {
-      label: "CHW & CHO",
+      label: "CHW & CEHO",
       icon: <Users className='w-4 h-4' />,
       path: "/students",
       roles: ["ADMIN", "DEVELOPER", "TRAINER", "STAFF"],
@@ -495,7 +495,7 @@ const DashboardLayout = ({
       label: "My Certificates",
       icon: <Award className='w-4 h-4' />,
       path: "/my-certificates",
-      roles: ["TRAINEE", "CHO"],
+      roles: ["TRAINEE", "CEHO"],
     },
     {
       label: "Certificates",
@@ -513,14 +513,14 @@ const DashboardLayout = ({
     {
       label: "Calender",
       path: "/calender",
-      roles: ["ADMIN", "TRAINER", "TRAINEE", "DEVELOPER", "CHO"],
+      roles: ["ADMIN", "TRAINER", "TRAINEE", "DEVELOPER", "CEHO"],
       icon: <Calendar className='w-5 h-5' />,
     },
     {
       label: "Messaging",
       icon: <MessageSquare className='w-4 h-4' />,
       path: "/messaging",
-      roles: ["ADMIN", "TRAINER", "TRAINEE", "DEVELOPER", "CHO", "STAFF"],
+      roles: ["ADMIN", "TRAINER", "TRAINEE", "DEVELOPER", "CEHO", "STAFF"],
     },
     {
       label: "Announcement",
@@ -532,7 +532,7 @@ const DashboardLayout = ({
     {
       label: "My Settings",
       path: "/settings",
-      roles: ["ADMIN", "TRAINER", "TRAINEE", "DEVELOPER", "CHO"],
+      roles: ["ADMIN", "TRAINER", "TRAINEE", "DEVELOPER", "CEHO"],
       icon: <Cog8ToothIcon className='w-5 h-5' />,
     },
   ];

@@ -7,7 +7,7 @@ export type UserRole =
   | "TRAINEE"
   | "TESTER"
   | "DEVELOPER"
-  | "CHO"
+  | "CEHO"
   | "STAFF";
 export type UserIndustry = "WELTEL" | "RBC" | "SFH" | "CIIC-HIN";
 export type Permission = "ALL" | "DEFAULT";
@@ -366,9 +366,9 @@ export interface IGroup {
   createdBy?: string;
 }
 
-// ── CHO Group ────────────────────────────────────────────────────────────────
+// ── CEHO Group ────────────────────────────────────────────────────────────────
 
-export interface ICHOGroup {
+export interface ICEHOGroup {
   id: string;
   name: string;
   district?: string | null;
@@ -378,17 +378,17 @@ export interface ICHOGroup {
   cell?: string | null;
   village?: string | null;
   description?: string | null;
-  choId: string;
+  cehoId: string;
   createdAt: string;
   updatedAt: string;
-  cho?: {
+  ceho?: {
     id: string;
     user: { id: string; fullNames: string; photo: string | null; phoneNumber: string | null };
   };
   _count?: { members: number };
 }
 
-export interface ICHOGroupMember {
+export interface ICEHOGroupMember {
   id: string;
   groupId: string;
   studentId: string;
@@ -406,7 +406,7 @@ export interface ICHOGroupMember {
   };
 }
 
-export interface ICHOGroupInvitation {
+export interface ICEHOGroupInvitation {
   id: string;
   groupId: string;
   studentId: string;
@@ -416,12 +416,12 @@ export interface ICHOGroupInvitation {
   group?: {
     id: string;
     name: string;
-    cho?: { user: { id: string; fullNames: string; photo: string | null; phoneNumber: string | null } };
+    ceho?: { user: { id: string; fullNames: string; photo: string | null; phoneNumber: string | null } };
   };
   student?: { user: { id: string; fullNames: string; photo: string | null; phoneNumber: string | null } };
 }
 
-export interface ICHOGroupMonitoringMember {
+export interface ICEHOGroupMonitoringMember {
   studentId: string;
   user: { id: string; fullNames: string; photo: string | null; phoneNumber: string | null };
   status: string;
@@ -441,11 +441,11 @@ export interface ICHOGroupMonitoringMember {
   }>;
 }
 
-export interface ICHOGroupMonitoring {
+export interface ICEHOGroupMonitoring {
   groupId: string;
   groupName: string;
   totalMembers: number;
-  members: ICHOGroupMonitoringMember[];
+  members: ICEHOGroupMonitoringMember[];
 }
 
 export interface IStudentSearchResult {

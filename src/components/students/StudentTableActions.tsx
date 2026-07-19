@@ -6,7 +6,7 @@ import { debounce } from "lodash";
 import toast from "react-hot-toast";
 import { Dialog, Transition } from "@headlessui/react";
 import { IStudent, getStudentById, updateStudent, getAllStudentsNoPagination } from "@/services/students.service";
-import { adminPromoteToCHO, adminDemoteToCHW } from "@/services/choGroup.service";
+import { adminPromoteToCEHO, adminDemoteToCHW } from "@/services/cehoGroup.service";
 import { studentKeys } from "@/utils/constants/queryKeys";
 import EditUserModal, { EditUserFormData } from "@/components/common/EditUserModal";
 import { StudentData } from "@/types";
@@ -40,7 +40,7 @@ const StudentTableActions: FC<StudentTableActionsProps> = ({
 
   // Demote state
   const [demoteOpen, setDemoteOpen] = useState(false);
-  const [newCHO, setNewCHO] = useState<IStudent | null>(null);
+  const [newCEHO, setNewCEHO] = useState<IStudent | null>(null);
   const [demoteSearch, setDemoteSearch] = useState("");
   const [demoteDebounced, setDemoteDebounced] = useState("");
   const [demotePickerKey, setDemotePickerKey] = useState(0);
@@ -60,18 +60,18 @@ const StudentTableActions: FC<StudentTableActionsProps> = ({
   const demoteCandidates: IStudent[] = candidatesResp?.data ?? [];
 
   const { mutate: demote, isPending: isDemoting } = useMutation({
-    mutationFn: () => adminDemoteToCHW(item.userId, newCHO!.id),
+    mutationFn: () => adminDemoteToCHW(item.userId, newCEHO!.id),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: studentKeys.all });
-      queryClient.invalidateQueries({ queryKey: ["admin-cho-groups"] });
-      toast.success(`${item.fullName} demoted. ${data.newCHO.fullNames} is now the CHO.`);
+      queryClient.invalidateQueries({ queryKey: ["admin-ceho-groups"] });
+      toast.success(`${item.fullName} demoted. ${data.newCEHO.fullNames} is now the CEHO.`);
       setDemoteOpen(false);
-      setNewCHO(null);
+      setNewCEHO(null);
       setDemoteSearch("");
       setDemotePickerKey((k) => k + 1);
     },
     onError: (error: any) => {
-      toast.error(error?.response?.data?.message ?? "Failed to demote CHO.");
+      toast.error(error?.response?.data?.message ?? "Failed to demote CEHO.");
     },
   });
 
@@ -97,11 +97,11 @@ const StudentTableActions: FC<StudentTableActionsProps> = ({
   };
 
   const { mutate: promote, isPending: isPromoting } = useMutation({
-    mutationFn: () => adminPromoteToCHO(item.userId, groupName.trim() || undefined),
+    mutationFn: () => adminPromoteToCEHO(item.userId, groupName.trim() || undefined),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: studentKeys.all });
-      queryClient.invalidateQueries({ queryKey: ["admin-cho-groups"] });
-      toast.success(`${item.fullName} promoted to CHO successfully.`);
+      queryClient.invalidateQueries({ queryKey: ["admin-ceho-groups"] });
+      toast.success(`${item.fullName} promoted to CEHO successfully.`);
       setPromoteOpen(false);
       setGroupName("");
     },
@@ -182,7 +182,7 @@ const StudentTableActions: FC<StudentTableActionsProps> = ({
             onClick={() => setPromoteOpen(true)}
           >
             <ArrowUpCircle className='w-4' />
-            Promote to CHO
+            Promote to CEHO
           </div>
         )}
         {showDemote && (
@@ -205,7 +205,7 @@ const StudentTableActions: FC<StudentTableActionsProps> = ({
         onSubmit={handleSubmit}
       />
 
-      {/* Promote to CHO modal */}
+      {/* Promote to CEHO modal */}
       <Transition appear show={promoteOpen} as={Fragment}>
         <Dialog as="div" className="relative z-50" onClose={() => !isPromoting && setPromoteOpen(false)}>
           <Transition.Child
@@ -228,10 +228,10 @@ const StudentTableActions: FC<StudentTableActionsProps> = ({
                     <ArrowUpCircle className="w-5 h-5 text-amber-500" />
                   </div>
                   <div>
-                    <Dialog.Title className="text-lg font-bold text-gray-900">Promote to CHO</Dialog.Title>
+                    <Dialog.Title className="text-lg font-bold text-gray-900">Promote to CEHO</Dialog.Title>
                     <Dialog.Description className="text-sm text-gray-500 mt-0.5">
                       Promote <span className="font-semibold text-gray-700">{item.fullName}</span> to
-                      Community Health Officer. A CHO group will be created automatically.
+                      Community Health Officer. A CEHO group will be created automatically.
                     </Dialog.Description>
                   </div>
                 </div>
@@ -303,14 +303,14 @@ const StudentTableActions: FC<StudentTableActionsProps> = ({
                   <div>
                     <Dialog.Title className="text-lg font-bold text-gray-900">Demote to CHW</Dialog.Title>
                     <Dialog.Description className="text-sm text-gray-500 mt-0.5">
-                      Demote <span className="font-semibold text-gray-700">{item.fullName}</span> back to CHW. You must assign a replacement CHO for their group.
+                      Demote <span className="font-semibold text-gray-700">{item.fullName}</span> back to CHW. You must assign a replacement CEHO for their group.
                     </Dialog.Description>
                   </div>
                 </div>
 
                 {/* Replacement search */}
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-gray-600">Select replacement CHO</label>
+                  <label className="text-xs font-semibold text-gray-600">Select replacement CEHO</label>
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
                     <input
@@ -318,7 +318,7 @@ const StudentTableActions: FC<StudentTableActionsProps> = ({
                       value={demoteSearch}
                       onChange={(e) => {
                         setDemoteSearch(e.target.value);
-                        setNewCHO(null);
+                        setNewCEHO(null);
                         debouncedSetDemote(e.target.value);
                       }}
                       placeholder="Search CHW by name…"
@@ -327,23 +327,23 @@ const StudentTableActions: FC<StudentTableActionsProps> = ({
                     {isSearching && (
                       <div className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 border-2 border-gray-300 border-t-red-400 rounded-full animate-spin" />
                     )}
-                    {newCHO && (
+                    {newCEHO && (
                       <button
                         type="button"
-                        onClick={() => { setNewCHO(null); setDemoteSearch(""); }}
+                        onClick={() => { setNewCEHO(null); setDemoteSearch(""); }}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>
                     )}
                   </div>
-                  {demoteCandidates.length > 0 && !newCHO && (
+                  {demoteCandidates.length > 0 && !newCEHO && (
                     <div className="border border-gray-100 rounded-lg shadow-lg bg-white max-h-44 overflow-y-auto">
                       {demoteCandidates.map((s) => (
                         <button
                           key={s.id}
                           type="button"
-                          onClick={() => { setNewCHO(s); setDemoteSearch(s.fullName); setDemoteDebounced(""); }}
+                          onClick={() => { setNewCEHO(s); setDemoteSearch(s.fullName); setDemoteDebounced(""); }}
                           className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 text-left transition-colors"
                         >
                           <div className="w-8 h-8 rounded-full bg-[#3363AD]/10 text-[#3363AD] flex items-center justify-center text-xs font-bold shrink-0">
@@ -367,7 +367,7 @@ const StudentTableActions: FC<StudentTableActionsProps> = ({
                     variant="ghost"
                     size="sm"
                     className="flex-1"
-                    onClick={() => { setDemoteOpen(false); setNewCHO(null); setDemoteSearch(""); setDemotePickerKey((k) => k + 1); }}
+                    onClick={() => { setDemoteOpen(false); setNewCEHO(null); setDemoteSearch(""); setDemotePickerKey((k) => k + 1); }}
                     disabled={isDemoting}
                   >
                     Cancel
@@ -377,7 +377,7 @@ const StudentTableActions: FC<StudentTableActionsProps> = ({
                     className="flex-1 !bg-red-500 hover:!bg-red-600"
                     onClick={() => demote()}
                     isLoading={isDemoting}
-                    disabled={!newCHO}
+                    disabled={!newCEHO}
                   >
                     {!isDemoting && <ArrowDownCircle className="w-3.5 h-3.5 mr-1.5" />}
                     Demote
