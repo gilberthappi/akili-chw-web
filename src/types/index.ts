@@ -638,6 +638,7 @@ export interface IUser {
   otp: string | null;
   otpExpiresAt: string | null;
   photo: string;
+  hospitalId?: string | null;
 }
 
 export interface ICourseIntro {
@@ -1048,6 +1049,7 @@ export interface StudentInfo {
   photo: string;
   status: string;
   role: string;
+  hospitalId?: string | null;
   createdAt: string;
   updatedAt: string;
 }

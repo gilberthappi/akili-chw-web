@@ -37,7 +37,6 @@ export const BulkStudentRoleActions: FC<BulkStudentRoleActionsProps> = ({
   const count = selectedStudents.length;
 
   const [promoteCehoOpen, setPromoteCehoOpen] = useState(false);
-  const [groupNamePrefix, setGroupNamePrefix] = useState("");
 
   const [demoteOpen, setDemoteOpen] = useState(false);
   const [newCEHO, setNewCEHO] = useState<IStudent | null>(null);
@@ -98,14 +97,8 @@ export const BulkStudentRoleActions: FC<BulkStudentRoleActionsProps> = ({
 
   const { mutate: promoteCHWsToCEHO, isPending: isPromotingCHW } = useMutation({
     mutationFn: async () => {
-      const prefix = groupNamePrefix.trim();
       const results = await Promise.allSettled(
-        selectedStudents.map((student) =>
-          adminPromoteToCEHO(
-            student.userId,
-            prefix ? `${prefix} — ${student.fullName}` : undefined,
-          ),
-        ),
+        selectedStudents.map((student) => adminPromoteToCEHO(student.userId)),
       );
       const failed = results.filter((r) => r.status === "rejected").length;
       if (failed === results.length) throw new Error("All promotions failed");
@@ -114,7 +107,6 @@ export const BulkStudentRoleActions: FC<BulkStudentRoleActionsProps> = ({
     onSuccess: ({ succeeded, failed }) => {
       invalidateAll();
       setPromoteCehoOpen(false);
-      setGroupNamePrefix("");
       if (failed > 0) {
         toast.success(`Promoted ${succeeded} to CEHO. ${failed} failed.`);
       } else {
@@ -217,28 +209,14 @@ export const BulkStudentRoleActions: FC<BulkStudentRoleActionsProps> = ({
               <Dialog.Panel className="w-full max-w-md bg-white rounded-2xl shadow-xl p-6 space-y-4">
                 <Dialog.Title className="text-lg font-bold text-gray-900">Promote to CEHO</Dialog.Title>
                 <Dialog.Description className="text-sm text-gray-500">
-                  Promote {count} CHW{count !== 1 ? "s" : ""} to CEHO. A group will be created for each person.
+                  Promote {count} CHW{count !== 1 ? "s" : ""} to CEHO. A group will be created for
+                  each person, automatically named after their hospital.
                 </Dialog.Description>
                 <ul className="max-h-32 overflow-y-auto text-sm text-gray-700 border border-gray-100 rounded-lg divide-y divide-gray-50">
                   {selectedStudents.map((s) => (
                     <li key={s.id} className="px-3 py-2">{s.fullName}</li>
                   ))}
                 </ul>
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-gray-600">
-                    Group name prefix <span className="font-normal text-gray-400">(optional)</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={groupNamePrefix}
-                    onChange={(e) => setGroupNamePrefix(e.target.value)}
-                    placeholder="e.g. Kigali North"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30"
-                  />
-                  <p className="text-[11px] text-gray-400">
-                    Leave empty to use each person&apos;s name (e.g. &quot;Jane&apos;s Group&quot;).
-                  </p>
-                </div>
                 <div className="flex gap-3">
                   <Button variant="ghost" size="sm" className="flex-1" onClick={() => setPromoteCehoOpen(false)} disabled={isPromotingCHW}>
                     Cancel

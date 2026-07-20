@@ -57,7 +57,6 @@ export const adminGetAllGroups = async (
 };
 
 export const adminCreateGroup = async (data: {
-  name: string;
   cehoStudentId: string;
   sectors?: string[];
   cells?: string[];
@@ -115,9 +114,8 @@ export const cehoUpdateMyGroup = async (data: {
 
 export const adminPromoteToCEHO = async (
   userId: string,
-  groupName?: string,
 ): Promise<{ user: { id: string; fullNames: string }; group: ICEHOGroup }> => {
-  const res = await api.patch(`/ceho-groups/promote/${userId}`, { groupName });
+  const res = await api.patch(`/ceho-groups/promote/${userId}`);
   return res.data.data;
 };
 

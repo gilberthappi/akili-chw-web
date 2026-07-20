@@ -194,7 +194,6 @@ const selectCls = "w-full px-3 py-2 border border-gray-200 rounded-lg text-sm fo
 
 const CreateGroupModal = ({ open, onClose }: { open: boolean; onClose: () => void }) => {
   const queryClient = useQueryClient();
-  const [name, setName] = useState("");
   const [district, setDistrict] = useState("");
   const [sector, setSector] = useState("");
   const [cell, setCell] = useState("");
@@ -224,13 +223,13 @@ const CreateGroupModal = ({ open, onClose }: { open: boolean; onClose: () => voi
   };
 
   const resetForm = () => {
-    setName(""); setDistrict(""); setSector(""); setCell(""); setVillage("");
+    setDistrict(""); setSector(""); setCell(""); setVillage("");
     setDescription(""); setCehoStudent(null);
   };
 
   const { mutate, isPending } = useMutation({
     mutationFn: async () => {
-      const { group } = await adminPromoteToCEHO(cehoStudent!.userId, name.trim());
+      const { group } = await adminPromoteToCEHO(cehoStudent!.userId);
       const hasLocation = district || sector || cell || village;
       if (hasLocation || description.trim()) {
         await adminUpdateGroup(group.id, {
@@ -255,7 +254,7 @@ const CreateGroupModal = ({ open, onClose }: { open: boolean; onClose: () => voi
     },
   });
 
-  const canSubmit = name.trim() && cehoStudent && !isPending;
+  const canSubmit = cehoStudent && !isPending;
 
   return (
     <Transition appear show={open} as={Fragment}>
@@ -270,21 +269,10 @@ const CreateGroupModal = ({ open, onClose }: { open: boolean; onClose: () => voi
                 <Dialog.Title className="text-lg font-bold text-gray-900">Create CEHO Group</Dialog.Title>
                 <Dialog.Description className="text-sm text-gray-500 mt-0.5">
                   The selected CHW will be promoted to CEHO and assigned to lead the group.
+                  The group is automatically named after the CHW's hospital.
                 </Dialog.Description>
               </div>
               <div className="space-y-3">
-                {/* Group name */}
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-gray-600">Group Name *</label>
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g. Kigali North Group"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD]"
-                  />
-                </div>
-
                 {/* CHW combobox */}
                 <CHWCombobox
                   label="Community Health Worker (CHW) *"

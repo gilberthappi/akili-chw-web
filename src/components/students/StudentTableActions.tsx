@@ -36,7 +36,6 @@ const StudentTableActions: FC<StudentTableActionsProps> = ({
   const [studentData, setStudentData] = useState<StudentData | null>(null);
   const [loadingEdit, setLoadingEdit] = useState(false);
   const [promoteOpen, setPromoteOpen] = useState(false);
-  const [groupName, setGroupName] = useState("");
 
   // Demote state
   const [demoteOpen, setDemoteOpen] = useState(false);
@@ -97,13 +96,12 @@ const StudentTableActions: FC<StudentTableActionsProps> = ({
   };
 
   const { mutate: promote, isPending: isPromoting } = useMutation({
-    mutationFn: () => adminPromoteToCEHO(item.userId, groupName.trim() || undefined),
+    mutationFn: () => adminPromoteToCEHO(item.userId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: studentKeys.all });
       queryClient.invalidateQueries({ queryKey: ["admin-ceho-groups"] });
       toast.success(`${item.fullName} promoted to CEHO successfully.`);
       setPromoteOpen(false);
-      setGroupName("");
     },
     onError: (error: any) => {
       toast.error(error?.response?.data?.message ?? "Failed to promote user.");
@@ -143,6 +141,7 @@ const StudentTableActions: FC<StudentTableActionsProps> = ({
         cell: studentData.studentInfo.cell,
         village: studentData.studentInfo.village,
         role: studentData.studentInfo.role ?? "",
+        hospitalId: studentData.studentInfo.hospitalId ?? "",
       }
     : {
         fullNames: item.fullName,
@@ -231,25 +230,10 @@ const StudentTableActions: FC<StudentTableActionsProps> = ({
                     <Dialog.Title className="text-lg font-bold text-gray-900">Promote to CEHO</Dialog.Title>
                     <Dialog.Description className="text-sm text-gray-500 mt-0.5">
                       Promote <span className="font-semibold text-gray-700">{item.fullName}</span> to
-                      Community Health Officer. A CEHO group will be created automatically.
+                      Community Health Officer. A CEHO group will be created automatically,
+                      named after their hospital.
                     </Dialog.Description>
                   </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-gray-600">
-                    Group Name{" "}
-                    <span className="font-normal text-gray-400">
-                      (optional — defaults to "{item.fullName}'s Group")
-                    </span>
-                  </label>
-                  <input
-                    type="text"
-                    value={groupName}
-                    onChange={(e) => setGroupName(e.target.value)}
-                    placeholder={`${item.fullName}'s Group`}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD]"
-                  />
                 </div>
 
                 <div className="flex gap-3">
@@ -257,7 +241,7 @@ const StudentTableActions: FC<StudentTableActionsProps> = ({
                     variant="ghost"
                     size="sm"
                     className="flex-1"
-                    onClick={() => { setPromoteOpen(false); setGroupName(""); }}
+                    onClick={() => setPromoteOpen(false)}
                     disabled={isPromoting}
                   >
                     Cancel
