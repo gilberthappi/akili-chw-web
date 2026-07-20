@@ -87,7 +87,7 @@ export const adminRemoveMember = async (groupId: string, studentId: string): Pro
 
 export const adminUpdateGroup = async (
   groupId: string,
-  data: { name?: string; sectors?: string[]; cells?: string[]; villages?: string[]; description?: string },
+  data: { name?: string; district?: string; sectors?: string[]; cells?: string[]; villages?: string[]; cell?: string; village?: string; description?: string },
 ): Promise<ICEHOGroup> => {
   const res = await api.patch(`/ceho-groups/${groupId}`, data);
   return res.data.data;

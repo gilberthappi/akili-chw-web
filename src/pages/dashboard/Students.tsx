@@ -231,10 +231,15 @@ const CreateGroupModal = ({ open, onClose }: { open: boolean; onClose: () => voi
   const { mutate, isPending } = useMutation({
     mutationFn: async () => {
       const { group } = await adminPromoteToCEHO(cehoStudent!.userId, name.trim());
-      const locationStr = [district, sector, cell, village].filter(Boolean).join(" / ");
-      if (locationStr || description.trim()) {
+      const hasLocation = district || sector || cell || village;
+      if (hasLocation || description.trim()) {
         await adminUpdateGroup(group.id, {
-          sector: locationStr || undefined,
+          district: district || undefined,
+          sectors: sector ? [sector] : undefined,
+          cells: cell ? [cell] : undefined,
+          villages: village ? [village] : undefined,
+          cell: cell || undefined,
+          village: village || undefined,
           description: description.trim() || undefined,
         });
       }
@@ -384,7 +389,7 @@ const StudentsPage = () => {
         (g) =>
           g.name.toLowerCase().includes(q) ||
           (g.ceho?.user?.fullNames ?? "").toLowerCase().includes(q) ||
-          (g.sector ?? "").toLowerCase().includes(q),
+          (g.sectors ?? []).some((s) => s.toLowerCase().includes(q)),
       );
     }
     if (groupSort === "date-range") {
