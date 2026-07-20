@@ -22,6 +22,7 @@ import toast from "react-hot-toast";
 import {
   adminGetAllGroups,
   adminPromoteToCEHO,
+  adminCheckHospitalConflict,
   adminUpdateGroup,
   adminDeleteGroup,
   PromoteToCEHOResult,
@@ -201,7 +202,16 @@ const CreateGroupModal = ({ open, onClose }: { open: boolean; onClose: () => voi
   const [village, setVillage] = useState("");
   const [description, setDescription] = useState("");
   const [cehoStudent, setCehoStudent] = useState<IStudent | null>(null);
-  const [replaceConflict, setReplaceConflict] = useState<{ fullNames: string } | null>(null);
+
+  // Checked as soon as a CHW is picked, so the modal shows the right state
+  // (plain create vs. replace-warning) before the admin clicks anything.
+  const { data: conflictCheck, isFetching: isCheckingConflict } = useQuery({
+    queryKey: ["promote-conflict-check", cehoStudent?.userId],
+    queryFn: () => adminCheckHospitalConflict(cehoStudent!.userId),
+    enabled: !!cehoStudent,
+    staleTime: 0,
+  });
+  const existingCeho = conflictCheck?.existingCeho ?? null;
 
   const districtOpts = getDistrictOptions();
   const sectorOpts = district ? getSectorOptions(district) : [];
@@ -226,17 +236,18 @@ const CreateGroupModal = ({ open, onClose }: { open: boolean; onClose: () => voi
 
   const resetForm = () => {
     setDistrict(""); setSector(""); setCell(""); setVillage("");
-    setDescription(""); setCehoStudent(null); setReplaceConflict(null);
+    setDescription(""); setCehoStudent(null);
   };
 
   const { mutate, isPending } = useMutation<PromoteToCEHOResult, unknown, boolean | undefined>({
     mutationFn: (confirmReplace = false) => adminPromoteToCEHO(cehoStudent!.userId, confirmReplace),
     onSuccess: async (result) => {
       if (result.conflict) {
-        setReplaceConflict(result.existingCeho);
+        // The pre-check was stale — refresh it and let the admin re-click.
+        queryClient.invalidateQueries({ queryKey: ["promote-conflict-check", cehoStudent?.userId] });
+        toast.error(`${result.existingCeho.fullNames} is now the CEHO here — please try again.`);
         return;
       }
-      setReplaceConflict(null);
 
       const hasLocation = district || sector || cell || village;
       if (hasLocation || description.trim()) {
@@ -261,7 +272,7 @@ const CreateGroupModal = ({ open, onClose }: { open: boolean; onClose: () => voi
     },
   });
 
-  const canSubmit = cehoStudent && !isPending;
+  const canSubmit = cehoStudent && !isPending && !isCheckingConflict;
 
   return (
     <Transition appear show={open} as={Fragment}>
@@ -272,92 +283,82 @@ const CreateGroupModal = ({ open, onClose }: { open: boolean; onClose: () => voi
         <div className="fixed inset-0 flex items-center justify-center p-4 overflow-y-auto">
           <Transition.Child as={Fragment} enter="ease-out duration-200" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="ease-in duration-150" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
             <Dialog.Panel className="w-full max-w-md bg-white rounded-2xl shadow-xl p-6 space-y-5 my-auto">
-              {replaceConflict ? (
-                <>
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center shrink-0">
-                      <AlertTriangle className="w-5 h-5 text-amber-500" />
-                    </div>
-                    <div>
-                      <Dialog.Title className="text-lg font-bold text-gray-900">Replace current CEHO?</Dialog.Title>
-                      <Dialog.Description className="text-sm text-gray-500 mt-0.5">
-                        <span className="font-semibold text-gray-700">{replaceConflict.fullNames}</span> is
-                        already the CEHO at this hospital. Promoting{" "}
-                        <span className="font-semibold text-gray-700">{cehoStudent?.fullName}</span> will
-                        demote {replaceConflict.fullNames} back to CHW and hand them the same team.
-                      </Dialog.Description>
-                    </div>
-                  </div>
-                  <div className="flex gap-3">
-                    <Button variant="ghost" size="sm" className="flex-1" onClick={() => { resetForm(); onClose(); }} disabled={isPending}>Cancel</Button>
-                    <Button size="sm" className="flex-1 !bg-amber-500 hover:!bg-amber-600" onClick={() => mutate(true)} isLoading={isPending}>
-                      Replace CEHO
-                    </Button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div>
-                    <Dialog.Title className="text-lg font-bold text-gray-900">Create CEHO Group</Dialog.Title>
-                    <Dialog.Description className="text-sm text-gray-500 mt-0.5">
-                      The selected CHW will be promoted to CEHO and assigned to lead the group.
-                      The group is automatically named after the CHW's hospital.
-                    </Dialog.Description>
-                  </div>
-                  <div className="space-y-3">
-                    {/* CHW combobox */}
-                    <CHWCombobox
-                      label="Community Health Worker (CHW) *"
-                      value={cehoStudent}
-                      onChange={handleCHWSelect}
-                    />
+              <div>
+                <Dialog.Title className="text-lg font-bold text-gray-900">Create CEHO Group</Dialog.Title>
+                <Dialog.Description className="text-sm text-gray-500 mt-0.5">
+                  The selected CHW will be promoted to CEHO and assigned to lead the group.
+                  The group is automatically named after the CHW's hospital.
+                </Dialog.Description>
+              </div>
 
-                    {/* Location cascade */}
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold text-gray-600 flex items-center gap-1">
-                        <MapPin className="w-3 h-3" /> Area (optional)
-                      </label>
-                      <div className="grid grid-cols-2 gap-2">
-                        <select value={district} onChange={(e) => handleDistrictChange(e.target.value)} className={selectCls}>
-                          <option value="">District</option>
-                          {districtOpts.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
-                        </select>
-                        <select value={sector} onChange={(e) => handleSectorChange(e.target.value)} disabled={!district} className={selectCls}>
-                          <option value="">Sector</option>
-                          {sectorOpts.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
-                        </select>
-                        <select value={cell} onChange={(e) => handleCellChange(e.target.value)} disabled={!sector} className={selectCls}>
-                          <option value="">Cell</option>
-                          {cellOpts.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
-                        </select>
-                        <select value={village} onChange={(e) => setVillage(e.target.value)} disabled={!cell} className={selectCls}>
-                          <option value="">Village</option>
-                          {villageOpts.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* Description */}
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold text-gray-600">Description (optional)</label>
-                      <textarea
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        rows={2}
-                        placeholder="Brief description…"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD] resize-none"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex gap-3">
-                    <Button variant="ghost" size="sm" className="flex-1" onClick={() => { resetForm(); onClose(); }} disabled={isPending}>Cancel</Button>
-                    <Button size="sm" className="flex-1" onClick={() => mutate(false)} disabled={!canSubmit} isLoading={isPending}>
-                      {!isPending && <Plus className="w-3.5 h-3.5 mr-1.5" />}
-                      Create Group
-                    </Button>
-                  </div>
-                </>
+              {existingCeho && (
+                <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                  <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-800">
+                    <span className="font-semibold">{existingCeho.fullNames}</span> is already the CEHO
+                    at this hospital. Continuing will demote them to CHW and hand them this same team.
+                  </p>
+                </div>
               )}
+
+              <div className="space-y-3">
+                {/* CHW combobox */}
+                <CHWCombobox
+                  label="Community Health Worker (CHW) *"
+                  value={cehoStudent}
+                  onChange={handleCHWSelect}
+                />
+
+                {/* Location cascade */}
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-gray-600 flex items-center gap-1">
+                    <MapPin className="w-3 h-3" /> Area (optional)
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <select value={district} onChange={(e) => handleDistrictChange(e.target.value)} className={selectCls}>
+                      <option value="">District</option>
+                      {districtOpts.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+                    </select>
+                    <select value={sector} onChange={(e) => handleSectorChange(e.target.value)} disabled={!district} className={selectCls}>
+                      <option value="">Sector</option>
+                      {sectorOpts.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+                    </select>
+                    <select value={cell} onChange={(e) => handleCellChange(e.target.value)} disabled={!sector} className={selectCls}>
+                      <option value="">Cell</option>
+                      {cellOpts.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+                    </select>
+                    <select value={village} onChange={(e) => setVillage(e.target.value)} disabled={!cell} className={selectCls}>
+                      <option value="">Village</option>
+                      {villageOpts.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Description */}
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-gray-600">Description (optional)</label>
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    rows={2}
+                    placeholder="Brief description…"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD] resize-none"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <Button variant="ghost" size="sm" className="flex-1" onClick={() => { resetForm(); onClose(); }} disabled={isPending}>Cancel</Button>
+                <Button
+                  size="sm"
+                  className={`flex-1 ${existingCeho ? "!bg-amber-500 hover:!bg-amber-600" : ""}`}
+                  onClick={() => mutate(!!existingCeho)}
+                  disabled={!canSubmit}
+                  isLoading={isPending}
+                >
+                  {!isPending && !existingCeho && <Plus className="w-3.5 h-3.5 mr-1.5" />}
+                  {existingCeho ? "Replace CEHO" : "Create Group"}
+                </Button>
+              </div>
             </Dialog.Panel>
           </Transition.Child>
         </div>

@@ -116,6 +116,13 @@ export type PromoteToCEHOResult =
   | { conflict: true; existingCeho: { id: string; fullNames: string } }
   | { conflict?: undefined; user: { id: string; fullNames: string }; group: ICEHOGroup };
 
+export const adminCheckHospitalConflict = async (
+  userId: string,
+): Promise<{ existingCeho: { id: string; fullNames: string } | null }> => {
+  const res = await api.get(`/ceho-groups/promote/${userId}/conflict`);
+  return res.data.data;
+};
+
 export const adminPromoteToCEHO = async (
   userId: string,
   confirmReplace = false,

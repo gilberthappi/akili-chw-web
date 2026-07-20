@@ -6,7 +6,7 @@ import { debounce } from "lodash";
 import toast from "react-hot-toast";
 import { Dialog, Transition } from "@headlessui/react";
 import { IStudent, getStudentById, updateStudent, getAllStudentsNoPagination } from "@/services/students.service";
-import { adminPromoteToCEHO, adminDemoteToCHW, PromoteToCEHOResult } from "@/services/cehoGroup.service";
+import { adminPromoteToCEHO, adminDemoteToCHW, adminCheckHospitalConflict, PromoteToCEHOResult } from "@/services/cehoGroup.service";
 import { studentKeys } from "@/utils/constants/queryKeys";
 import EditUserModal, { EditUserFormData } from "@/components/common/EditUserModal";
 import { StudentData } from "@/types";
@@ -36,7 +36,16 @@ const StudentTableActions: FC<StudentTableActionsProps> = ({
   const [studentData, setStudentData] = useState<StudentData | null>(null);
   const [loadingEdit, setLoadingEdit] = useState(false);
   const [promoteOpen, setPromoteOpen] = useState(false);
-  const [replaceConflict, setReplaceConflict] = useState<{ fullNames: string } | null>(null);
+
+  // Checked as soon as the promote modal opens, so it shows the right state
+  // (plain promote vs. replace-warning) before the admin clicks anything.
+  const { data: conflictCheck, isFetching: isCheckingConflict } = useQuery({
+    queryKey: ["promote-conflict-check", item.userId],
+    queryFn: () => adminCheckHospitalConflict(item.userId),
+    enabled: promoteOpen,
+    staleTime: 0,
+  });
+  const existingCeho = conflictCheck?.existingCeho ?? null;
 
   // Demote state
   const [demoteOpen, setDemoteOpen] = useState(false);
@@ -100,10 +109,12 @@ const StudentTableActions: FC<StudentTableActionsProps> = ({
     mutationFn: (confirmReplace = false) => adminPromoteToCEHO(item.userId, confirmReplace),
     onSuccess: (result) => {
       if (result.conflict) {
-        setReplaceConflict(result.existingCeho);
+        // The pre-check was stale (someone else changed things in between) —
+        // refresh it and let the admin see the up-to-date state and re-click.
+        queryClient.invalidateQueries({ queryKey: ["promote-conflict-check", item.userId] });
+        toast.error(`${result.existingCeho.fullNames} is now the CEHO here — please try again.`);
         return;
       }
-      setReplaceConflict(null);
       queryClient.invalidateQueries({ queryKey: studentKeys.all });
       queryClient.invalidateQueries({ queryKey: ["admin-ceho-groups"] });
       toast.success(`${item.fullName} promoted to CEHO successfully.`);
@@ -210,12 +221,13 @@ const StudentTableActions: FC<StudentTableActionsProps> = ({
         onSubmit={handleSubmit}
       />
 
-      {/* Promote to CEHO modal — content switches if the hospital already has a CEHO */}
+      {/* Promote to CEHO modal — pre-checks for a hospital conflict on open,
+          so it shows the right state before the admin clicks anything */}
       <Transition appear show={promoteOpen} as={Fragment}>
         <Dialog
           as="div"
           className="relative z-50"
-          onClose={() => { if (!isPromoting) { setPromoteOpen(false); setReplaceConflict(null); } }}
+          onClose={() => { if (!isPromoting) setPromoteOpen(false); }}
         >
           <Transition.Child
             as={Fragment}
@@ -232,7 +244,11 @@ const StudentTableActions: FC<StudentTableActionsProps> = ({
               leave="ease-in duration-150" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95"
             >
               <Dialog.Panel className="w-full max-w-sm bg-white rounded-2xl shadow-xl p-6 space-y-5">
-                {replaceConflict ? (
+                {isCheckingConflict ? (
+                  <div className="flex items-center justify-center py-6">
+                    <div className="w-6 h-6 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : existingCeho ? (
                   <div className="flex items-start gap-3">
                     <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center shrink-0">
                       <AlertTriangle className="w-5 h-5 text-amber-500" />
@@ -240,10 +256,10 @@ const StudentTableActions: FC<StudentTableActionsProps> = ({
                     <div>
                       <Dialog.Title className="text-lg font-bold text-gray-900">Replace current CEHO?</Dialog.Title>
                       <Dialog.Description className="text-sm text-gray-500 mt-0.5">
-                        <span className="font-semibold text-gray-700">{replaceConflict.fullNames}</span> is
+                        <span className="font-semibold text-gray-700">{existingCeho.fullNames}</span> is
                         already the CEHO at this hospital. Promoting{" "}
                         <span className="font-semibold text-gray-700">{item.fullName}</span> will demote{" "}
-                        {replaceConflict.fullNames} back to CHW and hand them the same team.
+                        {existingCeho.fullNames} back to CHW and hand them the same team.
                       </Dialog.Description>
                     </div>
                   </div>
@@ -268,7 +284,7 @@ const StudentTableActions: FC<StudentTableActionsProps> = ({
                     variant="ghost"
                     size="sm"
                     className="flex-1"
-                    onClick={() => { setPromoteOpen(false); setReplaceConflict(null); }}
+                    onClick={() => setPromoteOpen(false)}
                     disabled={isPromoting}
                   >
                     Cancel
@@ -276,11 +292,12 @@ const StudentTableActions: FC<StudentTableActionsProps> = ({
                   <Button
                     size="sm"
                     className="flex-1 !bg-amber-500 hover:!bg-amber-600"
-                    onClick={() => promote(!!replaceConflict)}
+                    onClick={() => promote(!!existingCeho)}
                     isLoading={isPromoting}
+                    disabled={isCheckingConflict}
                   >
                     {!isPromoting && <ArrowUpCircle className="w-3.5 h-3.5 mr-1.5" />}
-                    {replaceConflict ? "Replace CEHO" : "Promote"}
+                    {existingCeho ? "Replace CEHO" : "Promote"}
                   </Button>
                 </div>
               </Dialog.Panel>
