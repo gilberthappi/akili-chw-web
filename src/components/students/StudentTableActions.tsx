@@ -1,12 +1,12 @@
 import { FC, Fragment, useState, useCallback } from "react";
-import { Eye, Pencil, ArrowUpCircle, ArrowDownCircle, Search, X } from "lucide-react";
+import { Eye, Pencil, ArrowUpCircle, ArrowDownCircle, AlertTriangle, Search, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { debounce } from "lodash";
 import toast from "react-hot-toast";
 import { Dialog, Transition } from "@headlessui/react";
 import { IStudent, getStudentById, updateStudent, getAllStudentsNoPagination } from "@/services/students.service";
-import { adminPromoteToCEHO, adminDemoteToCHW } from "@/services/cehoGroup.service";
+import { adminPromoteToCEHO, adminDemoteToCHW, PromoteToCEHOResult } from "@/services/cehoGroup.service";
 import { studentKeys } from "@/utils/constants/queryKeys";
 import EditUserModal, { EditUserFormData } from "@/components/common/EditUserModal";
 import { StudentData } from "@/types";
@@ -36,6 +36,7 @@ const StudentTableActions: FC<StudentTableActionsProps> = ({
   const [studentData, setStudentData] = useState<StudentData | null>(null);
   const [loadingEdit, setLoadingEdit] = useState(false);
   const [promoteOpen, setPromoteOpen] = useState(false);
+  const [replaceConflict, setReplaceConflict] = useState<{ fullNames: string } | null>(null);
 
   // Demote state
   const [demoteOpen, setDemoteOpen] = useState(false);
@@ -95,9 +96,14 @@ const StudentTableActions: FC<StudentTableActionsProps> = ({
     toast.success("CHW info updated successfully");
   };
 
-  const { mutate: promote, isPending: isPromoting } = useMutation({
-    mutationFn: () => adminPromoteToCEHO(item.userId),
-    onSuccess: () => {
+  const { mutate: promote, isPending: isPromoting } = useMutation<PromoteToCEHOResult, unknown, boolean | undefined>({
+    mutationFn: (confirmReplace = false) => adminPromoteToCEHO(item.userId, confirmReplace),
+    onSuccess: (result) => {
+      if (result.conflict) {
+        setReplaceConflict(result.existingCeho);
+        return;
+      }
+      setReplaceConflict(null);
       queryClient.invalidateQueries({ queryKey: studentKeys.all });
       queryClient.invalidateQueries({ queryKey: ["admin-ceho-groups"] });
       toast.success(`${item.fullName} promoted to CEHO successfully.`);
@@ -204,9 +210,13 @@ const StudentTableActions: FC<StudentTableActionsProps> = ({
         onSubmit={handleSubmit}
       />
 
-      {/* Promote to CEHO modal */}
+      {/* Promote to CEHO modal — content switches if the hospital already has a CEHO */}
       <Transition appear show={promoteOpen} as={Fragment}>
-        <Dialog as="div" className="relative z-50" onClose={() => !isPromoting && setPromoteOpen(false)}>
+        <Dialog
+          as="div"
+          className="relative z-50"
+          onClose={() => { if (!isPromoting) { setPromoteOpen(false); setReplaceConflict(null); } }}
+        >
           <Transition.Child
             as={Fragment}
             enter="ease-out duration-200" enterFrom="opacity-0" enterTo="opacity-100"
@@ -222,26 +232,43 @@ const StudentTableActions: FC<StudentTableActionsProps> = ({
               leave="ease-in duration-150" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95"
             >
               <Dialog.Panel className="w-full max-w-sm bg-white rounded-2xl shadow-xl p-6 space-y-5">
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center shrink-0">
-                    <ArrowUpCircle className="w-5 h-5 text-amber-500" />
+                {replaceConflict ? (
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center shrink-0">
+                      <AlertTriangle className="w-5 h-5 text-amber-500" />
+                    </div>
+                    <div>
+                      <Dialog.Title className="text-lg font-bold text-gray-900">Replace current CEHO?</Dialog.Title>
+                      <Dialog.Description className="text-sm text-gray-500 mt-0.5">
+                        <span className="font-semibold text-gray-700">{replaceConflict.fullNames}</span> is
+                        already the CEHO at this hospital. Promoting{" "}
+                        <span className="font-semibold text-gray-700">{item.fullName}</span> will demote{" "}
+                        {replaceConflict.fullNames} back to CHW and hand them the same team.
+                      </Dialog.Description>
+                    </div>
                   </div>
-                  <div>
-                    <Dialog.Title className="text-lg font-bold text-gray-900">Promote to CEHO</Dialog.Title>
-                    <Dialog.Description className="text-sm text-gray-500 mt-0.5">
-                      Promote <span className="font-semibold text-gray-700">{item.fullName}</span> to
-                      Community Health Officer. A CEHO group will be created automatically,
-                      named after their hospital.
-                    </Dialog.Description>
+                ) : (
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center shrink-0">
+                      <ArrowUpCircle className="w-5 h-5 text-amber-500" />
+                    </div>
+                    <div>
+                      <Dialog.Title className="text-lg font-bold text-gray-900">Promote to CEHO</Dialog.Title>
+                      <Dialog.Description className="text-sm text-gray-500 mt-0.5">
+                        Promote <span className="font-semibold text-gray-700">{item.fullName}</span> to
+                        Community Health Officer. A CEHO group will be created automatically,
+                        named after their hospital.
+                      </Dialog.Description>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <div className="flex gap-3">
                   <Button
                     variant="ghost"
                     size="sm"
                     className="flex-1"
-                    onClick={() => setPromoteOpen(false)}
+                    onClick={() => { setPromoteOpen(false); setReplaceConflict(null); }}
                     disabled={isPromoting}
                   >
                     Cancel
@@ -249,11 +276,11 @@ const StudentTableActions: FC<StudentTableActionsProps> = ({
                   <Button
                     size="sm"
                     className="flex-1 !bg-amber-500 hover:!bg-amber-600"
-                    onClick={() => promote()}
+                    onClick={() => promote(!!replaceConflict)}
                     isLoading={isPromoting}
                   >
                     {!isPromoting && <ArrowUpCircle className="w-3.5 h-3.5 mr-1.5" />}
-                    Promote
+                    {replaceConflict ? "Replace CEHO" : "Promote"}
                   </Button>
                 </div>
               </Dialog.Panel>

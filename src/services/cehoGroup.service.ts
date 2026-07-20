@@ -112,10 +112,15 @@ export const cehoUpdateMyGroup = async (data: {
 
 // ─── Admin: promote / demote ──────────────────────────────────────────────────
 
+export type PromoteToCEHOResult =
+  | { conflict: true; existingCeho: { id: string; fullNames: string } }
+  | { conflict?: undefined; user: { id: string; fullNames: string }; group: ICEHOGroup };
+
 export const adminPromoteToCEHO = async (
   userId: string,
-): Promise<{ user: { id: string; fullNames: string }; group: ICEHOGroup }> => {
-  const res = await api.patch(`/ceho-groups/promote/${userId}`);
+  confirmReplace = false,
+): Promise<PromoteToCEHOResult> => {
+  const res = await api.patch(`/ceho-groups/promote/${userId}`, { confirmReplace });
   return res.data.data;
 };
 
