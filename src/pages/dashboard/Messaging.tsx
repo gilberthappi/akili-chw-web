@@ -18,6 +18,8 @@ import {
   Plus,
   X,
   Check,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUsers } from '@fortawesome/free-solid-svg-icons';
@@ -483,6 +485,7 @@ export const Messaging: React.FC = () => {
   const [searchMessagesQuery, setSearchMessagesQuery] = useState("");
   const [searchResults, setSearchResults] = useState<IMessage[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   const [showDirectChatCreator, setShowDirectChatCreator] = useState(false);
@@ -1003,83 +1006,67 @@ export const Messaging: React.FC = () => {
   return (
     <AudioPlayerProvider>
       <div>
-        <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] h-[calc(100vh-100px)] bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-          {/* Conversations List */}
+        <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] h-[calc(100vh-100px)] bg-white rounded-2xl border border-gray-200/60 shadow-lg overflow-hidden">
+          {/* ══════════════ SIDEBAR ══════════════ */}
           <div
-            className={`relative overflow-hidden flex-col h-full border-r border-gray-200 ${selectedConversation ? "hidden lg:flex" : "flex"}`}
+            className={`relative overflow-hidden flex-col h-full border-r border-gray-100 bg-white ${selectedConversation ? "hidden lg:flex" : "flex"}`}
           >
-            {/* Branded header strip */}
-            <div className="flex items-center gap-2 px-4 pt-4 pb-2">
-              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                <MessageSquare size={16} className="text-primary" />
+            {/* Clean white header */}
+            <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <MessageSquare size={15} className="text-primary" />
+                </div>
+                <span className="text-gray-900 font-bold text-base">My Chats</span>
               </div>
-              <span className="text-gray-900 font-semibold">My Chats</span>
-            </div>
-
-            {/* Search bar */}
-            <div className="px-4 pb-3">
-              <Input
-                placeholder="Search..."
-                icon={<Search size={18} className="text-gray-400" />}
-                value={searchQuery}
-                onChange={(e) => handleSearchConversations(e.target.value)}
-                className="bg-white border border-gray-300 rounded-lg"
+              <ProfileAvatar
+                name={user?.fullNames || "You"}
+                photo={realPhoto(ownPhotoUrl)}
+                size="w-8 h-8"
+                color="bg-primary text-white"
               />
             </div>
 
-            {/* Tab Navigation */}
-            <div className="flex items-center gap-2 px-4 pb-0 border-b border-gray-200">
-              <button
-                onClick={() => setActiveTab("direct")}
-                className={`flex-1 px-2 py-2 border-b-2 text-sm font-medium transition-colors ${
-                  activeTab === "direct"
-                    ? "text-primary border-primary"
-                    : "text-gray-600 border-transparent hover:text-gray-900"
-                }`}
-              >
-                <div className="flex items-center justify-center gap-1">
-                  Chats
-                  {unreadMessageCountByType("direct") > 0 && (
-                    <span className="min-w-[18px] h-[18px] px-1 bg-red-500 rounded-full flex items-center justify-center text-[10px] leading-none font-bold text-white">
-                      {unreadMessageCountByType("direct")}
-                    </span>
-                  )}
+            {/* Search bar */}
+            <div className="px-3 py-2.5">
+              <div className="relative">
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                  <Search size={15} />
                 </div>
-              </button>
-              <button
-                onClick={() => setActiveTab("group")}
-                className={`flex-1 px-2 py-2 border-b-2 text-sm font-medium transition-colors ${
-                  activeTab === "group"
-                    ? "text-primary border-primary"
-                    : "text-gray-600 border-transparent hover:text-gray-900"
-                }`}
-              >
-                <div className="flex items-center justify-center gap-1">
-                  Groups
-                  {unreadMessageCountByType("group") > 0 && (
-                    <span className="min-w-[18px] h-[18px] px-1 bg-red-500 rounded-full flex items-center justify-center text-[10px] leading-none font-bold text-white">
-                      {unreadMessageCountByType("group")}
-                    </span>
-                  )}
-                </div>
-              </button>
-              <button
-                onClick={() => setActiveTab("community")}
-                className={`flex-1 px-2 py-2 border-b-2 text-sm font-medium transition-colors ${
-                  activeTab === "community"
-                    ? "text-primary border-primary"
-                    : "text-gray-600 border-transparent hover:text-gray-900"
-                }`}
-              >
-                <div className="flex items-center justify-center gap-1">
-                  Communities
-                  {unreadMessageCountByType("community") > 0 && (
-                    <span className="min-w-[18px] h-[18px] px-1 bg-red-500 rounded-full flex items-center justify-center text-[10px] leading-none font-bold text-white">
-                      {unreadMessageCountByType("community")}
-                    </span>
-                  )}
-                </div>
-              </button>
+                <input
+                  placeholder="Search..."
+                  value={searchQuery}
+                  onChange={(e) => handleSearchConversations(e.target.value)}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-9 pr-4 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-primary/40 focus:bg-white focus:shadow-sm transition-all duration-200"
+                />
+              </div>
+            </div>
+
+            {/* Underline Tab Navigation - matches template */}
+            <div className="flex items-center px-1 border-b border-gray-100">
+              {(["direct", "group", "community"] as const).map((tab) => {
+                const labels = { direct: "All Chats", group: "Groups", community: "Community" };
+                const count = unreadMessageCountByType(tab);
+                const isActive = activeTab === tab;
+                return (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold border-b-2 transition-all duration-200 ${
+                      isActive
+                        ? "border-primary text-primary"
+                        : "border-transparent text-gray-400 hover:text-gray-600"
+                    }`}
+                  >
+                    {labels[tab]}
+                    {count > 0 && (
+                      <span className="min-w-[16px] h-4 px-1 bg-primary rounded-full flex items-center justify-center text-[9px] leading-none font-bold text-white">
+                        {count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
             <div className="overflow-y-auto flex-1 hide-scrollbar">
               {typedConversations
@@ -1127,7 +1114,7 @@ export const Messaging: React.FC = () => {
               })()}
             </div>
 
-            {/* Tab-aware floating action button: starts a new chat/group/community based on the active tab */}
+            {/* Tab-aware floating action button */}
             <button
               onClick={() => {
                 if (activeTab === "direct") setShowDirectChatCreator(true);
@@ -1141,24 +1128,30 @@ export const Messaging: React.FC = () => {
                   ? "Create group"
                   : "Create community"
               }
-              className="absolute bottom-20 right-4 z-10 w-12 h-12 rounded-full bg-primary text-white shadow-lg hover:bg-primary/90 flex items-center justify-center transition-colors"
+              className="absolute bottom-16 right-4 z-10 w-12 h-12 rounded-full bg-primary text-white shadow-lg hover:bg-primary/90 hover:shadow-xl hover:scale-105 active:scale-95 flex items-center justify-center transition-all duration-200"
             >
               <Plus size={22} />
             </button>
 
-            {/* Own-avatar footer */}
-            <div className="flex items-center gap-2 px-4 py-3 border-t border-gray-200 flex-shrink-0">
-              <ProfileAvatar
-                name={user?.fullNames || "You"}
-                photo={realPhoto(ownPhotoUrl)}
-                size="w-8 h-8"
-                color="bg-primary text-white"
-              />
-              <span className="text-sm text-gray-700 truncate">{user?.fullNames || "You"}</span>
+            {/* Footer - user info */}
+            <div className="flex items-center gap-2.5 px-4 py-3 border-t border-gray-100 flex-shrink-0">
+              <div className="relative">
+                <ProfileAvatar
+                  name={user?.fullNames || "You"}
+                  photo={realPhoto(ownPhotoUrl)}
+                  size="w-8 h-8"
+                  color="bg-primary text-white"
+                />
+                <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-800 truncate">{user?.fullNames || "You"}</p>
+                <p className="text-[10px] text-emerald-500 font-medium">● Active now</p>
+              </div>
             </div>
           </div>
 
-          {/* Chat Area */}
+          {/* ══════════════ CHAT AREA ══════════════ */}
           <div
             className={`h-full min-h-0 overflow-hidden relative flex-col lg:flex-row ${
               selectedConversation ? "flex" : "hidden lg:flex"
@@ -1175,14 +1168,117 @@ export const Messaging: React.FC = () => {
                       ? onlineUserIds.has(selectedConversation.participants[0]?.userId || "")
                       : undefined
                   }
-                  onToggleSearch={() => setShowSearchModal(true)}
+                  onToggleSearch={() => setShowSearchModal((prev) => {
+                    if (prev) {
+                      setSearchMessagesQuery("");
+                      setSearchResults([]);
+                    }
+                    return !prev;
+                  })}
+                  searchOpen={showSearchModal}
                   onToggleInfo={() => setShowParticipantPanel(!showParticipantPanel)}
                   infoOpen={showParticipantPanel}
                 />
 
+                {/* ══ INLINE SEARCH BAR ══ */}
+                {showSearchModal && (() => {
+                  // Compute match IDs from current loaded messages
+                  const q = searchMessagesQuery.trim().toLowerCase();
+                  const matchIds = q
+                    ? messages
+                        .filter((m) => m.type === "text" && m.content?.toLowerCase().includes(q))
+                        .map((m) => m.id)
+                    : [];
+                  const total = matchIds.length;
+                  const safeIdx = total > 0 ? Math.min(currentMatchIndex, total - 1) : 0;
+
+                  const navigateTo = (idx: number) => {
+                    if (total === 0) return;
+                    const clamped = (idx + total) % total;
+                    setCurrentMatchIndex(clamped);
+                    const el = document.getElementById(`message-${matchIds[clamped]}`);
+                    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+                  };
+
+                  return (
+                    <div className="flex-shrink-0 border-b border-gray-100 bg-white px-4 py-2.5 animate-slide-in-down flex justify-end">
+                      <div className="flex items-center gap-2 max-w-xs">
+                        {/* Search input */}
+                        <div className="flex items-center gap-1">
+                          <Search size={15} className="text-gray-400" />
+                          <input
+                            autoFocus
+                            value={searchMessagesQuery}
+                            onChange={(e) => {
+                              setSearchMessagesQuery(e.target.value);
+                              setCurrentMatchIndex(0);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Escape") {
+                                setShowSearchModal(false);
+                                setSearchMessagesQuery("");
+                                setSearchResults([]);
+                                setCurrentMatchIndex(0);
+                              }
+                              if (e.key === "Enter") navigateTo(safeIdx + (e.shiftKey ? -1 : 1));
+                              if (e.key === "ArrowDown") { e.preventDefault(); navigateTo(safeIdx + 1); }
+                              if (e.key === "ArrowUp") { e.preventDefault(); navigateTo(safeIdx - 1); }
+                            }}
+                            placeholder="Search in conversation..."
+                            className="w-48 pl-2 pr-2 py-1 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-primary/40 focus:bg-white transition-all duration-200"
+                          />
+                        </div>
+
+                        {/* Match counter */}
+                        {searchMessagesQuery.trim() && (
+                          <span className={`text-xs whitespace-nowrap font-medium ${
+                            total > 0 ? "text-primary" : "text-gray-400"
+                          }`}>
+                            {total > 0 ? `${safeIdx + 1} / ${total}` : "No matches"}
+                          </span>
+                        )}
+
+                        {/* Prev */}
+                        <button
+                          onClick={() => navigateTo(safeIdx - 1)}
+                          disabled={total === 0}
+                          className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-30 flex-shrink-0"
+                          title="Previous match (↑)"
+                        >
+                          <ChevronUp size={15} />
+                        </button>
+
+                        {/* Next */}
+                        <button
+                          onClick={() => navigateTo(safeIdx + 1)}
+                          disabled={total === 0}
+                          className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-30 flex-shrink-0"
+                          title="Next match (↓)"
+                        >
+                          <ChevronDown size={15} />
+                        </button>
+
+                        {/* Close */}
+                        <button
+                          onClick={() => {
+                            setShowSearchModal(false);
+                            setSearchMessagesQuery("");
+                            setSearchResults([]);
+                            setCurrentMatchIndex(0);
+                          }}
+                          className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
+                          title="Close (Esc)"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {/* Messages */}
-                <div className="flex-grow overflow-y-auto bg-gray-50 hide-scrollbar min-h-0">
-                  <div className="p-4 space-y-6">
+                <div className="flex-grow overflow-y-auto bg-[#f7f8fc] hide-scrollbar min-h-0">
+                  <div className="p-4 space-y-4">
                     {messages.map((message) => {
                       if (message.type === 'blog') {
                         // Blog post style for communities
@@ -1451,16 +1547,31 @@ export const Messaging: React.FC = () => {
                             }
                             onToggleLike={() => handleToggleMessageLike(message.id)}
                             highlighted={highlightedMessageId === message.id}
+                            highlightText={showSearchModal && searchMessagesQuery.trim() ? searchMessagesQuery : undefined}
+                            isCurrentMatch={(() => {
+                              if (!showSearchModal || !searchMessagesQuery.trim()) return false;
+                              const q = searchMessagesQuery.trim().toLowerCase();
+                              const matchIds = messages
+                                .filter((m) => m.type === "text" && m.content?.toLowerCase().includes(q))
+                                .map((m) => m.id);
+                              const total = matchIds.length;
+                              const safeIdx = total > 0 ? Math.min(currentMatchIndex, total - 1) : 0;
+                              return matchIds[safeIdx] === message.id;
+                            })()}
                           />
                         );
                       }
                     })}
                     {messages.length === 0 && (
-                      <div className="flex items-center justify-center h-full min-h-96 text-center">
-                        <div className="space-y-2">
-                          <MessageSquare size={48} className="mx-auto text-gray-300" />
-                          <p className="text-gray-500 font-medium">No messages yet</p>
-                          <p className="text-xs text-gray-400">Start a conversation by sending a message</p>
+                      <div className="flex items-center justify-center h-full min-h-96 text-center py-16">
+                        <div className="space-y-4">
+                          <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center shadow-inner">
+                            <MessageSquare size={28} className="text-primary/50" />
+                          </div>
+                          <div>
+                            <p className="text-gray-600 font-semibold text-base">No messages yet</p>
+                            <p className="text-xs text-gray-400 mt-1">Say hello and start the conversation! 👋</p>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -1478,10 +1589,15 @@ export const Messaging: React.FC = () => {
                 />
               </>
             ) : (
-              <div className="flex-1 flex items-center justify-center text-gray-500">
-                <div className="text-center">
-                  <MessageSquare size={48} className="mx-auto mb-4" />
-                  <p>Select a conversation to start messaging</p>
+              <div className="flex-1 flex items-center justify-center bg-[#f7f8fc]">
+                <div className="text-center space-y-4">
+                  <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-br from-primary/15 to-primary/5 flex items-center justify-center shadow-inner">
+                    <MessageSquare size={36} className="text-primary/40" />
+                  </div>
+                  <div>
+                    <p className="text-gray-700 font-semibold text-lg">Select a conversation</p>
+                    <p className="text-sm text-gray-400 mt-1">Choose from your chats to start messaging</p>
+                  </div>
                 </div>
               </div>
             )}
@@ -1956,71 +2072,6 @@ export const Messaging: React.FC = () => {
         </div>
       )}
 
-      {/* Search Messages Modal */}
-      {showSearchModal && selectedConversation && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-2xl mx-4">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Search Messages</h3>
-              <div className="space-y-4">
-                <Input
-                  placeholder="Search in conversation..."
-                  icon={<Search size={20} />}
-                  value={searchMessagesQuery}
-                  onChange={(e) => handleSearchMessages(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === "Enter") {
-                      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-                      runSearch(searchMessagesQuery);
-                    }
-                  }}
-                  autoFocus
-                />
-                {searchLoading && (
-                  <p className="text-sm text-gray-400 text-center">Searching...</p>
-                )}
-                {!searchLoading && searchMessagesQuery.trim() && searchResults.length === 0 && (
-                  <p className="text-sm text-gray-400 text-center">
-                    No messages found for &quot;{searchMessagesQuery}&quot;
-                  </p>
-                )}
-                {searchResults.length > 0 && (
-                  <div className="max-h-96 overflow-y-auto space-y-2">
-                    <p className="text-sm text-gray-600">
-                      Found {searchResults.length} result{searchResults.length === 1 ? "" : "s"}
-                    </p>
-                    {searchResults.map((msg) => (
-                      <div
-                        key={msg.id}
-                        className="p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
-                        onClick={() => handleJumpToMessage(msg)}
-                      >
-                        <p className="text-sm font-medium">{msg.sender?.fullNames || "Unknown"}</p>
-                        <p className="text-sm text-gray-600 truncate">
-                          {highlightMatch(msg.content || "", searchMessagesQuery)}
-                        </p>
-                        <p className="text-xs text-gray-400">{new Date(msg.timestamp).toLocaleString()}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div className="flex justify-end gap-3 mt-6">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setShowSearchModal(false);
-                    setSearchMessagesQuery("");
-                    setSearchResults([]);
-                  }}
-                >
-                  Close
-                </Button>
-              </div>
-            </div>
-          </Card>
-        </div>
-      )}
 
       {/* Create Direct Chat Modal */}
       {showDirectChatCreator && (
