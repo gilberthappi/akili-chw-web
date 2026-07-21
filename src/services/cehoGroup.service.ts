@@ -57,7 +57,6 @@ export const adminGetAllGroups = async (
 };
 
 export const adminCreateGroup = async (data: {
-  name: string;
   cehoStudentId: string;
   sectors?: string[];
   cells?: string[];
@@ -87,7 +86,7 @@ export const adminRemoveMember = async (groupId: string, studentId: string): Pro
 
 export const adminUpdateGroup = async (
   groupId: string,
-  data: { name?: string; sectors?: string[]; cells?: string[]; villages?: string[]; description?: string },
+  data: { name?: string; district?: string; sectors?: string[]; cells?: string[]; villages?: string[]; cell?: string; village?: string; description?: string },
 ): Promise<ICEHOGroup> => {
   const res = await api.patch(`/ceho-groups/${groupId}`, data);
   return res.data.data;
@@ -113,11 +112,22 @@ export const cehoUpdateMyGroup = async (data: {
 
 // ─── Admin: promote / demote ──────────────────────────────────────────────────
 
+export type PromoteToCEHOResult =
+  | { conflict: true; existingCeho: { id: string; fullNames: string } }
+  | { conflict?: undefined; user: { id: string; fullNames: string }; group: ICEHOGroup };
+
+export const adminCheckHospitalConflict = async (
+  userId: string,
+): Promise<{ existingCeho: { id: string; fullNames: string } | null }> => {
+  const res = await api.get(`/ceho-groups/promote/${userId}/conflict`);
+  return res.data.data;
+};
+
 export const adminPromoteToCEHO = async (
   userId: string,
-  groupName?: string,
-): Promise<{ user: { id: string; fullNames: string }; group: ICEHOGroup }> => {
-  const res = await api.patch(`/ceho-groups/promote/${userId}`, { groupName });
+  confirmReplace = false,
+): Promise<PromoteToCEHOResult> => {
+  const res = await api.patch(`/ceho-groups/promote/${userId}`, { confirmReplace });
   return res.data.data;
 };
 

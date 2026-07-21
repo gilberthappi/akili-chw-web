@@ -22,8 +22,10 @@ import toast from "react-hot-toast";
 import {
   adminGetAllGroups,
   adminPromoteToCEHO,
+  adminCheckHospitalConflict,
   adminUpdateGroup,
   adminDeleteGroup,
+  PromoteToCEHOResult,
 } from "@/services/cehoGroup.service";
 import { getAllStudentsNoPagination, IStudent } from "@/services/students.service";
 import {
@@ -194,13 +196,22 @@ const selectCls = "w-full px-3 py-2 border border-gray-200 rounded-lg text-sm fo
 
 const CreateGroupModal = ({ open, onClose }: { open: boolean; onClose: () => void }) => {
   const queryClient = useQueryClient();
-  const [name, setName] = useState("");
   const [district, setDistrict] = useState("");
   const [sector, setSector] = useState("");
   const [cell, setCell] = useState("");
   const [village, setVillage] = useState("");
   const [description, setDescription] = useState("");
   const [cehoStudent, setCehoStudent] = useState<IStudent | null>(null);
+
+  // Checked as soon as a CHW is picked, so the modal shows the right state
+  // (plain create vs. replace-warning) before the admin clicks anything.
+  const { data: conflictCheck, isFetching: isCheckingConflict } = useQuery({
+    queryKey: ["promote-conflict-check", cehoStudent?.userId],
+    queryFn: () => adminCheckHospitalConflict(cehoStudent!.userId),
+    enabled: !!cehoStudent,
+    staleTime: 0,
+  });
+  const existingCeho = conflictCheck?.existingCeho ?? null;
 
   const districtOpts = getDistrictOptions();
   const sectorOpts = district ? getSectorOptions(district) : [];
@@ -224,22 +235,33 @@ const CreateGroupModal = ({ open, onClose }: { open: boolean; onClose: () => voi
   };
 
   const resetForm = () => {
-    setName(""); setDistrict(""); setSector(""); setCell(""); setVillage("");
+    setDistrict(""); setSector(""); setCell(""); setVillage("");
     setDescription(""); setCehoStudent(null);
   };
 
-  const { mutate, isPending } = useMutation({
-    mutationFn: async () => {
-      const { group } = await adminPromoteToCEHO(cehoStudent!.userId, name.trim());
-      const locationStr = [district, sector, cell, village].filter(Boolean).join(" / ");
-      if (locationStr || description.trim()) {
-        await adminUpdateGroup(group.id, {
-          sector: locationStr || undefined,
+  const { mutate, isPending } = useMutation<PromoteToCEHOResult, unknown, boolean | undefined>({
+    mutationFn: (confirmReplace = false) => adminPromoteToCEHO(cehoStudent!.userId, confirmReplace),
+    onSuccess: async (result) => {
+      if (result.conflict) {
+        // The pre-check was stale — refresh it and let the admin re-click.
+        queryClient.invalidateQueries({ queryKey: ["promote-conflict-check", cehoStudent?.userId] });
+        toast.error(`${result.existingCeho.fullNames} is now the CEHO here — please try again.`);
+        return;
+      }
+
+      const hasLocation = district || sector || cell || village;
+      if (hasLocation || description.trim()) {
+        await adminUpdateGroup(result.group.id, {
+          district: district || undefined,
+          sectors: sector ? [sector] : undefined,
+          cells: cell ? [cell] : undefined,
+          villages: village ? [village] : undefined,
+          cell: cell || undefined,
+          village: village || undefined,
           description: description.trim() || undefined,
         });
       }
-    },
-    onSuccess: () => {
+
       queryClient.invalidateQueries({ queryKey: ["admin-ceho-groups"] });
       toast.success("CEHO group created successfully.");
       resetForm();
@@ -250,11 +272,11 @@ const CreateGroupModal = ({ open, onClose }: { open: boolean; onClose: () => voi
     },
   });
 
-  const canSubmit = name.trim() && cehoStudent && !isPending;
+  const canSubmit = cehoStudent && !isPending && !isCheckingConflict;
 
   return (
     <Transition appear show={open} as={Fragment}>
-      <Dialog as="div" className="relative z-50" onClose={() => !isPending && onClose()}>
+      <Dialog as="div" className="relative z-50" onClose={() => { if (!isPending) { onClose(); resetForm(); } }}>
         <Transition.Child as={Fragment} enter="ease-out duration-200" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in duration-150" leaveFrom="opacity-100" leaveTo="opacity-0">
           <div className="fixed inset-0 bg-black/40" />
         </Transition.Child>
@@ -265,21 +287,21 @@ const CreateGroupModal = ({ open, onClose }: { open: boolean; onClose: () => voi
                 <Dialog.Title className="text-lg font-bold text-gray-900">Create CEHO Group</Dialog.Title>
                 <Dialog.Description className="text-sm text-gray-500 mt-0.5">
                   The selected CHW will be promoted to CEHO and assigned to lead the group.
+                  The group is automatically named after the CHW's hospital.
                 </Dialog.Description>
               </div>
-              <div className="space-y-3">
-                {/* Group name */}
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-gray-600">Group Name *</label>
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g. Kigali North Group"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD]"
-                  />
-                </div>
 
+              {existingCeho && (
+                <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                  <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-800">
+                    <span className="font-semibold">{existingCeho.fullNames}</span> is already the CEHO
+                    at this hospital. Continuing will demote them to CHW and hand them this same team.
+                  </p>
+                </div>
+              )}
+
+              <div className="space-y-3">
                 {/* CHW combobox */}
                 <CHWCombobox
                   label="Community Health Worker (CHW) *"
@@ -326,9 +348,15 @@ const CreateGroupModal = ({ open, onClose }: { open: boolean; onClose: () => voi
               </div>
               <div className="flex gap-3">
                 <Button variant="ghost" size="sm" className="flex-1" onClick={() => { resetForm(); onClose(); }} disabled={isPending}>Cancel</Button>
-                <Button size="sm" className="flex-1" onClick={() => mutate()} disabled={!canSubmit} isLoading={isPending}>
-                  {!isPending && <Plus className="w-3.5 h-3.5 mr-1.5" />}
-                  Create Group
+                <Button
+                  size="sm"
+                  className={`flex-1 ${existingCeho ? "!bg-amber-500 hover:!bg-amber-600" : ""}`}
+                  onClick={() => mutate(!!existingCeho)}
+                  disabled={!canSubmit}
+                  isLoading={isPending}
+                >
+                  {!isPending && !existingCeho && <Plus className="w-3.5 h-3.5 mr-1.5" />}
+                  {existingCeho ? "Replace CEHO" : "Create Group"}
                 </Button>
               </div>
             </Dialog.Panel>
@@ -384,7 +412,7 @@ const StudentsPage = () => {
         (g) =>
           g.name.toLowerCase().includes(q) ||
           (g.ceho?.user?.fullNames ?? "").toLowerCase().includes(q) ||
-          (g.sector ?? "").toLowerCase().includes(q),
+          (g.sectors ?? []).some((s) => s.toLowerCase().includes(q)),
       );
     }
     if (groupSort === "date-range") {
