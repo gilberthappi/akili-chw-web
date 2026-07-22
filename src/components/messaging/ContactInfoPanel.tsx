@@ -44,6 +44,15 @@ export const ContactInfoPanel: React.FC<ContactInfoPanelProps> = ({
   const displayName = isDirect ? otherParticipant?.user?.fullNames || "User" : conversation.name || "Unnamed";
   const displayPhoto = isDirect ? otherParticipant?.user?.photo : conversation.photo;
 
+  // Role helpers — roles can be a string or array depending on the JWT shape
+  const userRoles: string[] = Array.isArray(currentUser?.roles)
+    ? (currentUser!.roles as string[])
+    : currentUser?.roles
+    ? [currentUser.roles as string]
+    : [];
+  const isAdmin = userRoles.includes("ADMIN") || userRoles.includes("DEVELOPER");
+  const isCehoOrAdmin = isAdmin || userRoles.includes("CEHO");
+
   const [selectedNewMember, setSelectedNewMember] = useState("");
 
   const { onlineUserIds, lastSeenByUserId } = useNotificationsContext();
@@ -220,39 +229,45 @@ export const ContactInfoPanel: React.FC<ContactInfoPanelProps> = ({
                   <ProfileAvatar name={p.user?.fullNames || "User"} photo={realPhoto(p.user?.photo)} size="w-8 h-8" />
                   <span className="text-sm text-gray-800 truncate">{p.user?.fullNames || "Unknown"}</span>
                 </div>
-                <button
-                  onClick={() => onRemoveParticipant(p.userId)}
-                  className="text-gray-400 hover:text-red-500"
-                  title="Remove"
-                >
-                  <UserX size={16} />
-                </button>
+                {/* Only ADMIN or CEHO can remove members */}
+                {isCehoOrAdmin && p.userId !== currentUser?.id && (
+                  <button
+                    onClick={() => onRemoveParticipant(p.userId)}
+                    className="text-gray-400 hover:text-red-500 flex-shrink-0"
+                    title="Remove member"
+                  >
+                    <UserX size={16} />
+                  </button>
+                )}
               </div>
             ))}
           </div>
-          <div className="flex gap-2 mt-3 items-start">
-            <div className="flex-1 min-w-0">
-              <ComboboxField
-                options={availableUsers
-                  .filter((u) => !conversation.participants.some((p) => p.userId === u.id))
-                  .map((u) => ({ value: u.id, label: u.fullNames }))}
-                defaultValue={selectedNewMember}
-                onChange={(value) => setSelectedNewMember(value)}
-                margin={false}
-                placeholder="Search members to add..."
-              />
+          {/* Only ADMIN or CEHO can add members */}
+          {isCehoOrAdmin && (
+            <div className="flex gap-2 mt-3 items-start">
+              <div className="flex-1 min-w-0">
+                <ComboboxField
+                  options={availableUsers
+                    .filter((u) => !conversation.participants.some((p) => p.userId === u.id))
+                    .map((u) => ({ value: u.id, label: u.fullNames }))}
+                  defaultValue={selectedNewMember}
+                  onChange={(value) => setSelectedNewMember(value)}
+                  margin={false}
+                  placeholder="Search members to add..."
+                />
+              </div>
+              <Button
+                size="sm"
+                disabled={!selectedNewMember}
+                onClick={() => {
+                  onAddParticipant(selectedNewMember);
+                  setSelectedNewMember("");
+                }}
+              >
+                Add
+              </Button>
             </div>
-            <Button
-              size="sm"
-              disabled={!selectedNewMember}
-              onClick={() => {
-                onAddParticipant(selectedNewMember);
-                setSelectedNewMember("");
-              }}
-            >
-              Add
-            </Button>
-          </div>
+          )}
         </div>
       )}
 
@@ -307,7 +322,8 @@ export const ContactInfoPanel: React.FC<ContactInfoPanelProps> = ({
         </div>
       </div>
 
-      {!isDirect && isCreator && onDeleteConversation && (
+      {/* Danger Zone — only ADMIN can delete a group or community */}
+      {!isDirect && isAdmin && onDeleteConversation && (
         <div className="p-4 border-t border-red-200">
           <h4 className="text-xs font-semibold text-red-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
             <AlertTriangle size={14} />
