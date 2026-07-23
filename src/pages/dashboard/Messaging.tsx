@@ -974,7 +974,8 @@ export const Messaging: React.FC = () => {
     const unreadMessages = messages.filter(
       (msg) =>
         !markedAsReadRef.current.has(msg.id) &&
-        (!msg.readBy || (msg.readBy.length === 0 && msg.senderId !== user?.id))
+        msg.senderId !== user?.id &&
+        (!msg.readBy || msg.readBy.length === 0 || !msg.readBy.some((r) => typeof r === "string" ? r === user?.id : r.userId === user?.id))
     );
 
     if (unreadMessages.length === 0) return;
