@@ -175,6 +175,9 @@ const Calendar: React.FC = () => {
   const isAdmin = userRoles.some((role) =>
     ["ADMIN", "ADMINISTRATOR"].includes(role),
   );
+  const isCEHO = userRoles.some((role) =>
+    ["CEHO"].includes(role),
+  );
 
   // Fetch all users
   const { data: usersData } = useQuery({
@@ -229,7 +232,21 @@ const Calendar: React.FC = () => {
     },
   });
 
-  const users = usersData?.data || [];
+  const rawUsers = usersData?.data || [];
+  const loggedInUserFullData = rawUsers.find((u: any) => u.id === user?.id);
+  const cehoHospitalId = loggedInUserFullData?.hospital?.id || loggedInUserFullData?.hospitalId;
+
+  const users = rawUsers.filter((u: any) => {
+    if (isCEHO) {
+      const isCHW = ["TRAINEE", "TESTER"].includes(u.userRoles?.[0]?.name);
+      if (!isCHW) return false;
+      if (!cehoHospitalId) return false;
+      
+      const chwHospitalId = u.hospital?.id || u.hospitalId;
+      return chwHospitalId === cehoHospitalId;
+    }
+    return true;
+  });
 
   // Use events exactly as provided by the backend (no client-side deduplication)
   const events = React.useMemo(() => {
