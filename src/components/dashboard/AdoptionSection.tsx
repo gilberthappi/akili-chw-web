@@ -62,7 +62,7 @@ export const AdoptionSection: React.FC<AdoptionSectionProps> = ({
 
   const { ref: mapRef, inView: mapInView } = useInView<HTMLDivElement>();
 
-  const { hospitals, isFetching: isHospitalsFetching } = useDashboardHospitals(
+  const { healthCenters, isFetching: isHospitalsFetching } = useDashboardHospitals(
     filters,
     mapInView,
   );
@@ -78,7 +78,7 @@ export const AdoptionSection: React.FC<AdoptionSectionProps> = ({
       demographics,
       enrollmentTrends,
       communications,
-      hospitals,
+      healthCenters,
     },
     filters,
     onFiltersChange,
@@ -179,9 +179,9 @@ export const AdoptionSection: React.FC<AdoptionSectionProps> = ({
       <div ref={mapRef}>
         <RwandaDistrictMap
           byDistrict={demographics?.byDistrict ?? []}
-          hospitals={hospitals}
+          healthCenters={healthCenters}
           activeDistrict={filters.district}
-          hospitalId={filters.hospitalId}
+          healthCenterId={filters.healthCenterId}
           province={filters.province}
           onDistrictClick={handleDistrictClick}
         />

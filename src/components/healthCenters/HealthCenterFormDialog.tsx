@@ -1,22 +1,22 @@
 import React, { useState, useEffect } from "react";
 import Modal from "@/components/common/Modal";
 import Button from "@/components/common/form/Button";
-import { IHospital } from "@/types";
+import { IHealthCenter } from "@/types";
 import toast from "react-hot-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createHospital, updateHospital } from "@/services/hospitals.service";
+import { createHospital, updateHospital } from "@/services/healthCenters.service";
 import { locations, getDistrictOptions, getSectorOptions, getCellOptions, getVillageOptions } from "@/hooks/locations";
 
-interface HospitalFormDialogProps {
+interface HealthCenterFormDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  hospital: IHospital | null;
+  healthCenter: IHealthCenter | null;
 }
 
-const HospitalFormDialog: React.FC<HospitalFormDialogProps> = ({
+const HealthCenterFormDialog: React.FC<HealthCenterFormDialogProps> = ({
   isOpen,
   onClose,
-  hospital
+  healthCenter
 }) => {
   const [formData, setFormData] = useState({
     name: "",
@@ -43,49 +43,49 @@ const HospitalFormDialog: React.FC<HospitalFormDialogProps> = ({
   const createMutation = useMutation({
     mutationFn: createHospital,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["hospitals"] });
-      toast.success("Hospital created successfully!");
+      queryClient.invalidateQueries({ queryKey: ["healthCenters"] });
+      toast.success("HealthCenter created successfully!");
       onClose();
     },
     onError: (error) => {
-      toast.error("Failed to create hospital");
-      console.error("Create hospital error:", error);
+      toast.error("Failed to create healthCenter");
+      console.error("Create healthCenter error:", error);
     }
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<IHospital> }) =>
+    mutationFn: ({ id, data }: { id: string; data: Partial<IHealthCenter> }) =>
       updateHospital(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["hospitals"] });
-      toast.success("Hospital updated successfully!");
+      queryClient.invalidateQueries({ queryKey: ["healthCenters"] });
+      toast.success("HealthCenter updated successfully!");
       onClose();
     },
     onError: (error) => {
-      toast.error("Failed to update hospital");
-      console.error("Update hospital error:", error);
+      toast.error("Failed to update healthCenter");
+      console.error("Update healthCenter error:", error);
     }
   });
 
-  // Reset form when dialog opens/closes or hospital changes
+  // Reset form when dialog opens/closes or healthCenter changes
   useEffect(() => {
     if (isOpen) {
-      if (hospital) {
+      if (healthCenter) {
         // Edit mode - populate form with existing data
         // Parse location string: "village, cell, sector, district, province"
         setFormData({
-          name: hospital.name,
-          province: hospital.province|| "",
-          district: hospital.district || "",
-          sector: hospital.sector || "",
-          cell: hospital.cell || "",
-          village: hospital.village || "",
-          contact: hospital.contact || "",
-          email: hospital.email || "",
-          chwSupervisor: hospital.chwSupervisor || "",
-          chwSupervisorContact: hospital.chwSupervisorContact || "",
+          name: healthCenter.name,
+          province: healthCenter.province|| "",
+          district: healthCenter.district || "",
+          sector: healthCenter.sector || "",
+          cell: healthCenter.cell || "",
+          village: healthCenter.village || "",
+          contact: healthCenter.contact || "",
+          email: healthCenter.email || "",
+          chwSupervisor: healthCenter.chwSupervisor || "",
+          chwSupervisorContact: healthCenter.chwSupervisorContact || "",
           catchmentAreaType: "district",
-          catchmentArea: hospital.catchmentArea || []
+          catchmentArea: healthCenter.catchmentArea || []
         });
       } else {
         // Create mode - reset form
@@ -109,7 +109,7 @@ const HospitalFormDialog: React.FC<HospitalFormDialogProps> = ({
       setCatchmentSector("");
       setCatchmentCell("");
     }
-  }, [isOpen, hospital]);
+  }, [isOpen, healthCenter]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -187,11 +187,11 @@ const HospitalFormDialog: React.FC<HospitalFormDialogProps> = ({
       catchmentArea: formData.catchmentArea
     };
 
-    if (hospital) {
-      // Update existing hospital
-      updateMutation.mutate({ id: hospital.id, data: submitData });
+    if (healthCenter) {
+      // Update existing healthCenter
+      updateMutation.mutate({ id: healthCenter.id, data: submitData });
     } else {
-      // Create new hospital
+      // Create new healthCenter
       createMutation.mutate(submitData);
     }
   };
@@ -200,13 +200,13 @@ const HospitalFormDialog: React.FC<HospitalFormDialogProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={hospital ? "Edit Hospital" : "Add New Hospital"}
+      title={healthCenter ? "Edit HealthCenter" : "Add New HealthCenter"}
       big={true}
     >
       <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Hospital Name *
+              HealthCenter Name *
             </label>
             <input
               type="text"
@@ -547,7 +547,7 @@ const HospitalFormDialog: React.FC<HospitalFormDialogProps> = ({
             className="bg-blue-600 hover:bg-blue-700 text-white"
             disabled={createMutation.isPending || updateMutation.isPending}
           >
-            {(createMutation.isPending || updateMutation.isPending) ? "Saving..." : (hospital ? "Update Hospital" : "Create Hospital")}
+            {(createMutation.isPending || updateMutation.isPending) ? "Saving..." : (healthCenter ? "Update HealthCenter" : "Create HealthCenter")}
           </Button>
         </div>
       </form>
@@ -555,4 +555,4 @@ const HospitalFormDialog: React.FC<HospitalFormDialogProps> = ({
   );
 };
 
-export default HospitalFormDialog;
+export default HealthCenterFormDialog;

@@ -9,7 +9,7 @@ export const buildDashboardFilterQuery = (filters: IDashboardFilters): string =>
   if (filters.role) qsParams.append("role", filters.role);
   if (filters.year) qsParams.append("year", filters.year);
   if (filters.month) qsParams.append("month", filters.month);
-  if (filters.hospitalId) qsParams.append("hospitalId", filters.hospitalId);
+  if (filters.healthCenterId) qsParams.append("healthCenterId", filters.healthCenterId);
   return qsParams.toString();
 };
 
@@ -29,5 +29,5 @@ export const dashboardFilterKey = (filters: IDashboardFilters) =>
     filters.role,
     filters.year,
     filters.month,
-    filters.hospitalId,
+    filters.healthCenterId,
   ] as const;

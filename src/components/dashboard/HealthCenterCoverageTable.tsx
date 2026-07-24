@@ -3,22 +3,22 @@ import { Card } from "@/components/common/Card";
 import { DashboardSectionHeader } from "./shared/DashboardSectionHeader";
 import { Building2 } from "lucide-react";
 
-type SortKey = "province" | "totalChws" | "activeChws" | "hospitals" | "rate";
+type SortKey = "province" | "totalChws" | "activeChws" | "healthCenters" | "rate";
 
 interface Row {
   province: string;
   totalChws: number;
   activeChws: number;
-  hospitals: number;
+  healthCenters: number;
 }
 
-interface HospitalCoverageTableProps {
+interface HealthCenterCoverageTableProps {
   byProvince: Row[];
   totalChws?: number;
   registrationRate?: number;
 }
 
-export const HospitalCoverageTable: React.FC<HospitalCoverageTableProps> = ({
+export const HealthCenterCoverageTable: React.FC<HealthCenterCoverageTableProps> = ({
   byProvince,
   totalChws,
   registrationRate,
@@ -85,7 +85,7 @@ export const HospitalCoverageTable: React.FC<HospitalCoverageTableProps> = ({
                   <SortBtn label="Active" k="activeChws" />
                 </th>
                 <th className="py-2 px-3 text-right">
-                  <SortBtn label="Hospitals" k="hospitals" />
+                  <SortBtn label="Health Centers" k="healthCenters" />
                 </th>
                 <th className="py-2 pl-3 text-right">
                   <SortBtn label="%" k="rate" />
@@ -108,7 +108,7 @@ export const HospitalCoverageTable: React.FC<HospitalCoverageTableProps> = ({
                     {row.activeChws.toLocaleString()}
                   </td>
                   <td className="py-2.5 px-3 text-right text-gray-600">
-                    {row.hospitals}
+                    {row.healthCenters}
                   </td>
                   <td className="py-2.5 pl-3 text-right">
                     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${

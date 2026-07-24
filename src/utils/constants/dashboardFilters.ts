@@ -9,14 +9,14 @@ export const DEFAULT_DASHBOARD_FILTERS: IDashboardFilters = {
   role: DEFAULT_DASHBOARD_ROLE,
   year: "",
   month: "",
-  hospitalId: "",
+  healthCenterId: "",
 };
 
 /** True when any filter differs from the dashboard defaults (CHW role is not counted). */
 export const hasActiveDashboardFilters = (filters: IDashboardFilters): boolean => {
   const nonDefaultRole = filters.role !== "" && filters.role !== DEFAULT_DASHBOARD_ROLE;
   const otherFiltersActive = (
-    ["province", "district", "gender", "year", "month", "hospitalId"] as const
+    ["province", "district", "gender", "year", "month", "healthCenterId"] as const
   ).some((key) => filters[key] !== "");
   return nonDefaultRole || otherFiltersActive;
 };

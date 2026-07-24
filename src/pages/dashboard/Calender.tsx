@@ -40,7 +40,7 @@ import {
 } from "@/services/calender.service";
 import { useAuth } from "@/hooks/useAuth";
 import { uploadFileByType } from "@/services/uploader.api";
-import { getPublicHospitals } from "@/services/hospitals.service";
+import { getPublicHospitals } from "@/services/healthCenters.service";
 
 const EBUMENYI_SCHEDULE_URL =
   import.meta.env.VITE_EBUMENYI_MEET_API_URL ||
@@ -234,7 +234,7 @@ const Calendar: React.FC = () => {
 
   const rawUsers = usersData?.data || [];
   const loggedInUserFullData = rawUsers.find((u: any) => u.id === user?.id);
-  const cehoHospitalId = loggedInUserFullData?.hospital?.id || loggedInUserFullData?.hospitalId;
+  const cehoHospitalId = loggedInUserFullData?.healthCenter?.id || loggedInUserFullData?.healthCenterId;
 
   const users = rawUsers.filter((u: any) => {
     if (isCEHO) {
@@ -242,7 +242,7 @@ const Calendar: React.FC = () => {
       if (!isCHW) return false;
       if (!cehoHospitalId) return false;
       
-      const chwHospitalId = u.hospital?.id || u.hospitalId;
+      const chwHospitalId = u.healthCenter?.id || u.healthCenterId;
       return chwHospitalId === cehoHospitalId;
     }
     return true;
@@ -374,19 +374,19 @@ const Calendar: React.FC = () => {
   const fetchHospitalOptions = React.useCallback(async (district?: string) => {
     try {
       const params = district && district !== "all" ? { district } : undefined;
-      const hospitals = await getPublicHospitals(params);
-      setHospitalFilterOptions(hospitals.map((h) => ({ value: h.id, label: h.name })));
+      const healthCenters = await getPublicHospitals(params);
+      setHospitalFilterOptions(healthCenters.map((h) => ({ value: h.id, label: h.name })));
     } catch (err) {
-      console.error("[Calendar] failed to load hospitals:", err);
+      console.error("[Calendar] failed to load healthCenters:", err);
     }
   }, []);
 
-  // Load all hospitals on mount
+  // Load all healthCenters on mount
   React.useEffect(() => {
     fetchHospitalOptions();
   }, [fetchHospitalOptions]);
 
-  // Re-fetch hospitals filtered by district, reset hospital selection
+  // Re-fetch healthCenters filtered by district, reset healthCenter selection
   const isFirstDistrictRender = React.useRef(true);
   React.useEffect(() => {
     if (isFirstDistrictRender.current) {
@@ -717,7 +717,7 @@ const Calendar: React.FC = () => {
         user.userRoles[0]?.name === attendeeFilterRole;
       const matchesHospital =
         attendeeFilterHospital === "all" ||
-        user?.hospital?.id === attendeeFilterHospital;
+        user?.healthCenter?.id === attendeeFilterHospital;
       const matchesDistrict =
         attendeeFilterDistrict === "all" || user.district === attendeeFilterDistrict;
       const matchesSector =
@@ -3355,13 +3355,13 @@ const Calendar: React.FC = () => {
                   />
                   <ComboboxField
                     options={[
-                      { value: "all", label: "All Hospitals" },
+                      { value: "all", label: "All HealthCenters" },
                       ...hospitalFilterOptions,
                     ]}
                     defaultValue={attendeeFilterHospital}
                     onChange={(value) => setAttendeeFilterHospital(value)}
                     hideQueryOnChange={false}
-                    placeholder='Select hospital...'
+                    placeholder='Select healthCenter...'
                   />
                   <ComboboxField
                     options={[
@@ -3412,7 +3412,7 @@ const Calendar: React.FC = () => {
                         <div className='font-medium text-sm'>{user.fullNames}</div>
                         <div className='text-xs text-gray-600'>
                           {user.userRoles[0]?.name} •{" "}
-                          {user.hospital?.name || "No hospital"} • {user.phoneNumber}
+                          {user.healthCenter?.name || "No healthCenter"} • {user.phoneNumber}
                         </div>
                         <div className='text-xs text-gray-500'>
                           {user.district}, {user.sector}, {user.cell}, {user.village}

@@ -13,7 +13,7 @@ import { signup } from "@/services/auth.service";
 import { ISignUp } from "@/types/auth";
 import { signupSchema } from "@/schemas/users.schema";
 import { locations } from "@/hooks/locations";
-import { getPublicHospitals } from "@/services/hospitals.service";
+import { getPublicHospitals } from "@/services/healthCenters.service";
 
 // ─── Dark-themed field components ────────────────────────────────────────────
 
@@ -146,16 +146,16 @@ export const Signup: React.FC = () => {
     defaultValues: {
       email: "", fullNames: "", phoneNumber: "",
       district: "", sector: "", cell: "", village: "",
-      NID: "", birthdate: "", gender: "", hospitalId: "",
+      NID: "", birthdate: "", gender: "", healthCenterId: "",
     },
   });
 
-  const { data: hospitals = [] } = useQuery({
+  const { data: healthCenters = [] } = useQuery({
     queryKey: ["publicHospitals"],
     queryFn: () => getPublicHospitals({ limit: 200 }),
   });
 
-  const hospitalOptions = hospitals.map((h) => ({ value: h.id, label: h.name }));
+  const hospitalOptions = healthCenters.map((h) => ({ value: h.id, label: h.name }));
 
   const districts = useMemo(() =>
     locations.provinces.flatMap((p) =>
@@ -262,16 +262,16 @@ export const Signup: React.FC = () => {
                 </div>
               </div>
 
-              {/* Hospital */}
+              {/* HealthCenter */}
               <div className="space-y-4">
                 <SectionHeading>Health Facility</SectionHeading>
                 <DarkSelect
-                  label="Hospital / Health Center"
+                  label="HealthCenter / Health Center"
                   icon={<Building2 size={16} />}
-                  error={errors.hospitalId?.message}
-                  reg={register("hospitalId")}
+                  error={errors.healthCenterId?.message}
+                  reg={register("healthCenterId")}
                   options={hospitalOptions}
-                  defaultLabel="Select Hospital (optional)"
+                  defaultLabel="Select HealthCenter (optional)"
                 />
               </div>
 

@@ -287,7 +287,7 @@ const CreateGroupModal = ({ open, onClose }: { open: boolean; onClose: () => voi
                 <Dialog.Title className="text-lg font-bold text-gray-900">Create CEHO Group</Dialog.Title>
                 <Dialog.Description className="text-sm text-gray-500 mt-0.5">
                   The selected CHW will be promoted to CEHO and assigned to lead the group.
-                  The group is automatically named after the CHW's hospital.
+                  The group is automatically named after the CHW's healthCenter.
                 </Dialog.Description>
               </div>
 
@@ -296,7 +296,7 @@ const CreateGroupModal = ({ open, onClose }: { open: boolean; onClose: () => voi
                   <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                   <p className="text-xs text-amber-800">
                     <span className="font-semibold">{existingCeho.fullNames}</span> is already the CEHO
-                    at this hospital. Continuing will demote them to CHW and hand them this same team.
+                    at this healthCenter. Continuing will demote them to CHW and hand them this same team.
                   </p>
                 </div>
               )}

@@ -1,4 +1,4 @@
-export interface IHospital {
+export interface IHealthCenter {
   id: string;
   name: string;
   location: string;
@@ -37,7 +37,7 @@ export interface IUser {
   audio: string | null;
   bio: string | null;
   industry: string | null;
-  hospital: IHospital | null;
+  healthCenter: IHealthCenter | null;
   userRoles: IRoles[];
 }
 

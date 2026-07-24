@@ -2,7 +2,7 @@ import React from "react";
 import { Filter, X } from "lucide-react";
 import { IDashboardFilters } from "@/types";
 import { IOptionFieldOption } from "@/components/common/form/ComboboxField";
-import { HospitalFilterSelect } from "./HospitalFilterSelect";
+import { HealthCenterFilterSelect } from "./HealthCenterFilterSelect";
 import {
   DEFAULT_DASHBOARD_FILTERS,
   DEFAULT_DASHBOARD_ROLE,
@@ -17,7 +17,7 @@ interface GlobalFilterBarProps {
   genders: string[];
   years: string[];
   months: string[];
-  hospitals: IOptionFieldOption[];
+  healthCenters: IOptionFieldOption[];
   onHospitalSearch: (query: string) => void;
 }
 
@@ -42,7 +42,7 @@ const FILTER_CHIP_LABELS: Record<keyof IDashboardFilters, string> = {
   role: "Role",
   year: "Year",
   month: "Month",
-  hospitalId: "Hospital",
+  healthCenterId: "Health Center",
 };
 
 const SELECT_CLS = "text-xs border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-[#3363AD] bg-white transition-colors";
@@ -76,7 +76,7 @@ export const GlobalFilterBar: React.FC<GlobalFilterBarProps> = ({
   genders,
   years,
   months,
-  hospitals,
+  healthCenters,
   onHospitalSearch,
 }) => {
   const hasActiveFilters = hasActiveDashboardFilters(filters);
@@ -156,12 +156,12 @@ export const GlobalFilterBar: React.FC<GlobalFilterBarProps> = ({
           />
         )}
 
-        <HospitalFilterSelect
-          value={filters.hospitalId}
-          options={hospitals}
+        <HealthCenterFilterSelect
+          value={filters.healthCenterId}
+          options={healthCenters}
           onSearch={onHospitalSearch}
           onChange={(value) =>
-            onChange({ ...filters, hospitalId: value, province: "", district: "" })
+            onChange({ ...filters, healthCenterId: value, province: "", district: "" })
           }
         />
 
@@ -191,9 +191,9 @@ export const GlobalFilterBar: React.FC<GlobalFilterBarProps> = ({
                 const filterKey = key as keyof IDashboardFilters;
                 let displayValue = value;
                 if (filterKey === "role") displayValue = ROLE_LABELS[value] ?? value;
-                else if (filterKey === "hospitalId")
+                else if (filterKey === "healthCenterId")
                   displayValue =
-                    hospitals.find((h) => h.value === value)?.label ?? "Selected hospital";
+                    healthCenters.find((h) => h.value === value)?.label ?? "Selected healthCenter";
                 const label = `${FILTER_CHIP_LABELS[filterKey]}: ${displayValue}`;
                 return (
                   <span

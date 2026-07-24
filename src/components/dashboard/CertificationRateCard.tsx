@@ -95,10 +95,10 @@ export const CertificationRateCard: React.FC<CertificationRateCardProps> = ({
     name: truncate(f.hospitalName),
     Eligible: f.eligible,
     Issued: f.issued,
-    hospitalId: f.hospitalId,
+    healthCenterId: f.healthCenterId,
   }));
 
-  const handleBarClick = (entry: unknown, extraKey: "courseId" | "district" | "hospitalId") => {
+  const handleBarClick = (entry: unknown, extraKey: "courseId" | "district" | "healthCenterId") => {
     const payload = (entry as { payload?: Record<string, unknown> })?.payload ?? entry;
     const value = (payload as Record<string, unknown>)?.[extraKey];
     if (typeof value === "string" && value) {
@@ -108,7 +108,7 @@ export const CertificationRateCard: React.FC<CertificationRateCardProps> = ({
 
   const renderBreakdownChart = (
     chartData: { name: string }[],
-    extraKey: "courseId" | "district" | "hospitalId",
+    extraKey: "courseId" | "district" | "healthCenterId",
   ) =>
     chartData.length === 0 ? (
       <p className="text-sm text-gray-400 text-center py-6">No data available</p>
@@ -238,7 +238,7 @@ export const CertificationRateCard: React.FC<CertificationRateCardProps> = ({
 
       {activeTab === "course" && renderBreakdownChart(courseData, "courseId")}
       {activeTab === "district" && renderBreakdownChart(districtData, "district")}
-      {activeTab === "facility" && renderBreakdownChart(facilityData, "hospitalId")}
+      {activeTab === "facility" && renderBreakdownChart(facilityData, "healthCenterId")}
 
       {dropdownOpen && (
         <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(false)} />

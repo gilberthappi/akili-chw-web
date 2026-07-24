@@ -1,13 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import {
-  IHospital,
+  IHealthCenter,
   ICommunicationsAnalytics,
   ISupervisorResponseRate,
   IRecommendedChapterInsight,
   IStudentRecommendationInsight,
   IDashboardFilters,
 } from "@/types";
-import { listAllHospitals } from "@/services/hospitals.service";
+import { listAllHospitals } from "@/services/healthCenters.service";
 import {
   getCommunicationsAnalytics,
   getSupervisorResponseRate,
@@ -19,14 +19,14 @@ import { dashboardKeys } from "@/utils/constants/queryKeys";
 
 const DASHBOARD_CACHE_MS = 1000 * 60 * 30;
 
-/** Hospitals for map / coverage — heavy N+1 backend; load when map is near viewport. */
+/** HealthCenters for map / coverage — heavy N+1 backend; load when map is near viewport. */
 export const useDashboardHospitals = (
   filters: IDashboardFilters = DEFAULT_DASHBOARD_FILTERS,
   enabled: boolean = true,
 ) => {
   const { data, isLoading, isFetching, error, refetch } = useQuery({
-    queryKey: dashboardKeys.hospitals(dashboardFilterKey(filters)),
-    queryFn: async (): Promise<IHospital[]> => {
+    queryKey: dashboardKeys.healthCenters(dashboardFilterKey(filters)),
+    queryFn: async (): Promise<IHealthCenter[]> => {
       const res = await listAllHospitals();
       return res?.data ?? [];
     },
@@ -37,10 +37,10 @@ export const useDashboardHospitals = (
   });
 
   return {
-    hospitals: data ?? [],
+    healthCenters: data ?? [],
     isLoading,
     isFetching,
-    error: error ? "Failed to load hospitals." : null,
+    error: error ? "Failed to load healthCenters." : null,
     refetch: () => {
       void refetch();
     },

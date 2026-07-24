@@ -8,7 +8,7 @@ import PageContent from "@/components/common/PageContent";
 import { formatDate } from "@/utils/formats/formats";
 import { getAllStudents, IStudent } from "@/services/students.service";
 import { getAllCoursesNoPagination } from "@/services/course.service";
-import { listAllHospitals } from "@/services/hospitals.service";
+import { listAllHospitals } from "@/services/healthCenters.service";
 import { getDistrictOptions, getSectorOptions } from "@/hooks/locations";
 import StudentTableActions from "./StudentTableActions";
 import TableActions from "../table/TableActions";
@@ -52,10 +52,10 @@ const StudentsList: FC<StudentsListProps> = ({
   const courses = coursesResponse?.data || [];
 
   const { data: hospitalsResponse } = useQuery({
-    queryKey: ["all-hospitals-no-pagination"],
+    queryKey: ["all-healthCenters-no-pagination"],
     queryFn: () => listAllHospitals(),
   });
-  const hospitals = hospitalsResponse?.data || [];
+  const healthCenters = hospitalsResponse?.data || [];
 
   const districtOpts = getDistrictOptions();
   const sectorOpts = districtFilter ? getSectorOptions(districtFilter) : [];
@@ -85,7 +85,7 @@ const StudentsList: FC<StudentsListProps> = ({
     if (roleFilter) params.append("role", roleFilter);
     if (districtFilter) params.append("district", districtFilter);
     if (sectorFilter) params.append("sector", sectorFilter);
-    if (hospitalFilter) params.append("hospitalId", hospitalFilter);
+    if (hospitalFilter) params.append("healthCenterId", hospitalFilter);
 
     const queryString = params.toString();
     return queryString ? `?${queryString}` : "";
@@ -232,14 +232,14 @@ const StudentsList: FC<StudentsListProps> = ({
             options: sectorOpts.map((s) => ({ label: s.label, value: s.label })),
           },
           {
-            key: "hospital",
-            label: "Hospital",
+            key: "healthCenter",
+            label: "Health Center",
             value: hospitalFilter,
             onChange: (val) => {
               setHospitalFilter(val);
               setCurrentPage(1);
             },
-            options: hospitals.map((h) => ({ label: h.name, value: h.id })),
+            options: healthCenters.map((h) => ({ label: h.name, value: h.id })),
           },
           {
             key: "course",

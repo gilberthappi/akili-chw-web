@@ -42,7 +42,7 @@ const StaffTableActions: FC<StaffTableActionsProps> = ({ item }) => {
     cell: item.user.cell ?? "",
     village: item.user.village ?? "",
     role: item.role ?? "",
-    hospitalId: item.user.hospitalId ?? "",
+    healthCenterId: item.user.healthCenterId ?? "",
   };
 
   return (

@@ -4,10 +4,10 @@ import {
   IDemographicsAnalytics,
   ICommunicationsAnalytics,
   IEnrollmentTrend,
-  IHospital,
+  IHealthCenter,
 } from "@/types";
 import { IOptionFieldOption } from "@/components/common/form/ComboboxField";
-import { getAllHospitals } from "@/services/hospitals.service";
+import { getAllHospitals } from "@/services/healthCenters.service";
 import { PROVINCE_DISTRICTS } from "@/utils/constants/provinceDistricts";
 
 interface FilteredData {
@@ -25,17 +25,17 @@ interface FilteredData {
   filteredByDistrict: IDemographicsAnalytics["byDistrict"];
   filteredByGender: IDemographicsAnalytics["byGender"];
   filteredByAgeGroup: IDemographicsAnalytics["byAgeGroup"];
-  filteredProvinces: { province: string; totalChws: number; activeChws: number; hospitals: number }[];
+  filteredProvinces: { province: string; totalChws: number; activeChws: number; healthCenters: number }[];
   filteredEnrollmentTrends: IEnrollmentTrend[];
   filteredCommTrend: ICommunicationsAnalytics["monthlyTrend"];
 }
 
 interface UseDashboardFiltersInput {
-  byProvince: { province: string; totalChws: number; activeChws: number; hospitals: number }[];
+  byProvince: { province: string; totalChws: number; activeChws: number; healthCenters: number }[];
   demographics: IDemographicsAnalytics | null;
   enrollmentTrends: IEnrollmentTrend[];
   communications: ICommunicationsAnalytics | null;
-  hospitals: IHospital[];
+  healthCenters: IHealthCenter[];
 }
 
 // Extract year from a month string like "Apr 2026" → "2026"
@@ -47,7 +47,7 @@ const extractMonth = (monthStr: string): string =>
   monthStr.split(" ")[0] ?? "";
 
 export const useDashboardFilters = (
-  { byProvince, demographics, enrollmentTrends, communications, hospitals }: UseDashboardFiltersInput,
+  { byProvince, demographics, enrollmentTrends, communications, healthCenters }: UseDashboardFiltersInput,
   filters: IDashboardFilters,
   setFilters: (f: IDashboardFilters) => void
 ): FilteredData => {
@@ -55,14 +55,14 @@ export const useDashboardFilters = (
   const [availableHospitals, setAvailableHospitals] = useState<IOptionFieldOption[]>([]);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Seed with the first 10 hospitals from the already-fetched list
+  // Seed with the first 10 healthCenters from the already-fetched list
   useEffect(() => {
-    if (hospitals.length > 0) {
+    if (healthCenters.length > 0) {
       setAvailableHospitals(
-        hospitals.slice(0, 10).map((h) => ({ value: h.id, label: h.name }))
+        healthCenters.slice(0, 10).map((h) => ({ value: h.id, label: h.name }))
       );
     }
-  }, [hospitals]);
+  }, [healthCenters]);
 
   const handleHospitalSearch = useCallback((query: string) => {
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
@@ -71,7 +71,7 @@ export const useDashboardFilters = (
         const params = new URLSearchParams({ limit: "20" });
         if (query) params.set("searchq", query);
         const res = await getAllHospitals(`?${params.toString()}`);
-        const list: IHospital[] = res?.data ?? [];
+        const list: IHealthCenter[] = res?.data ?? [];
         setAvailableHospitals(list.map((h) => ({ value: h.id, label: h.name })));
       } catch {
         // keep existing options on error
