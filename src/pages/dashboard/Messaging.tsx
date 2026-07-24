@@ -1276,317 +1276,320 @@ export const Messaging: React.FC = () => {
                   );
                 })()}
 
-                {/* Messages */}
-                <div className="flex-grow overflow-y-auto bg-[#f7f8fc] hide-scrollbar min-h-0">
-                  <div className="p-4 space-y-4">
-                    {messages.map((message) => {
-                      if (message.type === 'blog') {
-                        // Blog post style for communities
-                        return (
-                          <div
-                            key={message.id}
-                            id={`message-${message.id}`}
-                            className={`bg-white rounded-xl p-6 shadow-sm border transition-shadow duration-200 hover:shadow-md ${
-                              highlightedMessageId === message.id ? "ring-4 ring-yellow-300 border-gray-100" : "border-gray-100"
-                            }`}
-                          >
-                            <div className="flex items-start gap-4 mb-4">
-                              <ProfileAvatar
-                                name={message.sender?.fullNames || 'User'}
-                                photo={realPhoto(message.sender?.photo)}
-                                size="w-12 h-12"
-                                className="text-lg shadow-sm"
-                                color="bg-gradient-to-br from-primary to-[#4A7BC7] text-white"
-                              />
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between gap-2 mb-2">
-                                  <div className="flex items-center gap-2">
-                                    <p className="font-semibold text-gray-900 text-base">{message.sender?.fullNames || 'Unknown'}</p>
-                                    <div className="flex items-center gap-1 text-gray-500">
-                                      <Clock size={12} />
-                                      <span className="text-xs">
-                                        {new Date(message.timestamp).toLocaleDateString()} at {new Date(message.timestamp).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}
-                                      </span>
+                {/* Messages + Composer wrapped in relative so overlay is scoped here */}
+                <div className="relative flex flex-col flex-1 min-h-0 overflow-hidden">
+                  {/* Messages */}
+                  <div className="flex-grow overflow-y-auto bg-[#f7f8fc] hide-scrollbar min-h-0">
+                    <div className="p-4 space-y-4">
+                      {messages.map((message) => {
+                        if (message.type === 'blog') {
+                          // Blog post style for communities
+                          return (
+                            <div
+                              key={message.id}
+                              id={`message-${message.id}`}
+                              className={`bg-white rounded-xl p-6 shadow-sm border transition-shadow duration-200 hover:shadow-md ${
+                                highlightedMessageId === message.id ? "ring-4 ring-yellow-300 border-gray-100" : "border-gray-100"
+                              }`}
+                            >
+                              <div className="flex items-start gap-4 mb-4">
+                                <ProfileAvatar
+                                  name={message.sender?.fullNames || 'User'}
+                                  photo={realPhoto(message.sender?.photo)}
+                                  size="w-12 h-12"
+                                  className="text-lg shadow-sm"
+                                  color="bg-gradient-to-br from-primary to-[#4A7BC7] text-white"
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between gap-2 mb-2">
+                                    <div className="flex items-center gap-2">
+                                      <p className="font-semibold text-gray-900 text-base">{message.sender?.fullNames || 'Unknown'}</p>
+                                      <div className="flex items-center gap-1 text-gray-500">
+                                        <Clock size={12} />
+                                        <span className="text-xs">
+                                          {new Date(message.timestamp).toLocaleDateString()} at {new Date(message.timestamp).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <div className="relative">
+                                      <button
+                                        onClick={() => setShowMessageOptions(showMessageOptions === message.id ? null : message.id)}
+                                        className="p-1 hover:bg-gray-200 rounded-full transition-colors"
+                                      >
+                                        <MoreVertical size={16} className="text-gray-600" />
+                                      </button>
+                                      {showMessageOptions === message.id && (
+                                        <div className="absolute right-0 mt-1 w-40 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                                          <button
+                                            onClick={() => {
+                                              setEditingMessageId(message.id);
+                                              setEditingMessageContent(message.content || '');
+                                              setShowMessageOptions(null);
+                                            }}
+                                            className="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700 flex items-center gap-2 first:rounded-t-lg"
+                                          >
+                                            <Edit size={14} />
+                                            Edit
+                                          </button>
+                                          <button
+                                            onClick={() => {
+                                              setShowMessageOptions(null);
+                                              confirm({
+                                                title: "Delete message?",
+                                                message: "This action cannot be undone.",
+                                                variant: "danger",
+                                                confirmLabel: "Delete",
+                                                onConfirm: () => handleDeleteMessage(message.id),
+                                              });
+                                            }}
+                                            className="w-full text-left px-4 py-2 hover:bg-red-50 text-sm text-red-600 flex items-center gap-2 last:rounded-b-lg"
+                                          >
+                                            <Trash size={14} />
+                                            Delete
+                                          </button>
+                                        </div>
+                                      )}
                                     </div>
                                   </div>
-                                  <div className="relative">
-                                    <button
-                                      onClick={() => setShowMessageOptions(showMessageOptions === message.id ? null : message.id)}
-                                      className="p-1 hover:bg-gray-200 rounded-full transition-colors"
-                                    >
-                                      <MoreVertical size={16} className="text-gray-600" />
-                                    </button>
-                                    {showMessageOptions === message.id && (
-                                      <div className="absolute right-0 mt-1 w-40 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
-                                        <button
-                                          onClick={() => {
-                                            setEditingMessageId(message.id);
-                                            setEditingMessageContent(message.content || '');
-                                            setShowMessageOptions(null);
-                                          }}
-                                          className="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700 flex items-center gap-2 first:rounded-t-lg"
-                                        >
-                                          <Edit size={14} />
-                                          Edit
-                                        </button>
-                                        <button
-                                          onClick={() => {
-                                            setShowMessageOptions(null);
-                                            confirm({
-                                              title: "Delete message?",
-                                              message: "This action cannot be undone.",
-                                              variant: "danger",
-                                              confirmLabel: "Delete",
-                                              onConfirm: () => handleDeleteMessage(message.id),
-                                            });
-                                          }}
-                                          className="w-full text-left px-4 py-2 hover:bg-red-50 text-sm text-red-600 flex items-center gap-2 last:rounded-b-lg"
-                                        >
-                                          <Trash size={14} />
-                                          Delete
-                                        </button>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                                <p className="text-gray-800 mb-4 leading-relaxed text-sm">{message.content}</p>
+                                  <p className="text-gray-800 mb-4 leading-relaxed text-sm">{message.content}</p>
 
-                                {message.attachments && message.attachments.length > 0 && (
-                                  <div className="mb-4">
-                                    <MessageMedia attachment={message.attachments[0]} variant="card" messageId={message.id} />
-                                  </div>
-                                )}
-
-                                {/* Edit Mode */}
-                                {editingMessageId === message.id && (
-                                  <div className="mb-4 space-y-2">
-                                    <textarea
-                                      value={editingMessageContent}
-                                      onChange={(e) => setEditingMessageContent(e.target.value)}
-                                      className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                      rows={3}
-                                    />
-                                    <div className="flex gap-2">
-                                      <Button
-                                        size="sm"
-                                        onClick={() => {
-                                          handleEditMessage(message.id, editingMessageContent);
-                                          setEditingMessageId(null);
-                                          setEditingMessageContent('');
-                                        }}
-                                      >
-                                        Save
-                                      </Button>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => {
-                                          setEditingMessageId(null);
-                                          setEditingMessageContent('');
-                                        }}
-                                      >
-                                        Cancel
-                                      </Button>
+                                  {message.attachments && message.attachments.length > 0 && (
+                                    <div className="mb-4">
+                                      <MessageMedia attachment={message.attachments[0]} variant="card" messageId={message.id} />
                                     </div>
-                                  </div>
-                                )}
+                                  )}
 
-                                {/* Engagement Actions */}
-                                <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                                  <div className="flex items-center gap-6">
-                                    <button
-                                      onClick={() => handlePostLike(message.id)}
-                                      className={`flex items-center gap-2 transition-colors group ${
-                                        postLikes[message.id]
-                                          ? 'text-red-500'
-                                          : 'text-gray-600 hover:text-red-500'
-                                      }`}
-                                    >
-                                      <Heart size={18} className={`group-hover:fill-red-500 ${postLikes[message.id] ? 'fill-current' : ''}`} />
-                                      <span className="font-medium">{message.likes || 0}</span>
-                                      <span className="text-sm hidden sm:inline">likes</span>
-                                    </button>
-                                    <button className="flex items-center gap-2 text-gray-600 hover:text-blue-500 transition-colors group">
-                                      <MessageCircle size={18} />
-                                      <span className="font-medium">{message.comments?.length || 0}</span>
-                                      <span className="text-sm hidden sm:inline">comments</span>
-                                    </button>
-                                    <button
-                                      onClick={() => handlePostShare(message.id)}
-                                      className="flex items-center gap-2 text-gray-600 hover:text-green-500 transition-colors group"
-                                    >
-                                      <Share size={18} />
-                                      <span className="font-medium">0</span>
-                                      <span className="text-sm hidden sm:inline">shares</span>
-                                    </button>
-                                  </div>
-                                  <div className="text-sm text-gray-500">
-                                    {message.readBy && message.readBy.length > 0 ? (
-                                      <div className="flex items-center gap-1">
-                                        <CheckCheck size={14} className="text-green-500" />
-                                        <span>Read by {message.readBy.length}</span>
-                                      </div>
-                                    ) : (
-                                      <span>Not read</span>
-                                    )}
-                                  </div>
-                                </div>
-
-                                {/* Add Comment Section */}
-                                <div className="mt-6 pt-4 border-t border-gray-100">
-                                  {commentingOn === message.id ? (
-                                    <div className="space-y-3">
+                                  {/* Edit Mode */}
+                                  {editingMessageId === message.id && (
+                                    <div className="mb-4 space-y-2">
+                                      <textarea
+                                        value={editingMessageContent}
+                                        onChange={(e) => setEditingMessageContent(e.target.value)}
+                                        className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        rows={3}
+                                      />
                                       <div className="flex gap-2">
-                                        <Input
-                                          placeholder="Write a comment..."
-                                          value={newCommentText}
-                                          onChange={(e) => setNewCommentText(e.target.value)}
-                                          onKeyPress={(e) => {
-                                            if (e.key === "Enter") {
-                                              handleAddComment(message.id, newCommentText);
-                                            }
-                                          }}
-                                          className="flex-1"
-                                        />
                                         <Button
-                                          onClick={() => handleAddComment(message.id, newCommentText)}
                                           size="sm"
+                                          onClick={() => {
+                                            handleEditMessage(message.id, editingMessageContent);
+                                            setEditingMessageId(null);
+                                            setEditingMessageContent('');
+                                          }}
                                         >
-                                          Comment
+                                          Save
                                         </Button>
                                         <Button
                                           variant="outline"
-                                          onClick={() => {
-                                            setCommentingOn(null);
-                                            setNewCommentText('');
-                                          }}
                                           size="sm"
+                                          onClick={() => {
+                                            setEditingMessageId(null);
+                                            setEditingMessageContent('');
+                                          }}
                                         >
                                           Cancel
                                         </Button>
                                       </div>
                                     </div>
-                                  ) : (
-                                    <button
-                                      onClick={() => setCommentingOn(message.id)}
-                                      className="flex items-center gap-2 text-gray-600 hover:text-blue-500 transition-colors"
-                                    >
-                                      <MessageCircle size={16} />
-                                      <span className="text-sm font-medium">Add a comment</span>
-                                    </button>
                                   )}
 
-                                  {/* Comments Section */}
-                                  {message.comments && message.comments.length > 0 && (
-                                    <>
-                                      <h4 className="font-semibold text-gray-900 mb-4 mt-6 flex items-center gap-2">
-                                        <MessageCircle size={16} />
-                                        Comments ({message.comments.length})
-                                      </h4>
-                                      <div className="space-y-4">
-                                        {message.comments.map((comment) => (
-                                          <CommunityComment
-                                            key={comment.id}
-                                            comment={comment}
-                                            postId={message.id}
-                                            currentUserId={user?.id}
-                                            onReplyAdded={(parentId, reply) => handleReplyAdded(message.id, parentId, reply)}
-                                            onEdit={(commentId, newText) => handleEditComment(message.id, commentId, newText)}
-                                            onDelete={(commentId) => handleDeleteComment(message.id, commentId)}
+                                  {/* Engagement Actions */}
+                                  <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                                    <div className="flex items-center gap-6">
+                                      <button
+                                        onClick={() => handlePostLike(message.id)}
+                                        className={`flex items-center gap-2 transition-colors group ${
+                                          postLikes[message.id]
+                                            ? 'text-red-500'
+                                            : 'text-gray-600 hover:text-red-500'
+                                        }`}
+                                      >
+                                        <Heart size={18} className={`group-hover:fill-red-500 ${postLikes[message.id] ? 'fill-current' : ''}`} />
+                                        <span className="font-medium">{message.likes || 0}</span>
+                                        <span className="text-sm hidden sm:inline">likes</span>
+                                      </button>
+                                      <button className="flex items-center gap-2 text-gray-600 hover:text-blue-500 transition-colors group">
+                                        <MessageCircle size={18} />
+                                        <span className="font-medium">{message.comments?.length || 0}</span>
+                                        <span className="text-sm hidden sm:inline">comments</span>
+                                      </button>
+                                      <button
+                                        onClick={() => handlePostShare(message.id)}
+                                        className="flex items-center gap-2 text-gray-600 hover:text-green-500 transition-colors group"
+                                      >
+                                        <Share size={18} />
+                                        <span className="font-medium">0</span>
+                                        <span className="text-sm hidden sm:inline">shares</span>
+                                      </button>
+                                    </div>
+                                    <div className="text-sm text-gray-500">
+                                      {message.readBy && message.readBy.length > 0 ? (
+                                        <div className="flex items-center gap-1">
+                                          <CheckCheck size={14} className="text-green-500" />
+                                          <span>Read by {message.readBy.length}</span>
+                                        </div>
+                                      ) : (
+                                        <span>Not read</span>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Add Comment Section */}
+                                  <div className="mt-6 pt-4 border-t border-gray-100">
+                                    {commentingOn === message.id ? (
+                                      <div className="space-y-3">
+                                        <div className="flex gap-2">
+                                          <Input
+                                            placeholder="Write a comment..."
+                                            value={newCommentText}
+                                            onChange={(e) => setNewCommentText(e.target.value)}
+                                            onKeyPress={(e) => {
+                                              if (e.key === "Enter") {
+                                                handleAddComment(message.id, newCommentText);
+                                              }
+                                            }}
+                                            className="flex-1"
                                           />
-                                        ))}
+                                          <Button
+                                            onClick={() => handleAddComment(message.id, newCommentText)}
+                                            size="sm"
+                                          >
+                                            Comment
+                                          </Button>
+                                          <Button
+                                            variant="outline"
+                                            onClick={() => {
+                                              setCommentingOn(null);
+                                              setNewCommentText('');
+                                            }}
+                                            size="sm"
+                                          >
+                                            Cancel
+                                          </Button>
+                                        </div>
                                       </div>
-                                    </>
-                                  )}
+                                    ) : (
+                                      <button
+                                        onClick={() => setCommentingOn(message.id)}
+                                        className="flex items-center gap-2 text-gray-600 hover:text-blue-500 transition-colors"
+                                      >
+                                        <MessageCircle size={16} />
+                                        <span className="text-sm font-medium">Add a comment</span>
+                                      </button>
+                                    )}
+
+                                    {/* Comments Section */}
+                                    {message.comments && message.comments.length > 0 && (
+                                      <>
+                                        <h4 className="font-semibold text-gray-900 mb-4 mt-6 flex items-center gap-2">
+                                          <MessageCircle size={16} />
+                                          Comments ({message.comments.length})
+                                        </h4>
+                                        <div className="space-y-4">
+                                          {message.comments.map((comment) => (
+                                            <CommunityComment
+                                              key={comment.id}
+                                              comment={comment}
+                                              postId={message.id}
+                                              currentUserId={user?.id}
+                                              onReplyAdded={(parentId, reply) => handleReplyAdded(message.id, parentId, reply)}
+                                              onEdit={(commentId, newText) => handleEditComment(message.id, commentId, newText)}
+                                              onDelete={(commentId) => handleDeleteComment(message.id, commentId)}
+                                            />
+                                          ))}
+                                        </div>
+                                      </>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             </div>
-                          </div>
-                        );
-                      } else {
-                        // Regular message
-                        const isOwn = message.senderId === user?.id;
-                        const isGroup = selectedConversation?.type === 'group';
-                        const isDirect = selectedConversation?.type === 'direct';
-                        const senderName = isOwn
-                          ? user?.fullNames || 'User'
-                          : message.sender?.fullNames || 'User';
-                        return (
-                          <MessageBubble
-                            key={message.id}
-                            message={message}
-                            isOwn={isOwn}
-                            isGroup={isGroup}
-                            isDirect={isDirect}
-                            senderName={senderName}
-                            ownPhotoUrl={ownPhotoUrl}
-                            isEditing={editingMessageId === message.id}
-                            editingContent={editingMessageContent}
-                            onEditingContentChange={setEditingMessageContent}
-                            onStartEdit={() => {
-                              setEditingMessageId(message.id);
-                              setEditingMessageContent(message.content || '');
-                            }}
-                            onSaveEdit={() => {
-                              handleEditMessage(message.id, editingMessageContent);
-                              setEditingMessageId(null);
-                              setEditingMessageContent('');
-                            }}
-                            onCancelEdit={() => {
-                              setEditingMessageId(null);
-                              setEditingMessageContent('');
-                            }}
-                            onDelete={() =>
-                              confirm({
-                                title: "Delete message?",
-                                message: "This action cannot be undone.",
-                                variant: "danger",
-                                confirmLabel: "Delete",
-                                onConfirm: () => handleDeleteMessage(message.id),
-                              })
-                            }
-                            onToggleLike={() => handleToggleMessageLike(message.id)}
-                            highlighted={highlightedMessageId === message.id}
-                            highlightText={showSearchModal && searchMessagesQuery.trim() ? searchMessagesQuery : undefined}
-                            isCurrentMatch={(() => {
-                              if (!showSearchModal || !searchMessagesQuery.trim()) return false;
-                              const q = searchMessagesQuery.trim().toLowerCase();
-                              const matchIds = messages
-                                .filter((m) => m.type === "text" && m.content?.toLowerCase().includes(q))
-                                .map((m) => m.id);
-                              const total = matchIds.length;
-                              const safeIdx = total > 0 ? Math.min(currentMatchIndex, total - 1) : 0;
-                              return matchIds[safeIdx] === message.id;
-                            })()}
-                          />
-                        );
-                      }
-                    })}
-                    {messages.length === 0 && (
-                      <div className="flex items-center justify-center h-full min-h-96 text-center py-16">
-                        <div className="space-y-4">
-                          <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center shadow-inner">
-                            <MessageSquare size={28} className="text-primary/50" />
-                          </div>
-                          <div>
-                            <p className="text-gray-600 font-semibold text-base">No messages yet</p>
-                            <p className="text-xs text-gray-400 mt-1">Say hello and start the conversation! 👋</p>
+                          );
+                        } else {
+                          // Regular message
+                          const isOwn = message.senderId === user?.id;
+                          const isGroup = selectedConversation?.type === 'group';
+                          const isDirect = selectedConversation?.type === 'direct';
+                          const senderName = isOwn
+                            ? user?.fullNames || 'User'
+                            : message.sender?.fullNames || 'User';
+                          return (
+                            <MessageBubble
+                              key={message.id}
+                              message={message}
+                              isOwn={isOwn}
+                              isGroup={isGroup}
+                              isDirect={isDirect}
+                              senderName={senderName}
+                              ownPhotoUrl={ownPhotoUrl}
+                              isEditing={editingMessageId === message.id}
+                              editingContent={editingMessageContent}
+                              onEditingContentChange={setEditingMessageContent}
+                              onStartEdit={() => {
+                                setEditingMessageId(message.id);
+                                setEditingMessageContent(message.content || '');
+                              }}
+                              onSaveEdit={() => {
+                                handleEditMessage(message.id, editingMessageContent);
+                                setEditingMessageId(null);
+                                setEditingMessageContent('');
+                              }}
+                              onCancelEdit={() => {
+                                setEditingMessageId(null);
+                                setEditingMessageContent('');
+                              }}
+                              onDelete={() =>
+                                confirm({
+                                  title: "Delete message?",
+                                  message: "This action cannot be undone.",
+                                  variant: "danger",
+                                  confirmLabel: "Delete",
+                                  onConfirm: () => handleDeleteMessage(message.id),
+                                })
+                              }
+                              onToggleLike={() => handleToggleMessageLike(message.id)}
+                              highlighted={highlightedMessageId === message.id}
+                              highlightText={showSearchModal && searchMessagesQuery.trim() ? searchMessagesQuery : undefined}
+                              isCurrentMatch={(() => {
+                                if (!showSearchModal || !searchMessagesQuery.trim()) return false;
+                                const q = searchMessagesQuery.trim().toLowerCase();
+                                const matchIds = messages
+                                  .filter((m) => m.type === "text" && m.content?.toLowerCase().includes(q))
+                                  .map((m) => m.id);
+                                const total = matchIds.length;
+                                const safeIdx = total > 0 ? Math.min(currentMatchIndex, total - 1) : 0;
+                                return matchIds[safeIdx] === message.id;
+                              })()}
+                            />
+                          );
+                        }
+                      })}
+                      {messages.length === 0 && (
+                        <div className="flex items-center justify-center h-full min-h-96 text-center py-16">
+                          <div className="space-y-4">
+                            <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center shadow-inner">
+                              <MessageSquare size={28} className="text-primary/50" />
+                            </div>
+                            <div>
+                              <p className="text-gray-600 font-semibold text-base">No messages yet</p>
+                              <p className="text-xs text-gray-400 mt-1">Say hello and start the conversation! 👋</p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
+                    <div ref={messagesEndRef} />
                   </div>
-                  <div ref={messagesEndRef} />
+
+                  <TypingIndicator users={typingUsers} />
+
+                  {/* Message Input */}
+                  <MessageComposer
+                    value={newMessage}
+                    onChange={handleInputChange}
+                    onSend={handleSendMessage}
+                  />
                 </div>
-
-                <TypingIndicator users={typingUsers} />
-
-                {/* Message Input */}
-                <MessageComposer
-                  value={newMessage}
-                  onChange={handleInputChange}
-                  onSend={handleSendMessage}
-                />
               </>
             ) : (
               <div className="flex-1 flex items-center justify-center bg-[#f7f8fc]">
