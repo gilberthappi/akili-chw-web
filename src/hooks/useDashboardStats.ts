@@ -1,17 +1,23 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
-import api from "@/services/api";
 import {
   IDashboardStats,
   ICourseAnalytics,
   IStudentAnalytics,
   IDashboardFilters,
 } from "@/types";
+import {
+  getDashboardAdoption,
+} from "@/services/analytics.service";
 import { DEFAULT_DASHBOARD_FILTERS } from "@/utils/constants/dashboardFilters";
-import { dashboardFilterKey, withDashboardFilterQuery } from "@/utils/dashboardFilterQuery";
+import {
+  buildDashboardFilterQuery,
+  dashboardFilterKey,
+} from "@/utils/dashboardFilterQuery";
 import { dashboardKeys } from "@/utils/constants/queryKeys";
+import { useDashboardSummary } from "@/hooks/useDashboardSummary";
 
-const DASHBOARD_CACHE_MS = 1000 * 60 * 30;
+const DASHBOARD_CACHE_MS = 1000 * 60 * 3;
 
 interface DashboardData {
   dashboardStats: IDashboardStats | null;
@@ -23,18 +29,15 @@ interface DashboardData {
   refetch: () => void;
 }
 
-interface DashboardStatsResult {
-  dashboardStats: IDashboardStats | null;
-  courseAnalytics: ICourseAnalytics | null;
-  studentAnalytics: IStudentAnalytics | null;
-}
-
 export const useDashboardStats = ({
   enabled,
   filters,
+  /** When false, skip course/student analytics (provided by useAdoptionStats). */
+  includeCourseStudent = true,
 }: {
   enabled: boolean;
   filters?: IDashboardFilters;
+  includeCourseStudent?: boolean;
 }): DashboardData => {
   const { user } = useAuth();
 
@@ -49,44 +52,40 @@ export const useDashboardStats = ({
   );
 
   const activeFilters = filters ?? DEFAULT_DASHBOARD_FILTERS;
+  const fetchCourseStudent = includeCourseStudent && isContentManager;
+  const qs = buildDashboardFilterQuery(activeFilters);
+  const filterKey = dashboardFilterKey(activeFilters);
 
-  const { data, isLoading, isFetching, error, refetch } = useQuery({
-    queryKey: dashboardKeys.stats(dashboardFilterKey(activeFilters)),
-    queryFn: async (): Promise<DashboardStatsResult> => {
-      const statsPath = withDashboardFilterQuery("/courses/dashboard/statistics", activeFilters);
-      const coursePath = withDashboardFilterQuery("/export/dashboard/course/analytics", activeFilters);
-      const studentPath = withDashboardFilterQuery("/export/dashboard/student/analytics", activeFilters);
+  const summaryQuery = useDashboardSummary(activeFilters, enabled);
 
-      const [dashRes, courseRes, studentRes] = await Promise.allSettled([
-        api.get(statsPath),
-        isContentManager ? api.get(coursePath) : Promise.resolve(null),
-        isContentManager ? api.get(studentPath) : Promise.resolve(null),
-      ]);
-
+  const deepQuery = useQuery({
+    queryKey: [...dashboardKeys.stats(filterKey), "course-student"],
+    queryFn: async () => {
+      const res = await getDashboardAdoption(qs);
       return {
-        dashboardStats:
-          dashRes.status === "fulfilled" ? dashRes.value?.data?.data ?? null : null,
-        courseAnalytics:
-          courseRes.status === "fulfilled" ? courseRes.value?.data?.data ?? null : null,
-        studentAnalytics:
-          studentRes.status === "fulfilled" ? studentRes.value?.data?.data ?? null : null,
+        courseAnalytics: res?.data?.courseAnalytics ?? null,
+        studentAnalytics: res?.data?.studentAnalytics ?? null,
       };
     },
-    enabled,
+    enabled: enabled && fetchCourseStudent,
     keepPreviousData: true,
     staleTime: DASHBOARD_CACHE_MS,
     gcTime: DASHBOARD_CACHE_MS,
   });
 
   return {
-    dashboardStats: data?.dashboardStats ?? null,
-    courseAnalytics: data?.courseAnalytics ?? null,
-    studentAnalytics: data?.studentAnalytics ?? null,
-    isLoading,
-    isFetching,
-    error: error ? "Failed to fetch data. Please try again." : null,
+    dashboardStats: summaryQuery.data?.dashboardStats ?? null,
+    courseAnalytics: deepQuery.data?.courseAnalytics ?? null,
+    studentAnalytics: deepQuery.data?.studentAnalytics ?? null,
+    isLoading: summaryQuery.isLoading,
+    isFetching: summaryQuery.isFetching || deepQuery.isFetching,
+    error:
+      summaryQuery.error || deepQuery.error
+        ? "Failed to fetch data. Please try again."
+        : null,
     refetch: () => {
-      void refetch();
+      void summaryQuery.refetch();
+      if (fetchCourseStudent) void deepQuery.refetch();
     },
   };
 };

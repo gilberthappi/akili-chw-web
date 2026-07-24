@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useState, FC, useCallback, useEffect } from "react";
 import { studentKeys } from "@/utils/constants/queryKeys";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { debounce } from "lodash";
 import Table from "@/components/table/Table";
 import PageContent from "@/components/common/PageContent";
@@ -26,6 +26,7 @@ const StudentsList: FC<StudentsListProps> = ({
   roleFilter,
 }) => {
   const { hasRole } = useAuth();
+  const queryClient = useQueryClient();
   const isAdmin = hasRole(["ADMIN"]);
   const canChangeLearnerRole = hasRole(["ADMIN", "STAFF", "TRAINER"]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -73,12 +74,22 @@ const StudentsList: FC<StudentsListProps> = ({
     return queryString ? `?${queryString}` : "";
   };
 
-  // Main query with all parameters including filter
+  // Main query with all parameters including filter — also hydrates KPI cards.
   const { data, isLoading } = useQuery({
     queryKey: studentKeys.list(
       `${filter}-${roleFilter}-${buildQueryParams(currentPage, searchKeyword)}`,
     ),
-    queryFn: () => getAllStudents(buildQueryParams(currentPage, searchKeyword)),
+    queryFn: async () => {
+      const res = await getAllStudents(buildQueryParams(currentPage, searchKeyword));
+      if (roleFilter && res.stats) {
+        queryClient.setQueryData(studentKeys.stats(roleFilter), {
+          message: "Student statistics summary fetched successfully",
+          statusCode: 200,
+          data: res.stats,
+        });
+      }
+      return res;
+    },
   });
 
   // Debounced search handler

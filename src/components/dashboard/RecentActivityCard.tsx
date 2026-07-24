@@ -147,8 +147,8 @@ export const RecentActivityCard: React.FC<RecentActivityCardProps> = ({
   const updateCount = allItems.filter((i) => i.type === "courseUpdate").length;
 
   return (
-    <Card padding={false}>
-      <div className='p-4 pb-0'>
+    <Card padding={false} className='h-full min-h-[520px] flex flex-col'>
+      <div className='p-4 pb-0 shrink-0'>
         {/* Header */}
         <div className='flex items-center justify-between mb-1'>
           <h3 className='text-sm font-semibold text-gray-800'>Recent Activity</h3>
@@ -183,7 +183,7 @@ export const RecentActivityCard: React.FC<RecentActivityCardProps> = ({
       </div>
 
       {/* Activity list */}
-      <div className='px-4 pb-2 overflow-y-auto' style={{ maxHeight: 680 }}>
+      <div className='px-4 pb-2 flex-1 min-h-0 overflow-y-auto'>
         {isLoading ? (
           <div className='space-y-3 pt-3 animate-pulse'>
             {[...Array(4)].map((_, i) => (
@@ -197,7 +197,7 @@ export const RecentActivityCard: React.FC<RecentActivityCardProps> = ({
             ))}
           </div>
         ) : items.length === 0 ? (
-          <div className='flex items-center justify-center h-32 text-sm text-gray-400'>
+          <div className='flex items-center justify-center h-full min-h-[8rem] text-sm text-gray-400'>
             No recent activity
           </div>
         ) : (

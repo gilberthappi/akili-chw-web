@@ -1,16 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { Users, UserCheck, UserMinus, BarChart2 } from "lucide-react";
 import { MetricCard } from "@/components/common/MetricCard";
-import { getStudentAnalytics } from "@/services/analytics.service";
 import { studentKeys } from "@/utils/constants/queryKeys";
+import type { IStudentRoleStats } from "@/types";
 
 interface StudentStatsCardsProps {
   roleFilter?: "TRAINEE" | "TESTER" | "CEHO";
 }
-
-const buildStudentAnalyticsQuery = (roleFilter?: "TRAINEE" | "TESTER" | "CEHO") => {
-  return roleFilter ? `role=${roleFilter}` : "";
-};
 
 const getRoleLabel = (roleFilter?: "TRAINEE" | "TESTER" | "CEHO") => {
   if (roleFilter === "TESTER") return "Tester";
@@ -18,14 +14,31 @@ const getRoleLabel = (roleFilter?: "TRAINEE" | "TESTER" | "CEHO") => {
   return "CHW";
 };
 
+/**
+ * KPI cards for CHW / Tester / CEHO tabs.
+ * Data is hydrated by StudentsList from the same `/students` response (no separate fetch).
+ */
 const StudentStatsCards = ({ roleFilter }: StudentStatsCardsProps) => {
-  const query = buildStudentAnalyticsQuery(roleFilter);
-  const { data, isLoading } = useQuery({
+  const { data } = useQuery<{
+    message: string;
+    statusCode: number;
+    data: IStudentRoleStats;
+  }>({
     queryKey: studentKeys.stats(roleFilter),
-    queryFn: () => getStudentAnalytics(query),
+    // Never fetch alone — list endpoint writes this cache entry.
+    queryFn: () =>
+      Promise.reject(
+        new Error("Student stats are loaded with the students table"),
+      ),
+    enabled: false,
+    staleTime: 1000 * 60 * 2,
   });
 
-  if (isLoading) {
+  const analytics = data?.data;
+  const roleLabel = getRoleLabel(roleFilter);
+  const roleLabelPlural = `${roleLabel}s`;
+
+  if (!analytics) {
     return (
       <div className='grid grid-cols-2 lg:grid-cols-4 gap-4 animate-pulse'>
         {[...Array(4)].map((_, i) => (
@@ -35,13 +48,8 @@ const StudentStatsCards = ({ roleFilter }: StudentStatsCardsProps) => {
     );
   }
 
-  const analytics = data?.data;
-  if (!analytics) return null;
-
   const { totalStudents, activeStudents, onLeaveStudents, completionRate } =
     analytics;
-  const roleLabel = getRoleLabel(roleFilter);
-  const roleLabelPlural = `${roleLabel}s`;
 
   return (
     <div className='grid grid-cols-2 lg:grid-cols-4 gap-4'>
@@ -61,7 +69,11 @@ const StudentStatsCards = ({ roleFilter }: StudentStatsCardsProps) => {
         iconBg='bg-emerald-50'
         iconColor='text-emerald-600'
         trend={activeStudents.trend}
-        description='vs last 30 days'
+        description={
+          roleFilter === "CEHO"
+            ? "Status active"
+            : "Active in last 30 days"
+        }
       />
       <MetricCard
         title={`On Leave ${roleLabelPlural}`}

@@ -31,8 +31,20 @@ export const dashboardKeys = {
   all: ["dashboard"] as const,
   stats: (filters: readonly string[]) =>
     [...dashboardKeys.all, "stats", ...filters] as const,
+  /** Cheap first-paint shell aggregates. */
+  summary: (filters: readonly string[]) =>
+    [...dashboardKeys.all, "summary", ...filters] as const,
+  /** Deep adoption charts (course/student/test/demographics/cert breakdowns). */
   adoption: (filters: readonly string[]) =>
     [...dashboardKeys.all, "adoption", ...filters] as const,
+  hospitals: (filters: readonly string[]) =>
+    [...dashboardKeys.all, "hospitals", ...filters] as const,
+  communications: (filters: readonly string[]) =>
+    [...dashboardKeys.all, "communications", ...filters] as const,
+  supervisorResponse: (filters: readonly string[]) =>
+    [...dashboardKeys.all, "supervisor-response", ...filters] as const,
+  recommendations: (filters: readonly string[]) =>
+    [...dashboardKeys.all, "recommendations", ...filters] as const,
   filterOptions: () => [...dashboardKeys.all, "filter-options"] as const,
   learner: () => [...dashboardKeys.all, "learner"] as const,
 };

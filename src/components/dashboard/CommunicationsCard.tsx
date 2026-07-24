@@ -16,6 +16,7 @@ import { ICommunicationsAnalytics } from "@/types";
 interface CommunicationsCardProps {
   data: ICommunicationsAnalytics | null;
   filteredTrend?: ICommunicationsAnalytics["monthlyTrend"];
+  isLoading?: boolean;
 }
 
 const TYPE_COLORS: Record<string, string> = {
@@ -27,10 +28,28 @@ const TYPE_COLORS: Record<string, string> = {
 export const CommunicationsCard: React.FC<CommunicationsCardProps> = ({
   data,
   filteredTrend,
+  isLoading = false,
 }) => {
+  if (isLoading && !data) {
+    return (
+      <Card className='h-full min-h-[420px]'>
+        <DashboardSectionHeader
+          icon={<MessageSquare size={16} />}
+          title='Communications'
+        />
+        <div className='flex items-center justify-center h-40 text-sm text-gray-400'>
+          <span className='flex items-center gap-2'>
+            <span className='h-4 w-4 rounded-full border-2 border-gray-300 border-t-[#3363AD] animate-spin' />
+            Loading…
+          </span>
+        </div>
+      </Card>
+    );
+  }
+
   if (!data) {
     return (
-      <Card>
+      <Card className='h-full min-h-[420px]'>
         <DashboardSectionHeader
           icon={<MessageSquare size={16} />}
           title='Communications'
@@ -43,7 +62,7 @@ export const CommunicationsCard: React.FC<CommunicationsCardProps> = ({
   }
 
   return (
-    <Card>
+    <Card className='h-full min-h-[420px] flex flex-col'>
       <DashboardSectionHeader
         icon={<MessageSquare size={16} />}
         title='Communications'
@@ -97,7 +116,7 @@ export const CommunicationsCard: React.FC<CommunicationsCardProps> = ({
       </div>
 
       {/* Monthly trend stacked bar */}
-      <div style={{ height: 160 }}>
+      <div className='flex-1 min-h-[160px]'>
         <ResponsiveContainer width='100%' height='100%'>
           <BarChart
             data={filteredTrend ?? data.monthlyTrend}

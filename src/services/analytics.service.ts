@@ -3,7 +3,10 @@ import {
   IAnalytics,
   IResponse,
   IDashboardStatsResponse,
+  IDashboardStats,
+  ICourseAnalytics,
   ICourseAnalyticsResponse,
+  IStudentAnalytics,
   IStudentAnalyticsResponse,
   ITestScoreAnalytics,
   ICommunicationsAnalytics,
@@ -15,6 +18,7 @@ import {
   IMonthlyActiveTrends,
   ICertificationAnalytics,
   ISupervisorResponseRate,
+  IAvgStudyTimeByCourse,
 } from "@/types";
 import api from "./api";
 
@@ -103,4 +107,43 @@ export const getSupervisorResponseRate = async (qs: string = ""): Promise<
   IResponse<ISupervisorResponseRate>
 > => {
   return (await api.get(withQuery("/export/dashboard/supervisor-response-rate", qs))).data;
+};
+
+/** First-paint shell: KPIs + small trends (aggregates only). */
+export const getDashboardSummary = async (qs: string = ""): Promise<
+  IResponse<{
+    dashboardStats: IDashboardStats;
+    chwStats: ICHWStats;
+    monthlyActiveTrends: IMonthlyActiveTrends;
+    recentActivity: IRecentActivityFeed;
+    enrollmentTrends: { month: string; enrollments: number }[];
+    certification: ICertificationAnalytics;
+  }>
+> => {
+  return (await api.get(withQuery("/export/dashboard/summary", qs))).data;
+};
+
+/** Deep adoption charts (one filter-aware call). */
+export const getDashboardAdoption = async (qs: string = ""): Promise<
+  IResponse<{
+    courseAnalytics: ICourseAnalytics | null;
+    studentAnalytics: IStudentAnalytics | null;
+    testScores: ITestScoreAnalytics | null;
+    demographics: IDemographicsAnalytics | null;
+    courseDuration: ICourseDurationStats | null;
+    certification: ICertificationAnalytics | null;
+    communications: ICommunicationsAnalytics | null;
+    enrollmentTrends: { month: string; enrollments: number }[];
+    avgStudyTimeByCourse: IAvgStudyTimeByCourse[];
+  }>
+> => {
+  return (await api.get(withQuery("/export/dashboard/adoption", qs))).data;
+};
+
+/** Recommendation insights (lazy section). */
+export const getDashboardRecommendations = async (
+  qs: string = "",
+): Promise<IRecommendationInsightsResponse> => {
+  return (await api.get(withQuery("/export/dashboard/recommendations", qs)))
+    .data;
 };

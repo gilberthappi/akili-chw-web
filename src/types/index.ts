@@ -66,11 +66,20 @@ export interface IResponse<T> {
   data?: T;
 }
 
+export interface IStudentRoleStats {
+  totalStudents: { value: number; trend: { value: number; direction: "up" | "down" | "stable" } };
+  activeStudents: { value: number; trend: { value: number; direction: "up" | "down" | "stable" } };
+  onLeaveStudents: { value: number; trend: { value: number; direction: "up" | "down" | "stable" } };
+  completionRate: { value: number; trend: { value: number; direction: "up" | "down" | "stable" } };
+}
+
 export interface IPaged<T> {
   data: T;
   currentPage: number;
   totalItems: number;
   itemsPerPage: number;
+  /** Present on /students list — KPI cards for the role tab. */
+  stats?: IStudentRoleStats;
 }
 
 export interface SidebarLinkProps {
@@ -532,6 +541,8 @@ export interface IDashboardStats {
   totalStaff: IStatWithTrend<number>;
   activeUsers: IStatWithTrend<number>;
   completionRate: IStatWithTrend<number>;
+  /** Present on summary first-paint; also available via course analytics. */
+  certificatesIssued?: IStatWithTrend<number>;
   newEnrollments: number;
 
   fiveRecentCourses: IFiveRecentCourse[];
@@ -1348,6 +1359,9 @@ export interface IDemographicCombinedRow {
   gender: string;
   ageGroup: string;
   total: number;
+  completedAtLeastOne: number;
+  completionRate: number;
+  certificationRate: number;
   active: number;
   inactive: number;
   suspended: number;
@@ -1373,27 +1387,45 @@ export interface IDashboardFilters {
   hospitalId: string; // "" means all
 }
 
-export interface IActivationTrend {
-  value: number;
-  direction: "up" | "down" | "stable";
-}
-
 export interface ICHWStats {
   chws: {
+    /** TRAINEE + CEHO registered (excludes TESTER). */
     total: number;
     active: number;
     inactive: number;
     suspended: number;
     graduated: number;
-    activationRate: number;
-    activationTrend: IActivationTrend | null;
-    avgLogins: number;
+    /** National registration target (default 6000). */
+    target: number;
+    /** total / target × 100 (one decimal). */
+    percentOfTarget: number;
   };
+  /**
+   * TRAINEE + CEHO who can use the platform:
+   * completed ≥1 course AND attended ≥1 virtual meeting.
+   */
+  platformReady: {
+    total: number;
+    /** Share of registered TRAINEE+CEHO. */
+    percentOfRegistered: number;
+    /** Share of the 6000 national target. */
+    percentOfTarget: number;
+    completedOneCourse: number;
+    attendedMeeting: number;
+  };
+  /** Course completion = passed Final Test (marks ≥ marksToPass). */
   completion: {
     rate: number;
     total: number;
     completed: number;
     inProgress: number;
+  };
+  /** Certification = passed Final Exam (marks ≥ marksToPass). */
+  certification: {
+    rate: number;
+    total: number;
+    certified: number;
+    notCertified: number;
   };
   tests: {
     total: number;
@@ -1407,9 +1439,6 @@ export interface ICHWStats {
     male: number;
     female: number;
     other: number;
-    activationRate: number;
-    activationTrend: IActivationTrend | null;
-    avgLogins: number;
   };
 }
 

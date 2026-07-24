@@ -1,14 +1,13 @@
 import React from "react";
 import {
   Users,
+  MonitorCheck,
   CheckCircle,
+  Award,
   ClipboardList,
   UserCheck,
-  TrendingUp,
-  TrendingDown,
-  Minus,
 } from "lucide-react";
-import { ICHWStats, IActivationTrend } from "@/types";
+import { ICHWStats } from "@/types";
 
 interface CHWStatsCardsProps {
   data: ICHWStats | null;
@@ -26,40 +25,10 @@ interface CardConfig {
   iconColor: string;
   title: string;
   primary: string | number;
+  /** Optional rate shown next to the primary value (e.g. % of target). */
+  primaryRate?: string;
   subItems: SubItem[];
-  activationRate?: number;
-  activationTrend?: IActivationTrend | null;
 }
-
-/**
- * Always shows the rate as visible text ("11% activated") so the meaning is
- * clear without hovering. The up/down/stable arrow only appears once there's
- * a real 30-day-old baseline to compare against — right after this feature
- * ships there's no history yet, so the arrow is omitted rather than showing
- * a misleading "+100%" cold-start spike.
- */
-const ActivationBadge: React.FC<{
-  rate: number;
-  trend: IActivationTrend | null | undefined;
-}> = ({ rate, trend }) => (
-  <div
-    className={`flex items-center gap-1 text-xs font-medium shrink-0 ${
-      !trend
-        ? "text-gray-400"
-        : trend.direction === "up"
-          ? "text-green-600"
-          : trend.direction === "down"
-            ? "text-red-500"
-            : "text-gray-400"
-    }`}
-    title="% of CHWs/supervisors who have logged in at least once"
-  >
-    {trend?.direction === "up" && <TrendingUp size={12} />}
-    {trend?.direction === "down" && <TrendingDown size={12} />}
-    {trend?.direction === "stable" && <Minus size={12} />}
-    <span>{rate}% activated</span>
-  </div>
-);
 
 const CHWStatCard: React.FC<CardConfig> = ({
   icon,
@@ -67,12 +36,10 @@ const CHWStatCard: React.FC<CardConfig> = ({
   iconColor,
   title,
   primary,
+  primaryRate,
   subItems,
-  activationRate,
-  activationTrend,
 }) => (
   <div className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-sm transition-shadow duration-200">
-    {/* Main card content */}
     <div className="flex items-start justify-between gap-2">
       <div className="flex items-center gap-3">
         <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}>
@@ -80,15 +47,18 @@ const CHWStatCard: React.FC<CardConfig> = ({
         </div>
         <div>
           <p className="text-sm text-gray-500 font-medium">{title}</p>
-          <p className="text-2xl font-bold text-gray-900 mt-0.5">{primary}</p>
+          <div className="flex items-baseline gap-2 mt-0.5 flex-wrap">
+            <p className="text-2xl font-bold text-gray-900">{primary}</p>
+            {primaryRate && (
+              <span className="text-sm font-semibold text-[#3363AD]">
+                {primaryRate}
+              </span>
+            )}
+          </div>
         </div>
       </div>
-      {activationRate !== undefined && (
-        <ActivationBadge rate={activationRate} trend={activationTrend} />
-      )}
     </div>
 
-    {/* Sub items below */}
     {subItems.length > 0 && (
       <div className="mt-4 pt-3 border-t border-gray-100">
         <div className="flex items-center gap-3 flex-wrap">
@@ -113,13 +83,17 @@ export const CHWStatsCards: React.FC<CHWStatsCardsProps> = ({
 }) => {
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 animate-pulse">
-        {[...Array(4)].map((_, i) => (
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 animate-pulse">
+        {[...Array(6)].map((_, i) => (
           <div key={i} className="h-32 bg-gray-100 rounded-xl" />
         ))}
       </div>
     );
   }
+
+  const chwTarget = data?.chws.target ?? 6000;
+  const chwPercent = data?.chws.percentOfTarget ?? 0;
+  const ready = data?.platformReady;
 
   const cards: CardConfig[] = [
     {
@@ -127,9 +101,8 @@ export const CHWStatsCards: React.FC<CHWStatsCardsProps> = ({
       iconBg: "bg-[#3363AD]/10",
       iconColor: "text-[#3363AD]",
       title: "Total CHW",
-      primary: data?.chws.total ?? 0,
-      activationRate: data?.chws.activationRate ?? 0,
-      activationTrend: data?.chws.activationTrend,
+      primary: (data?.chws.total ?? 0).toLocaleString(),
+      primaryRate: `${chwPercent}% of ${chwTarget.toLocaleString()}`,
       subItems: [
         {
           label: "active",
@@ -139,9 +112,23 @@ export const CHWStatsCards: React.FC<CHWStatsCardsProps> = ({
           label: "inactive",
           value: data?.chws.inactive ?? 0,
         },
+      ],
+    },
+    {
+      icon: <MonitorCheck size={22} />,
+      iconBg: "bg-[#3363AD]/10",
+      iconColor: "text-[#3363AD]",
+      title: "Able to Use Platform",
+      primary: (ready?.total ?? 0).toLocaleString(),
+      primaryRate: `${ready?.percentOfRegistered ?? 0}% of registered · ${ready?.percentOfTarget ?? 0}% of ${chwTarget.toLocaleString()}`,
+      subItems: [
         {
-          label: "avg logins",
-          value: data?.chws.avgLogins ?? 0,
+          label: "completed a course",
+          value: ready?.completedOneCourse ?? 0,
+        },
+        {
+          label: "attended a meeting",
+          value: ready?.attendedMeeting ?? 0,
         },
       ],
     },
@@ -153,12 +140,29 @@ export const CHWStatsCards: React.FC<CHWStatsCardsProps> = ({
       primary: `${data?.completion.rate ?? 0}%`,
       subItems: [
         {
-          label: "courses completed",
+          label: "passed final test",
           value: data?.completion.completed ?? 0,
         },
         {
-          label: "enrollments",
+          label: "eligible",
           value: data?.completion.total ?? 0,
+        },
+      ],
+    },
+    {
+      icon: <Award size={22} />,
+      iconBg: "bg-[#3363AD]/10",
+      iconColor: "text-[#3363AD]",
+      title: "Certification",
+      primary: `${data?.certification?.rate ?? 0}%`,
+      subItems: [
+        {
+          label: "passed final exam",
+          value: data?.certification?.certified ?? 0,
+        },
+        {
+          label: "eligible",
+          value: data?.certification?.total ?? 0,
         },
       ],
     },
@@ -173,10 +177,6 @@ export const CHWStatsCards: React.FC<CHWStatsCardsProps> = ({
           label: "pre-test",
           value: data?.tests.preTest ?? 0,
         },
-        // {
-        //   label: "mid-test",
-        //   value: data?.tests.midTest ?? 0,
-        // },
         {
           label: "final-test",
           value: data?.tests.finalTest ?? 0,
@@ -193,8 +193,6 @@ export const CHWStatsCards: React.FC<CHWStatsCardsProps> = ({
       iconColor: "text-[#3363AD]",
       title: "Total CEHO",
       primary: data?.supervisors.total ?? 0,
-      activationRate: data?.supervisors.activationRate ?? 0,
-      activationTrend: data?.supervisors.activationTrend,
       subItems: [
         {
           label: "male",
@@ -204,16 +202,12 @@ export const CHWStatsCards: React.FC<CHWStatsCardsProps> = ({
           label: "female",
           value: data?.supervisors.female ?? 0,
         },
-        {
-          label: "avg logins",
-          value: data?.supervisors.avgLogins ?? 0,
-        },
       ],
     },
   ];
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
       {cards.map((card, i) => (
         <CHWStatCard key={i} {...card} />
       ))}

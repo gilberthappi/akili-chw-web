@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { Phase3Section } from "@/components/dashboard/Phase3Section";
 import { LearnerSection } from "@/components/dashboard/LearnerSection";
 import { AdoptionSection } from "@/components/dashboard/AdoptionSection";
-import { SupervisorResponseCard } from "@/components/dashboard/SupervisorResponseCard";
 import { DeveloperSection } from "@/components/dashboard/DeveloperSection";
 import { CEHOSection } from "@/components/dashboard/CEHOSection";
 import { DashboardGlobalFilters } from "@/components/dashboard/DashboardGlobalFilters";
@@ -10,14 +9,14 @@ import { useAuth } from "@/hooks/useAuth";
 import { IDashboardFilters } from "@/types";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { useAdoptionStats } from "@/hooks/useAdoptionStats";
-import {
-  DEFAULT_DASHBOARD_FILTERS,
-} from "@/utils/constants/dashboardFilters";
+import { useIdleReady } from "@/hooks/useIdleReady";
+import { DEFAULT_DASHBOARD_FILTERS } from "@/utils/constants/dashboardFilters";
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
 
   const [filters, setFilters] = useState<IDashboardFilters>(DEFAULT_DASHBOARD_FILTERS);
+  const idleReady = useIdleReady(2500);
 
   const userRoles: string[] = user?.roles
     ? Array.isArray(user.roles)
@@ -32,17 +31,34 @@ export const Dashboard: React.FC = () => {
     ["ADMIN", "STAFF", "DEVELOPER"].includes(r),
   );
 
+  // TRAINER (no adoption section): fetch course/student here after idle.
+  // ADMIN/STAFF/DEVELOPER: course/student come from useAdoptionStats (no duplicate).
   const {
     dashboardStats,
-    courseAnalytics,
-    studentAnalytics,
-    isLoading,
+    courseAnalytics: statsCourseAnalytics,
+    studentAnalytics: statsStudentAnalytics,
+    isLoading: isStatsLoading,
     isFetching: isStatsFetching,
-  } = useDashboardStats({ enabled: needsAnalytics, filters });
-  const { supervisorResponseRate, isFetching: isAdoptionFetching } = useAdoptionStats(
+  } = useDashboardStats({
+    enabled: needsAnalytics,
     filters,
-    needsAdoption,
-  );
+    includeCourseStudent: !needsAdoption && idleReady,
+  });
+
+  const {
+    courseAnalytics: adoptionCourseAnalytics,
+    studentAnalytics: adoptionStudentAnalytics,
+    isLoading: isAdoptionLoading,
+    isFetching: isAdoptionFetching,
+  } = useAdoptionStats(filters, needsAdoption, {
+    deepEnabled: idleReady,
+  });
+
+  const courseAnalytics = needsAdoption ? adoptionCourseAnalytics : statsCourseAnalytics;
+  const studentAnalytics = needsAdoption ? adoptionStudentAnalytics : statsStudentAnalytics;
+  const isLoading = needsAdoption
+    ? isAdoptionLoading && isStatsLoading
+    : isStatsLoading;
   const isRefetching = isStatsFetching || isAdoptionFetching;
 
   const is = (role: string) => userRoles.includes(role);
@@ -71,7 +87,6 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className='space-y-8 p-1'>
-      {/* ── Welcome header ──────────────────────────────────────────────────── */}
       <div className='flex items-center justify-between gap-4 flex-wrap'>
         <div>
           <h1 className='text-xl font-bold text-gray-900'>
@@ -98,26 +113,38 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {isAnyOf("ADMIN", "STAFF", "DEVELOPER") && (
-        <AdoptionSection filters={filters} onFiltersChange={setFilters} />
+        <AdoptionSection
+          filters={filters}
+          onFiltersChange={setFilters}
+          beforeMap={
+            <Phase3Section
+              dashboardStats={dashboardStats}
+              courseAnalytics={courseAnalytics}
+              studentAnalytics={studentAnalytics}
+              isLoading={isLoading}
+              isFetching={isRefetching}
+              isSupervisorView={false}
+              hideKpis={isAnyOf("ADMIN", "DEVELOPER")}
+              hideRecommendations
+              hidePerformance
+              filters={filters}
+            />
+          }
+        />
       )}
 
-      {isAnyOf("ADMIN", "TRAINER", "STAFF", "DEVELOPER") && (
+      {/* TRAINER (no adoption section): training analytics alone */}
+      {is("TRAINER") && !isAnyOf("ADMIN", "STAFF", "DEVELOPER") && (
         <Phase3Section
           dashboardStats={dashboardStats}
           courseAnalytics={courseAnalytics}
           studentAnalytics={studentAnalytics}
           isLoading={isLoading}
-          isFetching={isStatsFetching}
+          isFetching={isRefetching}
           isSupervisorView={false}
-          hideKpis={isAnyOf("ADMIN", "DEVELOPER")}
+          hideKpis={false}
           filters={filters}
         />
-      )}
-
-      {isAnyOf("ADMIN", "STAFF", "DEVELOPER") && (
-        <div className="w-full lg:w-1/2">
-          <SupervisorResponseCard data={supervisorResponseRate} />
-        </div>
       )}
 
       {is("DEVELOPER") && <DeveloperSection />}

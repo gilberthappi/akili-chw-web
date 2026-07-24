@@ -18,6 +18,10 @@ interface Phase3SectionProps {
   isFetching?: boolean;
   isSupervisorView: boolean;
   hideKpis?: boolean;
+  /** When false, recommendations are rendered elsewhere (e.g. above the map). */
+  hideRecommendations?: boolean;
+  /** When true, CHW Performance is rendered elsewhere (next to certification rate). */
+  hidePerformance?: boolean;
   filters?: IDashboardFilters;
 }
 
@@ -29,9 +33,21 @@ export const Phase3Section: React.FC<Phase3SectionProps> = ({
   isFetching = false,
   isSupervisorView,
   hideKpis = false,
-  filters: _filters,
+  hideRecommendations = false,
+  hidePerformance = false,
+  filters,
 }) => {
-  if (isLoading && !dashboardStats) return <SectionSkeleton cards={4} rows={2} />;
+  if (isLoading && !dashboardStats && !hideKpis) {
+    return <SectionSkeleton cards={4} rows={2} />;
+  }
+
+  const showPerformance = !hidePerformance;
+  const showRecommendations = !hideRecommendations;
+  const showChartsRow = showPerformance || showRecommendations;
+  const hasBody =
+    !hideKpis || showChartsRow;
+
+  if (!hasBody) return null;
 
   return (
     <div className={`space-y-6 transition-opacity duration-200 ${isFetching ? "opacity-60 pointer-events-none" : "opacity-100"}`}>
@@ -70,20 +86,34 @@ export const Phase3Section: React.FC<Phase3SectionProps> = ({
           />
           <KpiCard
             title="Certificates"
-            value={courseAnalytics?.certificatesIssued?.value ?? 0}
+            value={
+              courseAnalytics?.certificatesIssued?.value ??
+              dashboardStats?.certificatesIssued?.value ??
+              0
+            }
             icon={<Award size={20} />}
             iconBg="bg-amber-50"
             iconColor="text-amber-500"
-            trend={courseAnalytics?.certificatesIssued?.trend}
+            trend={
+              courseAnalytics?.certificatesIssued?.trend ??
+              dashboardStats?.certificatesIssued?.trend
+            }
           />
         </div>
       )}
 
-      {/* Charts row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <TestScoreCard studentAnalytics={studentAnalytics} />
-        <RecommendationReviewCard />
-      </div>
+      {showChartsRow && (
+        showPerformance && showRecommendations ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <TestScoreCard studentAnalytics={studentAnalytics} />
+            <RecommendationReviewCard filters={filters} />
+          </div>
+        ) : showPerformance ? (
+          <TestScoreCard studentAnalytics={studentAnalytics} />
+        ) : (
+          <RecommendationReviewCard filters={filters} />
+        )
+      )}
 
       {/* Certification + Activity row */}
       {!hideKpis && (

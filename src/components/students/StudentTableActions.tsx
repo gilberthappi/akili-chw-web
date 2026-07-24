@@ -69,11 +69,15 @@ const StudentTableActions: FC<StudentTableActionsProps> = ({
   const demoteCandidates: IStudent[] = candidatesResp?.data ?? [];
 
   const { mutate: demote, isPending: isDemoting } = useMutation({
-    mutationFn: () => adminDemoteToCHW(item.userId, newCEHO!.id),
+    mutationFn: () => adminDemoteToCHW(item.userId, newCEHO?.id),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: studentKeys.all });
       queryClient.invalidateQueries({ queryKey: ["admin-ceho-groups"] });
-      toast.success(`${item.fullName} demoted. ${data.newCEHO.fullNames} is now the CEHO.`);
+      toast.success(
+        data.newCEHO
+          ? `${item.fullName} demoted. ${data.newCEHO.fullNames} is now the CEHO.`
+          : `${item.fullName} demoted to CHW.`,
+      );
       setDemoteOpen(false);
       setNewCEHO(null);
       setDemoteSearch("");
@@ -331,14 +335,17 @@ const StudentTableActions: FC<StudentTableActionsProps> = ({
                   <div>
                     <Dialog.Title className="text-lg font-bold text-gray-900">Demote to CHW</Dialog.Title>
                     <Dialog.Description className="text-sm text-gray-500 mt-0.5">
-                      Demote <span className="font-semibold text-gray-700">{item.fullName}</span> back to CHW. You must assign a replacement CEHO for their group.
+                      Demote <span className="font-semibold text-gray-700">{item.fullName}</span> back to CHW.
+                      If they lead a CEHO group, pick a replacement below to take over that group.
                     </Dialog.Description>
                   </div>
                 </div>
 
-                {/* Replacement search */}
+                {/* Replacement search (optional unless they lead a group) */}
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-gray-600">Select replacement CEHO</label>
+                  <label className="text-xs font-semibold text-gray-600">
+                    Replacement CEHO <span className="font-normal text-gray-400">(optional if no group)</span>
+                  </label>
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
                     <input
@@ -405,7 +412,6 @@ const StudentTableActions: FC<StudentTableActionsProps> = ({
                     className="flex-1 !bg-red-500 hover:!bg-red-600"
                     onClick={() => demote()}
                     isLoading={isDemoting}
-                    disabled={!newCEHO}
                   >
                     {!isDemoting && <ArrowDownCircle className="w-3.5 h-3.5 mr-1.5" />}
                     Demote

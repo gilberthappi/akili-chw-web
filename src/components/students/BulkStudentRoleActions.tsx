@@ -119,13 +119,17 @@ export const BulkStudentRoleActions: FC<BulkStudentRoleActionsProps> = ({
   });
 
   const { mutate: demoteCEHO, isPending: isDemoting } = useMutation({
-    mutationFn: () => adminDemoteToCHW(selectedStudents[0].userId, newCEHO!.id),
+    mutationFn: () => adminDemoteToCHW(selectedStudents[0].userId, newCEHO?.id),
     onSuccess: (data) => {
       invalidateAll();
       setDemoteOpen(false);
       setNewCEHO(null);
       setDemoteSearch("");
-      toast.success(`${selectedStudents[0].fullName} demoted. ${data.newCEHO.fullNames} is now the CEHO.`);
+      toast.success(
+        data.newCEHO
+          ? `${selectedStudents[0].fullName} demoted. ${data.newCEHO.fullNames} is now the CEHO.`
+          : `${selectedStudents[0].fullName} demoted to CHW.`,
+      );
     },
     onError: (error: any) => {
       toast.error(error?.response?.data?.message ?? "Failed to demote CEHO.");
@@ -243,10 +247,12 @@ export const BulkStudentRoleActions: FC<BulkStudentRoleActionsProps> = ({
                 <Dialog.Title className="text-lg font-bold text-gray-900">Demote to CHW</Dialog.Title>
                 <Dialog.Description className="text-sm text-gray-500">
                   Demote <span className="font-semibold text-gray-700">{selectedStudents[0]?.fullName}</span> back to CHW.
-                  Select a replacement CEHO for their group.
+                  If they lead a group, pick a replacement CEHO below.
                 </Dialog.Description>
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-gray-600">Replacement CEHO</label>
+                  <label className="text-xs font-semibold text-gray-600">
+                    Replacement CEHO <span className="font-normal text-gray-400">(optional if no group)</span>
+                  </label>
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
                     <input
@@ -291,7 +297,7 @@ export const BulkStudentRoleActions: FC<BulkStudentRoleActionsProps> = ({
                   <Button variant="ghost" size="sm" className="flex-1" onClick={() => setDemoteOpen(false)} disabled={isDemoting}>
                     Cancel
                   </Button>
-                  <Button size="sm" className="flex-1 !bg-red-500 hover:!bg-red-600" onClick={() => demoteCEHO()} isLoading={isDemoting} disabled={!newCEHO}>
+                  <Button size="sm" className="flex-1 !bg-red-500 hover:!bg-red-600" onClick={() => demoteCEHO()} isLoading={isDemoting}>
                     Demote
                   </Button>
                 </div>

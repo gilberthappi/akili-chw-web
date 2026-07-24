@@ -1,12 +1,15 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/common/Card";
-import { getRecommendationInsights } from "@/services/analytics.service";
+import { useInView } from "@/hooks/useInView";
+import { useDashboardRecommendations } from "@/hooks/useDashboardLazyStats";
 import type {
+  IDashboardFilters,
   IRecommendedChapterInsight,
   IStudentRecommendationInsight,
   RecommendationInsightReason,
 } from "@/types";
+import { DEFAULT_DASHBOARD_FILTERS } from "@/utils/constants/dashboardFilters";
 import { BookMarked } from "lucide-react";
 
 const REASON_LABELS: Record<RecommendationInsightReason, string> = {
@@ -37,7 +40,7 @@ function ChapterTable({ rows }: { rows: IRecommendedChapterInsight[] }) {
           </tr>
         </thead>
         <tbody>
-          {rows.slice(0, 5).map((row) => (
+          {rows.slice(0, 10).map((row) => (
             <tr key={row.chapterId} className="border-b border-gray-50 last:border-0">
               <td className="py-2 pr-2">
                 <p className="font-medium text-gray-800 truncate max-w-[140px]">
@@ -86,7 +89,7 @@ function StudentTable({
           </tr>
         </thead>
         <tbody>
-          {rows.slice(0, 5).map((row) => (
+          {rows.slice(0, 10).map((row) => (
             <tr key={row.studentId} className="border-b border-gray-50 last:border-0">
               <td className="py-2 pr-2 font-medium text-gray-800 truncate max-w-[120px]">
                 {row.studentName}
@@ -114,80 +117,82 @@ function StudentTable({
   );
 }
 
-export const RecommendationReviewCard: React.FC = () => {
+interface RecommendationReviewCardProps {
+  filters?: IDashboardFilters;
+}
+
+export const RecommendationReviewCard: React.FC<RecommendationReviewCardProps> = ({
+  filters = DEFAULT_DASHBOARD_FILTERS,
+}) => {
   const navigate = useNavigate();
-  const [chapters, setChapters] = useState<IRecommendedChapterInsight[]>([]);
-  const [students, setStudents] = useState<IStudentRecommendationInsight[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [failed, setFailed] = useState(false);
+  const { ref, inView } = useInView<HTMLDivElement>();
+  const { chapters, students, isLoading, error } = useDashboardRecommendations(
+    filters,
+    inView,
+  );
 
-  useEffect(() => {
-    let cancelled = false;
-    getRecommendationInsights()
-      .then((res) => {
-        if (cancelled) return;
-        setChapters(res.data.mostRecommendedChapters);
-        setStudents(res.data.studentsWithMostRecommendations);
-      })
-      .catch(() => {
-        if (!cancelled) setFailed(true);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
+  const failed = Boolean(error);
+  const loading = !inView || isLoading;
   const empty = !loading && !failed && chapters.length === 0 && students.length === 0;
 
   return (
-    <Card>
-      <div className="flex items-center gap-2 mb-3">
-        <BookMarked size={20} className="text-[#3363AD]" />
-        <h3 className="text-lg font-semibold text-gray-800">Review recommendations</h3>
-      </div>
-      <p className="text-xs text-gray-500 mb-4">
-        Chapters and trainees flagged after course completion.
-      </p>
-
-      {loading && (
-        <div className="space-y-3 animate-pulse">
-          <div className="h-3 bg-gray-100 rounded w-full" />
-          <div className="h-3 bg-gray-100 rounded w-4/5" />
-          <div className="h-3 bg-gray-100 rounded w-3/5" />
-        </div>
-      )}
-
-      {failed && (
-        <p className="text-sm text-gray-500 py-8 text-center">
-          Could not load recommendations.
-        </p>
-      )}
-
-      {empty && (
-        <p className="text-sm text-gray-500 py-8 text-center">
-          Nothing flagged yet. Data shows once trainees finish courses and attempt final exams.
-        </p>
-      )}
-
-      {!loading && !failed && !empty && (
-        <div className="space-y-5 max-h-[280px] overflow-y-auto pr-1">
-          <div>
-            <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">
-              Top chapters
-            </p>
-            <ChapterTable rows={chapters} />
+    <div ref={ref} className='h-full min-h-[520px]'>
+      <Card className='h-full flex flex-col'>
+        <div className='shrink-0'>
+          <div className='flex items-center gap-2 mb-3'>
+            <BookMarked size={20} className='text-[#3363AD]' />
+            <h3 className='text-lg font-semibold text-gray-800'>
+              Review recommendations
+            </h3>
           </div>
-          <div>
-            <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">
-              Most flagged trainees
-            </p>
-            <StudentTable rows={students} onOpenStudent={(id) => navigate(`/students/${id}`)} />
-          </div>
+          <p className='text-xs text-gray-500 mb-4'>
+            Chapters and trainees flagged after course completion.
+          </p>
         </div>
-      )}
-    </Card>
+
+        <div className='flex-1 min-h-0 overflow-y-auto pr-1'>
+          {loading && (
+            <div className='space-y-3 animate-pulse'>
+              <div className='h-3 bg-gray-100 rounded w-full' />
+              <div className='h-3 bg-gray-100 rounded w-4/5' />
+              <div className='h-3 bg-gray-100 rounded w-3/5' />
+            </div>
+          )}
+
+          {failed && (
+            <p className='text-sm text-gray-500 py-8 text-center'>
+              Could not load recommendations.
+            </p>
+          )}
+
+          {empty && (
+            <p className='text-sm text-gray-500 py-8 text-center'>
+              Nothing flagged yet. Data shows once trainees finish courses and
+              attempt final exams.
+            </p>
+          )}
+
+          {!loading && !failed && !empty && (
+            <div className='space-y-5'>
+              <div>
+                <p className='text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2'>
+                  Top chapters
+                </p>
+                <ChapterTable rows={chapters} />
+              </div>
+              <div>
+                <p className='text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2'>
+                  Most flagged trainees
+                </p>
+                <StudentTable
+                  rows={students}
+                  onOpenStudent={(id) => navigate(`/students/${id}`)}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </Card>
+    </div>
   );
 };

@@ -27,6 +27,21 @@ export const getAllStudentsNoPagination = async (params?: string): Promise<IResp
   return (await api.get(`/students/all${queryParams}`)).data;
 };
 
+/** Lightweight KPI counts for CHW / CEHO / Tester tabs (not full analytics). */
+export const getStudentRoleStats = async (
+  role?: "TRAINEE" | "TESTER" | "CEHO",
+): Promise<
+  IResponse<{
+    totalStudents: { value: number; trend: { value: number; direction: "up" | "down" | "stable" } };
+    activeStudents: { value: number; trend: { value: number; direction: "up" | "down" | "stable" } };
+    onLeaveStudents: { value: number; trend: { value: number; direction: "up" | "down" | "stable" } };
+    completionRate: { value: number; trend: { value: number; direction: "up" | "down" | "stable" } };
+  }>
+> => {
+  const qs = role ? `?role=${role}` : "";
+  return (await api.get(`/students/statistics/summary${qs}`)).data;
+};
+
 export const getStudentById = async (id: string): Promise<IResponse<StudentData>> => {
   return (await api.get(`/students/${id}`)).data;
 };

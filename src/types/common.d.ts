@@ -183,6 +183,7 @@ export interface IPaged<T> {
   currentPage: number;
   totalItems: number;
   itemsPerPage: number;
+  stats?: unknown;
 }
 
 export interface IUsersResponse {

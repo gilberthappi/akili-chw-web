@@ -391,7 +391,7 @@ const StudentsPage = () => {
   const { data, isLoading } = useQuery({
     queryKey: ["admin-ceho-groups"],
     queryFn: () => adminGetAllGroups(100, 0),
-    enabled: isAdminOrStaff,
+    enabled: isAdminOrStaff && activeTab === "ceho-group",
   });
 
   const groups = data?.groups ?? [];
