@@ -1516,3 +1516,30 @@ export interface ISupervisorResponseRate {
   note: string;
 }
 
+export interface IPostCourseRecommendationChapter {
+  chapterId: string;
+  title: string;
+  midTestScore: number | null;
+  needsReview: boolean;
+  reasonRw: string;
+}
+
+export interface IPostCourseRecommendationsData {
+  courseId: string;
+  courseTitle: string;
+  completedQuickly: boolean;
+  expectedLessonMinutes: number;
+  elapsedHours: number;
+  summaryMessageRw: string;
+  conversationalMessages: Array<{ role: "assistant" | "user"; content: string }>;
+  generatedByNlp: boolean;
+  chapters: IPostCourseRecommendationChapter[];
+}
+
+export interface IPostCourseRecommendationsResponse {
+  statusCode: number;
+  message: string;
+  data: IPostCourseRecommendationsData;
+}
+
+
