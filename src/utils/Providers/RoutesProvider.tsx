@@ -211,10 +211,11 @@ const RoutesProvider = () => {
         {
           path: "recordings",
           element: (
-            <ProtectedRoute allowedRoles={["ADMIN", "ADMINISTRATOR"]}>
+            <ProtectedRoute allowedRoles={["ADMIN", "STAFF"]}>
               <MeetingRecordings />
             </ProtectedRoute>
           ),
+
         },
         {
           path: "recordings/watch",

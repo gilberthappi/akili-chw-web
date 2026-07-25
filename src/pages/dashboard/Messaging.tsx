@@ -177,7 +177,7 @@ export const Messaging: React.FC = () => {
     setMessages(typedMessagesData);
     // Scroll to bottom after state update
     setTimeout(() => scrollToBottom(), 0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [selectedConversation?.id, messagesData]);
 
   // Ask the server for the other participant's live status when opening a direct chat —

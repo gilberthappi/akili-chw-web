@@ -1,5 +1,4 @@
 import React, { useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { debounce } from "lodash";
 import Table from "@/components/table/Table";
@@ -17,6 +16,7 @@ import { hospitalKeys } from "@/utils/constants/queryKeys";
 
 
 
+
 const PROVINCE_OPTIONS = [
   { label: "Kigali", value: "Kigali" },
   { label: "Eastern", value: "Eastern" },
@@ -26,7 +26,6 @@ const PROVINCE_OPTIONS = [
 ];
 
 const HealthCenters: React.FC = () => {
-  const navigate = useNavigate();
   const [currentPage, setCurrentPage] = useState(1);
 
   const [searchKeyword, setSearchKeyword] = useState<string>("");
@@ -34,7 +33,8 @@ const HealthCenters: React.FC = () => {
   const [sortBy, setSortBy] = useState<string>("createdAt");
   const [order, setOrder] = useState<"asc" | "desc">("desc");
   const [provinceFilter, setProvinceFilter] = useState<string>("");
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [, setSelectedIds] = useState<string[]>([]);
+
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [selectedHospital, setSelectedHospital] = useState<IHealthCenter | null>(null);
