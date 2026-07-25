@@ -212,6 +212,10 @@ export interface IHealthCenter {
   contact?: string;
   chwSupervisor?: string;
   chwSupervisorContact?: string;
+  cehoName?: string;
+  cehoContact?: string;
+  cehoCount?: number;
+  cehoUsers?: Array<{ id: string; fullNames: string; phoneNumber?: string; email?: string }>;
   totalChws: number;
   activeChws: number;
   catchmentArea: string[];
@@ -221,6 +225,7 @@ export interface IHealthCenter {
   createdAt: string;
   updatedAt: string;
 }
+
 
 export interface IProgress {
   id: string;
