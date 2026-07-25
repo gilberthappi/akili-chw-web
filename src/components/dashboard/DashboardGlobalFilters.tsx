@@ -31,7 +31,7 @@ export const DashboardGlobalFilters: React.FC<DashboardGlobalFiltersProps> = ({
       genders={availableGenders}
       years={availableYears}
       months={availableMonths}
-      hospitals={availableHospitals}
+      healthCenters={availableHospitals}
       onHospitalSearch={handleHospitalSearch}
     />
   );

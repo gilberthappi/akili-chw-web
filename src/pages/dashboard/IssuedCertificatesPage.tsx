@@ -37,7 +37,7 @@ interface CarriedFilters {
   role?: string;
   year?: string;
   month?: string;
-  hospitalId?: string;
+  healthCenterId?: string;
 }
 
 const CARRIED_FILTER_LABELS: Record<keyof CarriedFilters, string> = {
@@ -47,7 +47,7 @@ const CARRIED_FILTER_LABELS: Record<keyof CarriedFilters, string> = {
   role: "Role",
   year: "Year",
   month: "Month",
-  hospitalId: "Hospital",
+  healthCenterId: "Health Center",
 };
 
 const CARRIED_ROLE_LABELS: Record<string, string> = {
@@ -80,7 +80,7 @@ export default function IssuedCertificatesPage() {
     role: navState?.role,
     year: navState?.year,
     month: navState?.month,
-    hospitalId: navState?.hospitalId,
+    healthCenterId: navState?.healthCenterId,
   });
   const clearCarriedFilter = (key: keyof CarriedFilters) =>
     setCarriedFilters((prev) => ({ ...prev, [key]: undefined }));
@@ -152,7 +152,7 @@ export default function IssuedCertificatesPage() {
         role: carriedFilters.role || undefined,
         year: carriedFilters.year || undefined,
         month: carriedFilters.month || undefined,
-        hospitalId: carriedFilters.hospitalId || undefined,
+        healthCenterId: carriedFilters.healthCenterId || undefined,
       });
       setCertificates(res.data ?? []);
       setTotalItems(res.totalItems ?? 0);
@@ -198,7 +198,7 @@ export default function IssuedCertificatesPage() {
       role: carriedFilters.role || undefined,
       year: carriedFilters.year || undefined,
       month: carriedFilters.month || undefined,
-      hospitalId: carriedFilters.hospitalId || undefined,
+      healthCenterId: carriedFilters.healthCenterId || undefined,
     });
     return res.data ?? [];
   };

@@ -12,14 +12,14 @@ import { IOptionFieldOption } from "@/components/common/form/ComboboxField";
 const TRIGGER_CLS =
   "flex items-center gap-1 text-xs border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-[#3363AD] bg-white transition-colors min-w-[110px] max-w-[220px]";
 
-interface HospitalFilterSelectProps {
+interface HealthCenterFilterSelectProps {
   value: string;
   options: IOptionFieldOption[];
   onChange: (value: string) => void;
   onSearch: (query: string) => void;
 }
 
-export const HospitalFilterSelect: React.FC<HospitalFilterSelectProps> = ({
+export const HealthCenterFilterSelect: React.FC<HealthCenterFilterSelectProps> = ({
   value,
   options,
   onChange,
@@ -60,7 +60,7 @@ export const HospitalFilterSelect: React.FC<HospitalFilterSelectProps> = ({
   }, [searchQuery, onSearch]);
 
   const isActive = value !== "";
-  const displayText = isActive ? selectedLabel || "Selected hospital" : "Hospital";
+  const displayText = isActive ? selectedLabel || "Selected healthCenter" : "Health Center";
 
   return (
     <Popover className="relative">
@@ -72,7 +72,7 @@ export const HospitalFilterSelect: React.FC<HospitalFilterSelectProps> = ({
             ? "border-[#3363AD] text-[#3363AD] font-medium"
             : "border-gray-200 text-gray-600"
         }`}
-        title={isActive ? selectedLabel : "Filter by hospital"}
+        title={isActive ? selectedLabel : "Filter by healthCenter"}
       >
         <Building2 size={12} className="shrink-0" />
         <span className="truncate">{displayText}</span>
@@ -87,7 +87,7 @@ export const HospitalFilterSelect: React.FC<HospitalFilterSelectProps> = ({
         onFocus={() => searchInputRef.current?.focus()}
       >
         <div className="border-b border-gray-100 px-3 py-2.5">
-          <p className="text-xs font-medium text-gray-700">Filter by hospital</p>
+          <p className="text-xs font-medium text-gray-700">Filter by healthCenter</p>
           <p className="text-[11px] text-gray-500 mt-0.5">
             Search and select a facility to narrow dashboard data.
           </p>
@@ -105,7 +105,7 @@ export const HospitalFilterSelect: React.FC<HospitalFilterSelectProps> = ({
               autoFocus
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Search hospitals..."
+              placeholder="Search healthCenters..."
               className="w-full rounded-md border border-gray-200 py-1.5 pl-8 pr-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[#3363AD] focus:outline-none focus:ring-1 focus:ring-[#3363AD]"
             />
           </div>
@@ -120,15 +120,15 @@ export const HospitalFilterSelect: React.FC<HospitalFilterSelectProps> = ({
               !isActive ? "bg-[#3363AD]/5 font-medium text-[#3363AD]" : "text-gray-600"
             }`}
           >
-            <span>All hospitals</span>
+            <span>All healthCenters</span>
             {!isActive ? <Check size={14} /> : null}
           </CloseButton>
 
           {options.length === 0 ? (
             <p className="px-3 py-6 text-center text-sm text-gray-500">
               {searchQuery.trim()
-                ? "No hospitals match your search."
-                : "Start typing to find hospitals."}
+                ? "No healthCenters match your search."
+                : "Start typing to find healthCenters."}
             </p>
           ) : (
             options.map((option) => {

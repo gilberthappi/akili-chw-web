@@ -8,6 +8,8 @@ import PageContent from "@/components/common/PageContent";
 import { formatDate } from "@/utils/formats/formats";
 import { getAllStudents, IStudent } from "@/services/students.service";
 import { getAllCoursesNoPagination } from "@/services/course.service";
+import { listAllHospitals } from "@/services/healthCenters.service";
+import { getDistrictOptions, getSectorOptions } from "@/hooks/locations";
 import StudentTableActions from "./StudentTableActions";
 import TableActions from "../table/TableActions";
 import { BulkStudentRoleActions } from "./BulkStudentRoleActions";
@@ -39,12 +41,24 @@ const StudentsList: FC<StudentsListProps> = ({
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [genderFilter, setGenderFilter] = useState<string>("");
   const [courseFilter, setCourseFilter] = useState<string>("");
+  const [districtFilter, setDistrictFilter] = useState<string>("");
+  const [sectorFilter, setSectorFilter] = useState<string>("");
+  const [hospitalFilter, setHospitalFilter] = useState<string>("");
 
   const { data: coursesResponse } = useQuery({
     queryKey: ["all-courses-no-pagination"],
     queryFn: () => getAllCoursesNoPagination(),
   });
   const courses = coursesResponse?.data || [];
+
+  const { data: hospitalsResponse } = useQuery({
+    queryKey: ["all-healthCenters-no-pagination"],
+    queryFn: () => listAllHospitals(),
+  });
+  const healthCenters = hospitalsResponse?.data || [];
+
+  const districtOpts = getDistrictOptions();
+  const sectorOpts = districtFilter ? getSectorOptions(districtFilter) : [];
 
   // Build query parameters
   const buildQueryParams = (page: number, keyword?: string) => {
@@ -69,6 +83,9 @@ const StudentsList: FC<StudentsListProps> = ({
     if (genderFilter) params.append("gender", genderFilter);
     if (courseFilter) params.append("courseId", courseFilter);
     if (roleFilter) params.append("role", roleFilter);
+    if (districtFilter) params.append("district", districtFilter);
+    if (sectorFilter) params.append("sector", sectorFilter);
+    if (hospitalFilter) params.append("healthCenterId", hospitalFilter);
 
     const queryString = params.toString();
     return queryString ? `?${queryString}` : "";
@@ -121,6 +138,9 @@ const StudentsList: FC<StudentsListProps> = ({
     setStatusFilter("");
     setGenderFilter("");
     setCourseFilter("");
+    setDistrictFilter("");
+    setSectorFilter("");
+    setHospitalFilter("");
   };
 
   // Effect to reset pagination and search when filter changes
@@ -191,6 +211,37 @@ const StudentsList: FC<StudentsListProps> = ({
         }}
         filters={[
           {
+            key: "district",
+            label: "District",
+            value: districtFilter,
+            onChange: (val) => {
+              setDistrictFilter(val);
+              setSectorFilter(""); // reset dependent sector
+              setCurrentPage(1);
+            },
+            options: districtOpts.map((d) => ({ label: d.label, value: d.label })),
+          },
+          {
+            key: "sector",
+            label: "Sector",
+            value: sectorFilter,
+            onChange: (val) => {
+              setSectorFilter(val);
+              setCurrentPage(1);
+            },
+            options: sectorOpts.map((s) => ({ label: s.label, value: s.label })),
+          },
+          {
+            key: "healthCenter",
+            label: "Health Center",
+            value: hospitalFilter,
+            onChange: (val) => {
+              setHospitalFilter(val);
+              setCurrentPage(1);
+            },
+            options: healthCenters.map((h) => ({ label: h.name, value: h.id })),
+          },
+          {
             key: "course",
             label: "Course",
             value: courseFilter,
@@ -227,8 +278,6 @@ const StudentsList: FC<StudentsListProps> = ({
             options: [
               { label: "Active", value: "ACTIVE" },
               { label: "Inactive", value: "INACTIVE" },
-              // { label: "Graduated", value: "GRADUATED" },
-              // { label: "Suspended", value: "SUSPENDED" },
             ],
           },
         ]}

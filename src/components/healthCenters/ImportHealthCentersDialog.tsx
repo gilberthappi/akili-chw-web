@@ -2,7 +2,7 @@ import React, { useCallback, useRef, useState } from "react";
 import Modal from "@/components/common/Modal";
 import toast from "react-hot-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { importHospitals } from "@/services/hospitals.service";
+import { importHospitals } from "@/services/healthCenters.service";
 import { hospitalKeys } from "@/utils/constants/queryKeys";
 import {
   ArrowUpTrayIcon,
@@ -12,7 +12,7 @@ import {
   ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
 
-interface ImportHospitalsDialogProps {
+interface ImportHealthCentersDialogProps {
   isOpen: boolean;
   onClose: () => void;
 }
@@ -24,7 +24,7 @@ interface ImportResult {
   errors: string[];
 }
 
-const ImportHospitalsDialog: React.FC<ImportHospitalsDialogProps> = ({
+const ImportHealthCentersDialog: React.FC<ImportHealthCentersDialogProps> = ({
   isOpen,
   onClose,
 }) => {
@@ -39,7 +39,7 @@ const ImportHospitalsDialog: React.FC<ImportHospitalsDialogProps> = ({
     onSuccess: (data) => {
       setResult(data.data);
       queryClient.invalidateQueries({ queryKey: hospitalKeys.all });
-      toast.success(`Import complete: ${data.data.created} hospitals added`);
+      toast.success(`Import complete: ${data.data.created} healthCenters added`);
     },
     onError: () => {
       toast.error("Import failed. Please check your file and try again.");
@@ -93,7 +93,7 @@ const ImportHospitalsDialog: React.FC<ImportHospitalsDialogProps> = ({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="Import Hospitals from Excel">
+    <Modal isOpen={isOpen} onClose={handleClose} title="Import HealthCenters from Excel">
       <div className="space-y-5">
         {/* Format hint */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
@@ -220,4 +220,4 @@ const ImportHospitalsDialog: React.FC<ImportHospitalsDialogProps> = ({
   );
 };
 
-export default ImportHospitalsDialog;
+export default ImportHealthCentersDialog;

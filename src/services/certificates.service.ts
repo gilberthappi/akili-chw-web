@@ -120,7 +120,7 @@ export const getAllCertificates = async (params?: {
   role?: string;
   year?: string;
   month?: string;
-  hospitalId?: string;
+  healthCenterId?: string;
 }): Promise<IIssuedCertificatesResponse> => {
   const query = new URLSearchParams();
   if (params?.searchq) query.set("searchq", params.searchq);
@@ -136,7 +136,7 @@ export const getAllCertificates = async (params?: {
   if (params?.role) query.set("role", params.role);
   if (params?.year) query.set("year", params.year);
   if (params?.month) query.set("month", params.month);
-  if (params?.hospitalId) query.set("hospitalId", params.hospitalId);
+  if (params?.healthCenterId) query.set("healthCenterId", params.healthCenterId);
   const res = await api.get(`/certificates/all?${query.toString()}`);
   return res.data as IIssuedCertificatesResponse;
 };

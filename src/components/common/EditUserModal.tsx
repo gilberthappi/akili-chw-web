@@ -1,7 +1,7 @@
 import { FC, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Modal from "./Modal";
-import { getPublicHospitals } from "@/services/hospitals.service";
+import { getPublicHospitals } from "@/services/healthCenters.service";
 
 export interface EditUserFormData {
   fullNames: string;
@@ -15,7 +15,7 @@ export interface EditUserFormData {
   cell: string;
   village: string;
   role: string;
-  hospitalId: string;
+  healthCenterId: string;
 }
 
 interface RoleOption {
@@ -44,7 +44,7 @@ const EMPTY_FORM: EditUserFormData = {
   cell: "",
   village: "",
   role: "",
-  hospitalId: "",
+  healthCenterId: "",
 };
 
 const EditUserModal: FC<EditUserModalProps> = ({
@@ -58,7 +58,7 @@ const EditUserModal: FC<EditUserModalProps> = ({
   const [form, setForm] = useState<EditUserFormData>(EMPTY_FORM);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { data: hospitals = [] } = useQuery({
+  const { data: healthCenters = [] } = useQuery({
     queryKey: ["publicHospitals"],
     queryFn: () => getPublicHospitals(),
     enabled: isOpen,
@@ -84,7 +84,7 @@ const EditUserModal: FC<EditUserModalProps> = ({
     try {
       // An empty selection means "leave unchanged" — sending "" would try to
       // set a literal empty-string foreign key and fail on the backend.
-      await onSubmit({ ...form, hospitalId: form.hospitalId || undefined } as EditUserFormData);
+      await onSubmit({ ...form, healthCenterId: form.healthCenterId || undefined } as EditUserFormData);
       onClose();
     } finally {
       setIsSubmitting(false);
@@ -230,15 +230,15 @@ const EditUserModal: FC<EditUserModalProps> = ({
             />
           </div>
           <div>
-            <label className={labelClass}>Hospital / Health Center</label>
+            <label className={labelClass}>HealthCenter / Health Center</label>
             <select
-              name="hospitalId"
-              value={form.hospitalId}
+              name="healthCenterId"
+              value={form.healthCenterId}
               onChange={handleChange}
               className={inputClass}
             >
-              <option value="">Select hospital (optional)</option>
-              {hospitals.map((h) => (
+              <option value="">Select healthCenter (optional)</option>
+              {healthCenters.map((h) => (
                 <option key={h.id} value={h.id}>{h.name}</option>
               ))}
             </select>

@@ -37,7 +37,7 @@ import {
 import NotificationsPage from "./NotificationsPage";
 import Help from "./Help";
 import { getProfile, updateAvatar } from "@/services/profile.api";
-import { getPublicHospitals } from "@/services/hospitals.service";
+import { getPublicHospitals } from "@/services/healthCenters.service";
 import api from "@/services/api";
 import { useTheme } from "@/contexts/ThemeContext";
 import { registerPushToken } from "@/hooks/usePushNotifications";
@@ -56,7 +56,7 @@ const profileSchema = z.object({
   gender: z.string().optional(),
   NID: z.string().optional(),
   birthdate: z.string().optional(),
-  hospitalId: z.string().optional().default(""),
+  healthCenterId: z.string().optional().default(""),
 });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
@@ -258,7 +258,7 @@ export const Settings: React.FC = () => {
           gender: profile.gender ?? "",
           NID: profile.NID ?? "",
           birthdate: profile.birthdate?.substring(0, 10) ?? "",
-          hospitalId: profile.hospitalId ?? "",
+          healthCenterId: profile.healthCenterId ?? "",
         }
       : undefined,
   });
@@ -273,7 +273,7 @@ export const Settings: React.FC = () => {
     // An empty selection means "leave unchanged" — sending "" would try to
     // set a literal empty-string foreign key and fail on the backend.
     mutationFn: (data: ProfileFormData) =>
-      api.put("/auth/profile", { ...data, hospitalId: data.hospitalId || undefined }),
+      api.put("/auth/profile", { ...data, healthCenterId: data.healthCenterId || undefined }),
     onSuccess: (res) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const updated = (res.data as any)?.data;
@@ -541,10 +541,10 @@ export const Settings: React.FC = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
                           <label className="block text-xs text-gray-600 dark:text-slate-400 mb-1">
-                            Hospital / Health Center
+                            HealthCenter / Health Center
                           </label>
-                          <select {...rp("hospitalId")} className={inputCls}>
-                            <option value="">Select hospital (optional)</option>
+                          <select {...rp("healthCenterId")} className={inputCls}>
+                            <option value="">Select healthCenter (optional)</option>
                             {hospitalOptions.map((h) => (
                               <option key={h.id} value={h.id}>{h.name}</option>
                             ))}

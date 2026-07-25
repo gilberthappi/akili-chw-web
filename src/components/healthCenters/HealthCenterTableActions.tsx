@@ -1,15 +1,15 @@
-import { IHospital } from "@/types";
+import { IHealthCenter } from "@/types";
 import { TrashIcon, PencilIcon } from "@heroicons/react/24/outline";
 import { FC, useState } from "react";
 import ConfirmDelete from "@/components/common/ConfirmDelete";
-import { deleteHospital } from "@/services/hospitals.service";
+import { deleteHospital } from "@/services/healthCenters.service";
 
-interface IHospitalTableActionsProps {
-  item: IHospital;
-  onEdit: (hospital: IHospital) => void;
+interface IHealthCenterTableActionsProps {
+  item: IHealthCenter;
+  onEdit: (healthCenter: IHealthCenter) => void;
 }
 
-const HospitalTableActions: FC<IHospitalTableActionsProps> = ({ item, onEdit }) => {
+const HealthCenterTableActions: FC<IHealthCenterTableActionsProps> = ({ item, onEdit }) => {
   const [toDelete, setToDelete] = useState<string | undefined>();
 
   const handleEdit = () => {
@@ -34,10 +34,10 @@ const HospitalTableActions: FC<IHospitalTableActionsProps> = ({ item, onEdit }) 
 
         {toDelete && (
           <ConfirmDelete
-            type='hospital'
+            type='healthCenter'
             id={toDelete}
             fn={deleteHospitalFn}
-            queryKey={["hospitals"]}
+            queryKey={["healthCenters"]}
             setToDelete={setToDelete}
           />
         )}
@@ -52,4 +52,4 @@ const HospitalTableActions: FC<IHospitalTableActionsProps> = ({ item, onEdit }) 
   );
 };
 
-export default HospitalTableActions;
+export default HealthCenterTableActions;

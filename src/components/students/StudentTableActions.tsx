@@ -162,7 +162,7 @@ const StudentTableActions: FC<StudentTableActionsProps> = ({
         cell: studentData.studentInfo.cell,
         village: studentData.studentInfo.village,
         role: studentData.studentInfo.role ?? "",
-        hospitalId: studentData.studentInfo.hospitalId ?? "",
+        healthCenterId: studentData.studentInfo.healthCenterId ?? "",
       }
     : {
         fullNames: item.fullName,
@@ -225,7 +225,7 @@ const StudentTableActions: FC<StudentTableActionsProps> = ({
         onSubmit={handleSubmit}
       />
 
-      {/* Promote to CEHO modal — pre-checks for a hospital conflict on open,
+      {/* Promote to CEHO modal — pre-checks for a healthCenter conflict on open,
           so it shows the right state before the admin clicks anything */}
       <Transition appear show={promoteOpen} as={Fragment}>
         <Dialog
@@ -261,7 +261,7 @@ const StudentTableActions: FC<StudentTableActionsProps> = ({
                       <Dialog.Title className="text-lg font-bold text-gray-900">Replace current CEHO?</Dialog.Title>
                       <Dialog.Description className="text-sm text-gray-500 mt-0.5">
                         <span className="font-semibold text-gray-700">{existingCeho.fullNames}</span> is
-                        already the CEHO at this hospital. Promoting{" "}
+                        already the CEHO at this healthCenter. Promoting{" "}
                         <span className="font-semibold text-gray-700">{item.fullName}</span> will demote{" "}
                         {existingCeho.fullNames} back to CHW and hand them the same team.
                       </Dialog.Description>
@@ -277,7 +277,7 @@ const StudentTableActions: FC<StudentTableActionsProps> = ({
                       <Dialog.Description className="text-sm text-gray-500 mt-0.5">
                         Promote <span className="font-semibold text-gray-700">{item.fullName}</span> to
                         Community Health Officer. A CEHO group will be created automatically,
-                        named after their hospital.
+                        named after their healthCenter.
                       </Dialog.Description>
                     </div>
                   </div>

@@ -201,7 +201,7 @@ export interface IStaff {
   user: IUser;
 }
 
-export interface IHospital {
+export interface IHealthCenter {
   id: string;
   name: string;
   province: string;
@@ -649,7 +649,7 @@ export interface IUser {
   otp: string | null;
   otpExpiresAt: string | null;
   photo: string;
-  hospitalId?: string | null;
+  healthCenterId?: string | null;
 }
 
 export interface ICourseIntro {
@@ -1060,7 +1060,7 @@ export interface StudentInfo {
   photo: string;
   status: string;
   role: string;
-  hospitalId?: string | null;
+  healthCenterId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -1384,7 +1384,7 @@ export interface IDashboardFilters {
   role: string; // "" means all; "TRAINEE" | "TESTER"
   year: string; // "" means all, e.g. "2025" | "2026"
   month: string; // "" means all, e.g. "Jan" | "Feb" ... "Dec"
-  hospitalId: string; // "" means all
+  healthCenterId: string; // "" means all
 }
 
 export interface ICHWStats {
@@ -1496,7 +1496,7 @@ export interface ICertificationByDistrict extends ICertificationRateEntry {
 }
 
 export interface ICertificationByFacility extends ICertificationRateEntry {
-  hospitalId: string;
+  healthCenterId: string;
   hospitalName: string;
 }
 

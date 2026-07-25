@@ -5,10 +5,10 @@ import * as d3 from "d3";
 import { MapPin, Users, CheckCircle, Award, Building2, Activity, Plus, Minus, LocateFixed } from "lucide-react";
 import { Card } from "@/components/common/Card";
 import { DashboardSectionHeader } from "./shared/DashboardSectionHeader";
-import { IDemographicRow, IHospital } from "@/types";
+import { IDemographicRow, IHealthCenter } from "@/types";
 
 // ── Metric definitions ────────────────────────────────────────────
-type MapMetric = "learners" | "completion" | "certification" | "hospitals" | "active_chws";
+type MapMetric = "learners" | "completion" | "certification" | "healthCenters" | "active_chws";
 
 interface MetricConfig {
   key: MapMetric;
@@ -21,7 +21,7 @@ const MAP_METRICS: MetricConfig[] = [
   { key: "learners",      label: "Learners",      description: "Registered Learners",    unit: "count" },
   { key: "completion",    label: "Completion",    description: "Course Completion Rate", unit: "%"     },
   { key: "certification", label: "Certification", description: "Certification Rate",     unit: "%"     },
-  { key: "hospitals",     label: "Hospitals",     description: "Health Facilities",      unit: "count" },
+  { key: "healthCenters",     label: "Health Centers",     description: "Health Facilities",      unit: "count" },
   { key: "active_chws",   label: "Active CHWs",   description: "Active CHWs",           unit: "count" },
 ];
 
@@ -31,7 +31,7 @@ const METRIC_ICONS: Record<MapMetric, MetricIcon> = {
   learners:      Users,
   completion:    CheckCircle,
   certification: Award,
-  hospitals:     Building2,
+  healthCenters:     Building2,
   active_chws:   Activity,
 };
 
@@ -40,8 +40,8 @@ interface RwandaDistrictMapProps {
   byDistrict: IDemographicRow[];
   activeDistrict: string;
   onDistrictClick: (district: string) => void;
-  hospitals?: IHospital[];
-  hospitalId?: string;
+  healthCenters?: IHealthCenter[];
+  healthCenterId?: string;
   province?: string;
 }
 
@@ -62,8 +62,8 @@ export const RwandaDistrictMap: React.FC<RwandaDistrictMapProps> = ({
   byDistrict,
   activeDistrict,
   onDistrictClick,
-  hospitals = [],
-  hospitalId = "",
+  healthCenters = [],
+  healthCenterId = "",
   province = "",
 }) => {
   const svgRef       = useRef<SVGSVGElement>(null);
@@ -145,8 +145,8 @@ export const RwandaDistrictMap: React.FC<RwandaDistrictMapProps> = ({
   }, [byDistrict]);
 
   const scopedHospitals = useMemo(() => {
-    let rows = hospitals;
-    if (hospitalId) return rows.filter((h) => h.id === hospitalId);
+    let rows = healthCenters;
+    if (healthCenterId) return rows.filter((h) => h.id === healthCenterId);
     if (activeDistrict) {
       const district = resolveDistrict(activeDistrict);
       rows = rows.filter((h) => resolveDistrict(h.district) === district);
@@ -154,18 +154,18 @@ export const RwandaDistrictMap: React.FC<RwandaDistrictMapProps> = ({
       rows = rows.filter((h) => matchesProvince(h.province, province));
     }
     return rows;
-  }, [hospitals, hospitalId, activeDistrict, province, resolveDistrict, matchesProvince]);
+  }, [healthCenters, healthCenterId, activeDistrict, province, resolveDistrict, matchesProvince]);
 
   const totalScopedHospitals = scopedHospitals.length;
 
   const hospitalsByDistrict = useMemo(() => {
-    const map = new Map<string, { hospitals: number; activeChws: number }>();
+    const map = new Map<string, { healthCenters: number; activeChws: number }>();
     for (const h of scopedHospitals) {
       const district = resolveDistrict(h.district);
       if (!district) continue;
-      const ex = map.get(district) ?? { hospitals: 0, activeChws: 0 };
+      const ex = map.get(district) ?? { healthCenters: 0, activeChws: 0 };
       map.set(district, {
-        hospitals: ex.hospitals + 1,
+        healthCenters: ex.healthCenters + 1,
         activeChws: ex.activeChws + (h.activeChws ?? 0),
       });
     }
@@ -199,7 +199,7 @@ export const RwandaDistrictMap: React.FC<RwandaDistrictMapProps> = ({
       case "learners":      return demo?.total             ?? null;
       case "completion":    return demo?.completionRate    ?? null;
       case "certification": return demo?.certificationRate ?? null;
-      case "hospitals":     return hosp?.hospitals         ?? null;
+      case "healthCenters":     return hosp?.healthCenters         ?? null;
       case "active_chws":   return hosp?.activeChws        ?? null;
     }
   }, [activeMetric, districtDataMap, getDistrictHospitalStats]);
@@ -365,7 +365,7 @@ export const RwandaDistrictMap: React.FC<RwandaDistrictMapProps> = ({
           visible: true, x: event.clientX - cr.left, y: event.clientY - cr.top - 10,
           district: name, total: row?.total ?? 0, completionRate: row?.completionRate ?? 0,
           certificationRate: row?.certificationRate ?? 0, metricValue: d.properties.val,
-          hospitalCount: hosp?.hospitals ?? 0, activeChwCount: hosp?.activeChws ?? 0,
+          hospitalCount: hosp?.healthCenters ?? 0, activeChwCount: hosp?.activeChws ?? 0,
         });
 
         d3.select(this).attr("stroke", "#fbbf24").attr("stroke-width", 3).raise();
@@ -423,7 +423,7 @@ export const RwandaDistrictMap: React.FC<RwandaDistrictMapProps> = ({
         .text(d.properties.shapeName);
 
       if (d.properties.hasData) {
-        const isCountMetric = activeMetric === "hospitals" || activeMetric === "active_chws";
+        const isCountMetric = activeMetric === "healthCenters" || activeMetric === "active_chws";
         textNode.append("tspan")
           .attr("x", d.properties.centroid[0])
           .attr("y", d.properties.centroid[1] + 4)
@@ -512,10 +512,10 @@ export const RwandaDistrictMap: React.FC<RwandaDistrictMapProps> = ({
             );
           })}
         </div>
-        {(activeMetric === "hospitals" || activeMetric === "active_chws") && (
+        {(activeMetric === "healthCenters" || activeMetric === "active_chws") && (
           <p className="mt-1.5 text-[10px] text-gray-500">
-            {activeMetric === "hospitals"
-              ? `${totalScopedHospitals.toLocaleString()} hospitals across ${hospitalsByDistrict.size} districts — darker blue = more facilities; count shown on each district.`
+            {activeMetric === "healthCenters"
+              ? `${totalScopedHospitals.toLocaleString()} healthCenters across ${hospitalsByDistrict.size} districts — darker blue = more facilities; count shown on each district.`
               : `${scopedHospitals.reduce((sum, h) => sum + (h.activeChws ?? 0), 0).toLocaleString()} active CHWs across ${hospitalsByDistrict.size} districts — count shown on each district.`}
           </p>
         )}
@@ -578,7 +578,7 @@ export const RwandaDistrictMap: React.FC<RwandaDistrictMapProps> = ({
                     <span className="font-semibold text-[#3363AD]">{tooltip.certificationRate}%</span>
                   </div>
                 )}
-                {activeMetric !== "hospitals" && tooltip.hospitalCount > 0 && (
+                {activeMetric !== "healthCenters" && tooltip.hospitalCount > 0 && (
                   <div className="flex items-center justify-between gap-6">
                     <span className="text-gray-500">Facilities</span>
                     <span className="font-semibold text-gray-700">{tooltip.hospitalCount.toLocaleString()}</span>

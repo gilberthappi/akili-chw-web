@@ -2,15 +2,15 @@ import React, { useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { debounce } from "lodash";
 import Table from "@/components/table/Table";
-import { IHospital } from "@/types";
-import { getAllHospitals } from "@/services/hospitals.service";
+import { IHealthCenter } from "@/types";
+import { getAllHospitals } from "@/services/healthCenters.service";
 import { formatDate } from "@/utils/formats/formats";
 import { LuCirclePlus } from "react-icons/lu";
 import { ArrowUpTrayIcon } from "@heroicons/react/24/outline";
 import TableActions from "@/components/table/TableActions";
-import HospitalTableActions from "@/components/hospitals/HospitalTableActions";
-import HospitalFormDialog from "@/components/hospitals/HospitalFormDialog";
-import ImportHospitalsDialog from "@/components/hospitals/ImportHospitalsDialog";
+import HealthCenterTableActions from "@/components/healthCenters/HealthCenterTableActions";
+import HealthCenterFormDialog from "@/components/healthCenters/HealthCenterFormDialog";
+import ImportHealthCentersDialog from "@/components/healthCenters/ImportHealthCentersDialog";
 import { hospitalKeys } from "@/utils/constants/queryKeys";
 
 const PROVINCE_OPTIONS = [
@@ -21,7 +21,7 @@ const PROVINCE_OPTIONS = [
   { label: "Southern", value: "Southern" },
 ];
 
-const Hospitals: React.FC = () => {
+const HealthCenters: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchKeyword, setSearchKeyword] = useState<string>("");
   const [limit, setLimit] = useState(15);
@@ -31,7 +31,7 @@ const Hospitals: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
-  const [selectedHospital, setSelectedHospital] = useState<IHospital | null>(null);
+  const [selectedHospital, setSelectedHospital] = useState<IHealthCenter | null>(null);
 
   const buildQueryParams = (page: number, keyword?: string) => {
     const params = new URLSearchParams();
@@ -80,8 +80,8 @@ const Hospitals: React.FC = () => {
     setIsFormOpen(true);
   };
 
-  const handleEditHospital = (hospital: IHospital) => {
-    setSelectedHospital(hospital);
+  const handleEditHospital = (healthCenter: IHealthCenter) => {
+    setSelectedHospital(healthCenter);
     setIsFormOpen(true);
   };
 
@@ -90,10 +90,10 @@ const Hospitals: React.FC = () => {
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="space-y-1">
           <h2 className="text-3xl font-bold text-[#333333]">
-            CHW Hospital Management
+            CHW HealthCenter Management
           </h2>
           <p className="text-gray-600">
-            Manage hospitals and their associated CHW supervisors
+            Manage healthCenters and their associated CHW supervisors
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -109,7 +109,7 @@ const Hospitals: React.FC = () => {
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-white font-medium transition-all duration-500 ease-in-out hover:bg-[#073e92]"
           >
             <LuCirclePlus className="text-xl" />
-            <span>Add Hospital</span>
+            <span>Add HealthCenter</span>
           </button>
         </div>
       </div>
@@ -145,10 +145,10 @@ const Hospitals: React.FC = () => {
         onResetFilters={resetFilters}
         columns={[
           {
-            title: "Hospital Name",
+            title: "HealthCenter Name",
             key: "name",
             sortable: true,
-            render: (row: IHospital) => {
+            render: (row: IHealthCenter) => {
               const locationParts = [row.district, row.sector].filter(Boolean);
               return (
                 <div>
@@ -164,14 +164,14 @@ const Hospitals: React.FC = () => {
             title: "Province",
             key: "province",
             sortable: true,
-            render: (row: IHospital) => (
+            render: (row: IHealthCenter) => (
               <div className="text-sm text-gray-700">{row.province || "—"}</div>
             ),
           },
           {
             title: "CHW Supervisor",
             key: "chwSupervisor",
-            render: (row: IHospital) => (
+            render: (row: IHealthCenter) => (
               <div>
                 <div className="font-medium text-gray-900">
                   {row.chwSupervisor || "—"}
@@ -186,7 +186,7 @@ const Hospitals: React.FC = () => {
             title: "CHW Count",
             key: "totalChws",
             sortable: true,
-            render: (row: IHospital) => (
+            render: (row: IHealthCenter) => (
               <div className="text-center">
                 <div className="font-medium text-gray-900">
                   {row.activeChws}/{row.totalChws}
@@ -198,7 +198,7 @@ const Hospitals: React.FC = () => {
           {
             title: "Catchment Area",
             key: "catchmentArea",
-            render: (row: IHospital) => (
+            render: (row: IHealthCenter) => (
               <div className="flex flex-wrap gap-1">
                 {row.catchmentArea?.slice(0, 2).map((area, idx) => (
                   <span
@@ -219,7 +219,7 @@ const Hospitals: React.FC = () => {
           {
             title: "Contact",
             key: "contact",
-            render: (row: IHospital) => (
+            render: (row: IHealthCenter) => (
               <div className="text-sm text-gray-700">
                 {row.contact && <div>{row.contact}</div>}
                 {row.email && (
@@ -232,7 +232,7 @@ const Hospitals: React.FC = () => {
             title: "Created",
             key: "createdAt",
             sortable: true,
-            render: (row: IHospital) => (
+            render: (row: IHealthCenter) => (
               <div className="text-sm text-gray-600">
                 {formatDate(row.createdAt)}
               </div>
@@ -241,9 +241,9 @@ const Hospitals: React.FC = () => {
           {
             title: "Actions",
             key: "actions",
-            render: (row: IHospital) => (
+            render: (row: IHealthCenter) => (
               <TableActions>
-                <HospitalTableActions item={row} onEdit={handleEditHospital} />
+                <HealthCenterTableActions item={row} onEdit={handleEditHospital} />
               </TableActions>
             ),
           },
@@ -251,16 +251,16 @@ const Hospitals: React.FC = () => {
         data={data?.data || []}
       />
 
-      <HospitalFormDialog
+      <HealthCenterFormDialog
         isOpen={isFormOpen}
         onClose={() => {
           setIsFormOpen(false);
           setSelectedHospital(null);
         }}
-        hospital={selectedHospital}
+        healthCenter={selectedHospital}
       />
 
-      <ImportHospitalsDialog
+      <ImportHealthCentersDialog
         isOpen={isImportOpen}
         onClose={() => setIsImportOpen(false)}
       />
@@ -268,4 +268,4 @@ const Hospitals: React.FC = () => {
   );
 };
 
-export default Hospitals;
+export default HealthCenters;

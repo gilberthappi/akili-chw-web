@@ -33,7 +33,7 @@ import WatchRecordings from "@/pages/dashboard/WatchRecordings";
 import MeetingAttendance from "@/pages/dashboard/MeetingAttendance";
 import MeetingsList from "@/pages/dashboard/MeetingsList";
 import Help from "@/pages/dashboard/Help";
-import Hospitals from "@/pages/dashboard/Hospitals";
+import HealthCenters from "@/pages/dashboard/HealthCenters";
 import Announcement from "@/pages/dashboard/Announcement";
 import NotificationsPage from "@/pages/dashboard/NotificationsPage";
 import CourseCatalog from "@/pages/dashboard/CourseCatalog";
@@ -247,13 +247,13 @@ const RoutesProvider = () => {
           element: <Help />,
         },
         {
-          path: "hospitals",
+          path: "healthCenters",
           element: (
             <ProtectedRoute
               allowedRoles={["ADMIN", "TRAINER", "DEVELOPER"]}
               allowedIndustries={["SFH", "RBC"]}
             >
-              <Hospitals />
+              <HealthCenters />
             </ProtectedRoute>
           ),
         },

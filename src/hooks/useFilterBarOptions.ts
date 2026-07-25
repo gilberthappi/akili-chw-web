@@ -2,13 +2,13 @@ import { useMemo, useRef, useCallback, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { IOptionFieldOption } from "@/components/common/form/ComboboxField";
 import { PROVINCE_DISTRICTS } from "@/utils/constants/provinceDistricts";
-import { getAllHospitals } from "@/services/hospitals.service";
+import { getAllHospitals } from "@/services/healthCenters.service";
 import {
   getCourseAnalytics,
   getCommunicationsAnalytics,
   getDemographicsAnalytics,
 } from "@/services/analytics.service";
-import { IDashboardFilters, IHospital } from "@/types";
+import { IDashboardFilters, IHealthCenter } from "@/types";
 import { dashboardKeys } from "@/utils/constants/queryKeys";
 
 const DASHBOARD_CACHE_MS = 1000 * 60 * 30;
@@ -56,13 +56,13 @@ export const useFilterBarOptions = (filters: IDashboardFilters) => {
         months.push(...(commRes.value?.data?.monthlyTrend ?? []).map((t) => t.month));
       }
 
-      let hospitals: IOptionFieldOption[] = [];
+      let healthCenters: IOptionFieldOption[] = [];
       if (hospitalsRes.status === "fulfilled") {
-        const list: IHospital[] = hospitalsRes.value?.data ?? [];
-        hospitals = list.map((h) => ({ value: h.id, label: h.name }));
+        const list: IHealthCenter[] = hospitalsRes.value?.data ?? [];
+        healthCenters = list.map((h) => ({ value: h.id, label: h.name }));
       }
 
-      return { genders, trendMonths: months, hospitals };
+      return { genders, trendMonths: months, healthCenters };
     },
     staleTime: DASHBOARD_CACHE_MS,
     gcTime: DASHBOARD_CACHE_MS,
@@ -75,7 +75,7 @@ export const useFilterBarOptions = (filters: IDashboardFilters) => {
         const params = new URLSearchParams({ limit: "20" });
         if (query) params.set("searchq", query);
         const res = await getAllHospitals(`?${params.toString()}`);
-        const list: IHospital[] = res?.data ?? [];
+        const list: IHealthCenter[] = res?.data ?? [];
         setSearchedHospitals(list.map((h) => ({ value: h.id, label: h.name })));
       } catch {
         // keep existing options on error
@@ -83,7 +83,7 @@ export const useFilterBarOptions = (filters: IDashboardFilters) => {
     }, 300);
   }, []);
 
-  const availableHospitals = searchedHospitals ?? optionsData?.hospitals ?? [];
+  const availableHospitals = searchedHospitals ?? optionsData?.healthCenters ?? [];
 
   const availableProvinces = useMemo(
     () => Object.keys(PROVINCE_DISTRICTS).sort(),

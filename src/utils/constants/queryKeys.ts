@@ -12,9 +12,9 @@ export const courseKeys = {
   list: (filter?: string) => [...courseKeys.lists(), filter] as const,
 };
 
-// Query key factory for hospitals with filters
+// Query key factory for healthCenters with filters
 export const hospitalKeys = {
-  all: ["hospitals"] as const,
+  all: ["healthCenters"] as const,
   lists: () => [...hospitalKeys.all, "list"] as const,
   list: (filter?: string) => [...hospitalKeys.lists(), filter] as const,
 };
@@ -37,8 +37,8 @@ export const dashboardKeys = {
   /** Deep adoption charts (course/student/test/demographics/cert breakdowns). */
   adoption: (filters: readonly string[]) =>
     [...dashboardKeys.all, "adoption", ...filters] as const,
-  hospitals: (filters: readonly string[]) =>
-    [...dashboardKeys.all, "hospitals", ...filters] as const,
+  healthCenters: (filters: readonly string[]) =>
+    [...dashboardKeys.all, "healthCenters", ...filters] as const,
   communications: (filters: readonly string[]) =>
     [...dashboardKeys.all, "communications", ...filters] as const,
   supervisorResponse: (filters: readonly string[]) =>

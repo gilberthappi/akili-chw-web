@@ -33,7 +33,7 @@ interface AttendanceRecord {
     sector: string | null;
     cell: string | null;
     village: string | null;
-    hospital: { name: string } | null;
+    healthCenter: { name: string } | null;
     userRoles: UserRoleEntry[];
   };
   event?: {
@@ -53,7 +53,7 @@ interface InvitedUserProfile {
   sector: string | null;
   cell: string | null;
   village: string | null;
-  hospital: { name: string } | null;
+  healthCenter: { name: string } | null;
   userRoles: UserRoleEntry[];
 }
 
@@ -71,7 +71,7 @@ interface AggregatedAttendee {
   email: string | null;
   photo: string | null;
   role: string;
-  hospital: string;
+  healthCenter: string;
   gender: string;
   district: string;
   sector: string;
@@ -164,7 +164,7 @@ const MeetingAttendance: React.FC = () => {
           email: r.user?.email ?? null,
           photo: r.user?.photo ?? null,
           role: r.user?.userRoles?.[0]?.name ?? '—',
-          hospital: r.user?.hospital?.name ?? '—',
+          healthCenter: r.user?.healthCenter?.name ?? '—',
           gender: r.user?.gender ?? '—',
           district: r.user?.district ?? '—',
           sector: r.user?.sector ?? '—',
@@ -222,7 +222,7 @@ const MeetingAttendance: React.FC = () => {
       { header: 'Name',     key: 'name',     width: 28 },
       { header: 'Email',    key: 'email',    width: 28 },
       { header: 'Role',     key: 'role',     width: 14 },
-      { header: 'Hospital', key: 'hospital', width: 22 },
+      { header: 'Health Center', key: 'healthCenter', width: 22 },
       { header: 'Gender',   key: 'gender',   width: 10 },
       { header: 'District', key: 'district', width: 16 },
       { header: 'Sector',   key: 'sector',   width: 16 },
@@ -273,7 +273,7 @@ const MeetingAttendance: React.FC = () => {
         name:     a.isHost ? `${a.name} (Host)` : a.name,
         email:    a.email ?? '—',
         role:     a.isGuest ? 'Guest' : displayRole(a.role),
-        hospital: a.hospital,
+        healthCenter: a.healthCenter,
         gender:   a.gender,
         district: a.district,
         sector:   a.sector,
@@ -317,7 +317,7 @@ const MeetingAttendance: React.FC = () => {
       { header: 'Name',     key: 'name',     width: 28 },
       { header: 'Email',    key: 'email',    width: 28 },
       { header: 'Role',     key: 'role',     width: 14 },
-      { header: 'Hospital', key: 'hospital', width: 22 },
+      { header: 'Health Center', key: 'healthCenter', width: 22 },
       { header: 'Gender',   key: 'gender',   width: 10 },
       { header: 'District', key: 'district', width: 16 },
       { header: 'Sector',   key: 'sector',   width: 16 },
@@ -361,7 +361,7 @@ const MeetingAttendance: React.FC = () => {
         name:     p.fullNames,
         email:    p.email ?? '—',
         role:     displayRole(p.userRoles?.[0]?.name ?? '—'),
-        hospital: p.hospital?.name ?? '—',
+        healthCenter: p.healthCenter?.name ?? '—',
         gender:   p.gender ?? '—',
         district: p.district ?? '—',
         sector:   p.sector ?? '—',
@@ -502,7 +502,7 @@ const MeetingAttendance: React.FC = () => {
                 <tr className="border-b border-gray-100 bg-gray-50 text-left">
                   <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Name</th>
                   <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Role</th>
-                  <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Hospital</th>
+                  <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Health Center</th>
                   <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Gender</th>
                   <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">District</th>
                   <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Sector</th>
@@ -547,7 +547,7 @@ const MeetingAttendance: React.FC = () => {
                         {attendee.isGuest ? 'Guest' : displayRole(attendee.role)}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{attendee.hospital}</td>
+                    <td className="px-6 py-4 text-sm text-gray-600">{attendee.healthCenter}</td>
                     <td className="px-6 py-4 text-sm text-gray-600 capitalize">
                       {attendee.gender}
                     </td>
@@ -586,7 +586,7 @@ const MeetingAttendance: React.FC = () => {
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-2 text-xs text-gray-500 pl-10">
-                    <span>{attendee.hospital}</span>
+                    <span>{attendee.healthCenter}</span>
                     <span>·</span>
                     <span className="capitalize">{attendee.gender}</span>
                     <span>·</span>

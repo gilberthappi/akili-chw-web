@@ -58,7 +58,7 @@ const MOCK_WORKSHOP_CERTIFICATES: IWorkshopCertificate[] = [
       {
         userId: "p-001",
         participantName: "John Patient",
-        email: "john@hospital.com",
+        email: "john@healthCenter.com",
         status: "issued",
         certificateNumber: "WORKSHOP-2024-001",
         certificateUrl: "https://certificates.chw.com/cert-001.pdf",
@@ -67,7 +67,7 @@ const MOCK_WORKSHOP_CERTIFICATES: IWorkshopCertificate[] = [
       {
         userId: "p-002",
         participantName: "Jane Nurse",
-        email: "jane@hospital.com",
+        email: "jane@healthCenter.com",
         status: "issued",
         certificateNumber: "WORKSHOP-2024-002",
         certificateUrl: "https://certificates.chw.com/cert-002.pdf",
@@ -115,7 +115,7 @@ const MOCK_WORKSHOP_CERTIFICATES: IWorkshopCertificate[] = [
       {
         userId: "p-003",
         participantName: "Michael Doctor",
-        email: "michael@hospital.com",
+        email: "michael@healthCenter.com",
         status: "issued",
         certificateNumber: "WORKSHOP-2024-003",
         certificateUrl: "https://certificates.chw.com/cert-003.pdf",
@@ -124,7 +124,7 @@ const MOCK_WORKSHOP_CERTIFICATES: IWorkshopCertificate[] = [
       {
         userId: "p-004",
         participantName: "Sarah Staff",
-        email: "sarah@hospital.com",
+        email: "sarah@healthCenter.com",
         status: "pending",
         certificateNumber: "WORKSHOP-2024-004",
         certificateUrl: "",
@@ -210,7 +210,7 @@ const MOCK_WORKSHOP_CERTIFICATES: IWorkshopCertificate[] = [
       {
         userId: "p-005",
         participantName: "Alex Responder",
-        email: "alex@hospital.com",
+        email: "alex@healthCenter.com",
         status: "issued",
         certificateNumber: "WORKSHOP-2024-005",
         certificateUrl: "https://certificates.chw.com/cert-005.pdf",
@@ -219,7 +219,7 @@ const MOCK_WORKSHOP_CERTIFICATES: IWorkshopCertificate[] = [
       {
         userId: "p-006",
         participantName: "Chris Paramedic",
-        email: "chris@hospital.com",
+        email: "chris@healthCenter.com",
         status: "issued",
         certificateNumber: "WORKSHOP-2024-006",
         certificateUrl: "https://certificates.chw.com/cert-006.pdf",
@@ -228,7 +228,7 @@ const MOCK_WORKSHOP_CERTIFICATES: IWorkshopCertificate[] = [
       {
         userId: "p-007",
         participantName: "Dana Medic",
-        email: "dana@hospital.com",
+        email: "dana@healthCenter.com",
         status: "revoked",
         certificateNumber: "WORKSHOP-2024-007",
         certificateUrl: "",

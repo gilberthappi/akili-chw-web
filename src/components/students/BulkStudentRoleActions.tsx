@@ -214,7 +214,7 @@ export const BulkStudentRoleActions: FC<BulkStudentRoleActionsProps> = ({
                 <Dialog.Title className="text-lg font-bold text-gray-900">Promote to CEHO</Dialog.Title>
                 <Dialog.Description className="text-sm text-gray-500">
                   Promote {count} CHW{count !== 1 ? "s" : ""} to CEHO. A group will be created for
-                  each person, automatically named after their hospital.
+                  each person, automatically named after their healthCenter.
                 </Dialog.Description>
                 <ul className="max-h-32 overflow-y-auto text-sm text-gray-700 border border-gray-100 rounded-lg divide-y divide-gray-50">
                   {selectedStudents.map((s) => (
