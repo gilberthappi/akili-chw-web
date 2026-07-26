@@ -212,6 +212,10 @@ export interface IHealthCenter {
   contact?: string;
   chwSupervisor?: string;
   chwSupervisorContact?: string;
+  cehoName?: string;
+  cehoContact?: string;
+  cehoCount?: number;
+  cehoUsers?: Array<{ id: string; fullNames: string; phoneNumber?: string; email?: string }>;
   totalChws: number;
   activeChws: number;
   catchmentArea: string[];
@@ -221,6 +225,7 @@ export interface IHealthCenter {
   createdAt: string;
   updatedAt: string;
 }
+
 
 export interface IProgress {
   id: string;
@@ -1515,4 +1520,31 @@ export interface ISupervisorResponseRate {
   within24hRate: number;
   note: string;
 }
+
+export interface IPostCourseRecommendationChapter {
+  chapterId: string;
+  title: string;
+  midTestScore: number | null;
+  needsReview: boolean;
+  reasonRw: string;
+}
+
+export interface IPostCourseRecommendationsData {
+  courseId: string;
+  courseTitle: string;
+  completedQuickly: boolean;
+  expectedLessonMinutes: number;
+  elapsedHours: number;
+  summaryMessageRw: string;
+  conversationalMessages: Array<{ role: "assistant" | "user"; content: string }>;
+  generatedByNlp: boolean;
+  chapters: IPostCourseRecommendationChapter[];
+}
+
+export interface IPostCourseRecommendationsResponse {
+  statusCode: number;
+  message: string;
+  data: IPostCourseRecommendationsData;
+}
+
 

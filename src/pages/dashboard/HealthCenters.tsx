@@ -6,12 +6,16 @@ import { IHealthCenter } from "@/types";
 import { getAllHospitals } from "@/services/healthCenters.service";
 import { formatDate } from "@/utils/formats/formats";
 import { LuCirclePlus } from "react-icons/lu";
-import { ArrowUpTrayIcon } from "@heroicons/react/24/outline";
+import { ArrowUpTrayIcon, InformationCircleIcon } from "@heroicons/react/24/outline";
 import TableActions from "@/components/table/TableActions";
 import HealthCenterTableActions from "@/components/healthCenters/HealthCenterTableActions";
 import HealthCenterFormDialog from "@/components/healthCenters/HealthCenterFormDialog";
 import ImportHealthCentersDialog from "@/components/healthCenters/ImportHealthCentersDialog";
+import HealthCenterDetail from "@/pages/dashboard/HealthCenterDetail";
 import { hospitalKeys } from "@/utils/constants/queryKeys";
+
+
+
 
 const PROVINCE_OPTIONS = [
   { label: "Kigali", value: "Kigali" },
@@ -23,15 +27,19 @@ const PROVINCE_OPTIONS = [
 
 const HealthCenters: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
+
   const [searchKeyword, setSearchKeyword] = useState<string>("");
   const [limit, setLimit] = useState(15);
   const [sortBy, setSortBy] = useState<string>("createdAt");
   const [order, setOrder] = useState<"asc" | "desc">("desc");
   const [provinceFilter, setProvinceFilter] = useState<string>("");
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [, setSelectedIds] = useState<string[]>([]);
+
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [selectedHospital, setSelectedHospital] = useState<IHealthCenter | null>(null);
+  const [selectedDetailId, setSelectedDetailId] = useState<string | null>(null);
+
 
   const buildQueryParams = (page: number, keyword?: string) => {
     const params = new URLSearchParams();
@@ -85,7 +93,17 @@ const HealthCenters: React.FC = () => {
     setIsFormOpen(true);
   };
 
+  if (selectedDetailId) {
+    return (
+      <HealthCenterDetail
+        healthCenterId={selectedDetailId}
+        onBack={() => setSelectedDetailId(null)}
+      />
+    );
+  }
+
   return (
+
     <div className="space-y-2">
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="space-y-1">
@@ -169,29 +187,28 @@ const HealthCenters: React.FC = () => {
             ),
           },
           {
-            title: "CHW Supervisor",
-            key: "chwSupervisor",
-            render: (row: IHealthCenter) => (
-              <div>
-                <div className="font-medium text-gray-900">
-                  {row.chwSupervisor || "—"}
+            title: "CEHO",
+            key: "cehoName",
+            render: (row: IHealthCenter) => {
+              const cehoName = row.cehoName || row.chwSupervisor || "—";
+              const cehoContact = row.cehoContact || row.chwSupervisorContact;
+              return (
+                <div>
+                  <div className="font-semibold text-gray-900">{cehoName}</div>
+                  {cehoContact && (
+                    <div className="text-xs text-[#3363AD] font-medium">{cehoContact}</div>
+                  )}
                 </div>
-                <div className="text-sm text-gray-500">
-                  {row.chwSupervisorContact}
-                </div>
-              </div>
-            ),
+              );
+            },
           },
           {
-            title: "CHW Count",
+            title: "Number of CHWs",
             key: "totalChws",
             sortable: true,
             render: (row: IHealthCenter) => (
-              <div className="text-center">
-                <div className="font-medium text-gray-900">
-                  {row.activeChws}/{row.totalChws}
-                </div>
-                <div className="text-sm text-gray-500">Active/Total</div>
+              <div className="text-center font-bold text-gray-900 text-base">
+                {row.totalChws || 0}
               </div>
             ),
           },
@@ -199,20 +216,32 @@ const HealthCenters: React.FC = () => {
             title: "Catchment Area",
             key: "catchmentArea",
             render: (row: IHealthCenter) => (
-              <div className="flex flex-wrap gap-1">
-                {row.catchmentArea?.slice(0, 2).map((area, idx) => (
-                  <span
-                    key={idx}
-                    className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full"
-                  >
-                    {area}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {row.catchmentArea && row.catchmentArea.length > 0 ? (
+                  row.catchmentArea.slice(0, 2).map((area, idx) => (
+                    <span
+                      key={idx}
+                      className="bg-[#3363AD]/10 text-[#3363AD] text-xs px-2 py-0.5 rounded-full font-medium"
+                    >
+                      {area}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-xs text-gray-500 italic">
+                    {row.sector} Sector & Cells
                   </span>
-                ))}
-                {row.catchmentArea?.length > 2 && (
-                  <span className="text-xs text-gray-500">
+                )}
+                {row.catchmentArea && row.catchmentArea.length > 2 && (
+                  <span className="text-xs text-gray-400 font-medium">
                     +{row.catchmentArea.length - 2} more
                   </span>
                 )}
+                <div className="group relative cursor-help ml-1">
+                  <InformationCircleIcon className="w-3.5 h-3.5 text-gray-400 hover:text-[#3363AD]" />
+                  <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 hidden group-hover:block w-48 p-2 bg-gray-900 text-white text-xs rounded shadow-lg z-30 text-center">
+                    Geographic sectors/cells served by this facility.
+                  </div>
+                </div>
               </div>
             ),
           },
@@ -221,10 +250,11 @@ const HealthCenters: React.FC = () => {
             key: "contact",
             render: (row: IHealthCenter) => (
               <div className="text-sm text-gray-700">
-                {row.contact && <div>{row.contact}</div>}
+                {row.contact && <div className="font-medium text-gray-900">{row.contact}</div>}
                 {row.email && (
-                  <div className="text-gray-500">{row.email}</div>
+                  <div className="text-xs text-gray-500">{row.email}</div>
                 )}
+                {!row.contact && !row.email && <div className="text-gray-400">—</div>}
               </div>
             ),
           },
@@ -233,7 +263,7 @@ const HealthCenters: React.FC = () => {
             key: "createdAt",
             sortable: true,
             render: (row: IHealthCenter) => (
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-gray-600 whitespace-nowrap">
                 {formatDate(row.createdAt)}
               </div>
             ),
@@ -243,13 +273,19 @@ const HealthCenters: React.FC = () => {
             key: "actions",
             render: (row: IHealthCenter) => (
               <TableActions>
-                <HealthCenterTableActions item={row} onEdit={handleEditHospital} />
+                <HealthCenterTableActions
+                  item={row}
+                  onEdit={handleEditHospital}
+                  onView={(item) => setSelectedDetailId(item.id)}
+                />
               </TableActions>
+
             ),
           },
         ]}
         data={data?.data || []}
       />
+
 
       <HealthCenterFormDialog
         isOpen={isFormOpen}

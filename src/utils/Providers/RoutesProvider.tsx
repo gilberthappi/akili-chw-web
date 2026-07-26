@@ -34,6 +34,8 @@ import MeetingAttendance from "@/pages/dashboard/MeetingAttendance";
 import MeetingsList from "@/pages/dashboard/MeetingsList";
 import Help from "@/pages/dashboard/Help";
 import HealthCenters from "@/pages/dashboard/HealthCenters";
+import HealthCenterDetail from "@/pages/dashboard/HealthCenterDetail";
+
 import Announcement from "@/pages/dashboard/Announcement";
 import NotificationsPage from "@/pages/dashboard/NotificationsPage";
 import CourseCatalog from "@/pages/dashboard/CourseCatalog";
@@ -209,10 +211,11 @@ const RoutesProvider = () => {
         {
           path: "recordings",
           element: (
-            <ProtectedRoute allowedRoles={["ADMIN", "ADMINISTRATOR"]}>
+            <ProtectedRoute allowedRoles={["ADMIN", "STAFF"]}>
               <MeetingRecordings />
             </ProtectedRoute>
           ),
+
         },
         {
           path: "recordings/watch",
@@ -250,13 +253,26 @@ const RoutesProvider = () => {
           path: "healthCenters",
           element: (
             <ProtectedRoute
-              allowedRoles={["ADMIN", "TRAINER", "DEVELOPER"]}
-              allowedIndustries={["SFH", "RBC"]}
+              allowedRoles={["ADMIN", "TRAINER", "DEVELOPER", "STAFF", "CEHO"]}
+              requireAll={false}
             >
               <HealthCenters />
             </ProtectedRoute>
           ),
         },
+        {
+          path: "healthCenters/:id",
+          element: (
+            <ProtectedRoute
+              allowedRoles={["ADMIN", "TRAINER", "DEVELOPER", "STAFF", "CEHO"]}
+              requireAll={false}
+            >
+              <HealthCenterDetail />
+            </ProtectedRoute>
+          ),
+        },
+
+
         {
           path: "announcement",
           element: <Announcement />,

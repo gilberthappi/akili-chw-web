@@ -306,7 +306,7 @@ export default function CourseBuilder({
     return () => {
       if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [sections, preTest, finalTest, finalExam, localCourseTitle, localCourseDescription, localCourseCoverIcon]);
 
   const selectedSection = sections.find((s) => s.id === selectedSectionId);

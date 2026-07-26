@@ -27,6 +27,15 @@ export const getAllStudentsNoPagination = async (params?: string): Promise<IResp
   return (await api.get(`/students/all${queryParams}`)).data;
 };
 
+export const exportStudentsToExcel = async (params?: string): Promise<Blob> => {
+  const queryParams = params ? params : "";
+  const response = await api.get(`/students/export/excel${queryParams}`, {
+    responseType: "blob",
+  });
+  return response.data;
+};
+
+
 /** Lightweight KPI counts for CHW / CEHO / Tester tabs (not full analytics). */
 export const getStudentRoleStats = async (
   role?: "TRAINEE" | "TESTER" | "CEHO",
