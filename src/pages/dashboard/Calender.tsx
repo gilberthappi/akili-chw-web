@@ -178,6 +178,12 @@ const Calendar: React.FC = () => {
   const isCEHO = userRoles.some((role) =>
     ["CEHO"].includes(role),
   );
+  const isStaff = userRoles.some((role) =>
+    ["STAFF"].includes(role),
+  );
+  const isTrainer = userRoles.some((role) =>
+    ["TRAINER"].includes(role),
+  );
 
   // Fetch all users
   const { data: usersData } = useQuery({
@@ -663,6 +669,22 @@ const Calendar: React.FC = () => {
       return "ongoing";
     } else {
       return "completed";
+    }
+  };
+
+  // Helper function to get clean meeting URL without auth tokens and normalized with base URL
+  const getCleanMeetingUrl = (location: string): string => {
+    if (!location) return "";
+    const meetingIdMatch = location.match(/\/meeting\/([a-z0-9-]+)/i);
+    if (meetingIdMatch) {
+      return `${EBUMENYI_MEET_BASE_URL}/meeting/${meetingIdMatch[1]}`;
+    }
+    try {
+      const u = new URL(location);
+      u.searchParams.delete("token");
+      return u.toString();
+    } catch (e) {
+      return location;
     }
   };
 
@@ -2432,36 +2454,46 @@ const Calendar: React.FC = () => {
                               {formatLocation(selectedEvent.location)}
                             </span>
                             <button
-                              onClick={() => {
-                                const token = localStorage.getItem("token") || localStorage.getItem("accessToken");
-                                let urlToCopy = selectedEvent.location;
-                                if (token && urlToCopy && urlToCopy.startsWith("http")) {
-                                  try {
-                                    const u = new URL(urlToCopy);
-                                    u.searchParams.set("token", token);
-                                    urlToCopy = u.toString();
-                                  } catch (e) {}
+                              onClick={async () => {
+                                const urlToCopy = getCleanMeetingUrl(selectedEvent.location || "");
+                                if (!urlToCopy) {
+                                  toast.error("No link available to copy");
+                                  return;
                                 }
-                                navigator.clipboard.writeText(urlToCopy);
-                                toast.success("Link copied to clipboard");
+                                try {
+                                  if (navigator.clipboard && navigator.clipboard.writeText) {
+                                    await navigator.clipboard.writeText(urlToCopy);
+                                  } else {
+                                    const textArea = document.createElement("textarea");
+                                    textArea.value = urlToCopy;
+                                    document.body.appendChild(textArea);
+                                    textArea.select();
+                                    document.execCommand("copy");
+                                    document.body.removeChild(textArea);
+                                  }
+                                  toast.success("Link copied to clipboard");
+                                } catch (err) {
+                                  toast.error("Failed to copy link");
+                                }
                               }}
                               className='text-gray-500 hover:text-gray-700 p-1'
                               title='Copy link'
                             >
                               <Copy className='w-4 h-4' />
                             </button>
-                            {selectedEvent.location && selectedEvent.location.startsWith("http") && (
+                            {selectedEvent.location && (selectedEvent.location.startsWith("http") || selectedEvent.location.includes("/meeting/")) && (
                               <a
                                 href={(() => {
+                                  const cleanUrl = getCleanMeetingUrl(selectedEvent.location);
                                   const token = localStorage.getItem("token") || localStorage.getItem("accessToken");
                                   if (token) {
                                     try {
-                                      const u = new URL(selectedEvent.location);
+                                      const u = new URL(cleanUrl);
                                       u.searchParams.set("token", token);
                                       return u.toString();
                                     } catch (e) {}
                                   }
-                                  return selectedEvent.location;
+                                  return cleanUrl;
                                 })()}
                                 target="_blank"
                                 rel="noopener noreferrer"
