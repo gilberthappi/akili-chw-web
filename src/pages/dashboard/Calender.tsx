@@ -1521,13 +1521,15 @@ const Calendar: React.FC = () => {
               <Video className='w-4 h-4' />
               View Recordings
             </button>
-            <button
-              onClick={() => setShowEventModal(true)}
-              className='flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg  font-medium hover:bg-[#4d81d2]'
-            >
-              <Plus className='w-4 h-4' />
-              New Event
-            </button>
+            {(isAdmin || isCEHO) && (
+              <button
+                onClick={() => setShowEventModal(true)}
+                className='flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg  font-medium hover:bg-[#4d81d2]'
+              >
+                <Plus className='w-4 h-4' />
+                New Event
+              </button>
+            )}
           </div>
         </div>
 
@@ -1888,86 +1890,85 @@ const Calendar: React.FC = () => {
             </div>
 
             {/* Quick Actions */}
-            <div className='bg-white rounded-lg shadow p-2 md:p-3'>
-              <h3 className='font-semibold text-xs md:text-sm text-gray-900 mb-2 md:mb-3'>
-                Quick Actions
-              </h3>
+            {(isAdmin || isCEHO) && (
+              <div className='bg-white rounded-lg shadow p-2 md:p-3'>
+                <h3 className='font-semibold text-xs md:text-sm text-gray-900 mb-2 md:mb-3'>
+                  Quick Actions
+                </h3>
 
-              <div className='space-y-0.5 md:space-y-1'>
-                <button
-                  onClick={() => {
-                    setQuickActionDefaults({
-                      type: "TRAINING",
-                      title: "Training Session",
-                      location: "Kigali Health Center",
-                      meetingType: "OTHER",
-                      instructor: "",
-                      attendees: 15,
-                    });
-                    setEditingEvent(null);
-                    setShowEventModal(true);
-                  }}
-                  className='w-full flex items-center gap-1 md:gap-2 px-1 md:px-2 py-1 md:py-1.5 text-left text-xs text-gray-700 hover:bg-gray-50 rounded-lg transition-colors'
-                >
-                  <GraduationCap className='w-3 h-3 md:w-4 md:h-4 flex-shrink-0' />
-                  <span className='truncate'>Training</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setQuickActionDefaults({
-                      type: "SCREENING",
-                      title: "Health Screening",
-                      location: "Community Health Center",
-                      meetingType: "OTHER",
-                      coordinator: "",
-                      attendees: 45,
-                    });
-                    setEditingEvent(null);
-                    setShowEventModal(true);
-                  }}
-                  className='w-full flex items-center gap-1 md:gap-2 px-1 md:px-2 py-1 md:py-1.5 text-left text-xs text-gray-700 hover:bg-gray-50 rounded-lg transition-colors'
-                >
-                  <ClipboardCheck className='w-3 h-3 md:w-4 md:h-4 flex-shrink-0' />
-                  <span className='truncate'>Screening</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setQuickActionDefaults({
-                      type: "WEBINAR",
-                      title: "Health Webinar",
-                      hostEmail: profileEmail,
-                      meetingType: "EBUMENYI_MEETING",
-                      speaker: "",
-                      attendees: 120,
-                    });
-                    setEditingEvent(null);
-                    setShowEventModal(true);
-                  }}
-                  className='w-full flex items-center gap-1 md:gap-2 px-1 md:px-2 py-1 md:py-1.5 text-left text-xs text-gray-700 hover:bg-gray-50 rounded-lg transition-colors'
-                >
-                  <Video className='w-3 h-3 md:w-4 md:h-4 flex-shrink-0' />
-                  <span className='truncate'>Webinar</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setQuickActionDefaults({
-                      type: "TRAINING",
-                      title: "Health Workshop",
-                      location: "District Health Office",
-                      meetingType: "OTHER",
-                      facilitator: "",
-                      attendees: 25,
-                    });
-                    setEditingEvent(null);
-                    setShowEventModal(true);
-                  }}
-                  className='w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-50 rounded-lg transition-colors'
-                >
-                  <Users className='w-3 h-3' />
-                  Workshop
-                </button>
+                <div className='space-y-0.5 md:space-y-1'>
+                  <button
+                    onClick={() => {
+                      setQuickActionDefaults({
+                        type: "TRAINING",
+                        title: "Training Session",
+                        meetingType: "EBUMENYI_MEETING",
+                        instructor: "",
+                        attendees: 15,
+                      });
+                      setEditingEvent(null);
+                      setShowEventModal(true);
+                    }}
+                    className='w-full flex items-center gap-1 md:gap-2 px-1 md:px-2 py-1 md:py-1.5 text-left text-xs text-gray-700 hover:bg-gray-50 rounded-lg transition-colors'
+                  >
+                    <GraduationCap className='w-3 h-3 md:w-4 md:h-4 flex-shrink-0' />
+                    <span className='truncate'>Training</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setQuickActionDefaults({
+                        type: "SCREENING",
+                        title: "Health Screening",
+                        meetingType: "EBUMENYI_MEETING",
+                        coordinator: "",
+                        attendees: 45,
+                      });
+                      setEditingEvent(null);
+                      setShowEventModal(true);
+                    }}
+                    className='w-full flex items-center gap-1 md:gap-2 px-1 md:px-2 py-1 md:py-1.5 text-left text-xs text-gray-700 hover:bg-gray-50 rounded-lg transition-colors'
+                  >
+                    <ClipboardCheck className='w-3 h-3 md:w-4 md:h-4 flex-shrink-0' />
+                    <span className='truncate'>Screening</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setQuickActionDefaults({
+                        type: "WEBINAR",
+                        title: "Health Webinar",
+                        hostEmail: profileEmail,
+                        meetingType: "EBUMENYI_MEETING",
+                        speaker: "",
+                        attendees: 120,
+                      });
+                      setEditingEvent(null);
+                      setShowEventModal(true);
+                    }}
+                    className='w-full flex items-center gap-1 md:gap-2 px-1 md:px-2 py-1 md:py-1.5 text-left text-xs text-gray-700 hover:bg-gray-50 rounded-lg transition-colors'
+                  >
+                    <Video className='w-3 h-3 md:w-4 md:h-4 flex-shrink-0' />
+                    <span className='truncate'>Webinar</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setQuickActionDefaults({
+                        type: "TRAINING",
+                        title: "Health Workshop",
+                        meetingType: "EBUMENYI_MEETING",
+                        facilitator: "",
+                        attendees: 25,
+                      });
+                      setEditingEvent(null);
+                      setShowEventModal(true);
+                    }}
+                    className='w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-50 rounded-lg transition-colors'
+                  >
+                    <Users className='w-3 h-3' />
+                    Workshop
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Right: Events for selected date */}
@@ -2876,22 +2877,8 @@ const Calendar: React.FC = () => {
                   </div>
                 </div>
 
+                <input type='hidden' name='meetingType' value='EBUMENYI_MEETING' />
                 <div className='grid grid-cols-2 gap-2'>
-                  <OptionsField
-                    label='Meeting Type *'
-                    name='meetingType'
-                    options={[
-                      { value: "GOOGLE_MEET", label: "Google Meet" },
-                      { value: "ZOOM", label: "Zoom" },
-                      { value: "EBUMENYI_MEETING", label: "eBumenyi Meeting" },
-                      { value: "OTHER", label: "Physical Address" },
-                    ]}
-                    value={selectedMeetingType}
-                    onChange={(value) => setSelectedMeetingType(value)}
-                    defaultLabel='Select meeting type...'
-                    required={true}
-                  />
-
                   <div>
                     <OptionsField
                       label='Priority'
@@ -2907,40 +2894,18 @@ const Calendar: React.FC = () => {
                       required={false}
                     />
                   </div>
-                  {selectedMeetingType === "OTHER" ? (
-                    <TextField
-                      label='Physical Address *'
-                      type='text'
-                      name='location'
-                      defaultValue={
-                        editingEvent?.location || quickActionDefaults?.location || ""
-                      }
-                      placeholder='Enter physical address'
-                    />
-                  ) : selectedMeetingType === "EBUMENYI_MEETING" ? (
-                    <TextField
-                      label='Host Email *'
-                      type='email'
-                      name='hostEmail'
-                      defaultValue={
-                        profileEmail ||
-                        editingEvent?.hostEmail ||
-                        quickActionDefaults?.hostEmail ||
-                        ""
-                      }
-                      placeholder='Enter host email address'
-                    />
-                  ) : (
-                    <TextField
-                      label='Meeting Link *'
-                      type='url'
-                      name='location'
-                      defaultValue={
-                        editingEvent?.location || quickActionDefaults?.location || ""
-                      }
-                      placeholder='Enter meeting link'
-                    />
-                  )}
+                  <TextField
+                    label='Host Email *'
+                    type='email'
+                    name='hostEmail'
+                    defaultValue={
+                      profileEmail ||
+                      editingEvent?.hostEmail ||
+                      quickActionDefaults?.hostEmail ||
+                      ""
+                    }
+                    placeholder='Enter host email address'
+                  />
 
                   <div>
                     <label className='block text-sm font-medium text-gray-700 mb-1'>

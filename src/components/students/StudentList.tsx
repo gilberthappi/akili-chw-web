@@ -205,10 +205,19 @@ const StudentsList: FC<StudentsListProps> = ({
       toast.success("Excel exported successfully!", { id: "excel-export" });
     } catch (error: any) {
       console.error("Export error:", error);
-      toast.error(
-        error?.response?.data?.message || "Failed to export Excel spreadsheet",
-        { id: "excel-export" },
-      );
+      let errMsg = "Failed to export Excel spreadsheet";
+      if (error?.response?.data instanceof Blob) {
+        try {
+          const text = await error.response.data.text();
+          const json = JSON.parse(text);
+          if (json?.message) errMsg = json.message;
+        } catch {
+          // ignore JSON parse error
+        }
+      } else if (error?.response?.data?.message) {
+        errMsg = error.response.data.message;
+      }
+      toast.error(errMsg, { id: "excel-export" });
     } finally {
       setIsExporting(false);
     }

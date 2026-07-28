@@ -14,6 +14,7 @@ import { Button } from "@/components/common/Button";
 
 const STUDENT_ROLE_OPTIONS = [
   { label: "Trainee (CHW)", value: "TRAINEE" },
+  { label: "CEHO", value: "CEHO" },
   { label: "Tester", value: "TESTER" },
 ];
 
@@ -104,9 +105,14 @@ const StudentTableActions: FC<StudentTableActionsProps> = ({
   };
 
   const handleSubmit = async (data: EditUserFormData) => {
-    await updateStudent(item.id, { ...data });
-    queryClient.invalidateQueries({ queryKey: studentKeys.all });
-    toast.success("CHW info updated successfully");
+    try {
+      await updateStudent(item.id, { ...data });
+      queryClient.invalidateQueries({ queryKey: studentKeys.all });
+      toast.success("User info updated successfully");
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message ?? "Failed to update user info");
+      throw error;
+    }
   };
 
   const { mutate: promote, isPending: isPromoting } = useMutation<PromoteToCEHOResult, unknown, boolean | undefined>({

@@ -82,10 +82,19 @@ const EditUserModal: FC<EditUserModalProps> = ({
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      // An empty selection means "leave unchanged" — sending "" would try to
-      // set a literal empty-string foreign key and fail on the backend.
-      await onSubmit({ ...form, healthCenterId: form.healthCenterId || undefined } as EditUserFormData);
+      // Strip out empty string fields so we don't send "" for optional/empty fields
+      const cleanedData: Record<string, unknown> = {};
+      (Object.keys(form) as (keyof EditUserFormData)[]).forEach((key) => {
+        const val = form[key];
+        if (val !== "" && val !== null && val !== undefined) {
+          cleanedData[key] = val;
+        }
+      });
+      await onSubmit(cleanedData as unknown as EditUserFormData);
       onClose();
+    } catch (error) {
+      // Let onSubmit throw if needed; catch avoids unhandled rejections
+      console.error("Failed to update user:", error);
     } finally {
       setIsSubmitting(false);
     }
