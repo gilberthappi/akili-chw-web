@@ -1414,7 +1414,7 @@ const Calendar: React.FC = () => {
                           : "scheduled",
                       )}
                       <div className='flex gap-1'>
-                        {isAdmin && event.meetingType === 'EBUMENYI_MEETING' && (
+                        {(isAdmin || (isCEHO && (event.createdById === user?.id || event.amOwner))) && event.meetingType === 'EBUMENYI_MEETING' && (
                           <button
                             onClick={() => navigate(`/attendance/${event.id}`)}
                             className='p-1 text-gray-400 hover:text-green-600'
@@ -1505,7 +1505,7 @@ const Calendar: React.FC = () => {
             </p>
           </div>
           <div className='flex items-center gap-3'>
-            {isAdmin && (
+            {(isAdmin || isCEHO || isStaff || isTrainer) && (
               <button
                 onClick={() => navigate('/meetings')}
                 className='flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors'
@@ -2345,6 +2345,15 @@ const Calendar: React.FC = () => {
                     <Users className='w-4 h-4' />
                     Organize Workshop
                   </button>
+                  {(isAdmin || isCEHO || isStaff || isTrainer) && (
+                    <button
+                      onClick={() => navigate('/meetings')}
+                      className='w-full flex items-center gap-2 px-3 py-2 text-left text-sm text-[#3363AD] font-medium hover:bg-blue-50 rounded-lg transition-colors'
+                    >
+                      <Video className='w-4 h-4 text-[#3363AD]' />
+                      View Meetings & Attendance
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -2708,7 +2717,7 @@ const Calendar: React.FC = () => {
                 >
                   Close
                 </button>
-                {isAdmin && selectedEvent.meetingType === 'EBUMENYI_MEETING' && (
+                {(isAdmin || (isCEHO && (selectedEvent.createdById === user?.id || selectedEvent.amOwner))) && selectedEvent.meetingType === 'EBUMENYI_MEETING' && (
                   <button
                     onClick={() => {
                       setShowDetailsModal(false);
