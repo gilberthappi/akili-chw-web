@@ -73,6 +73,7 @@ const StudentSearchPicker = ({
   onClear,
   selected,
   excludeIds = [],
+  requireNoGroup = false,
 }: {
   placeholder: string;
   roleFilter?: string;
@@ -80,6 +81,7 @@ const StudentSearchPicker = ({
   onClear: () => void;
   selected: IStudent | null;
   excludeIds?: string[];
+  requireNoGroup?: boolean;
 }) => {
   const [term, setTerm] = useState(selected?.fullName ?? "");
   const [debounced, setDebounced] = useState("");
@@ -93,13 +95,15 @@ const StudentSearchPicker = ({
     if (selected) onClear();
   };
 
+  const noGroupParam = requireNoGroup ? "&noGroup=true" : "";
+
   const { data, isFetching } = useQuery({
-    queryKey: ["ceho-group-picker", debounced, roleFilter],
+    queryKey: ["ceho-group-picker", debounced, roleFilter, requireNoGroup],
     queryFn: () =>
       getAllStudentsNoPagination(
         debounced.length > 1
-          ? `?searchq=${encodeURIComponent(debounced)}&role=${roleFilter}&noGroup=true&limit=8`
-          : `?role=${roleFilter}&noGroup=true&limit=8`,
+          ? `?searchq=${encodeURIComponent(debounced)}&role=${roleFilter}${noGroupParam}&limit=8`
+          : `?role=${roleFilter}${noGroupParam}&limit=8`,
       ),
     enabled: focused,
   });

@@ -36,6 +36,19 @@ interface AttendanceRecord {
     healthCenter: { name: string } | null;
     userRoles: UserRoleEntry[];
   };
+  survey?: {
+    id: string;
+    rating?: number;
+    comment?: string;
+    name?: string;
+    phoneNumber?: string;
+    healthCenter?: string;
+    gender?: string;
+    district?: string;
+    sector?: string;
+    cell?: string;
+    village?: string;
+  } | null;
   event?: {
     id: string;
     title: string;
@@ -125,10 +138,6 @@ const MeetingAttendance: React.FC = () => {
   const attendees = useMemo<AggregatedAttendee[]>(() => {
     const hostId = records[0]?.event?.createdById ?? null;
 
-    // Find the latest recorded leave time across ALL participants.
-    // Registered users who left properly have leftAt set — we use the maximum
-    // as a proxy for when the meeting ended, so we can cap guests whose
-    // leftAt was never recorded (closed tab / disconnected without calling leave).
     const meetingEndMs = records.reduce((max, r) => {
       if (!r.leftAt) return max;
       const t = new Date(r.leftAt).getTime();
@@ -137,39 +146,42 @@ const MeetingAttendance: React.FC = () => {
 
     const map = new Map<string, AggregatedAttendee>();
     for (const r of records) {
-      const key = r.userId ?? `guest:${r.guestName ?? 'unknown'}`;
+      const key = r.userId ?? `guest:${r.survey?.name ?? r.guestName ?? 'unknown'}`;
       const joinedMs = new Date(r.joinedAt).getTime();
 
       let estimatedDuration: number;
       if (r.leftAt) {
-        // Session closed — compute from timestamps (durationSec can be 0 on fast leave)
         const fromTs = Math.round((new Date(r.leftAt).getTime() - joinedMs) / 1000);
         estimatedDuration = (r.durationSec && r.durationSec > 0) ? r.durationSec : fromTs;
       } else if (meetingEndMs > joinedMs) {
-        // leftAt never recorded, but we know the meeting ended (other participants left later)
-        // Cap here so the duration is frozen at meeting-end instead of growing with time
         estimatedDuration = Math.round((meetingEndMs - joinedMs) / 1000);
       } else {
-        // meetingEndMs proxy didn't help (joined after all known exits, or no exits recorded).
-        // Use the backend-provided durationSec as a last resort — it's safe because
-        // staleTime: Infinity means the query never re-fetches, so this value is frozen.
         estimatedDuration = (r.durationSec && r.durationSec > 0) ? r.durationSec : 0;
       }
 
       if (!map.has(key)) {
+        const nameVal = r.user?.fullNames ?? r.survey?.name ?? r.guestName ?? 'Unknown';
+        const emailVal = r.user?.email ?? r.survey?.phoneNumber ?? null;
+        const hcVal   = r.user?.healthCenter?.name ?? r.survey?.healthCenter ?? '—';
+        const genVal  = r.user?.gender ?? r.survey?.gender ?? '—';
+        const distVal = r.user?.district ?? r.survey?.district ?? '—';
+        const secVal  = r.user?.sector ?? r.survey?.sector ?? '—';
+        const cellVal = r.user?.cell ?? r.survey?.cell ?? '—';
+        const vilVal  = r.user?.village ?? r.survey?.village ?? '—';
+
         map.set(key, {
           key,
           userId: r.userId,
-          name: r.user?.fullNames ?? r.guestName ?? 'Unknown',
-          email: r.user?.email ?? null,
+          name: nameVal,
+          email: emailVal,
           photo: r.user?.photo ?? null,
           role: r.user?.userRoles?.[0]?.name ?? '—',
-          healthCenter: r.user?.healthCenter?.name ?? '—',
-          gender: r.user?.gender ?? '—',
-          district: r.user?.district ?? '—',
-          sector: r.user?.sector ?? '—',
-          cell: r.user?.cell ?? '—',
-          village: r.user?.village ?? '—',
+          healthCenter: hcVal,
+          gender: genVal,
+          district: distVal,
+          sector: secVal,
+          cell: cellVal,
+          village: vilVal,
           totalDurationSec: estimatedDuration,
           isGuest: !r.userId,
           isHost: !!r.userId && r.userId === hostId,

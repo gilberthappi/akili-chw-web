@@ -2418,21 +2418,51 @@ const Calendar: React.FC = () => {
                           {formatLocation(selectedEvent.location)}
                         </span>
                       ) : (
-                        <div className='flex items-center gap-2'>
-                          <span className='text-gray-700'>
-                            {formatLocation(selectedEvent.location)}
-                          </span>
-                          <button
-                            onClick={() => {
-                              navigator.clipboard.writeText(selectedEvent.location);
-                              toast.success("Link copied to clipboard");
-                            }}
-                            className='text-gray-500 hover:text-gray-700 p-1'
-                            title='Copy link'
-                          >
-                            <Copy className='w-4 h-4' />
-                          </button>
-                        </div>
+                          <div className='flex items-center gap-2 flex-wrap'>
+                            <span className='text-gray-700'>
+                              {formatLocation(selectedEvent.location)}
+                            </span>
+                            <button
+                              onClick={() => {
+                                const token = localStorage.getItem("token") || localStorage.getItem("accessToken");
+                                let urlToCopy = selectedEvent.location;
+                                if (token && urlToCopy && urlToCopy.startsWith("http")) {
+                                  try {
+                                    const u = new URL(urlToCopy);
+                                    u.searchParams.set("token", token);
+                                    urlToCopy = u.toString();
+                                  } catch (e) {}
+                                }
+                                navigator.clipboard.writeText(urlToCopy);
+                                toast.success("Link copied to clipboard");
+                              }}
+                              className='text-gray-500 hover:text-gray-700 p-1'
+                              title='Copy link'
+                            >
+                              <Copy className='w-4 h-4' />
+                            </button>
+                            {selectedEvent.location && selectedEvent.location.startsWith("http") && (
+                              <a
+                                href={(() => {
+                                  const token = localStorage.getItem("token") || localStorage.getItem("accessToken");
+                                  if (token) {
+                                    try {
+                                      const u = new URL(selectedEvent.location);
+                                      u.searchParams.set("token", token);
+                                      return u.toString();
+                                    } catch (e) {}
+                                  }
+                                  return selectedEvent.location;
+                                })()}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary text-white rounded-lg text-xs font-medium hover:bg-[#4d81d2] transition-colors ml-2"
+                              >
+                                <Video className="w-3.5 h-3.5" />
+                                Join Meeting
+                              </a>
+                            )}
+                          </div>
                       )}
                     </div>
                     <div className='flex items-center gap-3'>
