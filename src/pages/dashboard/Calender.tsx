@@ -245,7 +245,7 @@ const Calendar: React.FC = () => {
 
   const rawUsers = usersData?.data || [];
   const loggedInUserFullData = rawUsers.find((u: any) => u.id === user?.id);
-  const cehoHospitalId = loggedInUserFullData?.healthCenter?.id || loggedInUserFullData?.healthCenterId;
+  const cehoHospitalId = loggedInUserFullData?.healthCenter?.id || (loggedInUserFullData as any)?.healthCenterId;
 
   const users = rawUsers.filter((u: any) => {
     if (isCEHO) {
@@ -284,7 +284,7 @@ const Calendar: React.FC = () => {
   );
   const [selectedEventType, setSelectedEventType] = useState<string>("TRAINING");
   const [formDate, setFormDate] = useState<string>("");
-  const [selectedMeetingType, setSelectedMeetingType] =
+  const [_selectedMeetingType, setSelectedMeetingType] =
     useState<string>("EBUMENYI_MEETING");
   const [selectedAttendees, setSelectedAttendees] = useState<string[]>([]);
   const [frequency, setFrequency] = useState<string>("NONE");
