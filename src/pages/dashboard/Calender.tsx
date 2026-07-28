@@ -61,23 +61,28 @@ function buildEventBackendPayload(eventData: any) {
   const [endHours, endMinutes] = endTimeStr.split(":").map(Number);
   endDateTime.setHours(endHours, endMinutes, 0, 0);
 
-  return {
-    title: eventData.title,
-    description: eventData.description,
-    type: eventData.type,
-    frequency: eventData.frequency || "NONE",
-    daysOfWeek: eventData.daysOfWeek || [],
-    timezone: "Africa/Kigali",
-    reminderMinutesBefore: Array.isArray(eventData.reminders)
-      ? eventData.reminders
-      : [Number(eventData.reminders || 30)],
-    startAt: startDateTime.toISOString(),
-    endAt: endDateTime.toISOString(),
-    recurrenceEndsAt: eventData.recurrenceEndsAt || undefined,
-    meetingType: eventData.meetingType.toUpperCase().replace("-", "_"),
-    location: eventData.location,
-    priority: eventData.priority.toUpperCase(),
-    hostEmail: eventData.hostEmail,
+    const rawMeetingType = (eventData.meetingType || "OTHER").toString().toUpperCase().replace("-", "_");
+    const meetingType = ["EBUMENYI_MEETING", "GOOGLE_MEET", "ZOOM", "OTHER"].includes(rawMeetingType)
+      ? rawMeetingType
+      : "OTHER";
+
+    return {
+      title: eventData.title,
+      description: eventData.description,
+      type: eventData.type,
+      frequency: eventData.frequency || "NONE",
+      daysOfWeek: eventData.daysOfWeek || [],
+      timezone: "Africa/Kigali",
+      reminderMinutesBefore: Array.isArray(eventData.reminders)
+        ? eventData.reminders
+        : [Number(eventData.reminders || 30)],
+      startAt: startDateTime.toISOString(),
+      endAt: endDateTime.toISOString(),
+      recurrenceEndsAt: eventData.recurrenceEndsAt || undefined,
+      meetingType,
+      location: eventData.location || "",
+      priority: (eventData.priority || "MEDIUM").toString().toUpperCase(),
+      hostEmail: eventData.hostEmail || "",
     participants:
       eventData.attendees?.map((userId: string) => ({
         userId,
@@ -453,33 +458,23 @@ const Calendar: React.FC = () => {
       return false;
     }
 
-    // Validate required hostEmail field
-    if (!eventData.hostEmail || eventData.hostEmail.trim() === "") {
-      toast.error("Host email is required");
-      return false;
-    }
-
-    // Validate date is not in the past
-    const eventDate = new Date(eventData.date);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (eventDate < today) {
-      toast.error("Event date cannot be in the past");
-      return false;
-    }
-
-    if (eventData.recurrenceEndsAt && eventData.recurrenceEndsAt < eventData.date) {
-      toast.error("Recurrence end date must be after start date");
-      return false;
-    }
-
-    // Validate at least one participant is required
-    const hasParticipants =
-      (eventData.attendees && eventData.attendees.length > 0) ||
-      (eventData.externalParticipants && eventData.externalParticipants.length > 0);
-    if (!hasParticipants) {
-      toast.error("At least one participant is required");
-      return false;
+    if (isAdmin || isCEHO) {
+      if (!finalEventData.hostEmail || finalEventData.hostEmail.trim() === "") {
+        toast.error("Host email is required");
+        return false;
+      }
+      const hasParticipants =
+        (finalEventData.attendees && finalEventData.attendees.length > 0) ||
+        (finalEventData.externalParticipants && finalEventData.externalParticipants.length > 0);
+      if (!hasParticipants) {
+        toast.error("At least one participant is required");
+        return false;
+      }
+    } else {
+      finalEventData.meetingType = "OTHER";
+      finalEventData.attendees = [];
+      finalEventData.externalParticipants = [];
+      finalEventData.hostEmail = finalEventData.hostEmail || profileEmail || user?.email || "";
     }
 
     // EBUMENYI: calendar event id = Stream call id (same as chw-meeting) so recordings link correctly
@@ -1543,15 +1538,13 @@ const Calendar: React.FC = () => {
               <Video className='w-4 h-4' />
               View Recordings
             </button>
-            {(isAdmin || isCEHO) && (
-              <button
-                onClick={() => setShowEventModal(true)}
-                className='flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg  font-medium hover:bg-[#4d81d2]'
-              >
-                <Plus className='w-4 h-4' />
-                New Event
-              </button>
-            )}
+            <button
+              onClick={() => setShowEventModal(true)}
+              className='flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg  font-medium hover:bg-[#4d81d2]'
+            >
+              <Plus className='w-4 h-4' />
+              New Event
+            </button>
           </div>
         </div>
 
@@ -2948,7 +2941,7 @@ const Calendar: React.FC = () => {
                   </div>
                 </div>
 
-                <input type='hidden' name='meetingType' value='EBUMENYI_MEETING' />
+                <input type='hidden' name='meetingType' value={isAdmin || isCEHO ? 'EBUMENYI_MEETING' : 'OTHER'} />
                 <div className='grid grid-cols-2 gap-2'>
                   <div>
                     <OptionsField
@@ -2965,18 +2958,20 @@ const Calendar: React.FC = () => {
                       required={false}
                     />
                   </div>
-                  <TextField
-                    label='Host Email *'
-                    type='email'
-                    name='hostEmail'
-                    defaultValue={
-                      profileEmail ||
-                      editingEvent?.hostEmail ||
-                      quickActionDefaults?.hostEmail ||
-                      ""
-                    }
-                    placeholder='Enter host email address'
-                  />
+                  {(isAdmin || isCEHO) && (
+                    <TextField
+                      label='Host Email *'
+                      type='email'
+                      name='hostEmail'
+                      defaultValue={
+                        profileEmail ||
+                        editingEvent?.hostEmail ||
+                        quickActionDefaults?.hostEmail ||
+                        ""
+                      }
+                      placeholder='Enter host email address'
+                    />
+                  )}
 
                   <div>
                     <label className='block text-sm font-medium text-gray-700 mb-1'>
@@ -3334,190 +3329,194 @@ const Calendar: React.FC = () => {
                 </div>
               </div>
 
-              {/* Attendees Selection */}
-              <div className='mt-6'>
-                <label className='block text-sm font-medium text-gray-700 mb-3'>
-                  Select Attendees
-                </label>
+              {(isAdmin || isCEHO) && (
+                <>
+                  {/* Attendees Selection */}
+                  <div className='mt-6'>
+                    <label className='block text-sm font-medium text-gray-700 mb-3'>
+                      Select Attendees
+                    </label>
 
-                {/* Quick Select Buttons */}
-                <div className='grid grid-cols-2 md:grid-cols-4 gap-2 mb-4'>
-                  <TextField
-                    type='text'
-                    placeholder='Search by name or phone'
-                    value={attendeeSearchTerm}
-                    onChange={(e) => setAttendeeSearchTerm(e.target.value)}
-                    additionalClass='px-3 py-2 text-sm'
-                  />
-                  <button
-                    type='button'
-                    onClick={handleSelectAllFiltered}
-                    className={`px-3 py-1 rounded-lg text-sm ${isAllFilteredSelected() ? "bg-primary text-white" : "bg-gray-100 text-gray-800"}`}
-                  >
-                    {isAllFilteredSelected()
-                      ? "Unselect Filtered"
-                      : "Select Filtered"}
-                  </button>
-                  <button
-                    type='button'
-                    onClick={handleSelectAllCHW}
-                    className={`px-3 py-1 rounded-lg text-sm ${isAllCHWSelected() ? "bg-primary text-white" : "bg-gray-100 text-gray-800"}`}
-                  >
-                    {isAllCHWSelected() ? "All CHWs" : "Select All CHW"}
-                  </button>
-                  <button
-                    type='button'
-                    onClick={handleSelectAllTrainer}
-                    className={`px-3 py-1 rounded-lg text-sm ${isAllTrainersSelected() ? "bg-primary text-white" : "bg-gray-100 text-gray-800"}`}
-                  >
-                    {isAllTrainersSelected()
-                      ? "All Trainers"
-                      : "Select All Trainers"}
-                  </button>
-                </div>
-
-                {/* Filters */}
-                <div className='grid grid-cols-2 md:grid-cols-4 gap-2 mb-4'>
-                  <OptionsField
-                    options={[
-                      { value: "all", label: "All Roles" },
-                      { value: "CHW", label: "Trainee" },
-                      { value: "TRAINER", label: "Trainer" },
-                    ]}
-                    value={attendeeFilterRole}
-                    onChange={(value) => setAttendeeFilterRole(value)}
-                    defaultLabel='Select role'
-                    required={false}
-                  />
-                  <ComboboxField
-                    options={[
-                      { value: "all", label: "All HealthCenters" },
-                      ...hospitalFilterOptions,
-                    ]}
-                    defaultValue={attendeeFilterHospital}
-                    onChange={(value) => setAttendeeFilterHospital(value)}
-                    hideQueryOnChange={false}
-                    placeholder='Select healthCenter...'
-                  />
-                  <ComboboxField
-                    options={[
-                      { value: "all", label: "All Districts" },
-                      ...[
-                        ...new Set(users.map((u) => u.district).filter(Boolean)),
-                      ].map((district) => ({
-                        value: district,
-                        label: district,
-                      })),
-                    ]}
-                    defaultValue={attendeeFilterDistrict}
-                    onChange={(value) => setAttendeeFilterDistrict(value)}
-                    hideQueryOnChange={false}
-                    placeholder='Select district...'
-                  />
-                  <ComboboxField
-                    options={[
-                      { value: "all", label: "All Sectors" },
-                      ...[
-                        ...new Set(users.map((u) => u.sector).filter(Boolean)),
-                      ].map((sector) => ({
-                        value: sector!,
-                        label: sector!,
-                      })),
-                    ]}
-                    defaultValue={attendeeFilterSector}
-                    onChange={(value) => setAttendeeFilterSector(value)}
-                    hideQueryOnChange={false}
-                    placeholder='Select sector...'
-                  />
-                </div>
-
-                {/* User List */}
-                <div className='max-h-48 overflow-y-auto border border-gray-300 rounded-lg'>
-                  {getFilteredUsers().map((user) => (
-                    <div
-                      key={user.id}
-                      className='flex items-center gap-3 p-2 hover:bg-gray-50 border-b border-gray-100 last:border-b-0'
-                    >
-                      <input
-                        type='checkbox'
-                        checked={selectedAttendees.includes(user.id)}
-                        onChange={() => handleAttendeeToggle(user.id)}
-                        className='w-4 h-4 text-primary bg-gray-100 border-gray-300 rounded focus:ring-blue-500'
+                    {/* Quick Select Buttons */}
+                    <div className='grid grid-cols-2 md:grid-cols-4 gap-2 mb-4'>
+                      <TextField
+                        type='text'
+                        placeholder='Search by name or phone'
+                        value={attendeeSearchTerm}
+                        onChange={(e) => setAttendeeSearchTerm(e.target.value)}
+                        additionalClass='px-3 py-2 text-sm'
                       />
-                      <div className='flex-1'>
-                        <div className='font-medium text-sm'>{user.fullNames}</div>
-                        <div className='text-xs text-gray-600'>
-                          {user.userRoles[0]?.name} •{" "}
-                          {user.healthCenter?.name || "No healthCenter"} • {user.phoneNumber}
-                        </div>
-                        <div className='text-xs text-gray-500'>
-                          {user.district}, {user.sector}, {user.cell}, {user.village}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Selected Count */}
-                <div className='mt-2 text-sm text-gray-600'>
-                  {selectedAttendees.length} internal attendees +{" "}
-                  {externalParticipants.length} external participants selected
-                </div>
-              </div>
-
-              {/* External Participants Section */}
-              <div className='mt-6'>
-                <label className='block text-sm font-medium text-gray-700 mb-3'>
-                  External Participants (by Email)
-                </label>
-
-                {/* Add External Participant */}
-                <div className='flex gap-2 mb-4'>
-                  <div className='flex-1'>
-                    <input
-                      type='email'
-                      value={externalEmailInput}
-                      onChange={(e) => setExternalEmailInput(e.target.value)}
-                      onKeyPress={handleExternalEmailKeyPress}
-                      placeholder='Enter email address...'
-                      className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-sm'
-                    />
-                  </div>
-                  <button
-                    type='button'
-                    onClick={handleAddExternalParticipant}
-                    className='px-4 py-2 bg-primary text-white rounded-lg hover:bg-[#4d81d2] text-sm font-medium whitespace-nowrap'
-                  >
-                    Add Email
-                  </button>
-                </div>
-
-                {/* External Participants List */}
-                {externalParticipants.length > 0 && (
-                  <div className='border border-gray-300 rounded-lg max-h-32 overflow-y-auto'>
-                    {externalParticipants.map((email: string, index: number) => (
-                      <div
-                        key={index}
-                        className='flex items-center justify-between p-2 hover:bg-gray-50 border-b border-gray-100 last:border-b-0'
+                      <button
+                        type='button'
+                        onClick={handleSelectAllFiltered}
+                        className={`px-3 py-1 rounded-lg text-sm ${isAllFilteredSelected() ? "bg-primary text-white" : "bg-gray-100 text-gray-800"}`}
                       >
-                        <span className='text-sm text-gray-700'>{email}</span>
-                        <button
-                          type='button'
-                          onClick={() => handleRemoveExternalParticipant(email)}
-                          className='p-1 text-red-600 hover:text-red-800 rounded'
-                          title='Remove participant'
-                        >
-                          <Trash2 className='w-4 h-4' />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                        {isAllFilteredSelected()
+                          ? "Unselect Filtered"
+                          : "Select Filtered"}
+                      </button>
+                      <button
+                        type='button'
+                        onClick={handleSelectAllCHW}
+                        className={`px-3 py-1 rounded-lg text-sm ${isAllCHWSelected() ? "bg-primary text-white" : "bg-gray-100 text-gray-800"}`}
+                      >
+                        {isAllCHWSelected() ? "All CHWs" : "Select All CHW"}
+                      </button>
+                      <button
+                        type='button'
+                        onClick={handleSelectAllTrainer}
+                        className={`px-3 py-1 rounded-lg text-sm ${isAllTrainersSelected() ? "bg-primary text-white" : "bg-gray-100 text-gray-800"}`}
+                      >
+                        {isAllTrainersSelected()
+                          ? "All Trainers"
+                          : "Select All Trainers"}
+                      </button>
+                    </div>
 
-                <div className='mt-2 text-xs text-gray-500'>
-                  External participants will receive meeting invitations via email
-                </div>
-              </div>
+                    {/* Filters */}
+                    <div className='grid grid-cols-2 md:grid-cols-4 gap-2 mb-4'>
+                      <OptionsField
+                        options={[
+                          { value: "all", label: "All Roles" },
+                          { value: "CHW", label: "Trainee" },
+                          { value: "TRAINER", label: "Trainer" },
+                        ]}
+                        value={attendeeFilterRole}
+                        onChange={(value) => setAttendeeFilterRole(value)}
+                        defaultLabel='Select role'
+                        required={false}
+                      />
+                      <ComboboxField
+                        options={[
+                          { value: "all", label: "All HealthCenters" },
+                          ...hospitalFilterOptions,
+                        ]}
+                        defaultValue={attendeeFilterHospital}
+                        onChange={(value) => setAttendeeFilterHospital(value)}
+                        hideQueryOnChange={false}
+                        placeholder='Select healthCenter...'
+                      />
+                      <ComboboxField
+                        options={[
+                          { value: "all", label: "All Districts" },
+                          ...[
+                            ...new Set(users.map((u) => u.district).filter(Boolean)),
+                          ].map((district) => ({
+                            value: district,
+                            label: district,
+                          })),
+                        ]}
+                        defaultValue={attendeeFilterDistrict}
+                        onChange={(value) => setAttendeeFilterDistrict(value)}
+                        hideQueryOnChange={false}
+                        placeholder='Select district...'
+                      />
+                      <ComboboxField
+                        options={[
+                          { value: "all", label: "All Sectors" },
+                          ...[
+                            ...new Set(users.map((u) => u.sector).filter(Boolean)),
+                          ].map((sector) => ({
+                            value: sector!,
+                            label: sector!,
+                          })),
+                        ]}
+                        defaultValue={attendeeFilterSector}
+                        onChange={(value) => setAttendeeFilterSector(value)}
+                        hideQueryOnChange={false}
+                        placeholder='Select sector...'
+                      />
+                    </div>
+
+                    {/* User List */}
+                    <div className='max-h-48 overflow-y-auto border border-gray-300 rounded-lg'>
+                      {getFilteredUsers().map((user) => (
+                        <div
+                          key={user.id}
+                          className='flex items-center gap-3 p-2 hover:bg-gray-50 border-b border-gray-100 last:border-b-0'
+                        >
+                          <input
+                            type='checkbox'
+                            checked={selectedAttendees.includes(user.id)}
+                            onChange={() => handleAttendeeToggle(user.id)}
+                            className='w-4 h-4 text-primary bg-gray-100 border-gray-300 rounded focus:ring-blue-500'
+                          />
+                          <div className='flex-1'>
+                            <div className='font-medium text-sm'>{user.fullNames}</div>
+                            <div className='text-xs text-gray-600'>
+                              {user.userRoles[0]?.name} •{" "}
+                              {user.healthCenter?.name || "No healthCenter"} • {user.phoneNumber}
+                            </div>
+                            <div className='text-xs text-gray-500'>
+                              {user.district}, {user.sector}, {user.cell}, {user.village}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Selected Count */}
+                    <div className='mt-2 text-sm text-gray-600'>
+                      {selectedAttendees.length} internal attendees +{" "}
+                      {externalParticipants.length} external participants selected
+                    </div>
+                  </div>
+
+                  {/* External Participants Section */}
+                  <div className='mt-6'>
+                    <label className='block text-sm font-medium text-gray-700 mb-3'>
+                      External Participants (by Email)
+                    </label>
+
+                    {/* Add External Participant */}
+                    <div className='flex gap-2 mb-4'>
+                      <div className='flex-1'>
+                        <input
+                          type='email'
+                          value={externalEmailInput}
+                          onChange={(e) => setExternalEmailInput(e.target.value)}
+                          onKeyPress={handleExternalEmailKeyPress}
+                          placeholder='Enter email address...'
+                          className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-sm'
+                        />
+                      </div>
+                      <button
+                        type='button'
+                        onClick={handleAddExternalParticipant}
+                        className='px-4 py-2 bg-primary text-white rounded-lg hover:bg-[#4d81d2] text-sm font-medium whitespace-nowrap'
+                      >
+                        Add Email
+                      </button>
+                    </div>
+
+                    {/* External Participants List */}
+                    {externalParticipants.length > 0 && (
+                      <div className='border border-gray-300 rounded-lg max-h-32 overflow-y-auto'>
+                        {externalParticipants.map((email: string, index: number) => (
+                          <div
+                            key={index}
+                            className='flex items-center justify-between p-2 hover:bg-gray-50 border-b border-gray-100 last:border-b-0'
+                          >
+                            <span className='text-sm text-gray-700'>{email}</span>
+                            <button
+                              type='button'
+                              onClick={() => handleRemoveExternalParticipant(email)}
+                              className='p-1 text-red-600 hover:text-red-800 rounded'
+                              title='Remove participant'
+                            >
+                              <Trash2 className='w-4 h-4' />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className='mt-2 text-xs text-gray-500'>
+                      External participants will receive meeting invitations via email
+                    </div>
+                  </div>
+                </>
+              )}
 
               <TextArea
                 label='Description *'
