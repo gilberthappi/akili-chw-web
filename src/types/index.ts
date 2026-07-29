@@ -1422,6 +1422,15 @@ export interface ICHWStats {
     completedOneCourse: number;
     attendedMeeting: number;
   };
+  /**
+   * Eligible slots = filtered CHWs × published courses
+   * (e.g. 203 CHWs × 10 courses = 2030).
+   */
+  eligible: {
+    total: number;
+    chws: number;
+    courses: number;
+  };
   /** Course completion = passed Final Test (marks ≥ marksToPass). */
   completion: {
     rate: number;
@@ -1429,9 +1438,10 @@ export interface ICHWStats {
     completed: number;
     inProgress: number;
   };
-  /** Certification = passed Final Exam (marks ≥ marksToPass). */
+  /** Certification = passed Final Exam among those who passed Final Test. */
   certification: {
     rate: number;
+    /** Eligible = student+course pairs that passed Final Test. */
     total: number;
     certified: number;
     notCertified: number;

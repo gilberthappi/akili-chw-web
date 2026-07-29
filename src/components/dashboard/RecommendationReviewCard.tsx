@@ -40,7 +40,7 @@ function ChapterTable({ rows }: { rows: IRecommendedChapterInsight[] }) {
           </tr>
         </thead>
         <tbody>
-          {rows.slice(0, 10).map((row) => (
+          {rows.slice(0, 8).map((row) => (
             <tr key={row.chapterId} className="border-b border-gray-50 last:border-0">
               <td className="py-2 pr-2">
                 <p className="font-medium text-gray-800 truncate max-w-[140px]">
@@ -89,7 +89,7 @@ function StudentTable({
           </tr>
         </thead>
         <tbody>
-          {rows.slice(0, 10).map((row) => (
+          {rows.slice(0, 8).map((row) => (
             <tr key={row.studentId} className="border-b border-gray-50 last:border-0">
               <td className="py-2 pr-2 font-medium text-gray-800 truncate max-w-[120px]">
                 {row.studentName}

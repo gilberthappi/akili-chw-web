@@ -6,6 +6,7 @@ import {
   Award,
   ClipboardList,
   UserCheck,
+  Calculator,
 } from "lucide-react";
 import { ICHWStats } from "@/types";
 
@@ -83,8 +84,8 @@ export const CHWStatsCards: React.FC<CHWStatsCardsProps> = ({
 }) => {
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 animate-pulse">
-        {[...Array(6)].map((_, i) => (
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7 gap-4 animate-pulse">
+        {[...Array(7)].map((_, i) => (
           <div key={i} className="h-32 bg-gray-100 rounded-xl" />
         ))}
       </div>
@@ -94,6 +95,7 @@ export const CHWStatsCards: React.FC<CHWStatsCardsProps> = ({
   const chwTarget = data?.chws.target ?? 6000;
   const chwPercent = data?.chws.percentOfTarget ?? 0;
   const ready = data?.platformReady;
+  const eligible = data?.eligible;
 
   const cards: CardConfig[] = [
     {
@@ -120,7 +122,7 @@ export const CHWStatsCards: React.FC<CHWStatsCardsProps> = ({
       iconColor: "text-[#3363AD]",
       title: "Able to Use Platform",
       primary: (ready?.total ?? 0).toLocaleString(),
-      primaryRate: `${ready?.percentOfRegistered ?? 0}% of registered · ${ready?.percentOfTarget ?? 0}% of ${chwTarget.toLocaleString()}`,
+      primaryRate: `${ready?.percentOfRegistered ?? 0}% of registered ·`,
       subItems: [
         {
           label: "completed a course",
@@ -129,6 +131,27 @@ export const CHWStatsCards: React.FC<CHWStatsCardsProps> = ({
         {
           label: "attended a meeting",
           value: ready?.attendedMeeting ?? 0,
+        },
+      ],
+    },
+    {
+      icon: <Calculator size={22} />,
+      iconBg: "bg-[#3363AD]/10",
+      iconColor: "text-[#3363AD]",
+      title: "Eligible",
+      primary: (eligible?.total ?? 0).toLocaleString(),
+      primaryRate:
+        eligible != null
+          ? `${(eligible.chws ?? 0).toLocaleString()} × ${(eligible.courses ?? 0).toLocaleString()}`
+          : undefined,
+      subItems: [
+        {
+          label: "CHWs",
+          value: eligible?.chws ?? 0,
+        },
+        {
+          label: "courses",
+          value: eligible?.courses ?? 0,
         },
       ],
     },
@@ -161,7 +184,7 @@ export const CHWStatsCards: React.FC<CHWStatsCardsProps> = ({
           value: data?.certification?.certified ?? 0,
         },
         {
-          label: "eligible",
+          label: "passed final test",
           value: data?.certification?.total ?? 0,
         },
       ],
@@ -207,7 +230,7 @@ export const CHWStatsCards: React.FC<CHWStatsCardsProps> = ({
   ];
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7 gap-4">
       {cards.map((card, i) => (
         <CHWStatCard key={i} {...card} />
       ))}

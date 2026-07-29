@@ -10,8 +10,17 @@ interface CourseEngagementTableProps {
   avgStudyTimeByCourse: IAvgStudyTimeByCourse[];
 }
 
-type SortKey = "name" | "students" | "completed" | "rate" | "avgScore" | "avgHours";
+type SortKey =
+  | "name"
+  | "students"
+  | "completed"
+  | "certified"
+  | "avgScore"
+  | "avgHours";
 type SortDir = "asc" | "desc";
+
+const formatCountWithRate = (count: number, rate: number) =>
+  `${count.toLocaleString()}(${rate}%)`;
 
 export const CourseEngagementTable: React.FC<CourseEngagementTableProps> = ({
   courseAnalytics,
@@ -50,16 +59,24 @@ export const CourseEngagementTable: React.FC<CourseEngagementTableProps> = ({
     avgStudyTimeByCourse.map((c) => [c.courseId, c]),
   );
 
-  const rows = (courseAnalytics?.coursePerformanceMetrics ?? []).map((c) => ({
-    id: c.id,
-    name: c.name,
-    students: c.students,
-    completed: c.completed,
-    rate: c.rate,
-    avgScore: scoreMap.get(c.id) ?? null,
-    avgHours: studyTimeMap.get(c.id)?.avgHours ?? null,
-    avgHoursSource: studyTimeMap.get(c.id)?.source ?? null,
-  }));
+  const rows = (courseAnalytics?.coursePerformanceMetrics ?? []).map((c) => {
+    const certified = c.certified ?? 0;
+    const certificationRate =
+      c.students > 0 ? Math.round((certified / c.students) * 100) : 0;
+
+    return {
+      id: c.id,
+      name: c.name,
+      students: c.students,
+      completed: c.completed,
+      rate: c.rate,
+      certified,
+      certificationRate,
+      avgScore: scoreMap.get(c.id) ?? null,
+      avgHours: studyTimeMap.get(c.id)?.avgHours ?? null,
+      avgHoursSource: studyTimeMap.get(c.id)?.source ?? null,
+    };
+  });
 
   const sorted = [...rows].sort((a, b) => {
     let av: number | string = a[sortKey] ?? -1;
@@ -109,12 +126,12 @@ export const CourseEngagementTable: React.FC<CourseEngagementTableProps> = ({
         <div className='overflow-x-auto'>
           <table className='w-full text-xs table-fixed'>
             <colgroup>
-              <col style={{ width: "30%" }} />
+              <col style={{ width: "28%" }} />
               <col style={{ width: "16%" }} />
-              <col style={{ width: "14%" }} />
+              <col style={{ width: "16%" }} />
+              <col style={{ width: "16%" }} />
               <col style={{ width: "12%" }} />
-              <col style={{ width: "14%" }} />
-              <col style={{ width: "14%" }} />
+              <col style={{ width: "12%" }} />
             </colgroup>
             <thead>
               <tr className='border-b border-gray-100'>
@@ -125,10 +142,20 @@ export const CourseEngagementTable: React.FC<CourseEngagementTableProps> = ({
                   <SortHeader label='Enrollments' k='students' align='right' />
                 </th>
                 <th className='text-right py-1.5 px-2 overflow-hidden'>
-                  <SortHeader label='Completed' k='completed' align='right' />
+                  <SortHeader
+                    label='Completed'
+                    fullLabel='Completed (Completion Rate)'
+                    k='completed'
+                    align='right'
+                  />
                 </th>
-                <th className='py-1.5 px-2 overflow-hidden'>
-                  <SortHeader label='Rate' fullLabel='Completion Rate' k='rate' />
+                <th className='text-right py-1.5 px-2 overflow-hidden'>
+                  <SortHeader
+                    label='Certification'
+                    fullLabel='Certified (Certification Rate)'
+                    k='certified'
+                    align='right'
+                  />
                 </th>
                 <th className='text-right py-1.5 px-2 overflow-hidden'>
                   <SortHeader label='Quiz Score' fullLabel='Avg Quiz Score' k='avgScore' align='right' />
@@ -152,28 +179,10 @@ export const CourseEngagementTable: React.FC<CourseEngagementTableProps> = ({
                     {row.students.toLocaleString()}
                   </td>
                   <td className='py-1.5 px-2 text-right text-gray-600 text-xs'>
-                    {row.completed.toLocaleString()}
+                    {formatCountWithRate(row.completed, row.rate)}
                   </td>
-                  <td className='py-1.5 px-2'>
-                    <div className='flex items-center gap-1 min-w-0'>
-                      <div className='flex-1 min-w-[10px] bg-gray-100 rounded-full h-1'>
-                        <div
-                          className='h-1 rounded-full transition-all duration-500'
-                          style={{
-                            width: `${row.rate}%`,
-                            background:
-                              row.rate >= 70
-                                ? "rgba(51,99,173,1)"
-                                : row.rate >= 50
-                                  ? "rgba(51,99,173,0.7)"
-                                  : "rgba(51,99,173,0.4)",
-                          }}
-                        />
-                      </div>
-                      <span className='text-[10px] text-gray-600 text-right shrink-0'>
-                        {row.rate}%
-                      </span>
-                    </div>
+                  <td className='py-1.5 px-2 text-right text-gray-600 text-xs'>
+                    {formatCountWithRate(row.certified, row.certificationRate)}
                   </td>
                   <td className='py-1.5 px-2 text-right'>
                     {row.avgScore !== null ? (
