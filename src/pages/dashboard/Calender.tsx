@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Calendar as CalendarIcon,
   ChevronLeft,
@@ -270,6 +270,21 @@ const Calendar: React.FC = () => {
   const [showEventModal, setShowEventModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
+
+  const [searchParams] = useSearchParams();
+  const targetEventId = searchParams.get("eventId");
+
+  React.useEffect(() => {
+    if (targetEventId && events.length > 0) {
+      const found = events.find(
+        (e: any) => String(e.id) === String(targetEventId) || String(e.originalEventId) === String(targetEventId)
+      );
+      if (found) {
+        setSelectedEvent(found);
+        setShowDetailsModal(true);
+      }
+    }
+  }, [targetEventId, events]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
