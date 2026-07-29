@@ -27,6 +27,27 @@ interface NotificationsContextType {
 
 const NotificationsContext = createContext<NotificationsContextType | undefined>(undefined);
 
+/**
+ * Category 1: Informational / Non-Navigational Notifications
+ * - No actionUrl, or actionUrl is '#' or empty string.
+ * - Or entityType is 'system', 'reminder', 'info', 'warning', 'error' with no target entityId or route.
+ */
+export const isCategory1Notification = (notification: Notification): boolean => {
+  const actionUrl = (notification.actionUrl || '').trim();
+  if (!actionUrl || actionUrl === '#') {
+    return true;
+  }
+
+  const entityType = (notification.entityType || '').toLowerCase();
+  const nonNavigationalTypes = ['system', 'reminder', 'info', 'warning', 'error'];
+  
+  if (nonNavigationalTypes.includes(entityType) && !notification.entityId) {
+    return true;
+  }
+
+  return false;
+};
+
 // Get token from localStorage OR cookie — whichever has it
 const getToken = (): string | null => {
   const fromStorage = localStorage.getItem("accessToken");
