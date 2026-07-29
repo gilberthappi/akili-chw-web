@@ -13,7 +13,7 @@ import { useNavigate } from "react-router-dom";
 import ProfileAvatar from "./ProfileAvatar";
 import { Bell, Search } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { useNotificationsContext, isCategory1Notification, resolveCategory2Route } from "@/contexts/NotificationsContext";
+import { useNotificationsContext, isCategory1Notification, resolveCategory2Route, resolveCategory3Route } from "@/contexts/NotificationsContext";
 import { useProfilePhoto } from "@/hooks/useProfilePhoto";
 import { logout as logoutService } from "@/services/auth.service";
 import { Notification } from "@/types";
@@ -75,10 +75,10 @@ export default function DashTop() {
       return;
     }
 
-    const category2Route = resolveCategory2Route(notification, user);
+    const targetRoute = resolveCategory2Route(notification, user) || resolveCategory3Route(notification, user);
     setShowNotifications(false);
-    if (category2Route) {
-      navigate(category2Route);
+    if (targetRoute) {
+      navigate(targetRoute);
     } else {
       navigate(`/notifications?id=${notification.id}`);
     }

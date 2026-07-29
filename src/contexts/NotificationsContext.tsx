@@ -147,6 +147,67 @@ export const resolveCategory2Route = (notification: Notification, userOrRole?: a
   return null;
 };
 
+/**
+ * Identify Category 3 Notifications (Direct Interactive Workspaces: Chat, Group, Live Meeting)
+ */
+export const isCategory3Notification = (notification: Notification): boolean => {
+  if (isCategory1Notification(notification)) return false;
+
+  const entityType = (notification.entityType || '').toLowerCase();
+  const category3Types = ['chat', 'conversation', 'message', 'direct', 'group', 'ceho_group', 'community', 'meeting', 'live_meeting', 'video_call'];
+  if (category3Types.includes(entityType)) return true;
+
+  const actionUrl = (notification.actionUrl || '').toLowerCase();
+  if (
+    actionUrl.includes('/chat') ||
+    actionUrl.includes('/conversation') ||
+    actionUrl.includes('/messaging') ||
+    actionUrl.includes('/group') ||
+    actionUrl.includes('/community') ||
+    actionUrl.includes('/meeting')
+  ) {
+    return true;
+  }
+
+  return false;
+};
+
+/**
+ * Resolve web dashboard route for Category 3 interactive workspace pages
+ */
+export const resolveCategory3Route = (notification: Notification, userOrRole?: any): string => {
+  const actionUrl = (notification.actionUrl || '').trim();
+  const entityType = (notification.entityType || '').toLowerCase();
+  const entityId = notification.entityId || '';
+
+  const roles = getUserRolesList(userOrRole);
+  const isCEHO = roles.includes('CEHO');
+
+  let id = entityId;
+  if (!id && actionUrl) {
+    const match = actionUrl.match(/[\/?=]([a-f0-9-]{36}|[a-zA-Z0-9_-]+)$/i);
+    if (match) id = match[1];
+  }
+
+  // 1. Direct Messages / Chat
+  if (['chat', 'conversation', 'message', 'direct'].includes(entityType) || actionUrl.includes('chat') || actionUrl.includes('conversation')) {
+    return id ? `/messaging?chatId=${id}` : `/messaging`;
+  }
+
+  // 2. Groups / CEHO Group / Community
+  if (['group', 'ceho_group', 'community'].includes(entityType) || actionUrl.includes('group') || actionUrl.includes('community')) {
+    if (entityType === 'ceho_group' && isCEHO) return `/ceho-group`;
+    return id ? `/messaging?type=group&id=${id}` : `/messaging?type=group`;
+  }
+
+  // 3. Live Meetings
+  if (['meeting', 'live_meeting', 'video_call'].includes(entityType) || actionUrl.includes('meeting')) {
+    return `/meetings`;
+  }
+
+  return `/messaging`;
+};
+
 // Get token from localStorage OR cookie — whichever has it
 const getToken = (): string | null => {
   const fromStorage = localStorage.getItem("accessToken");

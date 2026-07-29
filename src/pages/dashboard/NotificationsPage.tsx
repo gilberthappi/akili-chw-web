@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Bell, CheckCheck, Trash2, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
-import { useNotificationsContext, isCategory2Notification, resolveCategory2Route } from "@/contexts/NotificationsContext";
+import { useNotificationsContext, isCategory2Notification, isCategory3Notification, resolveCategory2Route, resolveCategory3Route } from "@/contexts/NotificationsContext";
 import { useAuth } from "@/hooks/useAuth";
 import { Notification } from "@/types";
 
@@ -36,7 +36,11 @@ const NotificationItem: React.FC<{
     setExpanded((v) => !v);
   };
 
-  const targetRoute = isCategory2Notification(n) ? resolveCategory2Route(n, user) : null;
+  const targetRoute = isCategory2Notification(n)
+    ? resolveCategory2Route(n, user)
+    : isCategory3Notification(n)
+    ? resolveCategory3Route(n, user)
+    : null;
 
   return (
     <div
