@@ -61,8 +61,9 @@ export const CourseEngagementTable: React.FC<CourseEngagementTableProps> = ({
 
   const rows = (courseAnalytics?.coursePerformanceMetrics ?? []).map((c) => {
     const certified = c.certified ?? 0;
+    // Certification rate = passed final exam / passed final test
     const certificationRate =
-      c.students > 0 ? Math.round((certified / c.students) * 100) : 0;
+      c.completed > 0 ? Math.round((certified / c.completed) * 100) : 0;
 
     return {
       id: c.id,

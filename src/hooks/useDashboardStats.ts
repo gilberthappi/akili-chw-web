@@ -17,7 +17,7 @@ import {
 import { dashboardKeys } from "@/utils/constants/queryKeys";
 import { useDashboardSummary } from "@/hooks/useDashboardSummary";
 
-const DASHBOARD_CACHE_MS = 1000 * 60 * 3;
+const DASHBOARD_CACHE_MS = 0;
 
 interface DashboardData {
   dashboardStats: IDashboardStats | null;
@@ -70,7 +70,9 @@ export const useDashboardStats = ({
     enabled: enabled && fetchCourseStudent,
     keepPreviousData: true,
     staleTime: DASHBOARD_CACHE_MS,
-    gcTime: DASHBOARD_CACHE_MS,
+    gcTime: 1000 * 60 * 5,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   return {

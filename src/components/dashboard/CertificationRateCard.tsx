@@ -215,13 +215,13 @@ export const CertificationRateCard: React.FC<CertificationRateCardProps> = ({
                 onClick={() => goToIssued({})}
                 className="font-semibold text-[#3363AD] hover:underline"
               >
-                {data.total.issued.toLocaleString()} certificates issued
+                {data.total.issued.toLocaleString()} passed final exam
               </button>
             ) : (
-              <span>{data.total.issued.toLocaleString()} certificates issued</span>
+              <span>{data.total.issued.toLocaleString()} passed final exam</span>
             )}{" "}
             — <span className="font-semibold text-gray-700">{data.total.rate}%</span> of
-            eligible CHWs certified
+            those who passed final test
           </p>
           {data.total.eligible === 0 ? (
             <p className="text-sm text-gray-400 text-center py-6">No data available</p>

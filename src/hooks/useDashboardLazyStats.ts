@@ -17,7 +17,7 @@ import { DEFAULT_DASHBOARD_FILTERS } from "@/utils/constants/dashboardFilters";
 import { buildDashboardFilterQuery, dashboardFilterKey } from "@/utils/dashboardFilterQuery";
 import { dashboardKeys } from "@/utils/constants/queryKeys";
 
-const DASHBOARD_CACHE_MS = 1000 * 60 * 30;
+const DASHBOARD_CACHE_MS = 0;
 
 /** HealthCenters for map / coverage — heavy N+1 backend; load when map is near viewport. */
 export const useDashboardHospitals = (
@@ -33,7 +33,9 @@ export const useDashboardHospitals = (
     enabled,
     keepPreviousData: true,
     staleTime: DASHBOARD_CACHE_MS,
-    gcTime: DASHBOARD_CACHE_MS,
+    gcTime: 1000 * 60 * 5,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   return {
@@ -62,7 +64,9 @@ export const useDashboardCommunications = (
     enabled,
     keepPreviousData: true,
     staleTime: DASHBOARD_CACHE_MS,
-    gcTime: DASHBOARD_CACHE_MS,
+    gcTime: 1000 * 60 * 5,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   return {
@@ -91,7 +95,9 @@ export const useDashboardSupervisorResponse = (
     enabled,
     keepPreviousData: true,
     staleTime: DASHBOARD_CACHE_MS,
-    gcTime: DASHBOARD_CACHE_MS,
+    gcTime: 1000 * 60 * 5,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   return {
@@ -126,7 +132,9 @@ export const useDashboardRecommendations = (
     enabled,
     keepPreviousData: true,
     staleTime: DASHBOARD_CACHE_MS,
-    gcTime: DASHBOARD_CACHE_MS,
+    gcTime: 1000 * 60 * 5,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   return {

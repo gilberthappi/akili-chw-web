@@ -49,7 +49,7 @@ interface AdoptionStats {
   refetch: () => void;
 }
 
-const DEEP_CACHE_MS = 1000 * 60 * 5;
+const DEEP_CACHE_MS = 0;
 
 interface DeepAdoption {
   enrollmentTrends: IEnrollmentTrend[];
@@ -95,7 +95,9 @@ export const useAdoptionStats = (
     enabled: enabled && deepEnabled,
     keepPreviousData: true,
     staleTime: DEEP_CACHE_MS,
-    gcTime: DEEP_CACHE_MS,
+    gcTime: 1000 * 60 * 5,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   const shell = summaryQuery.data;

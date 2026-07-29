@@ -3,7 +3,7 @@ import { getMyCertificates, IMyCertificate } from "@/services/certificates.servi
 import { getStudentStatistics, IStudentStatistics } from "@/services/progress.service";
 import { dashboardKeys } from "@/utils/constants/queryKeys";
 
-const DASHBOARD_CACHE_MS = 1000 * 60 * 30;
+const DASHBOARD_CACHE_MS = 0;
 
 interface LearnerDashboardData {
   studentStats: IStudentStatistics | null;
@@ -25,7 +25,9 @@ export const useLearnerDashboard = (): LearnerDashboardData => {
       return { studentStats: stats, certificates: certs };
     },
     staleTime: DASHBOARD_CACHE_MS,
-    gcTime: DASHBOARD_CACHE_MS,
+    gcTime: 1000 * 60 * 5,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   const certificates = data?.certificates ?? [];

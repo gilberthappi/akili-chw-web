@@ -1501,7 +1501,9 @@ export interface IMonthlyActiveTrends {
 }
 
 export interface ICertificationRateEntry {
+  /** Passed Final Test (certification denominator). */
   eligible: number;
+  /** Passed Final Exam among those who passed Final Test. */
   issued: number;
   rate: number;
 }

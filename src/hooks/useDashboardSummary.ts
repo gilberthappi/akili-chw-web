@@ -16,7 +16,7 @@ import {
 } from "@/utils/dashboardFilterQuery";
 import { dashboardKeys } from "@/utils/constants/queryKeys";
 
-const DASHBOARD_CACHE_MS = 1000 * 60 * 3; // align with API summary TTL
+const DASHBOARD_CACHE_MS = 0; // always refetch on mount/refresh
 
 export interface DashboardSummaryShell {
   enrollmentTrends: IEnrollmentTrend[];
@@ -52,6 +52,8 @@ export const useDashboardSummary = (
     enabled,
     keepPreviousData: true,
     staleTime: DASHBOARD_CACHE_MS,
-    gcTime: DASHBOARD_CACHE_MS,
+    gcTime: 1000 * 60 * 5,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 };
