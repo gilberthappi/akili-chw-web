@@ -90,6 +90,11 @@ const EditUserModal: FC<EditUserModalProps> = ({
           cleanedData[key] = val;
         }
       });
+      // Role must always be sent when the editor shows role options so
+      // UserRole + Student.role stay in sync on the API.
+      if (roleOptions && roleOptions.length > 0 && form.role) {
+        cleanedData.role = form.role;
+      }
       await onSubmit(cleanedData as unknown as EditUserFormData);
       onClose();
     } catch (error) {
@@ -157,11 +162,12 @@ const EditUserModal: FC<EditUserModalProps> = ({
 
           {roleOptions && roleOptions.length > 0 && (
             <div>
-              <label className={labelClass}>Role</label>
+              <label className={labelClass}>Role *</label>
               <select
                 name="role"
                 value={form.role}
                 onChange={handleChange}
+                required
                 className={inputClass}
               >
                 <option value="">Select role</option>

@@ -217,12 +217,8 @@ export const CHWStatsCards: React.FC<CHWStatsCardsProps> = ({
       primaryRate: `${inProgressRate}% of eligible`,
       subItems: [
         {
-          label: "passed final test",
-          value: completion?.completed ?? 0,
-        },
-        {
           label: "eligible",
-          value: completion?.total ?? 0,
+          value: completion?.total ?? eligible?.total ?? 0,
         },
       ],
     },
@@ -239,7 +235,7 @@ export const CHWStatsCards: React.FC<CHWStatsCardsProps> = ({
         },
         {
           label: "eligible",
-          value: completion?.total ?? 0,
+          value: completion?.total ?? eligible?.total ?? 0,
         },
       ],
     },

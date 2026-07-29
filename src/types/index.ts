@@ -1431,9 +1431,10 @@ export interface ICHWStats {
     chws: number;
     courses: number;
   };
-  /** Course completion = passed Final Test (marks ≥ marksToPass). */
+  /** Course completion = passed Final Test / eligible slots (learners × courses). */
   completion: {
     rate: number;
+    /** Same as eligible.total (learners × published courses). */
     total: number;
     completed: number;
     inProgress: number;
