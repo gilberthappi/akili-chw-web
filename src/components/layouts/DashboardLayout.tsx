@@ -22,6 +22,7 @@ import {
   MessageSquare,
   Users,
   UsersRound,
+  Video,
 } from "lucide-react";
 import ProfileAvatar from "@/components/profile/ProfileAvatar";
 import { useProfilePhoto } from "@/hooks/useProfilePhoto";
@@ -515,6 +516,12 @@ const DashboardLayout = ({
       path: "/calender",
       roles: ["ADMIN", "TRAINER", "TRAINEE", "DEVELOPER", "CEHO"],
       icon: <Calendar className='w-5 h-5' />,
+    },
+    {
+      label: "Meetings",
+      path: "/meetings",
+      roles: ["ADMIN", "TRAINER", "DEVELOPER", "STAFF", "CEHO"],
+      icon: <Video className='w-5 h-5' />,
     },
     {
       label: "Messaging",

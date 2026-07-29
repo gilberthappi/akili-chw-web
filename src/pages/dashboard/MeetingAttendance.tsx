@@ -146,23 +146,27 @@ const MeetingAttendance: React.FC = () => {
 
     const map = new Map<string, AggregatedAttendee>();
     for (const r of records) {
-      const key = r.userId ?? `guest:${r.survey?.name ?? r.guestName ?? 'unknown'}`;
+      const key = r.userId ?? (r.id ? `guest:${r.id}` : `guest:${r.survey?.name ?? r.guestName ?? 'unknown'}`);
       const joinedMs = new Date(r.joinedAt).getTime();
 
-      let estimatedDuration: number;
-      if (r.leftAt) {
-        const fromTs = Math.round((new Date(r.leftAt).getTime() - joinedMs) / 1000);
-        estimatedDuration = (r.durationSec && r.durationSec > 0) ? r.durationSec : fromTs;
+      let estimatedDuration = 0;
+      if (r.durationSec && r.durationSec > 0) {
+        estimatedDuration = r.durationSec;
+      } else if (r.leftAt) {
+        estimatedDuration = Math.round((new Date(r.leftAt).getTime() - joinedMs) / 1000);
+      } else if (r.survey && (r.survey as any).createdAt) {
+        estimatedDuration = Math.round((new Date((r.survey as any).createdAt).getTime() - joinedMs) / 1000);
       } else if (meetingEndMs > joinedMs) {
         estimatedDuration = Math.round((meetingEndMs - joinedMs) / 1000);
-      } else {
-        estimatedDuration = (r.durationSec && r.durationSec > 0) ? r.durationSec : 0;
+      } else if (!isNaN(joinedMs)) {
+        estimatedDuration = Math.round((Date.now() - joinedMs) / 1000);
       }
+      if (estimatedDuration < 0 || isNaN(estimatedDuration)) estimatedDuration = 0;
 
       if (!map.has(key)) {
         const nameVal = r.user?.fullNames ?? r.survey?.name ?? r.guestName ?? 'Unknown';
         const emailVal = r.user?.email ?? r.survey?.phoneNumber ?? null;
-        const hcVal   = r.user?.healthCenter?.name ?? r.survey?.healthCenter ?? '—';
+        const hcVal   = r.user?.healthCenter?.name ?? r.survey?.hospital ?? r.survey?.healthCenter ?? '—';
         const genVal  = r.user?.gender ?? r.survey?.gender ?? '—';
         const distVal = r.user?.district ?? r.survey?.district ?? '—';
         const secVal  = r.user?.sector ?? r.survey?.sector ?? '—';

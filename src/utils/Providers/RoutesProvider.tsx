@@ -228,7 +228,7 @@ const RoutesProvider = () => {
         {
           path: "attendance/:eventId",
           element: (
-            <ProtectedRoute allowedRoles={["ADMIN", "TRAINER", "DEVELOPER", "STAFF"]}>
+            <ProtectedRoute allowedRoles={["ADMIN", "TRAINER", "DEVELOPER", "STAFF", "CEHO"]}>
               <MeetingAttendance />
             </ProtectedRoute>
           ),
@@ -236,7 +236,7 @@ const RoutesProvider = () => {
         {
           path: "meetings",
           element: (
-            <ProtectedRoute allowedRoles={["ADMIN", "TRAINER", "DEVELOPER", "STAFF"]}>
+            <ProtectedRoute allowedRoles={["ADMIN", "TRAINER", "DEVELOPER", "STAFF", "CEHO"]}>
               <MeetingsList />
             </ProtectedRoute>
           ),

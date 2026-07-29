@@ -1,4 +1,4 @@
-import { useState, useCallback, Fragment } from "react";
+import { useState, useCallback, useMemo, Fragment } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { debounce } from "lodash";
@@ -150,6 +150,7 @@ const StudentSearchPicker = ({
             <button
               key={s.id}
               type="button"
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => pick(s)}
               className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 text-left transition-colors"
             >
@@ -179,7 +180,11 @@ const AdminCEHOGroupDetailPage = () => {
 
   // Add / remove members
   const [addStudent, setAddStudent] = useState<IStudent | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
   const [pendingRemove, setPendingRemove] = useState<ICEHOGroupMember | null>(null);
+
+  // Search existing members
+  const [memberSearchTerm, setMemberSearchTerm] = useState("");
 
   // Demote CEHO
   const [showDemote, setShowDemote] = useState(false);
@@ -209,6 +214,7 @@ const AdminCEHOGroupDetailPage = () => {
       queryClient.invalidateQueries({ queryKey: ["admin-ceho-groups"] });
       toast.success("CHW added to group.");
       setAddStudent(null);
+      setShowAddModal(false);
     },
     onError: (error: any) => {
       toast.error(error?.response?.data?.message ?? "Failed to add member.");
@@ -293,6 +299,22 @@ const AdminCEHOGroupDetailPage = () => {
     setNewCEHO(null);
   };
 
+  const members = group?.members ?? [];
+  const ceho = group?.ceho?.user;
+  const totalCount = members.length + (ceho ? 1 : 0);
+
+  const filteredMembers = useMemo(() => {
+    if (!memberSearchTerm.trim()) return members;
+    const term = memberSearchTerm.toLowerCase();
+    return members.filter((m) => {
+      const name = m.student?.user?.fullNames?.toLowerCase() ?? "";
+      const phone = m.student?.user?.phoneNumber?.toLowerCase() ?? "";
+      const district = m.student?.user?.district?.toLowerCase() ?? "";
+      const sector = m.student?.user?.sector?.toLowerCase() ?? "";
+      return name.includes(term) || phone.includes(term) || district.includes(term) || sector.includes(term);
+    });
+  }, [members, memberSearchTerm]);
+
   if (isLoading) {
     return (
       <div className="space-y-6 animate-pulse">
@@ -315,10 +337,6 @@ const AdminCEHOGroupDetailPage = () => {
       </div>
     );
   }
-
-  const members = group.members ?? [];
-  const ceho = group.ceho?.user;
-  const totalCount = members.length + (ceho ? 1 : 0);
 
   return (
     <div className="space-y-6">
@@ -578,55 +596,62 @@ const AdminCEHOGroupDetailPage = () => {
         </div>
       </div>
 
-      {/* Add CHW */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
-        <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-          <UserPlus className="w-4 h-4 text-[#3363AD]" />
-          Add CHW to Group
-        </h3>
-        <div className="flex gap-3 items-start">
-          <div className="flex-1">
-            <StudentSearchPicker
-              placeholder="Search CHW by name…"
-              roleFilter="TRAINEE"
-              selected={addStudent}
-              onSelect={setAddStudent}
-              onClear={() => setAddStudent(null)}
-              excludeIds={members.map((m) => m.studentId)}
-            />
-          </div>
-          <Button
-            size="sm"
-            onClick={() => addMember()}
-            isLoading={isAdding}
-            disabled={!addStudent || isAdding}
-            className="shrink-0"
-          >
-            {!isAdding && <UserPlus className="w-3.5 h-3.5 mr-1.5" />}
-            Add
-          </Button>
-        </div>
-      </div>
-
       {/* Members list */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
-        <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-          <Users className="w-4 h-4 text-[#3363AD]" />
-          Members
-          <span className="text-xs font-normal text-gray-400">({totalCount})</span>
-        </h3>
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+            <Users className="w-4 h-4 text-[#3363AD]" />
+            Members
+            <span className="text-xs font-normal text-gray-400">({totalCount})</span>
+          </h3>
 
-        {members.length === 0 ? (
+          <div className="flex items-center gap-2.5">
+            {/* Search members input */}
+            <div className="relative flex-1 sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+              <input
+                type="text"
+                value={memberSearchTerm}
+                onChange={(e) => setMemberSearchTerm(e.target.value)}
+                placeholder="Search CHW by name..."
+                className="w-full pl-9 pr-8 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD]"
+              />
+              {memberSearchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setMemberSearchTerm("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Add CHW modal button */}
+            <Button size="sm" onClick={() => setShowAddModal(true)} className="shrink-0">
+              <UserPlus className="w-3.5 h-3.5 mr-1.5" />
+              Add CHW
+            </Button>
+          </div>
+        </div>
+
+        {filteredMembers.length === 0 ? (
           <div className="flex flex-col items-center py-12 text-center gap-2">
             <div className="w-12 h-12 rounded-2xl bg-[#EBF0F9] flex items-center justify-center">
               <Users className="w-6 h-6 text-[#3363AD]/40" />
             </div>
-            <p className="text-sm text-gray-500 font-medium">No members yet</p>
-            <p className="text-xs text-gray-400">Use the search above to add CHWs to this group.</p>
+            <p className="text-sm text-gray-500 font-medium">
+              {memberSearchTerm ? "No members match your search" : "No members yet"}
+            </p>
+            <p className="text-xs text-gray-400">
+              {memberSearchTerm
+                ? "Try searching for a different name or location."
+                : "Click '+ Add CHW' above to add members to this group."}
+            </p>
           </div>
         ) : (
           <div className="divide-y divide-gray-50">
-            {members.map((m) => (
+            {filteredMembers.map((m) => (
               <div
                 key={m.id}
                 className="flex items-center gap-4 py-3 first:pt-0 last:pb-0"
@@ -667,6 +692,123 @@ const AdminCEHOGroupDetailPage = () => {
           </div>
         )}
       </div>
+
+      {/* Add CHW Modal */}
+      <Transition appear show={showAddModal} as={Fragment}>
+        <Dialog
+          as="div"
+          className="relative z-50"
+          onClose={() => {
+            if (!isAdding) {
+              setShowAddModal(false);
+              setAddStudent(null);
+            }
+          }}
+        >
+          <Transition.Child
+            as={Fragment}
+            enter="ease-out duration-200" enterFrom="opacity-0" enterTo="opacity-100"
+            leave="ease-in duration-150" leaveFrom="opacity-100" leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-black/40" />
+          </Transition.Child>
+
+          <div className="fixed inset-0 flex items-center justify-center p-4 overflow-y-auto">
+            <Transition.Child
+              as={Fragment}
+              enter="ease-out duration-200" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100"
+              leave="ease-in duration-150" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95"
+            >
+              <Dialog.Panel className="w-full max-w-md bg-white rounded-2xl shadow-xl p-6 space-y-5 my-auto">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <Dialog.Title className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                      <UserPlus className="w-5 h-5 text-[#3363AD]" />
+                      Add CHW to Group
+                    </Dialog.Title>
+                    <Dialog.Description className="text-xs text-gray-500">
+                      Search for a Community Health Worker to add to this group.
+                    </Dialog.Description>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAddModal(false);
+                      setAddStudent(null);
+                    }}
+                    className="p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-gray-600">Select CHW *</label>
+                    <StudentSearchPicker
+                      placeholder="Search CHW by name or phone…"
+                      roleFilter="TRAINEE"
+                      selected={addStudent}
+                      onSelect={setAddStudent}
+                      onClear={() => setAddStudent(null)}
+                      excludeIds={[
+                        ...(group.ceho ? [group.ceho.id, group.ceho.userId] : []),
+                        ...members.flatMap((m) => [m.studentId, m.student?.userId].filter(Boolean) as string[]),
+                      ]}
+                    />
+                  </div>
+
+                  {addStudent && (
+                    <div className="flex items-center gap-3 p-3 bg-[#EBF0F9]/50 border border-[#3363AD]/20 rounded-xl">
+                      <Avatar name={addStudent.fullName} photo={null} size="w-10 h-10" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-gray-800 truncate">{addStudent.fullName}</p>
+                        {addStudent.phoneNumber && (
+                          <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                            <Phone className="w-3 h-3" />
+                            {addStudent.phoneNumber}
+                          </p>
+                        )}
+                        {addStudent.district && (
+                          <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                            <MapPin className="w-3 h-3" />
+                            {addStudent.district} {addStudent.sector ? `/ ${addStudent.sector}` : ""}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => {
+                      setShowAddModal(false);
+                      setAddStudent(null);
+                    }}
+                    disabled={isAdding}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => addMember()}
+                    isLoading={isAdding}
+                    disabled={!addStudent || isAdding}
+                  >
+                    {!isAdding && <UserPlus className="w-3.5 h-3.5 mr-1.5" />}
+                    Add CHW
+                  </Button>
+                </div>
+              </Dialog.Panel>
+            </Transition.Child>
+          </div>
+        </Dialog>
+      </Transition>
 
       {/* Remove member confirmation modal */}
       <Transition appear show={!!pendingRemove} as={Fragment}>
