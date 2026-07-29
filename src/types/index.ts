@@ -1398,7 +1398,7 @@ export interface IDashboardFilters {
 
 export interface ICHWStats {
   chws: {
-    /** TRAINEE + CEHO registered (excludes TESTER). */
+    /** Learners in scope (respects role filter). */
     total: number;
     active: number;
     inactive: number;
@@ -1410,12 +1410,12 @@ export interface ICHWStats {
     percentOfTarget: number;
   };
   /**
-   * TRAINEE + CEHO who can use the platform:
+   * Learners in role scope who can use the platform:
    * completed ≥1 course AND attended ≥1 virtual meeting.
    */
   platformReady: {
     total: number;
-    /** Share of registered TRAINEE+CEHO. */
+    /** Share of registered learners in scope. */
     percentOfRegistered: number;
     /** Share of the 6000 national target. */
     percentOfTarget: number;
@@ -1423,8 +1423,8 @@ export interface ICHWStats {
     attendedMeeting: number;
   };
   /**
-   * Eligible slots = filtered CHWs × published courses
-   * (e.g. 203 CHWs × 10 courses = 2030).
+   * Eligible slots = filtered learners × published courses
+   * (e.g. 203 × 10 = 2030).
    */
   eligible: {
     total: number;

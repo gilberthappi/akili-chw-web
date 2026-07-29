@@ -109,7 +109,11 @@ export const AdoptionSection: React.FC<AdoptionSectionProps> = ({
       )}
 
       {/* 1. Snapshot KPIs */}
-      <CHWStatsCards data={chwStats} isLoading={isLoading} />
+      <CHWStatsCards
+        data={chwStats}
+        isLoading={isLoading}
+        roleFilter={filters.role}
+      />
 
       {/* 2. Activity & growth trends */}
       <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>

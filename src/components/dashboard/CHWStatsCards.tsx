@@ -7,12 +7,15 @@ import {
   ClipboardList,
   UserCheck,
   Calculator,
+  Hourglass,
 } from "lucide-react";
 import { ICHWStats } from "@/types";
 
 interface CHWStatsCardsProps {
   data: ICHWStats | null;
   isLoading: boolean;
+  /** Dashboard role filter: "" | TRAINEE | TESTER | CEHO */
+  roleFilter?: string;
 }
 
 interface SubItem {
@@ -30,6 +33,18 @@ interface CardConfig {
   primaryRate?: string;
   subItems: SubItem[];
 }
+
+const ROLE_TOTAL_LABELS: Record<string, string> = {
+  TRAINEE: "Total CHW",
+  TESTER: "Total Testers",
+  CEHO: "Total CEHO",
+};
+
+const ROLE_SHORT_LABELS: Record<string, string> = {
+  TRAINEE: "CHWs",
+  TESTER: "testers",
+  CEHO: "CEHOs",
+};
 
 const CHWStatCard: React.FC<CardConfig> = ({
   icon,
@@ -81,11 +96,12 @@ const CHWStatCard: React.FC<CardConfig> = ({
 export const CHWStatsCards: React.FC<CHWStatsCardsProps> = ({
   data,
   isLoading,
+  roleFilter = "TRAINEE",
 }) => {
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7 gap-4 animate-pulse">
-        {[...Array(7)].map((_, i) => (
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 animate-pulse">
+        {[...Array(8)].map((_, i) => (
           <div key={i} className="h-32 bg-gray-100 rounded-xl" />
         ))}
       </div>
@@ -96,15 +112,34 @@ export const CHWStatsCards: React.FC<CHWStatsCardsProps> = ({
   const chwPercent = data?.chws.percentOfTarget ?? 0;
   const ready = data?.platformReady;
   const eligible = data?.eligible;
+  const completion = data?.completion;
+  const inProgress = completion?.inProgress ?? 0;
+  const inProgressRate =
+    completion && completion.total > 0
+      ? Math.round((inProgress / completion.total) * 100)
+      : 0;
+
+  const totalTitle =
+    roleFilter === ""
+      ? "Total Users"
+      : ROLE_TOTAL_LABELS[roleFilter] ?? "Total Users";
+  const eligiblePeopleLabel =
+    roleFilter === ""
+      ? "users"
+      : ROLE_SHORT_LABELS[roleFilter] ?? "users";
 
   const cards: CardConfig[] = [
+    // Row 1
     {
       icon: <Users size={22} />,
       iconBg: "bg-[#3363AD]/10",
       iconColor: "text-[#3363AD]",
-      title: "Total CHW",
+      title: totalTitle,
       primary: (data?.chws.total ?? 0).toLocaleString(),
-      primaryRate: `${chwPercent}% of ${chwTarget.toLocaleString()}`,
+      primaryRate:
+        roleFilter === "TRAINEE" || roleFilter === ""
+          ? `${chwPercent}% of ${chwTarget.toLocaleString()}`
+          : undefined,
       subItems: [
         {
           label: "active",
@@ -146,7 +181,7 @@ export const CHWStatsCards: React.FC<CHWStatsCardsProps> = ({
           : undefined,
       subItems: [
         {
-          label: "CHWs",
+          label: eligiblePeopleLabel,
           value: eligible?.chws ?? 0,
         },
         {
@@ -156,19 +191,55 @@ export const CHWStatsCards: React.FC<CHWStatsCardsProps> = ({
       ],
     },
     {
+      icon: <UserCheck size={22} />,
+      iconBg: "bg-[#3363AD]/10",
+      iconColor: "text-[#3363AD]",
+      title: "Total CEHO",
+      primary: data?.supervisors.total ?? 0,
+      subItems: [
+        {
+          label: "male",
+          value: data?.supervisors.male ?? 0,
+        },
+        {
+          label: "female",
+          value: data?.supervisors.female ?? 0,
+        },
+      ],
+    },
+    // Row 2
+    {
+      icon: <Hourglass size={22} />,
+      iconBg: "bg-[#3363AD]/10",
+      iconColor: "text-[#3363AD]",
+      title: "In Progress",
+      primary: inProgress.toLocaleString(),
+      primaryRate: `${inProgressRate}% of eligible`,
+      subItems: [
+        {
+          label: "passed final test",
+          value: completion?.completed ?? 0,
+        },
+        {
+          label: "eligible",
+          value: completion?.total ?? 0,
+        },
+      ],
+    },
+    {
       icon: <CheckCircle size={22} />,
       iconBg: "bg-[#3363AD]/10",
       iconColor: "text-[#3363AD]",
       title: "Course Completion",
-      primary: `${data?.completion.rate ?? 0}%`,
+      primary: `${completion?.rate ?? 0}%`,
       subItems: [
         {
           label: "passed final test",
-          value: data?.completion.completed ?? 0,
+          value: completion?.completed ?? 0,
         },
         {
           label: "eligible",
-          value: data?.completion.total ?? 0,
+          value: completion?.total ?? 0,
         },
       ],
     },
@@ -210,27 +281,10 @@ export const CHWStatsCards: React.FC<CHWStatsCardsProps> = ({
         },
       ],
     },
-    {
-      icon: <UserCheck size={22} />,
-      iconBg: "bg-[#3363AD]/10",
-      iconColor: "text-[#3363AD]",
-      title: "Total CEHO",
-      primary: data?.supervisors.total ?? 0,
-      subItems: [
-        {
-          label: "male",
-          value: data?.supervisors.male ?? 0,
-        },
-        {
-          label: "female",
-          value: data?.supervisors.female ?? 0,
-        },
-      ],
-    },
   ];
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7 gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       {cards.map((card, i) => (
         <CHWStatCard key={i} {...card} />
       ))}
