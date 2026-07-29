@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Card } from "@/components/common/Card";
 import { Input } from "@/components/common/Input";
 import { Button } from "@/components/common/Button";
@@ -136,6 +137,26 @@ export const Messaging: React.FC = () => {
 
   // Explicitly type conversations to ensure filter works
   const typedConversations: IConversation[] = Array.isArray(conversations) ? conversations : [];
+
+  const [searchParams] = useSearchParams();
+  const targetChatId = searchParams.get("chatId") || searchParams.get("id") || searchParams.get("conversationId");
+  const targetType = searchParams.get("type") as ConversationType | null;
+
+  useEffect(() => {
+    if (targetChatId && typedConversations.length > 0) {
+      const found = typedConversations.find(
+        (c) =>
+          c.id === targetChatId ||
+          c.participants?.some((p) => p.userId === targetChatId)
+      );
+      if (found) {
+        setActiveTab(found.type);
+        setSelectedConversation(found);
+      }
+    } else if (targetType) {
+      setActiveTab(targetType);
+    }
+  }, [targetChatId, targetType, typedConversations]);
 
   // Sum of unread message counts per tab — same unit as the sidebar nav badge and each
   // conversation's own list-item badge, so all three numbers stay consistent with each other.

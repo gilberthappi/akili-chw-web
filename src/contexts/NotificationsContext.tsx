@@ -27,6 +27,187 @@ interface NotificationsContextType {
 
 const NotificationsContext = createContext<NotificationsContextType | undefined>(undefined);
 
+/**
+ * Category 1: Informational / Non-Navigational Notifications
+ * - No actionUrl, or actionUrl is '#' or empty string.
+ * - Or entityType is 'system', 'reminder', 'info', 'warning', 'error' with no target entityId or route.
+ */
+export const isCategory1Notification = (notification: Notification): boolean => {
+  const actionUrl = (notification.actionUrl || '').trim();
+  if (!actionUrl || actionUrl === '#') {
+    return true;
+  }
+
+  const entityType = (notification.entityType || '').toLowerCase();
+  const nonNavigationalTypes = ['system', 'reminder', 'info', 'warning', 'error'];
+  
+  if (nonNavigationalTypes.includes(entityType) && !notification.entityId) {
+    return true;
+  }
+
+  return false;
+};
+
+/**
+ * Category 2: Overview / Detail Page Navigation
+ * - Notifications pointing to structured detail pages: calendar events, courses, announcements, certificates.
+ */
+export const isCategory2Notification = (notification: Notification): boolean => {
+  if (isCategory1Notification(notification)) return false;
+
+  const entityType = (notification.entityType || '').toLowerCase();
+  const category2Types = ['calendar', 'event', 'calendar_reminder', 'course', 'courses', 'chapter', 'attempt', 'announcement', 'certificate'];
+  
+  if (category2Types.includes(entityType)) return true;
+
+  const actionUrl = (notification.actionUrl || '').toLowerCase();
+  if (
+    actionUrl.includes('/calendar') ||
+    actionUrl.includes('/event') ||
+    actionUrl.includes('/course') ||
+    actionUrl.includes('/announcement') ||
+    actionUrl.includes('/certificate')
+  ) {
+    return true;
+  }
+
+  return false;
+};
+
+/**
+ * Helper to extract user roles array from user object or role parameter
+ */
+export const getUserRolesList = (userOrRole: any): string[] => {
+  if (!userOrRole) return [];
+  if (typeof userOrRole === 'string') return [userOrRole.toUpperCase()];
+  if (Array.isArray(userOrRole)) {
+    return userOrRole.map((r: any) => (typeof r === 'string' ? r.toUpperCase() : (r?.name || String(r)).toUpperCase()));
+  }
+  if (typeof userOrRole === 'object') {
+    const roles = userOrRole.roles || userOrRole.role;
+    return getUserRolesList(roles);
+  }
+  return [];
+};
+
+/**
+ * Resolve web dashboard route for Category 2 detail pages
+ */
+export const resolveCategory2Route = (notification: Notification, userOrRole?: any): string | null => {
+  const actionUrl = (notification.actionUrl || '').trim();
+  const entityType = (notification.entityType || '').toLowerCase();
+  const entityId = notification.entityId || '';
+
+  const roles = getUserRolesList(userOrRole);
+  const isStudentOrCeho = roles.some((r) => ['TRAINEE', 'CEHO', 'STUDENT', 'TESTER'].includes(r));
+
+  // Helper: extract ID from actionUrl if entityId is missing
+  let id = entityId;
+  if (!id && actionUrl) {
+    const match = actionUrl.match(/^\/(?:calendar|calender|event|course|courses|announcement|announcements)\/(.+?)(?:\?|$)/i);
+    if (match) id = match[1];
+  }
+
+  // 1. Calendar Events -> /calender?eventId=:id
+  if (
+    ['calendar', 'event', 'calendar_reminder'].includes(entityType) ||
+    actionUrl.includes('calendar') ||
+    actionUrl.includes('calender')
+  ) {
+    return id ? `/calender?eventId=${id}` : `/calender`;
+  }
+
+  // 2. Courses -> Students go to /learn/:courseId (active learner) or /my-learning, Admins go to /courses/edit/:id or /courses
+  if (
+    ['course', 'courses', 'chapter', 'attempt'].includes(entityType) ||
+    actionUrl.includes('course')
+  ) {
+    if (isStudentOrCeho) {
+      return id && id !== 'demo-course' ? `/learn/${id}` : `/my-learning`;
+    }
+    return id && id !== 'demo-course' ? `/courses/edit/${id}` : `/courses`;
+  }
+
+  // 3. Announcements -> /announcement?id=:id
+  if (
+    ['announcement', 'announcements'].includes(entityType) ||
+    actionUrl.includes('announcement')
+  ) {
+    return id ? `/announcement?id=${id}` : `/announcement`;
+  }
+
+  // 4. Certificates -> Students go to /my-certificates, Admins go to /certificates
+  if (
+    ['certificate', 'certificates'].includes(entityType) ||
+    actionUrl.includes('certificate')
+  ) {
+    return isStudentOrCeho ? `/my-certificates` : `/certificates`;
+  }
+
+  return null;
+};
+
+/**
+ * Identify Category 3 Notifications (Direct Interactive Workspaces: Chat, Group, Live Meeting)
+ */
+export const isCategory3Notification = (notification: Notification): boolean => {
+  if (isCategory1Notification(notification)) return false;
+
+  const entityType = (notification.entityType || '').toLowerCase();
+  const category3Types = ['chat', 'conversation', 'message', 'direct', 'group', 'ceho_group', 'community', 'meeting', 'live_meeting', 'video_call'];
+  if (category3Types.includes(entityType)) return true;
+
+  const actionUrl = (notification.actionUrl || '').toLowerCase();
+  if (
+    actionUrl.includes('/chat') ||
+    actionUrl.includes('/conversation') ||
+    actionUrl.includes('/messaging') ||
+    actionUrl.includes('/group') ||
+    actionUrl.includes('/community') ||
+    actionUrl.includes('/meeting')
+  ) {
+    return true;
+  }
+
+  return false;
+};
+
+/**
+ * Resolve web dashboard route for Category 3 interactive workspace pages
+ */
+export const resolveCategory3Route = (notification: Notification, userOrRole?: any): string => {
+  const actionUrl = (notification.actionUrl || '').trim();
+  const entityType = (notification.entityType || '').toLowerCase();
+  const entityId = notification.entityId || '';
+
+  const roles = getUserRolesList(userOrRole);
+  const isCEHO = roles.includes('CEHO');
+
+  let id = entityId;
+  if (!id && actionUrl) {
+    const match = actionUrl.match(/[\/?=]([a-f0-9-]{36}|[a-zA-Z0-9_-]+)$/i);
+    if (match) id = match[1];
+  }
+
+  // 1. Direct Messages / Chat
+  if (['chat', 'conversation', 'message', 'direct'].includes(entityType) || actionUrl.includes('chat') || actionUrl.includes('conversation')) {
+    return id ? `/messaging?chatId=${id}` : `/messaging`;
+  }
+
+  // 2. Groups / CEHO Group / Community
+  if (['group', 'ceho_group', 'community'].includes(entityType) || actionUrl.includes('group') || actionUrl.includes('community')) {
+    if (entityType === 'ceho_group' && isCEHO) return `/ceho-group`;
+    return id ? `/messaging?type=group&id=${id}` : `/messaging?type=group`;
+  }
+
+  // 3. Live Meetings
+  if (['meeting', 'live_meeting', 'video_call'].includes(entityType) || actionUrl.includes('meeting')) {
+    return `/meetings`;
+  }
+
+  return `/messaging`;
+};
+
 // Get token from localStorage OR cookie — whichever has it
 const getToken = (): string | null => {
   const fromStorage = localStorage.getItem("accessToken");

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
-import { Bell, CheckCheck, Trash2, ChevronDown, ChevronUp } from "lucide-react";
-import { useNotificationsContext } from "@/contexts/NotificationsContext";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { Bell, CheckCheck, Trash2, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
+import { useNotificationsContext, isCategory2Notification, isCategory3Notification, resolveCategory2Route, resolveCategory3Route } from "@/contexts/NotificationsContext";
+import { useAuth } from "@/hooks/useAuth";
 import { Notification } from "@/types";
 
 const typeColors: Record<Notification["type"], string> = {
@@ -19,6 +20,8 @@ const NotificationItem: React.FC<{
 }> = ({ n, autoOpen, onMarkAsRead, onDelete }) => {
   const [expanded, setExpanded] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+  const { user } = useAuth();
 
   useEffect(() => {
     if (autoOpen) {
@@ -32,6 +35,12 @@ const NotificationItem: React.FC<{
     if (!n.isRead) onMarkAsRead(n.id);
     setExpanded((v) => !v);
   };
+
+  const targetRoute = isCategory2Notification(n)
+    ? resolveCategory2Route(n, user)
+    : isCategory3Notification(n)
+    ? resolveCategory3Route(n, user)
+    : null;
 
   return (
     <div
@@ -91,10 +100,24 @@ const NotificationItem: React.FC<{
         </div>
       </div>
 
-      {/* Expanded full message */}
+      {/* Expanded full message & action */}
       {expanded && (
-        <div className="px-4 pb-4 pt-0 border-t border-gray-100">
+        <div className="px-4 pb-4 pt-2 border-t border-gray-100 flex flex-col gap-3">
           <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{n.message}</p>
+          {targetRoute && (
+            <div>
+              <button
+                onClick={() => {
+                  if (!n.isRead) onMarkAsRead(n.id);
+                  navigate(targetRoute);
+                }}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#3363AD] hover:text-[#2a52a0] bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors"
+              >
+                View details
+                <ExternalLink size={14} />
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
