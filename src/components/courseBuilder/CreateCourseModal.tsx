@@ -13,6 +13,7 @@ interface CreateCourseModalProps {
 
 const INITIAL_FORM_STATE: CourseCreationForm = {
   title: "",
+  shortName: "",
   description: "",
   coverIcon: "",
 };
@@ -104,7 +105,12 @@ export default function CreateCourseModal({
     }
 
 
-    onSubmit(formData);
+    onSubmit({
+      ...formData,
+      title: formData.title.trim(),
+      shortName: formData.shortName?.trim() || "",
+      description: formData.description.trim(),
+    });
     setFormData(INITIAL_FORM_STATE);
     setIsDragging(false);
   };
@@ -132,8 +138,8 @@ export default function CreateCourseModal({
             </h2>
             <p className="mt-2 max-w-2xl text-sm text-white/85 sm:text-base">
               {mode === "edit"
-                ? "Update the course title, description, and icon below."
-                : "Add the course title, write a clear description, and upload a real icon image to make the card feel more polished."}
+                ? "Update the course title, short name, description, and icon below."
+                : "Add the course title, an optional short name for dashboards, write a clear description, and upload a real icon image."}
             </p>
           </div>
           <button
@@ -160,6 +166,25 @@ export default function CreateCourseModal({
                 placeholder="e.g. Community Health Fundamentals"
                 className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-orange-400 focus:bg-white focus:ring-4 focus:ring-orange-100"
               />
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-slate-800">
+                Short name
+              </label>
+              <input
+                type="text"
+                value={formData.shortName ?? ""}
+                maxLength={40}
+                onChange={(e) =>
+                  setFormData({ ...formData, shortName: e.target.value })
+                }
+                placeholder="e.g. CH Fundamentals"
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-orange-400 focus:bg-white focus:ring-4 focus:ring-orange-100"
+              />
+              <p className="text-xs text-slate-500">
+                Used on dashboard charts instead of the full title. Keep it short.
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -281,6 +306,11 @@ export default function CreateCourseModal({
                     <p className="text-lg font-semibold leading-snug line-clamp-2">
                       {formData.title || "Your course title will appear here"}
                     </p>
+                    {formData.shortName?.trim() ? (
+                      <p className="mt-1 text-xs font-medium uppercase tracking-wide text-white/70">
+                        Chart label: {formData.shortName.trim()}
+                      </p>
+                    ) : null}
                     <p className="mt-2 text-sm leading-6 text-white/75 line-clamp-4">
                       {formData.description || "A short course description helps the card feel complete."}
                     </p>

@@ -122,6 +122,7 @@ function mapICourseToCourseBuilderData(course: ICourse): CourseBuilderData {
   return {
     id: course.id,
     title: course.title,
+    shortName: course.shortName ?? "",
     description: course.description ?? "",
     coverIcon: course.coverIcon ?? "",
     sections,
@@ -150,6 +151,7 @@ function getSlideNumberForSave(
 function buildApiPayload(data: CourseBuilderData): Record<string, unknown> {
   return {
     title: data.title,
+    shortName: data.shortName?.trim() || null,
     coverIcon: data.coverIcon,
     description: data.description,
     isPublished: data.isPublished,

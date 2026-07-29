@@ -90,6 +90,7 @@ const CoursesPage = () => {
       const coverIconUrl = await uploadCoverIconIfNeeded(formData.coverIcon);
       const response = (await createCourseMutation.mutateAsync({
         title: formData.title.trim(),
+        shortName: formData.shortName?.trim() || null,
         description: formData.description.trim(),
         coverIcon: coverIconUrl,
         isPublished: false,

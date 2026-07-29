@@ -42,18 +42,20 @@ export const TestScoreAnalyticsCard: React.FC<TestScoreAnalyticsCardProps> = ({
     view === "course"
       ? data.byCourse
           .filter((c) => c.meanPreTest !== null || c.meanFinalTest !== null)
-          .map((c) => ({
-            name:
-              c.courseTitle.length > 16
-                ? c.courseTitle.slice(0, 16) + "…"
-                : c.courseTitle,
-            "Pre-test": c.meanPreTest ?? 0,
-            "Final test": c.meanFinalTest ?? 0,
-          }))
+          .map((c) => {
+            const label = c.shortName?.trim() || c.courseTitle;
+            return {
+              name: label.length > 16 ? label.slice(0, 16) + "…" : label,
+              fullLabel: label,
+              "Pre-test": c.meanPreTest ?? 0,
+              "Final test": c.meanFinalTest ?? 0,
+            };
+          })
       : (data.byDistrict ?? [])
           .filter((d) => d.meanPreTest !== null || d.meanFinalTest !== null)
           .map((d) => ({
             name: d.district,
+            fullLabel: d.district,
             "Pre-test": d.meanPreTest ?? 0,
             "Final test": d.meanFinalTest ?? 0,
           }));
@@ -157,6 +159,10 @@ export const TestScoreAnalyticsCard: React.FC<TestScoreAnalyticsCardProps> = ({
                   borderRadius: 8,
                   border: "1px solid #e5e7eb",
                 }}
+                labelFormatter={(_label, payload) =>
+                  (payload?.[0]?.payload as { fullLabel?: string } | undefined)
+                    ?.fullLabel ?? _label
+                }
                 formatter={(value: number, name: string) => [`${value}%`, name]}
               />
               <Legend wrapperStyle={{ fontSize: 11 }} />

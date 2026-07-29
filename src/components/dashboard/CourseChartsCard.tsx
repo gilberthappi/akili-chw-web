@@ -35,6 +35,21 @@ const CHART_OPTIONS: { value: ChartType; label: string }[] = [
 const truncate = (str: string, n = 14) =>
   str.length > n ? str.slice(0, n) + "…" : str;
 
+const chartCourseLabel = (
+  shortName: string | null | undefined,
+  title: string,
+  n = 14,
+) => {
+  const preferred = shortName?.trim();
+  if (preferred) return preferred.length > n ? truncate(preferred, n) : preferred;
+  return truncate(title, n);
+};
+
+const chartCourseFullLabel = (
+  shortName: string | null | undefined,
+  title: string,
+) => shortName?.trim() || title;
+
 // Custom tooltip label style
 const tooltipStyle = {
   fontSize: 12,
@@ -56,16 +71,21 @@ export const CourseChartsCard: React.FC<CourseChartsCardProps> = ({
 
   // ── Chart 1: Completion — y=students, x=course ──────────────
   const completionData = (courseAnalytics?.coursePerformanceMetrics ?? []).map(
-    (c) => ({
-      name: truncate(c.name),
-      Enrolled: c.students,
-      Completed: c.completed,
-    }),
+    (c) => {
+      const fullTitle = c.fullTitle || c.name;
+      return {
+        name: chartCourseLabel(c.shortName, fullTitle),
+        fullLabel: chartCourseFullLabel(c.shortName, fullTitle),
+        Enrolled: c.students,
+        Completed: c.completed,
+      };
+    },
   );
 
   // ── Chart 2: Avg duration — y=minutes, x=course ─────────────
   const durationData = (courseDuration?.byCourse ?? []).map((c) => ({
-    name: truncate(c.courseTitle),
+    name: chartCourseLabel(c.shortName, c.courseTitle),
+    fullLabel: chartCourseFullLabel(c.shortName, c.courseTitle),
     "Avg Duration (min)": c.avgDurationMinutes,
   }));
 
@@ -73,7 +93,8 @@ export const CourseChartsCard: React.FC<CourseChartsCardProps> = ({
   const testScoreData = (testScores?.byCourse ?? [])
     .filter((c) => c.meanPreTest !== null || c.meanFinalTest !== null)
     .map((c) => ({
-      name: truncate(c.courseTitle),
+      name: chartCourseLabel(c.shortName, c.courseTitle),
+      fullLabel: chartCourseFullLabel(c.shortName, c.courseTitle),
       "Pre-Test": c.meanPreTest ?? 0,
       "Post-Test": c.meanFinalTest ?? 0,
       "Knowledge Gain": Math.max(c.knowledgeGain ?? 0, 0),
@@ -179,6 +200,10 @@ export const CourseChartsCard: React.FC<CourseChartsCardProps> = ({
                 />
                 <Tooltip
                   contentStyle={tooltipStyle}
+                  labelFormatter={(_label, payload) =>
+                    (payload?.[0]?.payload as { fullLabel?: string } | undefined)
+                      ?.fullLabel ?? _label
+                  }
                   formatter={(value: number, name: string) => [
                     value.toLocaleString(),
                     name,
@@ -229,6 +254,10 @@ export const CourseChartsCard: React.FC<CourseChartsCardProps> = ({
                 />
                 <Tooltip
                   contentStyle={tooltipStyle}
+                  labelFormatter={(_label, payload) =>
+                    (payload?.[0]?.payload as { fullLabel?: string } | undefined)
+                      ?.fullLabel ?? _label
+                  }
                   formatter={(value: number, name: string) => [`${value} min`, name]}
                 />
                 <Bar
@@ -276,6 +305,10 @@ export const CourseChartsCard: React.FC<CourseChartsCardProps> = ({
                 />
                 <Tooltip
                   contentStyle={tooltipStyle}
+                  labelFormatter={(_label, payload) =>
+                    (payload?.[0]?.payload as { fullLabel?: string } | undefined)
+                      ?.fullLabel ?? _label
+                  }
                   formatter={(value: number, name: string) => [`${value}%`, name]}
                 />
                 <Legend wrapperStyle={{ fontSize: 11, marginTop: 8 }} />

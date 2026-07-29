@@ -51,6 +51,7 @@ export interface CourseSectionForm extends Omit<ISection, 'id' | 'courseId' | 'c
 
 export interface CourseFormData {
   title: string;
+  shortName?: string;
   coverIcon: string;
   description: string;
   isPublished: boolean;

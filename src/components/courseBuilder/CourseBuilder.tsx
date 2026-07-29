@@ -195,6 +195,9 @@ export default function CourseBuilder({
   const [slideViewMode, setSlideViewMode] = useState<"grid" | "list">("list");
   const [showEditCourseModal, setShowEditCourseModal] = useState(false);
   const [localCourseTitle, setLocalCourseTitle] = useState(courseData.title);
+  const [localCourseShortName, setLocalCourseShortName] = useState(
+    courseData.shortName ?? "",
+  );
   const [localCourseDescription, setLocalCourseDescription] = useState(courseData.description);
   const [localCourseCoverIcon, setLocalCourseCoverIcon] = useState(courseData.coverIcon);
 
@@ -257,6 +260,7 @@ export default function CourseBuilder({
       const updated: CourseBuilderData = {
         ...courseDataRef.current,
         title: localCourseTitle,
+        shortName: localCourseShortName,
         description: localCourseDescription,
         coverIcon: localCourseCoverIcon,
         sections,
@@ -307,7 +311,7 @@ export default function CourseBuilder({
       if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     };
    
-  }, [sections, preTest, finalTest, finalExam, localCourseTitle, localCourseDescription, localCourseCoverIcon]);
+  }, [sections, preTest, finalTest, finalExam, localCourseTitle, localCourseShortName, localCourseDescription, localCourseCoverIcon]);
 
   const selectedSection = sections.find((s) => s.id === selectedSectionId);
   const selectedChapter = selectedSection?.chapters.find((c) => c.id === selectedChapterId);
@@ -793,6 +797,7 @@ export default function CourseBuilder({
     const updated: CourseBuilderData = {
       ...courseData,
       title: localCourseTitle,
+      shortName: localCourseShortName,
       description: localCourseDescription,
       coverIcon: localCourseCoverIcon,
       sections,
@@ -835,12 +840,14 @@ export default function CourseBuilder({
         mode="edit"
         initialValues={{
           title: localCourseTitle,
+          shortName: localCourseShortName,
           description: localCourseDescription,
           coverIcon: localCourseCoverIcon,
         }}
         onClose={() => setShowEditCourseModal(false)}
         onSubmit={(data) => {
           setLocalCourseTitle(data.title);
+          setLocalCourseShortName(data.shortName ?? "");
           setLocalCourseDescription(data.description);
           setLocalCourseCoverIcon(data.coverIcon);
           setShowEditCourseModal(false);

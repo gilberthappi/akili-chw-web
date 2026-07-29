@@ -37,6 +37,21 @@ const PIE_COLORS = ["#3363AD", "#94a3b8"];
 const truncate = (str: string, n = 14) =>
   str.length > n ? str.slice(0, n) + "…" : str;
 
+const chartCourseLabel = (
+  shortName: string | null | undefined,
+  title: string,
+  n = 14,
+) => {
+  const preferred = shortName?.trim();
+  if (preferred) return preferred.length > n ? truncate(preferred, n) : preferred;
+  return truncate(title, n);
+};
+
+const chartCourseFullLabel = (
+  shortName: string | null | undefined,
+  title: string,
+) => shortName?.trim() || title;
+
 const tooltipStyle = {
   fontSize: 12,
   borderRadius: 8,
@@ -80,19 +95,22 @@ export const CertificationRateCard: React.FC<CertificationRateCardProps> = ({
   ];
 
   const courseData = data.byCourse.map((c) => ({
-    name: truncate(c.courseTitle),
+    name: chartCourseLabel(c.shortName, c.courseTitle),
+    fullLabel: chartCourseFullLabel(c.shortName, c.courseTitle),
     Eligible: c.eligible,
     Issued: c.issued,
     courseId: c.courseId,
   }));
   const districtData = data.byDistrict.map((d) => ({
     name: truncate(d.district),
+    fullLabel: d.district,
     Eligible: d.eligible,
     Issued: d.issued,
     district: d.district,
   }));
   const facilityData = data.byFacility.map((f) => ({
     name: truncate(f.hospitalName),
+    fullLabel: f.hospitalName,
     Eligible: f.eligible,
     Issued: f.issued,
     healthCenterId: f.healthCenterId,
@@ -121,6 +139,10 @@ export const CertificationRateCard: React.FC<CertificationRateCardProps> = ({
             <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
             <Tooltip
               contentStyle={tooltipStyle}
+              labelFormatter={(_label, payload) =>
+                (payload?.[0]?.payload as { fullLabel?: string } | undefined)
+                  ?.fullLabel ?? _label
+              }
               formatter={(value: number, name: string) => [value.toLocaleString(), name]}
             />
             <Legend wrapperStyle={{ fontSize: 11 }} />

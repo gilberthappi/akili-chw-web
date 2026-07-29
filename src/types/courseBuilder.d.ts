@@ -42,6 +42,7 @@ export interface CourseSection {
 export interface CourseBuilderData {
   id: string;
   title: string;
+  shortName?: string | null;
   description: string;
   coverIcon: string; // uploaded image URL/data URL or legacy icon value
   sections: CourseSection[];
@@ -57,6 +58,7 @@ export interface CourseBuilderData {
 
 export interface CourseCreationForm {
   title: string;
+  shortName?: string;
   description: string;
   coverIcon: string;
 }

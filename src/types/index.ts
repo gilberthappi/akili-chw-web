@@ -618,6 +618,7 @@ export interface ICourse {
   id: string;
   creatorId: string;
   title: string;
+  shortName?: string | null;
   rating: number;
   coverIcon: string;
   description: string;
@@ -946,6 +947,8 @@ export interface IEnrollmentTrend {
 export interface ICoursePerformance {
   id: string;
   name: string;
+  shortName?: string | null;
+  fullTitle?: string;
   completion: number; // % completion
   students: number; // total students
   enrolled: number; // enrolled count
@@ -1301,6 +1304,7 @@ export interface IMyCoursesResponse {
 export interface ITestScoreByCourse {
   courseId: string;
   courseTitle: string;
+  shortName?: string | null;
   meanPreTest: number | null;
   meanFinalTest: number | null;
   knowledgeGain: number | null;
@@ -1450,6 +1454,7 @@ export interface ICHWStats {
 export interface ICourseDurationByCourse {
   courseId: string;
   courseTitle: string;
+  shortName?: string | null;
   totalDurationMinutes: number;
   avgDurationMinutes: number;
   chapterCount: number;
@@ -1494,6 +1499,7 @@ export interface ICertificationRateEntry {
 export interface ICertificationByCourse extends ICertificationRateEntry {
   courseId: string;
   courseTitle: string;
+  shortName?: string | null;
 }
 
 export interface ICertificationByDistrict extends ICertificationRateEntry {
