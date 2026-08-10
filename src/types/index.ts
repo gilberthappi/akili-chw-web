@@ -453,6 +453,13 @@ export interface ICEHOGroupMonitoringMember {
     tryCount: number;
     updatedAt: string;
   }>;
+  certificates?: Array<{
+    id: string;
+    courseId?: string;
+    courseTitle: string;
+    createdAt: string;
+    pdfUrl?: string;
+  }>;
 }
 
 export interface ICEHOGroupMonitoring {
@@ -1090,6 +1097,14 @@ export interface CourseProgress {
   totalCoursesEnrolled: number;
   overallProgress: string;
   enrolledCourses: EnrolledCourse[];
+  detailedProgress?: Array<{
+    courseId: string;
+    courseTitle: string;
+    progress: number;
+    isCompleted?: boolean;
+    certificateUrl?: string;
+    updatedAt?: string;
+  }>;
 }
 
 export interface TestAttempt {
@@ -1207,6 +1222,13 @@ export interface StudentData {
     };
     feedbackAnalytics?: FeedbackAnalytics;
   };
+  certificates?: Array<{
+    id: string;
+    courseId?: string;
+    courseTitle: string;
+    createdAt: string;
+    pdfUrl?: string;
+  }>;
 }
 
 export interface IEventParticipant {

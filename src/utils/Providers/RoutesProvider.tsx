@@ -45,7 +45,6 @@ import MidTest from "@/pages/dashboard/MidTest";
 import FinalTestPage from "@/pages/dashboard/FinalTestPage";
 import CEHOGroupPage from "@/pages/dashboard/CEHOGroup";
 import CEHOGroupInvitePage from "@/pages/dashboard/CEHOGroupInvite";
-import CEHOGroupMonitoringPage from "@/pages/dashboard/CEHOGroupMonitoring";
 import AdminCEHOGroupDetailPage from "@/pages/dashboard/AdminCEHOGroupDetail";
 import VerifyCertificate from "@/pages/VerifyCertificate";
 import IssuedCertificatesPage from "@/pages/dashboard/IssuedCertificatesPage";
@@ -291,14 +290,6 @@ const RoutesProvider = () => {
           ),
         },
         {
-          path: "ceho-group/monitoring",
-          element: (
-            <ProtectedRoute allowedRoles={["CEHO"]}>
-              <CEHOGroupMonitoringPage />
-            </ProtectedRoute>
-          ),
-        },
-        {
           path: "ceho-group/invite",
           element: (
             <ProtectedRoute allowedRoles={["CEHO"]}>
@@ -413,6 +404,11 @@ const RoutesProvider = () => {
     },
     {
       path: "/verify/:code",
+      element: <VerifyCertificate />,
+      errorElement: <ErrorPage />,
+    },
+    {
+      path: "/certificates/verify/:code",
       element: <VerifyCertificate />,
       errorElement: <ErrorPage />,
     },

@@ -15,6 +15,8 @@ import {
   X,
   CheckCircle2,
   FileSpreadsheet,
+  Award,
+  MessageSquare,
 } from "lucide-react";
 import { getDistrictOptions, getSectorOptions, getCellOptions, getVillageOptions } from "@/hooks/locations";
 import { Dialog, Transition } from "@headlessui/react";
@@ -30,6 +32,7 @@ import {
   cehoDirectlyAddMember,
   exportGroupProgressExcel,
 } from "@/services/cehoGroup.service";
+import { getOrCreateDirectChat } from "@/services/directChat.service";
 import { ICEHOGroupMember, IStudentSearchResult } from "@/types";
 import { MetricCard } from "@/components/common/MetricCard";
 import { Button } from "@/components/common/Button";
@@ -62,6 +65,7 @@ const CEHOGroupPage = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState("");
   const [editDistrict, setEditDistrict] = useState("");
+  const [isExportingExcel, setIsExportingExcel] = useState(false);
   type LocationRow = { sector: string; cell: string; village: string };
   const [editLocations, setEditLocations] = useState<LocationRow[]>([{ sector: "", cell: "", village: "" }]);
 
@@ -237,6 +241,39 @@ const CEHOGroupPage = () => {
 
   const isEmpty = filtered.length === 0 && !cehoMatchesSearch;
 
+  const handleExportExcel = async () => {
+    try {
+      setIsExportingExcel(true);
+      toast.loading("Preparing Excel export...", { id: "excel-export" });
+      const blob = await exportGroupProgressExcel();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const groupName = group?.name ? group.name.replace(/[^a-zA-Z0-9_\-]/g, "_") : "Group";
+      a.download = `Itsinda_${groupName}_Progress.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success("Excel progress report downloaded!", { id: "excel-export" });
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to export Excel report", { id: "excel-export" });
+    } finally {
+      setIsExportingExcel(false);
+    }
+  };
+
+  const handleStartChat = async (targetUserId: string) => {
+    try {
+      toast.loading("Opening direct chat...", { id: "chat-toast" });
+      const chat = await getOrCreateDirectChat(targetUserId);
+      toast.dismiss("chat-toast");
+      navigate(`/dashboard/messaging?chatId=${chat.id}`);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to open direct chat", { id: "chat-toast" });
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -272,11 +309,12 @@ const CEHOGroupPage = () => {
           </Button>
           <button
             type="button"
-            onClick={() => navigate("/ceho-group/monitoring")}
-            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-100 hover:text-gray-900 transition-colors shadow-sm"
+            onClick={handleExportExcel}
+            disabled={isExportingExcel}
+            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-emerald-700 bg-white border border-emerald-200 rounded-lg hover:bg-emerald-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
           >
-            <Activity className="w-4 h-4 text-[#3363AD]" />
-            Monitoring
+            <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+            {isExportingExcel ? "Exporting…" : "Export Excel"}
           </button>
           <Button size="sm" onClick={openAddModal}>
             <UserPlus className="w-4 h-4 mr-2" />
@@ -493,30 +531,70 @@ const CEHOGroupPage = () => {
           {/* CHW member cards */}
           {filtered.map((member: ICEHOGroupMember) => {
             const u = member.student.user;
+            const mon = monitoringMembers.find(
+              (m: any) => m.studentId === member.student.id || m.user?.id === u.id,
+            );
+            const passing = mon?.recentTestAttempts?.filter((a: any) => a.marks >= 70).length ?? 0;
+            const totalTests = mon?.recentTestAttempts?.length ?? 0;
+            const avgScore =
+              mon && mon.recentTestAttempts.length > 0
+                ? Math.round(
+                    mon.recentTestAttempts.reduce((s: number, a: any) => s + a.marks, 0) /
+                      mon.recentTestAttempts.length,
+                  )
+                : null;
+
             return (
               <div
                 key={member.id}
                 onClick={() => navigate(`/students/${member.student.id}`)}
-                className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 hover:shadow-md transition-shadow cursor-pointer"
+                className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 hover:shadow-md transition-shadow cursor-pointer space-y-3"
               >
-                <div className="flex items-center gap-3 mb-3">
+                <div className="flex items-center gap-3">
                   <MemberAvatar name={u.fullNames} photo={u.photo} />
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-gray-900 truncate">{u.fullNames}</p>
-                    <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 rounded-full px-2 py-0.5">
-                      Active
-                    </span>
+                    <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                      <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 rounded-full px-2 py-0.5">
+                        Active
+                      </span>
+                      {totalTests > 0 && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-600 bg-amber-50 rounded-full px-2 py-0.5">
+                          <Award className="w-2.5 h-2.5" />
+                          {passing}/{totalTests} passed
+                        </span>
+                      )}
+                      {avgScore !== null && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-purple-700 bg-purple-50 rounded-full px-2 py-0.5">
+                          <TrendingUp className="w-2.5 h-2.5" />
+                          {avgScore}% Avg
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setPendingRemove(member);
-                    }}
-                    className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0"
-                    title="Remove from group"
-                  >
-                    <UserMinus className="w-4 h-4" />
-                  </button>
+
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleStartChat(u.id);
+                      }}
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-[#3363AD] hover:bg-[#EBF0F9] transition-colors"
+                      title="Send direct message"
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPendingRemove(member);
+                      }}
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                      title="Remove from group"
+                    >
+                      <UserMinus className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="space-y-1.5 border-t border-gray-50 pt-3">

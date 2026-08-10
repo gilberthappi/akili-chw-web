@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getStudentById } from '@/services/students.service';
+import { prepareCertificate, regenerateMyCertificate } from '@/services/certificates.service';
+import { renderCertificateFromCanvas } from '@/utils/renderCertificate';
+import toast from 'react-hot-toast';
 import {
   Calendar,
   BookOpen,
@@ -20,6 +23,10 @@ import {
   ArrowLeft,
   ChevronDown,
   ChevronUp,
+  Eye,
+  Download,
+  Loader2,
+  X,
 } from 'lucide-react';
 
 interface SlideFeedbackDetail {
@@ -95,7 +102,7 @@ interface CategoryRating {
   ratedAt: string;
 }
 
-type ActiveTab = 'overview' | 'courses' | 'tests' | 'reviews';
+type ActiveTab = 'overview' | 'courses' | 'tests' | 'certificates' | 'reviews';
 
 // Renders compact inline star rating
 const StarRating: React.FC<{ rating: number | null | undefined; size?: 'sm' | 'md' }> = ({
@@ -148,6 +155,10 @@ const StudentActivityPage: React.FC = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
   const [expandedAttemptId, setExpandedAttemptId] = useState<string | null>(null);
+  const [downloadingCertId, setDownloadingCertId] = useState<string | null>(null);
+  const [previewModalCert, setPreviewModalCert] = useState<any | null>(null);
+  const [previewBlobUrl, setPreviewBlobUrl] = useState<string | null>(null);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
 
   const {
     data: studentResponse,
@@ -234,10 +245,171 @@ const StudentActivityPage: React.FC = () => {
     (fb?.courseReviews?.totalReviews || 0) +
     (fb?.systemReviews?.totalReviews || 0);
 
+  const earnedCertificates =
+    studentData?.certificates ??
+    courseProgress?.detailedProgress
+      ?.filter((c: any) => c.isCompleted || c.certificateUrl)
+      ?.map((c: any) => ({
+        id: c.courseId,
+        courseTitle: c.courseTitle,
+        createdAt: c.updatedAt || new Date().toISOString(),
+        pdfUrl: c.certificateUrl || `/certificates/verify/${c.courseId}`,
+      })) ??
+    [];
+
+  const generateRealCertificateBlobUrl = async (cert: any): Promise<string> => {
+    if (cert.pdfUrl && cert.pdfUrl.startsWith("http")) {
+      const res = await fetch(cert.pdfUrl);
+      const rawBlob = await res.blob();
+      return URL.createObjectURL(new Blob([rawBlob], { type: "application/pdf" }));
+    }
+
+    try {
+      const prep = await prepareCertificate(cert.courseId || cert.id);
+      if (prep && prep.canvasJson) {
+        const parsedJson = typeof prep.canvasJson === "string" ? JSON.parse(prep.canvasJson) : prep.canvasJson;
+        return await renderCertificateFromCanvas(parsedJson, prep.tokenValues, prep.certId || cert.id);
+      }
+    } catch {
+      // Fallback to jsPDF landscape rendering
+    }
+
+    const { jsPDF } = await import("jspdf");
+    const doc = new jsPDF({ orientation: "landscape", unit: "px", format: [1056, 816] });
+
+    doc.setFillColor(255, 255, 255);
+    doc.rect(0, 0, 1056, 816, "F");
+    doc.setDrawColor(51, 99, 173);
+    doc.setLineWidth(12);
+    doc.rect(20, 20, 1016, 776);
+    doc.setLineWidth(2);
+    doc.rect(32, 32, 992, 752);
+
+    doc.setTextColor(51, 99, 173);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(36);
+    doc.text("CERTIFICATE OF COMPLETION", 528, 160, { align: "center" });
+
+    doc.setTextColor(100, 100, 100);
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "normal");
+    doc.text("This is to certify that", 528, 230, { align: "center" });
+
+    doc.setTextColor(30, 30, 30);
+    doc.setFontSize(32);
+    doc.setFont("helvetica", "bold");
+    doc.text((studentInfo?.fullName || "Community Health Worker").toUpperCase(), 528, 300, { align: "center" });
+
+    doc.setTextColor(100, 100, 100);
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "normal");
+    doc.text("has successfully completed the training course", 528, 370, { align: "center" });
+
+    doc.setTextColor(51, 99, 173);
+    doc.setFontSize(26);
+    doc.setFont("helvetica", "bold");
+    doc.text(cert.courseTitle || "Community Health Training", 528, 440, { align: "center" });
+
+    doc.setTextColor(100, 100, 100);
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Date Issued: ${formatDate(cert.createdAt || new Date().toISOString())}`, 528, 520, { align: "center" });
+
+    doc.setDrawColor(200, 200, 200);
+    doc.setLineWidth(1);
+    doc.line(400, 680, 656, 680);
+    doc.setTextColor(80, 80, 80);
+    doc.setFontSize(14);
+    doc.text("Akili CHW Platform — Authorized Signature", 528, 705, { align: "center" });
+
+    const pdfBlob = doc.output("blob");
+    return URL.createObjectURL(pdfBlob);
+  };
+
+  const getFullPdfUrl = (cert: any): string | null => {
+    const rawUrl = cert.pdfUrl || cert.pdf || cert.certificateUrl;
+    if (!rawUrl) return null;
+    if (rawUrl.startsWith("http://") || rawUrl.startsWith("https://") || rawUrl.startsWith("blob:")) {
+      return rawUrl;
+    }
+    const cleanPath = rawUrl.startsWith("/") ? rawUrl : `/${rawUrl}`;
+    const apiBase = import.meta.env.VITE_API_URL?.replace(/\/api\/?$/, "") || "http://localhost:9000";
+    return `${apiBase}${cleanPath}`;
+  };
+
+  const handleOpenPreview = async (cert: any) => {
+    setPreviewModalCert(cert);
+    setIsPreviewLoading(true);
+    if (previewBlobUrl) {
+      window.URL.revokeObjectURL(previewBlobUrl);
+      setPreviewBlobUrl(null);
+    }
+
+    try {
+      let url = getFullPdfUrl(cert);
+      if (!url && cert.courseId) {
+        try {
+          const regenerated = await regenerateMyCertificate(cert.courseId);
+          url = getFullPdfUrl(regenerated);
+        } catch {
+          url = await generateRealCertificateBlobUrl(cert);
+        }
+      }
+      if (!url) {
+        url = await generateRealCertificateBlobUrl(cert);
+      }
+      setPreviewBlobUrl(url);
+    } catch {
+      toast.error("Failed to generate certificate preview");
+    } finally {
+      setIsPreviewLoading(false);
+    }
+  };
+
+  const handleDownloadCertificate = async (cert: any) => {
+    try {
+      setDownloadingCertId(cert.id || cert.courseId);
+      toast.loading("Generating certificate PDF...", { id: "cert-dl" });
+
+      let url = getFullPdfUrl(cert);
+      if (!url && cert.courseId) {
+        try {
+          const regenerated = await regenerateMyCertificate(cert.courseId);
+          url = getFullPdfUrl(regenerated);
+        } catch {
+          url = await generateRealCertificateBlobUrl(cert);
+        }
+      }
+      if (!url) {
+        url = await generateRealCertificateBlobUrl(cert);
+      }
+
+      const res = await fetch(url);
+      const rawBlob = await res.blob();
+      const blob = new Blob([rawBlob], { type: "application/pdf" });
+      const blobUrl = window.URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      const fileName = `Certificate_${(studentInfo?.fullName || "CHW").replace(/\s+/g, "_")}_${(cert.courseTitle || "Course").replace(/[^a-zA-Z0-9_\-]/g, "_")}.pdf`;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(blobUrl);
+      toast.success("Certificate PDF downloaded!", { id: "cert-dl" });
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to download certificate PDF", { id: "cert-dl" });
+    } finally {
+      setDownloadingCertId(null);
+    }
+  };
+
   const tabs = [
     { id: 'overview', label: 'Overview', icon: Activity, count: undefined },
     { id: 'courses', label: 'Courses', icon: BookOpen, count: courseProgress.totalCoursesEnrolled },
     { id: 'tests', label: 'Tests', icon: FileText, count: testAttempts.totalAttempts },
+    { id: 'certificates', label: 'Certificates', icon: Award, count: earnedCertificates.length },
     { id: 'reviews', label: 'Reviews', icon: MessageSquare, count: totalReviews },
   ] as const;
 
@@ -867,6 +1039,164 @@ const StudentActivityPage: React.FC = () => {
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════
+          CERTIFICATES TAB
+      ════════════════════════════════ */}
+      {activeTab === 'certificates' && (
+        <div className="space-y-4">
+          <h3 className="text-base font-semibold text-[#333333] flex items-center gap-2">
+            <Award className="w-5 h-5 text-[#3363AD]" />
+            Earned Certificates ({earnedCertificates.length})
+          </h3>
+
+          {earnedCertificates.length === 0 ? (
+            <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
+              <Award className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p className="font-semibold text-gray-700 mb-1">No Certificates Earned Yet</p>
+              <p className="text-sm text-gray-400">
+                Certificates will be issued automatically once CHW completes all course requirements.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {earnedCertificates.map((cert: any) => (
+                <div
+                  key={cert.id}
+                  className="bg-white border border-gray-200/80 rounded-xl p-5 shadow-sm hover:shadow-md hover:border-[#3363AD]/30 transition-all relative overflow-hidden"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-xl bg-[#EBF0F9] text-[#3363AD] flex items-center justify-center shrink-0">
+                        <Award className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-[#333333] text-base">{cert.courseTitle}</h4>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          Issued: {formatDate(cert.createdAt)}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-700 shrink-0">
+                      OFFICIAL
+                    </span>
+                  </div>
+
+                  <div className="mt-5 pt-4 border-t border-gray-100 flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenPreview(cert)}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-gray-200 text-gray-700 bg-white text-xs font-semibold hover:bg-gray-100 hover:text-gray-900 transition-colors shadow-sm"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-[#3363AD]" />
+                      Preview
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadCertificate(cert)}
+                      disabled={downloadingCertId === (cert.id || cert.courseId)}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#3363AD] hover:bg-[#28508e] text-white text-xs font-semibold transition-colors shadow-sm disabled:opacity-50"
+                    >
+                      {downloadingCertId === (cert.id || cert.courseId) ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          Generating…
+                        </>
+                      ) : (
+                        <>
+                          <Download className="w-3.5 h-3.5" />
+                          Download PDF
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Certificate Preview Modal ── */}
+      {previewModalCert && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-gray-100">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#EBF0F9] text-[#3363AD] flex items-center justify-center font-bold">
+                  <Award className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-[#333333] text-base sm:text-lg">
+                    {previewModalCert.courseTitle}
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    Certificate for {studentInfo.fullName}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleDownloadCertificate(previewModalCert)}
+                  disabled={downloadingCertId === (previewModalCert.id || previewModalCert.courseId)}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#3363AD] hover:bg-[#28508e] text-white text-xs sm:text-sm font-semibold transition-colors shadow-sm disabled:opacity-50"
+                >
+                  {downloadingCertId === (previewModalCert.id || previewModalCert.courseId) ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Downloading…
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4" />
+                      Download PDF
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => {
+                    if (previewBlobUrl) window.URL.revokeObjectURL(previewBlobUrl);
+                    setPreviewModalCert(null);
+                    setPreviewBlobUrl(null);
+                  }}
+                  className="p-2 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 p-4 bg-gray-100/50 flex items-center justify-center min-h-[450px] overflow-hidden">
+              {isPreviewLoading ? (
+                <div className="text-center text-gray-500 py-12">
+                  <Loader2 className="w-10 h-10 animate-spin text-[#3363AD] mx-auto mb-3" />
+                  <p className="text-sm font-medium">Loading certificate preview...</p>
+                </div>
+              ) : previewBlobUrl ? (
+                <iframe
+                  src={previewBlobUrl}
+                  title="Certificate Preview"
+                  className="w-full h-[600px] rounded-xl border border-gray-200 shadow-inner bg-white"
+                />
+              ) : (
+                <div className="text-center text-gray-500 py-12">
+                  <Award className="w-12 h-12 text-[#3363AD] mx-auto mb-3 opacity-50" />
+                  <p className="text-sm font-medium">Preview unavailable directly</p>
+                  <button
+                    onClick={() => handleDownloadCertificate(previewModalCert)}
+                    className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#3363AD] hover:bg-[#28508e] text-white text-xs font-semibold"
+                  >
+                    <Download className="w-4 h-4" /> Download PDF Instead
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
