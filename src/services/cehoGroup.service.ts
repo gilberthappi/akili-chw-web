@@ -144,3 +144,11 @@ export const adminDemoteToCHW = async (
   });
   return res.data.data;
 };
+
+export const exportGroupProgressExcel = async (): Promise<Blob> => {
+  const res = await api.get("/ceho-groups/export-excel", {
+    responseType: "blob",
+  });
+  return res.data;
+};
+

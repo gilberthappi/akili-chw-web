@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
+import toast from "react-hot-toast";
 import {
   ChevronLeft,
   ChevronDown,
@@ -12,8 +13,9 @@ import {
   TrendingUp,
   Activity,
   Award,
+  FileSpreadsheet,
 } from "lucide-react";
-import { getGroupMonitoring } from "@/services/cehoGroup.service";
+import { getGroupMonitoring, exportGroupProgressExcel } from "@/services/cehoGroup.service";
 import { ICEHOGroupMonitoringMember } from "@/types";
 import { MetricCard } from "@/components/common/MetricCard";
 import { Button } from "@/components/common/Button";
@@ -60,6 +62,13 @@ function MemberCard({ member }: { member: ICEHOGroupMonitoringMember }) {
       ? Math.round(member.courseProgress.reduce((s, c) => s + c.progress, 0) / total)
       : 0;
   const passing = member.recentTestAttempts.filter((a) => a.marks >= 70).length;
+  const avgTestScore =
+    member.recentTestAttempts.length > 0
+      ? Math.round(
+          member.recentTestAttempts.reduce((s, a) => s + a.marks, 0) /
+            member.recentTestAttempts.length
+        )
+      : null;
 
   return (
     <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
@@ -77,6 +86,12 @@ function MemberCard({ member }: { member: ICEHOGroupMonitoringMember }) {
               <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-600 bg-amber-50 rounded-full px-2 py-0.5 shrink-0">
                 <Award className="w-2.5 h-2.5" />
                 {passing}/{member.recentTestAttempts.length} tests passed
+              </span>
+            )}
+            {avgTestScore !== null && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-purple-700 bg-purple-50 rounded-full px-2 py-0.5 shrink-0">
+                <TrendingUp className="w-2.5 h-2.5" />
+                {avgTestScore}% Avg Score
               </span>
             )}
           </div>
@@ -161,11 +176,34 @@ function MemberCard({ member }: { member: ICEHOGroupMonitoringMember }) {
 
 const CEHOGroupMonitoringPage = () => {
   const [search, setSearch] = useState("");
+  const [isExportingExcel, setIsExportingExcel] = useState(false);
 
   const { data: monitoring, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["ceho-group-monitoring"],
     queryFn: getGroupMonitoring,
   });
+
+  const handleExportExcel = async () => {
+    try {
+      setIsExportingExcel(true);
+      toast.loading("Preparing Excel export...", { id: "excel-export" });
+      const blob = await exportGroupProgressExcel();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const groupName = monitoring?.groupName ? monitoring.groupName.replace(/[^a-zA-Z0-9_\-]/g, "_") : "Group";
+      a.download = `Itsinda_${groupName}_Progress.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success("Excel progress report downloaded!", { id: "excel-export" });
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to export Excel report", { id: "excel-export" });
+    } finally {
+      setIsExportingExcel(false);
+    }
+  };
 
   const members = monitoring?.members ?? [];
   const filtered = members.filter((m) =>
@@ -209,9 +247,20 @@ const CEHOGroupMonitoringPage = () => {
             </p>
           </div>
         </div>
-        <Button variant="ghost" size="sm" onClick={() => refetch()} disabled={isRefetching}>
-          {isRefetching ? "Refreshing…" : "Refresh"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleExportExcel}
+            disabled={isExportingExcel}
+            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-emerald-700 bg-white border border-emerald-200 rounded-lg hover:bg-emerald-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+          >
+            <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+            {isExportingExcel ? "Exporting…" : "Export Excel"}
+          </button>
+          <Button variant="ghost" size="sm" onClick={() => refetch()} disabled={isRefetching}>
+            {isRefetching ? "Refreshing…" : "Refresh"}
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}

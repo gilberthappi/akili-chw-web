@@ -14,6 +14,7 @@ import {
   Check,
   X,
   CheckCircle2,
+  FileSpreadsheet,
 } from "lucide-react";
 import { getDistrictOptions, getSectorOptions, getCellOptions, getVillageOptions } from "@/hooks/locations";
 import { Dialog, Transition } from "@headlessui/react";
@@ -27,6 +28,7 @@ import {
   cehoUpdateMyGroup,
   searchCHWCandidates,
   cehoDirectlyAddMember,
+  exportGroupProgressExcel,
 } from "@/services/cehoGroup.service";
 import { ICEHOGroupMember, IStudentSearchResult } from "@/types";
 import { MetricCard } from "@/components/common/MetricCard";
@@ -268,6 +270,14 @@ const CEHOGroupPage = () => {
           >
             {isRefetching ? "Refreshing…" : "Refresh"}
           </Button>
+          <button
+            type="button"
+            onClick={() => navigate("/ceho-group/monitoring")}
+            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-100 hover:text-gray-900 transition-colors shadow-sm"
+          >
+            <Activity className="w-4 h-4 text-[#3363AD]" />
+            Monitoring
+          </button>
           <Button size="sm" onClick={openAddModal}>
             <UserPlus className="w-4 h-4 mr-2" />
             Add CHW
