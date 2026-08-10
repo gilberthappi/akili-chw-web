@@ -17,6 +17,8 @@ import {
   FileSpreadsheet,
   Award,
   MessageSquare,
+  Bell,
+  Send,
 } from "lucide-react";
 import { getDistrictOptions, getSectorOptions, getCellOptions, getVillageOptions } from "@/hooks/locations";
 import { Dialog, Transition } from "@headlessui/react";
@@ -31,6 +33,7 @@ import {
   searchCHWCandidates,
   cehoDirectlyAddMember,
   exportGroupProgressExcel,
+  cehoSendLearningNudge,
 } from "@/services/cehoGroup.service";
 import { getOrCreateDirectChat } from "@/services/directChat.service";
 import { ICEHOGroupMember, IStudentSearchResult } from "@/types";
@@ -61,6 +64,15 @@ const CEHOGroupPage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
+  const [selectedCourseFilter, setSelectedCourseFilter] = useState<string>("all");
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>("all");
+  const [nudgeModalTarget, setNudgeModalTarget] = useState<{
+    studentId: string;
+    fullName: string;
+    progress?: number;
+  } | null>(null);
+  const [nudgeMessage, setNudgeMessage] = useState("");
+  const [isSendingNudge, setIsSendingNudge] = useState(false);
   const [pendingRemove, setPendingRemove] = useState<ICEHOGroupMember | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState("");
@@ -231,13 +243,51 @@ const CEHOGroupPage = () => {
     m.courseProgress.some((c) => c.progress > 0 && !c.isCompleted),
   ).length;
 
-  const filtered = members.filter((m: ICEHOGroupMember) =>
-    m.student.user.fullNames.toLowerCase().includes(search.toLowerCase()),
+  const allCourses = Array.from(
+    new Map(
+      monitoringMembers
+        .flatMap((m) => m.courseProgress || [])
+        .map((c) => [c.courseId, { id: c.courseId, title: c.courseTitle }]),
+    ).values(),
   );
+
+  const filtered = members.filter((m: ICEHOGroupMember) => {
+    const nameMatch = m.student.user.fullNames.toLowerCase().includes(search.toLowerCase());
+    if (!nameMatch) return false;
+
+    const mon = monitoringMembers.find(
+      (x: any) => x.studentId === m.student.id || x.user?.id === m.student.user.id,
+    );
+
+    if (selectedStatusFilter !== "all") {
+      if (!mon) return false;
+      const isCompletedAll =
+        mon.courseProgress.length > 0 && mon.courseProgress.every((c) => c.isCompleted);
+      const isActivelyLearning = mon.courseProgress.some(
+        (c) => c.progress > 0 && !c.isCompleted,
+      );
+      const isNotStarted =
+        mon.courseProgress.length === 0 || mon.courseProgress.every((c) => c.progress === 0);
+
+      if (selectedStatusFilter === "active" && !isActivelyLearning) return false;
+      if (selectedStatusFilter === "completed" && !isCompletedAll) return false;
+      if (selectedStatusFilter === "not_started" && !isNotStarted) return false;
+    }
+
+    if (selectedCourseFilter !== "all") {
+      if (!mon) return false;
+      const hasCourse = mon.courseProgress.some((c) => c.courseId === selectedCourseFilter);
+      if (!hasCourse) return false;
+    }
+
+    return true;
+  });
 
   const cehoMatchesSearch =
     !!ceho &&
-    (!search || ceho.user.fullNames.toLowerCase().includes(search.toLowerCase()));
+    (!search || ceho.user.fullNames.toLowerCase().includes(search.toLowerCase())) &&
+    selectedCourseFilter === "all" &&
+    selectedStatusFilter === "all";
 
   const isEmpty = filtered.length === 0 && !cehoMatchesSearch;
 
@@ -267,10 +317,27 @@ const CEHOGroupPage = () => {
     try {
       toast.loading("Opening direct chat...", { id: "chat-toast" });
       const chat = await getOrCreateDirectChat(targetUserId);
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
       toast.dismiss("chat-toast");
-      navigate(`/dashboard/messaging?chatId=${chat.id}`);
+      navigate(`/messaging?chatId=${chat.id}`);
     } catch (err: any) {
       toast.error(err?.response?.data?.message || "Failed to open direct chat", { id: "chat-toast" });
+    }
+  };
+
+  const handleSendNudge = async () => {
+    if (!nudgeModalTarget) return;
+    try {
+      setIsSendingNudge(true);
+      toast.loading("Sending learning nudge notification...", { id: "send-nudge" });
+      await cehoSendLearningNudge([nudgeModalTarget.studentId], nudgeMessage || undefined);
+      toast.success(`Learning nudge sent to ${nudgeModalTarget.fullName}!`, { id: "send-nudge" });
+      setNudgeModalTarget(null);
+      setNudgeMessage("");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to send learning nudge", { id: "send-nudge" });
+    } finally {
+      setIsSendingNudge(false);
     }
   };
 
@@ -471,16 +538,44 @@ const CEHOGroupPage = () => {
         />
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-        <input
-          type="text"
-          placeholder="Search members by name…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD]"
-        />
+      {/* Search & Filter Controls */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search members by name…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD] bg-white shadow-sm"
+          />
+        </div>
+
+        {/* Filter by Course */}
+        <select
+          value={selectedCourseFilter}
+          onChange={(e) => setSelectedCourseFilter(e.target.value)}
+          className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD] shadow-sm shrink-0"
+        >
+          <option value="all">All Courses</option>
+          {allCourses.map((c: any) => (
+            <option key={c.id} value={c.id}>
+              {c.title}
+            </option>
+          ))}
+        </select>
+
+        {/* Filter by Status */}
+        <select
+          value={selectedStatusFilter}
+          onChange={(e) => setSelectedStatusFilter(e.target.value)}
+          className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD] shadow-sm shrink-0"
+        >
+          <option value="all">All Statuses</option>
+          <option value="active">Actively Learning</option>
+          <option value="completed">Completed All</option>
+          <option value="not_started">Not Started</option>
+        </select>
       </div>
 
       {/* Members grid */}
@@ -583,6 +678,26 @@ const CEHOGroupPage = () => {
                       title="Send direct message"
                     >
                       <MessageSquare className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setNudgeModalTarget({
+                          studentId: member.student.id,
+                          fullName: u.fullNames,
+                          progress: mon?.courseProgress?.length
+                            ? Math.round(
+                                mon.courseProgress.reduce((s, c) => s + c.progress, 0) /
+                                  mon.courseProgress.length,
+                              )
+                            : 0,
+                        });
+                        setNudgeMessage(`Hi ${u.fullNames.split(" ")[0]}! Friendly reminder to complete your active learning modules on Akili CHW.`);
+                      }}
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-amber-600 hover:bg-amber-50 transition-colors"
+                      title="Send learning nudge"
+                    >
+                      <Bell className="w-4 h-4" />
                     </button>
                     <button
                       onClick={(e) => {
@@ -919,6 +1034,132 @@ const CEHOGroupPage = () => {
                 </div>
               </Dialog.Panel>
             </Transition.Child>
+          </div>
+        </Dialog>
+      </Transition>
+
+      {/* ── Send Learning Nudge Modal ── */}
+      <Transition appear show={!!nudgeModalTarget} as={Fragment}>
+        <Dialog as="div" className="relative z-50" onClose={() => setNudgeModalTarget(null)}>
+          <Transition.Child
+            as={Fragment}
+            enter="ease-out duration-200"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="ease-in duration-150"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-black/40 backdrop-blur-xs" />
+          </Transition.Child>
+
+          <div className="fixed inset-0 overflow-y-auto">
+            <div className="flex min-h-full items-center justify-center p-4 text-center">
+              <Transition.Child
+                as={Fragment}
+                enter="ease-out duration-200"
+                enterFrom="opacity-0 scale-95"
+                enterTo="opacity-100 scale-100"
+                leave="ease-in duration-150"
+                leaveFrom="opacity-100 scale-100"
+                leaveTo="opacity-0 scale-95"
+              >
+                <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all border border-gray-100">
+                  <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold shrink-0">
+                        <Bell className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <Dialog.Title as="h3" className="text-base font-bold text-gray-900">
+                          Send Learning Nudge
+                        </Dialog.Title>
+                        <p className="text-xs text-gray-500">
+                          Recipient: <span className="font-semibold text-gray-700">{nudgeModalTarget?.fullName}</span>
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setNudgeModalTarget(null)}
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {nudgeModalTarget?.progress !== undefined && (
+                    <div className="mt-4 p-3 bg-gray-50 rounded-xl flex items-center justify-between">
+                      <span className="text-xs text-gray-500 font-medium">Current Progress</span>
+                      <span className="text-xs font-bold text-[#3363AD] bg-white px-2.5 py-1 rounded-lg border border-gray-200">
+                        {nudgeModalTarget.progress}% Avg Complete
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Quick Template Nudges */}
+                  <div className="mt-4 space-y-1.5">
+                    <label className="text-xs font-semibold text-gray-500">Quick Templates</label>
+                    <div className="flex flex-col gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setNudgeMessage(
+                            `Hi ${nudgeModalTarget?.fullName.split(" ")[0]}! Friendly reminder to complete your assigned health training modules on Akili CHW.`
+                          )
+                        }
+                        className="text-left text-xs p-2.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 hover:border-[#3363AD]/40 text-gray-700 transition-colors"
+                      >
+                        📢 General Reminder
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setNudgeMessage(
+                            `Great progress ${nudgeModalTarget?.fullName.split(" ")[0]}! You are close to completing your course modules, keep it up!`
+                          )
+                        }
+                        className="text-left text-xs p-2.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 hover:border-[#3363AD]/40 text-gray-700 transition-colors"
+                      >
+                        ⚡ Encouragement Nudge
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Custom Message */}
+                  <div className="mt-4 space-y-1.5">
+                    <label className="text-xs font-semibold text-gray-500">Nudge Message *</label>
+                    <textarea
+                      rows={3}
+                      value={nudgeMessage}
+                      onChange={(e) => setNudgeMessage(e.target.value)}
+                      placeholder="Write custom reminder message..."
+                      className="w-full p-3 border border-gray-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD]"
+                    />
+                  </div>
+
+                  <div className="flex gap-3 mt-6">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => setNudgeModalTarget(null)}
+                      disabled={isSendingNudge}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="flex-1 !bg-[#3363AD] hover:!bg-[#28508e]"
+                      onClick={handleSendNudge}
+                      isLoading={isSendingNudge}
+                    >
+                      {!isSendingNudge && <Send className="w-3.5 h-3.5 mr-1.5" />}
+                      Send Nudge
+                    </Button>
+                  </div>
+                </Dialog.Panel>
+              </Transition.Child>
+            </div>
           </div>
         </Dialog>
       </Transition>

@@ -152,3 +152,11 @@ export const exportGroupProgressExcel = async (): Promise<Blob> => {
   return res.data;
 };
 
+export const cehoSendLearningNudge = async (
+  targetStudentIds?: string[],
+  message?: string,
+): Promise<{ message: string; count?: number }> => {
+  const res = await api.post("/ceho-groups/mine/nudge", { targetStudentIds, message });
+  return res.data;
+};
+
