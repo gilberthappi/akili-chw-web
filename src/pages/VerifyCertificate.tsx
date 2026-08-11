@@ -28,7 +28,7 @@ const VerifyCertificate = () => {
           </div>
           <div>
             <p className="text-xs text-gray-500 leading-none">Certificate Verification</p>
-            <p className="text-sm font-semibold text-gray-800 leading-tight">Akili CHW Platform</p>
+            <p className="text-sm font-semibold text-gray-800 leading-tight">eBumenyi CHW Platform</p>
           </div>
         </div>
       </div>
@@ -65,7 +65,7 @@ const VerifyCertificate = () => {
               <div className="bg-[#3363AD] px-8 py-6 text-white text-center">
                 <CheckCircle className="mx-auto mb-2 text-green-300" size={48} />
                 <h1 className="text-xl font-bold">Certificate Verified</h1>
-                <p className="text-sm text-blue-100 mt-1">This is an authentic certificate issued by Akili CHW</p>
+                <p className="text-sm text-blue-100 mt-1">This is an authentic certificate issued by eBumenyi CHW Platform</p>
               </div>
 
               {/* Details */}
