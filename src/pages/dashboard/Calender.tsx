@@ -475,6 +475,9 @@ const Calendar: React.FC = () => {
 
     if (isAdmin || isCEHO) {
       if (!finalEventData.hostEmail || finalEventData.hostEmail.trim() === "") {
+        finalEventData.hostEmail = profileEmail || user?.email || "";
+      }
+      if (!finalEventData.hostEmail || finalEventData.hostEmail.trim() === "") {
         toast.error("Host email is required");
         return false;
       }
@@ -2957,37 +2960,36 @@ const Calendar: React.FC = () => {
                 </div>
 
                 <input type='hidden' name='meetingType' value={isAdmin || isCEHO ? 'EBUMENYI_MEETING' : 'OTHER'} />
-                <div className='grid grid-cols-2 gap-2'>
-                  <div>
-                    <OptionsField
-                      label='Priority'
-                      name='priority'
-                      options={[
-                        { value: "LOW", label: "Low" },
-                        { value: "MEDIUM", label: "Medium" },
-                        { value: "HIGH", label: "High" },
-                        { value: "URGENT", label: "Urgent" },
-                      ]}
-                      defaultValue={editingEvent?.priority || "MEDIUM"}
-                      defaultLabel='Select priority...'
-                      required={false}
-                    />
-                  </div>
+                <div>
+                  <OptionsField
+                    label='Priority'
+                    name='priority'
+                    options={[
+                      { value: "LOW", label: "Low" },
+                      { value: "MEDIUM", label: "Medium" },
+                      { value: "HIGH", label: "High" },
+                      { value: "URGENT", label: "Urgent" },
+                    ]}
+                    defaultValue={editingEvent?.priority || "MEDIUM"}
+                    defaultLabel='Select priority...'
+                    required={false}
+                  />
                   {(isAdmin || isCEHO) && (
-                    <TextField
-                      label='Host Email *'
-                      type='email'
+                    <input
+                      type='hidden'
                       name='hostEmail'
-                      defaultValue={
+                      value={
                         profileEmail ||
                         editingEvent?.hostEmail ||
                         quickActionDefaults?.hostEmail ||
+                        user?.email ||
                         ""
                       }
-                      placeholder='Enter host email address'
                     />
                   )}
+                </div>
 
+                <div className='grid grid-cols-2 gap-2'>
                   <div>
                     <label className='block text-sm font-medium text-gray-700 mb-1'>
                       Date{" "}

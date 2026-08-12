@@ -219,8 +219,13 @@ function MemberCard({ member }: { member: ICEHOGroupMonitoringMember }) {
   );
 }
 
+import React, { useState, useMemo } from "react";
+
 const CEHOGroupMonitoringPage = () => {
   const [search, setSearch] = useState("");
+  const [selectedCourseFilter, setSelectedCourseFilter] = useState<string>("all");
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>("all");
+  const [selectedCertFilter, setSelectedCertFilter] = useState<"all" | "has_cert" | "no_cert">("all");
   const [isExportingExcel, setIsExportingExcel] = useState(false);
 
   const { data: monitoring, isLoading, refetch, isRefetching } = useQuery({
@@ -251,9 +256,84 @@ const CEHOGroupMonitoringPage = () => {
   };
 
   const members = monitoring?.members ?? [];
-  const filtered = members.filter((m) =>
-    m.user.fullNames.toLowerCase().includes(search.toLowerCase()),
-  );
+
+  const allCourses = useMemo(() => Array.from(
+    new Map(
+      members
+        .flatMap((m) => m.courseProgress || [])
+        .map((c) => [c.courseId, { id: c.courseId, title: c.courseTitle }]),
+    ).values(),
+  ), [members]);
+
+  const certCounts = useMemo(() => {
+    let hasCertCount = 0;
+    let noCertCount = 0;
+
+    members.forEach((m: any) => {
+      let hasCert = false;
+      if (selectedCourseFilter !== "all") {
+        hasCert = (m.certificates || []).some((c: any) => c.courseId === selectedCourseFilter);
+      } else {
+        hasCert = (m.certificates?.length || 0) > 0;
+      }
+
+      if (hasCert) {
+        hasCertCount += 1;
+      } else {
+        noCertCount += 1;
+      }
+    });
+
+    return {
+      all: members.length,
+      hasCert: hasCertCount,
+      noCert: noCertCount,
+    };
+  }, [members, selectedCourseFilter]);
+
+  const filtered = members.filter((m) => {
+    const nameMatch = m.user.fullNames.toLowerCase().includes(search.toLowerCase());
+    if (!nameMatch) return false;
+
+    if (selectedStatusFilter !== "all") {
+      const isCompletedAll =
+        m.courseProgress.length > 0 && m.courseProgress.every((c) => c.isCompleted);
+      const isActivelyLearning = m.courseProgress.some(
+        (c) => c.progress > 0 && !c.isCompleted,
+      );
+      const isNotStarted =
+        m.courseProgress.length === 0 || m.courseProgress.every((c) => c.progress === 0);
+
+      if (selectedStatusFilter === "active" && !isActivelyLearning) return false;
+      if (selectedStatusFilter === "completed" && !isCompletedAll) return false;
+      if (selectedStatusFilter === "not_started" && !isNotStarted) return false;
+    }
+
+    if (selectedCertFilter === "has_cert") {
+      if (selectedCourseFilter !== "all") {
+        const hasCertForCourse = (m.certificates || []).some(
+          (c: any) => c.courseId === selectedCourseFilter,
+        );
+        if (!hasCertForCourse) return false;
+      } else {
+        if ((m.certificates?.length || 0) === 0) return false;
+      }
+    } else if (selectedCertFilter === "no_cert") {
+      if (selectedCourseFilter !== "all") {
+        const hasCertForCourse = (m.certificates || []).some(
+          (c: any) => c.courseId === selectedCourseFilter,
+        );
+        if (hasCertForCourse) return false;
+      } else {
+        if ((m.certificates?.length || 0) > 0) return false;
+      }
+    } else if (selectedCourseFilter !== "all") {
+      const hasCourse = m.courseProgress.some((c) => c.courseId === selectedCourseFilter);
+      if (!hasCourse) return false;
+    }
+
+    return true;
+  });
 
   const avgGroupProgress =
     members.length > 0
@@ -340,16 +420,55 @@ const CEHOGroupMonitoringPage = () => {
         />
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-        <input
-          type="text"
-          placeholder="Search members…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD]"
-        />
+      {/* Search & Filter Controls */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search members by name…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD] bg-white shadow-sm"
+          />
+        </div>
+
+        {/* Filter by Course */}
+        <select
+          value={selectedCourseFilter}
+          onChange={(e) => setSelectedCourseFilter(e.target.value)}
+          className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD] shadow-sm shrink-0"
+        >
+          <option value="all">All Courses</option>
+          {allCourses.map((c: any) => (
+            <option key={c.id} value={c.id}>
+              {c.title}
+            </option>
+          ))}
+        </select>
+
+        {/* Filter by Status */}
+        <select
+          value={selectedStatusFilter}
+          onChange={(e) => setSelectedStatusFilter(e.target.value)}
+          className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD] shadow-sm shrink-0"
+        >
+          <option value="all">All Statuses</option>
+          <option value="active">Actively Learning</option>
+          <option value="completed">Completed All</option>
+          <option value="not_started">Not Started</option>
+        </select>
+
+        {/* Filter by Certificate */}
+        <select
+          value={selectedCertFilter}
+          onChange={(e) => setSelectedCertFilter(e.target.value as "all" | "has_cert" | "no_cert")}
+          className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD] shadow-sm shrink-0 font-medium"
+        >
+          <option value="all">All Certificates ({certCounts.all})</option>
+          <option value="has_cert">🏆 Has Certificate ({certCounts.hasCert})</option>
+          <option value="no_cert">⏳ No Certificate ({certCounts.noCert})</option>
+        </select>
       </div>
 
       {/* Member list */}

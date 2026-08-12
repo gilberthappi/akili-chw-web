@@ -1,4 +1,4 @@
-import { useState, useCallback, Fragment } from "react";
+import { useState, useCallback, useMemo, Fragment } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import {
@@ -66,6 +66,7 @@ const CEHOGroupPage = () => {
   const [search, setSearch] = useState("");
   const [selectedCourseFilter, setSelectedCourseFilter] = useState<string>("all");
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>("all");
+  const [selectedCertFilter, setSelectedCertFilter] = useState<"all" | "has_cert" | "no_cert">("all");
   const [nudgeModalTarget, setNudgeModalTarget] = useState<{
     studentId: string;
     fullName: string;
@@ -203,6 +204,36 @@ const CEHOGroupPage = () => {
     setIsEditing(true);
   };
 
+  const monitoringMembers = monitoring?.members ?? [];
+  const ceho = group?.ceho;
+  const memberCount = (group?._count?.members ?? 0) + 1;
+
+  const certCounts = useMemo(() => {
+    let hasCertCount = 0;
+    let noCertCount = 0;
+
+    monitoringMembers.forEach((m: any) => {
+      let hasCert = false;
+      if (selectedCourseFilter !== "all") {
+        hasCert = (m.certificates || []).some((c: any) => c.courseId === selectedCourseFilter);
+      } else {
+        hasCert = (m.certificates?.length || 0) > 0;
+      }
+
+      if (hasCert) {
+        hasCertCount += 1;
+      } else {
+        noCertCount += 1;
+      }
+    });
+
+    return {
+      all: monitoringMembers.length,
+      hasCert: hasCertCount,
+      noCert: noCertCount,
+    };
+  }, [monitoringMembers, selectedCourseFilter]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[300px]">
@@ -222,10 +253,6 @@ const CEHOGroupPage = () => {
       </div>
     );
   }
-
-  const ceho = group.ceho;
-  const monitoringMembers = monitoring?.members ?? [];
-  const memberCount = (group._count?.members ?? 0) + 1;
 
   const avgProgress =
     monitoringMembers.length > 0
@@ -274,9 +301,27 @@ const CEHOGroupPage = () => {
       if (selectedStatusFilter === "not_started" && !isNotStarted) return false;
     }
 
-    if (selectedCourseFilter !== "all") {
+    if (selectedCertFilter === "has_cert") {
+      if (selectedCourseFilter !== "all") {
+        const hasCertForCourse = (mon?.certificates || []).some(
+          (c: any) => c.courseId === selectedCourseFilter,
+        );
+        if (!hasCertForCourse) return false;
+      } else {
+        if ((mon?.certificates?.length || 0) === 0) return false;
+      }
+    } else if (selectedCertFilter === "no_cert") {
+      if (selectedCourseFilter !== "all") {
+        const hasCertForCourse = (mon?.certificates || []).some(
+          (c: any) => c.courseId === selectedCourseFilter,
+        );
+        if (hasCertForCourse) return false;
+      } else {
+        if ((mon?.certificates?.length || 0) > 0) return false;
+      }
+    } else if (selectedCourseFilter !== "all") {
       if (!mon) return false;
-      const hasCourse = mon.courseProgress.some((c) => c.courseId === selectedCourseFilter);
+      const hasCourse = mon.courseProgress.some((c: any) => c.courseId === selectedCourseFilter);
       if (!hasCourse) return false;
     }
 
@@ -287,7 +332,8 @@ const CEHOGroupPage = () => {
     !!ceho &&
     (!search || ceho.user.fullNames.toLowerCase().includes(search.toLowerCase())) &&
     selectedCourseFilter === "all" &&
-    selectedStatusFilter === "all";
+    selectedStatusFilter === "all" &&
+    selectedCertFilter === "all";
 
   const isEmpty = filtered.length === 0 && !cehoMatchesSearch;
 
@@ -575,6 +621,17 @@ const CEHOGroupPage = () => {
           <option value="active">Actively Learning</option>
           <option value="completed">Completed All</option>
           <option value="not_started">Not Started</option>
+        </select>
+
+        {/* Filter by Certificate */}
+        <select
+          value={selectedCertFilter}
+          onChange={(e) => setSelectedCertFilter(e.target.value as "all" | "has_cert" | "no_cert")}
+          className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD] shadow-sm shrink-0 font-medium"
+        >
+          <option value="all">All Certificates ({certCounts.all})</option>
+          <option value="has_cert">🏆 Abafite Impamyabumenyi ({certCounts.hasCert})</option>
+          <option value="no_cert">⏳ Abadafite impamyabumenyi ({certCounts.noCert})</option>
         </select>
       </div>
 
