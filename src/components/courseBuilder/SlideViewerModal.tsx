@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { X, ExternalLink, FileText, Image as ImageIcon, Video } from "lucide-react";
+import { X, ExternalLink, FileText, Image as ImageIcon, Video, Volume2 } from "lucide-react";
 import { CourseSlide } from "@/types/courseBuilder.d";
 import { getProxyUrl } from "@/services/uploader.api";
 import { getBackendURL } from "@/config/api.config";
@@ -73,6 +73,17 @@ export default function SlideViewerModal({ slide, onClose }: SlideViewerModalPro
             </button>
           </div>
         </div>
+
+        {/* ── Audio Banner (if custom explanation is attached) ── */}
+        {slide.audioUrl && (
+          <div className="px-5 py-2 bg-amber-50 border-b border-amber-200 flex items-center justify-between gap-3 shrink-0">
+            <div className="flex items-center gap-2 text-xs text-amber-900 font-semibold shrink-0">
+              <Volume2 className="w-4 h-4 text-amber-600" />
+              <span>Attached Audio Explanation:</span>
+            </div>
+            <audio src={resolveMediaUrl(slide.audioUrl)} controls className="h-7 flex-1 max-w-md rounded" />
+          </div>
+        )}
 
         {/* ── Content ── */}
         <div className="flex-1 overflow-hidden bg-gray-900 flex items-center justify-center relative">

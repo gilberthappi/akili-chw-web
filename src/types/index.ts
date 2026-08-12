@@ -717,6 +717,7 @@ export interface ISlide {
   description: string;
   slideNumber: number;
   file: string;
+  audioUrl?: string | null;
   isPublished: boolean;
   createdAt: string;
   updatedAt: string;

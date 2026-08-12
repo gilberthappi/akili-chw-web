@@ -217,6 +217,19 @@ export const uploadSlideFile = async (file: File): Promise<string> => {
   return url;
 };
 
+export const uploadSlideAudioFile = async (file: File): Promise<string> => {
+  const form = new FormData();
+  form.append("audio", file, file.name);
+
+  const response = await api.post("/upload/audio", form);
+  let url: string = response.data?.data?.url;
+  if (!url) throw new Error("Audio upload succeeded but no URL was returned");
+  if (url.startsWith("/")) {
+    url = `${getBackendURL()}${url}`;
+  }
+  return url;
+};
+
 import { IMyCoursesResponse, IMyCertificatesResponse, IMyCertificate, EnrolledCourse } from "@/types";
 
 export const getCourseSectionsWithChapters = async (courseId: string): Promise<IResponse<ICourse>> => {

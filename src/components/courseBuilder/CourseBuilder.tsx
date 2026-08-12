@@ -620,6 +620,33 @@ export default function CourseBuilder({
     toast.success("Slide title updated");
   };
 
+  const updateSlideAudio = (slideId: string, audioUrl: string | null, audioName?: string | null) => {
+    if (!selectedSection || !selectedChapter) return;
+    setSections(
+      sections.map((s) => {
+        if (s.id === selectedSectionId) {
+          return {
+            ...s,
+            chapters: s.chapters.map((c) => {
+              if (c.id === selectedChapterId) {
+                return {
+                  ...c,
+                  slides: c.slides.map((slide) =>
+                    slide.id === slideId
+                      ? { ...slide, audioUrl, audioName: audioName ?? null }
+                      : slide
+                  ),
+                };
+              }
+              return c;
+            }),
+          };
+        }
+        return s;
+      })
+    );
+  };
+
   const clearAllSlides = () => {
     if (!selectedChapter || selectedChapter.slides.length === 0) {
       toast.error("No slides to clear");
@@ -1578,6 +1605,7 @@ export default function CourseBuilder({
                             onReplace={replaceSlide}
                             onView={setViewingSlide}
                             onTitleChange={updateSlideTitle}
+                            onAudioChange={updateSlideAudio}
                             isDragging={draggedSlideId === slide.id}
                             isAnySlideBeingDragged={draggedSlideId !== ""}
                             order={position}

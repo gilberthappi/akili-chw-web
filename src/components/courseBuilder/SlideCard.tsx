@@ -9,10 +9,15 @@ import {
   Play,
   RotateCw,
   X,
+  Mic,
+  Volume2,
+  Loader2,
 } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
+import toast from "react-hot-toast";
 import { CourseSlide } from "@/types/courseBuilder.d";
 import { getBackendURL } from "@/config/api.config";
+import { uploadSlideAudioFile } from "@/services/course.service";
 
 const resolveMediaUrl = (url: string): string =>
   url.startsWith("http") ? url : `${getBackendURL()}${url}`;
@@ -25,6 +30,7 @@ interface SlideCardProps {
   onReplace?: (slideId: string, file: File) => void;
   onView?: (slide: CourseSlide) => void;
   onTitleChange?: (slideId: string, newTitle: string) => void;
+  onAudioChange?: (slideId: string, audioUrl: string | null, audioName?: string | null) => void;
   isDragging?: boolean;
   isAnySlideBeingDragged?: boolean;
   order?: number;
@@ -65,6 +71,7 @@ export default function SlideCard({
   onView,
   onReplace,
   onTitleChange,
+  onAudioChange,
   isDragging = false,
   isAnySlideBeingDragged = false,
   order = 0,
@@ -73,7 +80,9 @@ export default function SlideCard({
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editingTitle, setEditingTitle] = useState(slide.title);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isUploadingAudio, setIsUploadingAudio] = useState(false);
   const replaceInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
 
   // Keep editingTitle in sync when the slide title changes externally (e.g. after replace)
   useEffect(() => {
@@ -92,6 +101,27 @@ export default function SlideCard({
     }
     // Reset so the same file can be re-selected later
     e.target.value = "";
+  };
+
+  const handleAudioClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    audioInputRef.current?.click();
+  };
+
+  const handleAudioFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setIsUploadingAudio(true);
+      const audioUrl = await uploadSlideAudioFile(file);
+      onAudioChange?.(slide.id, audioUrl, file.name);
+      toast.success("Audio attached successfully");
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to upload audio file");
+    } finally {
+      setIsUploadingAudio(false);
+      e.target.value = "";
+    }
   };
 
   /* ── List row layout ── */
@@ -333,6 +363,62 @@ export default function SlideCard({
             {slide.fileType.toUpperCase()}
           </span>
           <span className="text-gray-600 truncate">{slide.fileName}</span>
+        </div>
+
+        {/* Audio attachment info & player */}
+        <div className="pt-1.5 border-t border-gray-100 space-y-1">
+          {slide.audioUrl ? (
+            <div className="bg-amber-50 border border-amber-200 rounded p-1.5 space-y-1" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between text-xs text-amber-800 font-medium">
+                <span className="flex items-center gap-1 truncate">
+                  <Volume2 className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
+                  <span className="truncate">{slide.audioName || "Slide Explanation Audio"}</span>
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={handleAudioClick}
+                    className="p-0.5 text-amber-700 hover:text-amber-900 transition"
+                    title="Replace Audio"
+                  >
+                    <RotateCw className="w-3 h-3" />
+                  </button>
+                  <button
+                    onClick={() => onAudioChange?.(slide.id, null, null)}
+                    className="p-0.5 text-red-600 hover:text-red-800 transition"
+                    title="Remove Audio"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+              <audio src={resolveMediaUrl(slide.audioUrl)} controls className="w-full h-6 rounded" />
+            </div>
+          ) : (
+            <button
+              onClick={handleAudioClick}
+              disabled={isUploadingAudio}
+              className="w-full py-1 px-2 border border-dashed border-amber-300 bg-amber-50/50 hover:bg-amber-50 text-amber-700 rounded text-xs font-medium flex items-center justify-center gap-1.5 transition"
+            >
+              {isUploadingAudio ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-600" />
+                  <span>Uploading Audio...</span>
+                </>
+              ) : (
+                <>
+                  <Mic className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Add Audio Explanation</span>
+                </>
+              )}
+            </button>
+          )}
+          <input
+            ref={audioInputRef}
+            type="file"
+            accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.webm"
+            style={{ display: "none" }}
+            onChange={handleAudioFileChange}
+          />
         </div>
 
         {/* Actions */}
