@@ -62,12 +62,13 @@ function MemberCard({ member }: { member: ICEHOGroupMonitoringMember }) {
     total > 0
       ? Math.round(member.courseProgress.reduce((s, c) => s + c.progress, 0) / total)
       : 0;
-  const passing = member.recentTestAttempts.filter((a) => a.marks >= 70).length;
+  const gradedAttempts = (member.recentTestAttempts || []).filter((a) => (a as any).preTestId == null);
+  const passing = gradedAttempts.filter((a) => a.marks >= 70).length;
   const avgTestScore =
-    member.recentTestAttempts.length > 0
+    gradedAttempts.length > 0
       ? Math.round(
-          member.recentTestAttempts.reduce((s, a) => s + a.marks, 0) /
-            member.recentTestAttempts.length
+          gradedAttempts.reduce((s, a) => s + a.marks, 0) /
+            gradedAttempts.length
         )
       : null;
   const certificates = member.certificates ?? [];
@@ -84,10 +85,10 @@ function MemberCard({ member }: { member: ICEHOGroupMonitoringMember }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-2 flex-wrap">
             <p className="font-semibold text-gray-900 truncate">{member.user.fullNames}</p>
-            {member.recentTestAttempts.length > 0 && (
+            {gradedAttempts.length > 0 && (
               <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-600 bg-amber-50 rounded-full px-2 py-0.5 shrink-0">
                 <Award className="w-2.5 h-2.5" />
-                {passing}/{member.recentTestAttempts.length} tests passed
+                {passing}/{gradedAttempts.length} tests passed
               </span>
             )}
             {avgTestScore !== null && (

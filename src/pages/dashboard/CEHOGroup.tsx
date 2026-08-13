@@ -686,13 +686,14 @@ const CEHOGroupPage = () => {
             const mon = monitoringMembers.find(
               (m: any) => m.studentId === member.student.id || m.user?.id === u.id,
             );
-            const passing = mon?.recentTestAttempts?.filter((a: any) => a.marks >= 70).length ?? 0;
-            const totalTests = mon?.recentTestAttempts?.length ?? 0;
+            const gradedAttempts = (mon?.recentTestAttempts || []).filter((a: any) => a.preTestId == null);
+            const passing = gradedAttempts.filter((a: any) => a.marks >= 70).length;
+            const totalTests = gradedAttempts.length;
             const avgScore =
-              mon && mon.recentTestAttempts.length > 0
+              gradedAttempts.length > 0
                 ? Math.round(
-                    mon.recentTestAttempts.reduce((s: number, a: any) => s + a.marks, 0) /
-                      mon.recentTestAttempts.length,
+                    gradedAttempts.reduce((s: number, a: any) => s + a.marks, 0) /
+                      gradedAttempts.length,
                   )
                 : null;
 
