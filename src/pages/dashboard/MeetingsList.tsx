@@ -97,7 +97,7 @@ const MeetingsList: React.FC = () => {
       {/* Header */}
       <div>
         <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Meetings</h1>
-        <p className="text-sm text-gray-500 mt-0.5">All eBumenyi virtual meetings</p>
+        <p className="text-sm text-gray-500 mt-0.5">All my virtual meetings</p>
       </div>
 
       {/* Stat Cards */}
