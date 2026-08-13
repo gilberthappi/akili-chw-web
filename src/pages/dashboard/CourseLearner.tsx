@@ -18,6 +18,7 @@ import {
   Trophy,
   Layers,
   Lock,
+  Volume2,
 } from "lucide-react";
 import { Button } from "@/components/common/Button";
 import TopBar from "@/components/navigation/TopBar";
@@ -817,6 +818,17 @@ const CourseLearner: React.FC = () => {
             </div>
           ) : (
             <div className="flex-1 flex flex-col overflow-hidden">
+              {/* Audio Banner (if custom explanation is attached) */}
+              {currentSlide?.audioUrl && (
+                <div className="bg-amber-50 border-b border-amber-200 px-6 py-2 flex items-center justify-between gap-3 flex-shrink-0 shadow-sm">
+                  <div className="flex items-center gap-2 text-xs text-amber-900 font-semibold">
+                    <Volume2 size={16} className="text-amber-600 flex-shrink-0" />
+                    <span>Attached Audio Explanation:</span>
+                  </div>
+                  <audio src={resolveMediaUrl(currentSlide.audioUrl)} controls className="h-7 w-full max-w-xs rounded" />
+                </div>
+              )}
+
               {/* Slide viewer — scrollable */}
               <div className="flex-1 overflow-y-auto">
                 {currentSlide && <SlideViewer slide={currentSlide} />}

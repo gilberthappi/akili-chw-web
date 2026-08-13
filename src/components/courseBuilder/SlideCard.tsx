@@ -196,6 +196,49 @@ export default function SlideCard({
           {slide.fileType.toUpperCase()}
         </span>
 
+        {/* Audio attachment info or add button (List View) */}
+        <div className="flex items-center gap-1.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+          {slide.audioUrl ? (
+            <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-md px-2 py-1">
+              <Volume2 className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
+              <audio src={resolveMediaUrl(slide.audioUrl)} controls className="h-6 w-32 sm:w-44 rounded" />
+              <button
+                onClick={handleAudioClick}
+                className="p-1 text-amber-700 hover:text-amber-900 transition"
+                title="Replace Audio"
+              >
+                <RotateCw className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => onAudioChange?.(slide.id, null, null)}
+                className="p-1 text-red-600 hover:text-red-800 transition"
+                title="Remove Audio"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={handleAudioClick}
+              disabled={isUploadingAudio}
+              className="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-300 rounded-md text-xs font-semibold flex items-center gap-1.5 transition"
+              title="Add Audio Explanation"
+            >
+              {isUploadingAudio ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-600" />
+                  <span>Uploading...</span>
+                </>
+              ) : (
+                <>
+                  <Mic className="w-3.5 h-3.5 text-amber-600" />
+                  <span>+ Audio</span>
+                </>
+              )}
+            </button>
+          )}
+        </div>
+
         {/* Actions */}
         <div className="flex items-center gap-1 flex-shrink-0">
           <button onClick={(e) => { e.stopPropagation(); onDuplicate(slide.id); }} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition" title="Duplicate">
@@ -205,6 +248,7 @@ export default function SlideCard({
             <RotateCw className="w-4 h-4" />
           </button>
           <input ref={replaceInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.bmp,.svg,.ico,.tiff,.mp4,.avi,.mov,.mkv,.webm,.flv,.wmv,.m4v,.3gp" style={{ display: "none" }} onChange={handleReplaceFileChange} />
+          <input ref={audioInputRef} type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.webm" style={{ display: "none" }} onChange={handleAudioFileChange} />
           <button onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(true); }} className="p-1.5 text-red-600 hover:bg-red-50 rounded transition" title="Delete">
             <Trash2 className="w-4 h-4" />
           </button>
