@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
+import toast from "react-hot-toast";
 import {
   ChevronLeft,
   ChevronDown,
@@ -12,8 +13,10 @@ import {
   TrendingUp,
   Activity,
   Award,
+  FileSpreadsheet,
+  ExternalLink,
 } from "lucide-react";
-import { getGroupMonitoring } from "@/services/cehoGroup.service";
+import { getGroupMonitoring, exportGroupProgressExcel } from "@/services/cehoGroup.service";
 import { ICEHOGroupMonitoringMember } from "@/types";
 import { MetricCard } from "@/components/common/MetricCard";
 import { Button } from "@/components/common/Button";
@@ -60,6 +63,14 @@ function MemberCard({ member }: { member: ICEHOGroupMonitoringMember }) {
       ? Math.round(member.courseProgress.reduce((s, c) => s + c.progress, 0) / total)
       : 0;
   const passing = member.recentTestAttempts.filter((a) => a.marks >= 70).length;
+  const avgTestScore =
+    member.recentTestAttempts.length > 0
+      ? Math.round(
+          member.recentTestAttempts.reduce((s, a) => s + a.marks, 0) /
+            member.recentTestAttempts.length
+        )
+      : null;
+  const certificates = member.certificates ?? [];
 
   return (
     <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
@@ -77,6 +88,12 @@ function MemberCard({ member }: { member: ICEHOGroupMonitoringMember }) {
               <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-600 bg-amber-50 rounded-full px-2 py-0.5 shrink-0">
                 <Award className="w-2.5 h-2.5" />
                 {passing}/{member.recentTestAttempts.length} tests passed
+              </span>
+            )}
+            {avgTestScore !== null && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-purple-700 bg-purple-50 rounded-full px-2 py-0.5 shrink-0">
+                <TrendingUp className="w-2.5 h-2.5" />
+                {avgTestScore}% Avg Score
               </span>
             )}
           </div>
@@ -153,24 +170,170 @@ function MemberCard({ member }: { member: ICEHOGroupMonitoringMember }) {
               </div>
             </div>
           )}
+
+          {/* Earned Certificates Section */}
+          <div className="border-t border-gray-100 pt-3">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+              <Award className="w-3.5 h-3.5 text-amber-500" />
+              Earned Certificates ({certificates.length})
+            </p>
+
+            {certificates.length === 0 ? (
+              <p className="text-xs text-gray-400 italic">No certificates earned yet</p>
+            ) : (
+              <div className="space-y-2">
+                {certificates.map((cert) => (
+                  <div
+                    key={cert.id}
+                    className="flex items-center justify-between p-2.5 bg-amber-50/50 border border-amber-100 rounded-lg"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center text-amber-700 shrink-0">
+                        <Award className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-gray-800 truncate">{cert.courseTitle}</p>
+                        <p className="text-[10px] text-gray-400">
+                          Earned: {new Date(cert.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                    {cert.pdfUrl && (
+                      <a
+                        href={cert.pdfUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-xs font-medium text-amber-800 hover:text-amber-900 bg-white border border-amber-200 px-2.5 py-1 rounded-md shadow-sm transition-colors shrink-0"
+                      >
+                        <ExternalLink className="w-3 h-3" /> View PDF
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
   );
 }
 
+import React, { useState, useMemo } from "react";
+
 const CEHOGroupMonitoringPage = () => {
   const [search, setSearch] = useState("");
+  const [selectedCourseFilter, setSelectedCourseFilter] = useState<string>("all");
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>("all");
+  const [selectedCertFilter, setSelectedCertFilter] = useState<"all" | "has_cert" | "no_cert">("all");
+  const [isExportingExcel, setIsExportingExcel] = useState(false);
 
   const { data: monitoring, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["ceho-group-monitoring"],
     queryFn: getGroupMonitoring,
   });
 
+  const handleExportExcel = async () => {
+    try {
+      setIsExportingExcel(true);
+      toast.loading("Preparing Excel export...", { id: "excel-export" });
+      const blob = await exportGroupProgressExcel();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const groupName = monitoring?.groupName ? monitoring.groupName.replace(/[^a-zA-Z0-9_\-]/g, "_") : "Group";
+      a.download = `Itsinda_${groupName}_Progress.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success("Excel progress report downloaded!", { id: "excel-export" });
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to export Excel report", { id: "excel-export" });
+    } finally {
+      setIsExportingExcel(false);
+    }
+  };
+
   const members = monitoring?.members ?? [];
-  const filtered = members.filter((m) =>
-    m.user.fullNames.toLowerCase().includes(search.toLowerCase()),
-  );
+
+  const allCourses = useMemo(() => Array.from(
+    new Map(
+      members
+        .flatMap((m) => m.courseProgress || [])
+        .map((c) => [c.courseId, { id: c.courseId, title: c.courseTitle }]),
+    ).values(),
+  ), [members]);
+
+  const certCounts = useMemo(() => {
+    let hasCertCount = 0;
+    let noCertCount = 0;
+
+    members.forEach((m: any) => {
+      let hasCert = false;
+      if (selectedCourseFilter !== "all") {
+        hasCert = (m.certificates || []).some((c: any) => c.courseId === selectedCourseFilter);
+      } else {
+        hasCert = (m.certificates?.length || 0) > 0;
+      }
+
+      if (hasCert) {
+        hasCertCount += 1;
+      } else {
+        noCertCount += 1;
+      }
+    });
+
+    return {
+      all: members.length,
+      hasCert: hasCertCount,
+      noCert: noCertCount,
+    };
+  }, [members, selectedCourseFilter]);
+
+  const filtered = members.filter((m) => {
+    const nameMatch = m.user.fullNames.toLowerCase().includes(search.toLowerCase());
+    if (!nameMatch) return false;
+
+    if (selectedStatusFilter !== "all") {
+      const isCompletedAll =
+        m.courseProgress.length > 0 && m.courseProgress.every((c) => c.isCompleted);
+      const isActivelyLearning = m.courseProgress.some(
+        (c) => c.progress > 0 && !c.isCompleted,
+      );
+      const isNotStarted =
+        m.courseProgress.length === 0 || m.courseProgress.every((c) => c.progress === 0);
+
+      if (selectedStatusFilter === "active" && !isActivelyLearning) return false;
+      if (selectedStatusFilter === "completed" && !isCompletedAll) return false;
+      if (selectedStatusFilter === "not_started" && !isNotStarted) return false;
+    }
+
+    if (selectedCertFilter === "has_cert") {
+      if (selectedCourseFilter !== "all") {
+        const hasCertForCourse = (m.certificates || []).some(
+          (c: any) => c.courseId === selectedCourseFilter,
+        );
+        if (!hasCertForCourse) return false;
+      } else {
+        if ((m.certificates?.length || 0) === 0) return false;
+      }
+    } else if (selectedCertFilter === "no_cert") {
+      if (selectedCourseFilter !== "all") {
+        const hasCertForCourse = (m.certificates || []).some(
+          (c: any) => c.courseId === selectedCourseFilter,
+        );
+        if (hasCertForCourse) return false;
+      } else {
+        if ((m.certificates?.length || 0) > 0) return false;
+      }
+    } else if (selectedCourseFilter !== "all") {
+      const hasCourse = m.courseProgress.some((c) => c.courseId === selectedCourseFilter);
+      if (!hasCourse) return false;
+    }
+
+    return true;
+  });
 
   const avgGroupProgress =
     members.length > 0
@@ -209,9 +372,20 @@ const CEHOGroupMonitoringPage = () => {
             </p>
           </div>
         </div>
-        <Button variant="ghost" size="sm" onClick={() => refetch()} disabled={isRefetching}>
-          {isRefetching ? "Refreshing…" : "Refresh"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleExportExcel}
+            disabled={isExportingExcel}
+            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-emerald-700 bg-white border border-emerald-200 rounded-lg hover:bg-emerald-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+          >
+            <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+            {isExportingExcel ? "Exporting…" : "Export Excel"}
+          </button>
+          <Button variant="ghost" size="sm" onClick={() => refetch()} disabled={isRefetching}>
+            {isRefetching ? "Refreshing…" : "Refresh"}
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -246,16 +420,55 @@ const CEHOGroupMonitoringPage = () => {
         />
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-        <input
-          type="text"
-          placeholder="Search members…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD]"
-        />
+      {/* Search & Filter Controls */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search members by name…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD] bg-white shadow-sm"
+          />
+        </div>
+
+        {/* Filter by Course */}
+        <select
+          value={selectedCourseFilter}
+          onChange={(e) => setSelectedCourseFilter(e.target.value)}
+          className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD] shadow-sm shrink-0"
+        >
+          <option value="all">All Courses</option>
+          {allCourses.map((c: any) => (
+            <option key={c.id} value={c.id}>
+              {c.title}
+            </option>
+          ))}
+        </select>
+
+        {/* Filter by Status */}
+        <select
+          value={selectedStatusFilter}
+          onChange={(e) => setSelectedStatusFilter(e.target.value)}
+          className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD] shadow-sm shrink-0"
+        >
+          <option value="all">All Statuses</option>
+          <option value="active">Actively Learning</option>
+          <option value="completed">Completed All</option>
+          <option value="not_started">Not Started</option>
+        </select>
+
+        {/* Filter by Certificate */}
+        <select
+          value={selectedCertFilter}
+          onChange={(e) => setSelectedCertFilter(e.target.value as "all" | "has_cert" | "no_cert")}
+          className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD] shadow-sm shrink-0 font-medium"
+        >
+          <option value="all">All Certificates ({certCounts.all})</option>
+          <option value="has_cert">🏆 Has Certificate ({certCounts.hasCert})</option>
+          <option value="no_cert">⏳ No Certificate ({certCounts.noCert})</option>
+        </select>
       </div>
 
       {/* Member list */}

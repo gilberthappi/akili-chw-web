@@ -1,4 +1,4 @@
-import { useState, useCallback, Fragment } from "react";
+import { useState, useCallback, useMemo, Fragment } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import {
@@ -14,6 +14,11 @@ import {
   Check,
   X,
   CheckCircle2,
+  FileSpreadsheet,
+  Award,
+  MessageSquare,
+  Bell,
+  Send,
 } from "lucide-react";
 import { getDistrictOptions, getSectorOptions, getCellOptions, getVillageOptions } from "@/hooks/locations";
 import { Dialog, Transition } from "@headlessui/react";
@@ -27,7 +32,10 @@ import {
   cehoUpdateMyGroup,
   searchCHWCandidates,
   cehoDirectlyAddMember,
+  exportGroupProgressExcel,
+  cehoSendLearningNudge,
 } from "@/services/cehoGroup.service";
+import { getOrCreateDirectChat } from "@/services/directChat.service";
 import { ICEHOGroupMember, IStudentSearchResult } from "@/types";
 import { MetricCard } from "@/components/common/MetricCard";
 import { Button } from "@/components/common/Button";
@@ -56,10 +64,21 @@ const CEHOGroupPage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
+  const [selectedCourseFilter, setSelectedCourseFilter] = useState<string>("all");
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>("all");
+  const [selectedCertFilter, setSelectedCertFilter] = useState<"all" | "has_cert" | "no_cert">("all");
+  const [nudgeModalTarget, setNudgeModalTarget] = useState<{
+    studentId: string;
+    fullName: string;
+    progress?: number;
+  } | null>(null);
+  const [nudgeMessage, setNudgeMessage] = useState("");
+  const [isSendingNudge, setIsSendingNudge] = useState(false);
   const [pendingRemove, setPendingRemove] = useState<ICEHOGroupMember | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState("");
   const [editDistrict, setEditDistrict] = useState("");
+  const [isExportingExcel, setIsExportingExcel] = useState(false);
   type LocationRow = { sector: string; cell: string; village: string };
   const [editLocations, setEditLocations] = useState<LocationRow[]>([{ sector: "", cell: "", village: "" }]);
 
@@ -185,6 +204,36 @@ const CEHOGroupPage = () => {
     setIsEditing(true);
   };
 
+  const monitoringMembers = monitoring?.members ?? [];
+  const ceho = group?.ceho;
+  const memberCount = (group?._count?.members ?? 0) + 1;
+
+  const certCounts = useMemo(() => {
+    let hasCertCount = 0;
+    let noCertCount = 0;
+
+    monitoringMembers.forEach((m: any) => {
+      let hasCert = false;
+      if (selectedCourseFilter !== "all") {
+        hasCert = (m.certificates || []).some((c: any) => c.courseId === selectedCourseFilter);
+      } else {
+        hasCert = (m.certificates?.length || 0) > 0;
+      }
+
+      if (hasCert) {
+        hasCertCount += 1;
+      } else {
+        noCertCount += 1;
+      }
+    });
+
+    return {
+      all: monitoringMembers.length,
+      hasCert: hasCertCount,
+      noCert: noCertCount,
+    };
+  }, [monitoringMembers, selectedCourseFilter]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[300px]">
@@ -205,10 +254,6 @@ const CEHOGroupPage = () => {
     );
   }
 
-  const ceho = group.ceho;
-  const monitoringMembers = monitoring?.members ?? [];
-  const memberCount = (group._count?.members ?? 0) + 1;
-
   const avgProgress =
     monitoringMembers.length > 0
       ? Math.round(
@@ -225,15 +270,122 @@ const CEHOGroupPage = () => {
     m.courseProgress.some((c) => c.progress > 0 && !c.isCompleted),
   ).length;
 
-  const filtered = members.filter((m: ICEHOGroupMember) =>
-    m.student.user.fullNames.toLowerCase().includes(search.toLowerCase()),
+  const allCourses = Array.from(
+    new Map(
+      monitoringMembers
+        .flatMap((m) => m.courseProgress || [])
+        .map((c) => [c.courseId, { id: c.courseId, title: c.courseTitle }]),
+    ).values(),
   );
+
+  const filtered = members.filter((m: ICEHOGroupMember) => {
+    const nameMatch = m.student.user.fullNames.toLowerCase().includes(search.toLowerCase());
+    if (!nameMatch) return false;
+
+    const mon = monitoringMembers.find(
+      (x: any) => x.studentId === m.student.id || x.user?.id === m.student.user.id,
+    );
+
+    if (selectedStatusFilter !== "all") {
+      if (!mon) return false;
+      const isCompletedAll =
+        mon.courseProgress.length > 0 && mon.courseProgress.every((c) => c.isCompleted);
+      const isActivelyLearning = mon.courseProgress.some(
+        (c) => c.progress > 0 && !c.isCompleted,
+      );
+      const isNotStarted =
+        mon.courseProgress.length === 0 || mon.courseProgress.every((c) => c.progress === 0);
+
+      if (selectedStatusFilter === "active" && !isActivelyLearning) return false;
+      if (selectedStatusFilter === "completed" && !isCompletedAll) return false;
+      if (selectedStatusFilter === "not_started" && !isNotStarted) return false;
+    }
+
+    if (selectedCertFilter === "has_cert") {
+      if (selectedCourseFilter !== "all") {
+        const hasCertForCourse = (mon?.certificates || []).some(
+          (c: any) => c.courseId === selectedCourseFilter,
+        );
+        if (!hasCertForCourse) return false;
+      } else {
+        if ((mon?.certificates?.length || 0) === 0) return false;
+      }
+    } else if (selectedCertFilter === "no_cert") {
+      if (selectedCourseFilter !== "all") {
+        const hasCertForCourse = (mon?.certificates || []).some(
+          (c: any) => c.courseId === selectedCourseFilter,
+        );
+        if (hasCertForCourse) return false;
+      } else {
+        if ((mon?.certificates?.length || 0) > 0) return false;
+      }
+    } else if (selectedCourseFilter !== "all") {
+      if (!mon) return false;
+      const hasCourse = mon.courseProgress.some((c: any) => c.courseId === selectedCourseFilter);
+      if (!hasCourse) return false;
+    }
+
+    return true;
+  });
 
   const cehoMatchesSearch =
     !!ceho &&
-    (!search || ceho.user.fullNames.toLowerCase().includes(search.toLowerCase()));
+    (!search || ceho.user.fullNames.toLowerCase().includes(search.toLowerCase())) &&
+    selectedCourseFilter === "all" &&
+    selectedStatusFilter === "all" &&
+    selectedCertFilter === "all";
 
   const isEmpty = filtered.length === 0 && !cehoMatchesSearch;
+
+  const handleExportExcel = async () => {
+    try {
+      setIsExportingExcel(true);
+      toast.loading("Preparing Excel export...", { id: "excel-export" });
+      const blob = await exportGroupProgressExcel();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const groupName = group?.name ? group.name.replace(/[^a-zA-Z0-9_\-]/g, "_") : "Group";
+      a.download = `Itsinda_${groupName}_Progress.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success("Excel progress report downloaded!", { id: "excel-export" });
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to export Excel report", { id: "excel-export" });
+    } finally {
+      setIsExportingExcel(false);
+    }
+  };
+
+  const handleStartChat = async (targetUserId: string) => {
+    try {
+      toast.loading("Opening direct chat...", { id: "chat-toast" });
+      const chat = await getOrCreateDirectChat(targetUserId);
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      toast.dismiss("chat-toast");
+      navigate(`/messaging?chatId=${chat.id}`);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to open direct chat", { id: "chat-toast" });
+    }
+  };
+
+  const handleSendNudge = async () => {
+    if (!nudgeModalTarget) return;
+    try {
+      setIsSendingNudge(true);
+      toast.loading("Sending learning nudge notification...", { id: "send-nudge" });
+      await cehoSendLearningNudge([nudgeModalTarget.studentId], nudgeMessage || undefined);
+      toast.success(`Learning nudge sent to ${nudgeModalTarget.fullName}!`, { id: "send-nudge" });
+      setNudgeModalTarget(null);
+      setNudgeMessage("");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to send learning nudge", { id: "send-nudge" });
+    } finally {
+      setIsSendingNudge(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -268,6 +420,15 @@ const CEHOGroupPage = () => {
           >
             {isRefetching ? "Refreshing…" : "Refresh"}
           </Button>
+          <button
+            type="button"
+            onClick={handleExportExcel}
+            disabled={isExportingExcel}
+            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-emerald-700 bg-white border border-emerald-200 rounded-lg hover:bg-emerald-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+          >
+            <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+            {isExportingExcel ? "Exporting…" : "Export Excel"}
+          </button>
           <Button size="sm" onClick={openAddModal}>
             <UserPlus className="w-4 h-4 mr-2" />
             Add CHW
@@ -423,16 +584,55 @@ const CEHOGroupPage = () => {
         />
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-        <input
-          type="text"
-          placeholder="Search members by name…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD]"
-        />
+      {/* Search & Filter Controls */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search members by name…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD] bg-white shadow-sm"
+          />
+        </div>
+
+        {/* Filter by Course */}
+        <select
+          value={selectedCourseFilter}
+          onChange={(e) => setSelectedCourseFilter(e.target.value)}
+          className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD] shadow-sm shrink-0"
+        >
+          <option value="all">All Courses</option>
+          {allCourses.map((c: any) => (
+            <option key={c.id} value={c.id}>
+              {c.title}
+            </option>
+          ))}
+        </select>
+
+        {/* Filter by Status */}
+        <select
+          value={selectedStatusFilter}
+          onChange={(e) => setSelectedStatusFilter(e.target.value)}
+          className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD] shadow-sm shrink-0"
+        >
+          <option value="all">All Statuses</option>
+          <option value="active">Actively Learning</option>
+          <option value="completed">Completed All</option>
+          <option value="not_started">Not Started</option>
+        </select>
+
+        {/* Filter by Certificate */}
+        <select
+          value={selectedCertFilter}
+          onChange={(e) => setSelectedCertFilter(e.target.value as "all" | "has_cert" | "no_cert")}
+          className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD] shadow-sm shrink-0 font-medium"
+        >
+          <option value="all">All Certificates ({certCounts.all})</option>
+          <option value="has_cert">🏆 Abafite Impamyabumenyi ({certCounts.hasCert})</option>
+          <option value="no_cert">⏳ Abadafite impamyabumenyi ({certCounts.noCert})</option>
+        </select>
       </div>
 
       {/* Members grid */}
@@ -483,30 +683,90 @@ const CEHOGroupPage = () => {
           {/* CHW member cards */}
           {filtered.map((member: ICEHOGroupMember) => {
             const u = member.student.user;
+            const mon = monitoringMembers.find(
+              (m: any) => m.studentId === member.student.id || m.user?.id === u.id,
+            );
+            const passing = mon?.recentTestAttempts?.filter((a: any) => a.marks >= 70).length ?? 0;
+            const totalTests = mon?.recentTestAttempts?.length ?? 0;
+            const avgScore =
+              mon && mon.recentTestAttempts.length > 0
+                ? Math.round(
+                    mon.recentTestAttempts.reduce((s: number, a: any) => s + a.marks, 0) /
+                      mon.recentTestAttempts.length,
+                  )
+                : null;
+
             return (
               <div
                 key={member.id}
                 onClick={() => navigate(`/students/${member.student.id}`)}
-                className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 hover:shadow-md transition-shadow cursor-pointer"
+                className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 hover:shadow-md transition-shadow cursor-pointer space-y-3"
               >
-                <div className="flex items-center gap-3 mb-3">
+                <div className="flex items-center gap-3">
                   <MemberAvatar name={u.fullNames} photo={u.photo} />
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-gray-900 truncate">{u.fullNames}</p>
-                    <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 rounded-full px-2 py-0.5">
-                      Active
-                    </span>
+                    <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                      <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 rounded-full px-2 py-0.5">
+                        Active
+                      </span>
+                      {totalTests > 0 && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-600 bg-amber-50 rounded-full px-2 py-0.5">
+                          <Award className="w-2.5 h-2.5" />
+                          {passing}/{totalTests} passed
+                        </span>
+                      )}
+                      {avgScore !== null && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-purple-700 bg-purple-50 rounded-full px-2 py-0.5">
+                          <TrendingUp className="w-2.5 h-2.5" />
+                          {avgScore}% Avg
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setPendingRemove(member);
-                    }}
-                    className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0"
-                    title="Remove from group"
-                  >
-                    <UserMinus className="w-4 h-4" />
-                  </button>
+
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleStartChat(u.id);
+                      }}
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-[#3363AD] hover:bg-[#EBF0F9] transition-colors"
+                      title="Send direct message"
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setNudgeModalTarget({
+                          studentId: member.student.id,
+                          fullName: u.fullNames,
+                          progress: mon?.courseProgress?.length
+                            ? Math.round(
+                                mon.courseProgress.reduce((s, c) => s + c.progress, 0) /
+                                  mon.courseProgress.length,
+                              )
+                            : 0,
+                        });
+                        setNudgeMessage(`Hi ${u.fullNames.split(" ")[0]}! Friendly reminder to complete your active learning modules on Akili CHW.`);
+                      }}
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-amber-600 hover:bg-amber-50 transition-colors"
+                      title="Send learning nudge"
+                    >
+                      <Bell className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPendingRemove(member);
+                      }}
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                      title="Remove from group"
+                    >
+                      <UserMinus className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="space-y-1.5 border-t border-gray-50 pt-3">
@@ -831,6 +1091,132 @@ const CEHOGroupPage = () => {
                 </div>
               </Dialog.Panel>
             </Transition.Child>
+          </div>
+        </Dialog>
+      </Transition>
+
+      {/* ── Send Learning Nudge Modal ── */}
+      <Transition appear show={!!nudgeModalTarget} as={Fragment}>
+        <Dialog as="div" className="relative z-50" onClose={() => setNudgeModalTarget(null)}>
+          <Transition.Child
+            as={Fragment}
+            enter="ease-out duration-200"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="ease-in duration-150"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-black/40 backdrop-blur-xs" />
+          </Transition.Child>
+
+          <div className="fixed inset-0 overflow-y-auto">
+            <div className="flex min-h-full items-center justify-center p-4 text-center">
+              <Transition.Child
+                as={Fragment}
+                enter="ease-out duration-200"
+                enterFrom="opacity-0 scale-95"
+                enterTo="opacity-100 scale-100"
+                leave="ease-in duration-150"
+                leaveFrom="opacity-100 scale-100"
+                leaveTo="opacity-0 scale-95"
+              >
+                <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all border border-gray-100">
+                  <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold shrink-0">
+                        <Bell className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <Dialog.Title as="h3" className="text-base font-bold text-gray-900">
+                          Send Learning Nudge
+                        </Dialog.Title>
+                        <p className="text-xs text-gray-500">
+                          Recipient: <span className="font-semibold text-gray-700">{nudgeModalTarget?.fullName}</span>
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setNudgeModalTarget(null)}
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {nudgeModalTarget?.progress !== undefined && (
+                    <div className="mt-4 p-3 bg-gray-50 rounded-xl flex items-center justify-between">
+                      <span className="text-xs text-gray-500 font-medium">Current Progress</span>
+                      <span className="text-xs font-bold text-[#3363AD] bg-white px-2.5 py-1 rounded-lg border border-gray-200">
+                        {nudgeModalTarget.progress}% Avg Complete
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Quick Template Nudges */}
+                  <div className="mt-4 space-y-1.5">
+                    <label className="text-xs font-semibold text-gray-500">Quick Templates</label>
+                    <div className="flex flex-col gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setNudgeMessage(
+                            `Hi ${nudgeModalTarget?.fullName.split(" ")[0]}! Friendly reminder to complete your assigned health training modules on Akili CHW.`
+                          )
+                        }
+                        className="text-left text-xs p-2.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 hover:border-[#3363AD]/40 text-gray-700 transition-colors"
+                      >
+                        📢 General Reminder
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setNudgeMessage(
+                            `Great progress ${nudgeModalTarget?.fullName.split(" ")[0]}! You are close to completing your course modules, keep it up!`
+                          )
+                        }
+                        className="text-left text-xs p-2.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 hover:border-[#3363AD]/40 text-gray-700 transition-colors"
+                      >
+                        ⚡ Encouragement Nudge
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Custom Message */}
+                  <div className="mt-4 space-y-1.5">
+                    <label className="text-xs font-semibold text-gray-500">Nudge Message *</label>
+                    <textarea
+                      rows={3}
+                      value={nudgeMessage}
+                      onChange={(e) => setNudgeMessage(e.target.value)}
+                      placeholder="Write custom reminder message..."
+                      className="w-full p-3 border border-gray-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD]"
+                    />
+                  </div>
+
+                  <div className="flex gap-3 mt-6">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => setNudgeModalTarget(null)}
+                      disabled={isSendingNudge}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="flex-1 !bg-[#3363AD] hover:!bg-[#28508e]"
+                      onClick={handleSendNudge}
+                      isLoading={isSendingNudge}
+                    >
+                      {!isSendingNudge && <Send className="w-3.5 h-3.5 mr-1.5" />}
+                      Send Nudge
+                    </Button>
+                  </div>
+                </Dialog.Panel>
+              </Transition.Child>
+            </div>
           </div>
         </Dialog>
       </Transition>

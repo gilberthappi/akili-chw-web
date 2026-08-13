@@ -408,6 +408,11 @@ const RoutesProvider = () => {
       errorElement: <ErrorPage />,
     },
     {
+      path: "/certificates/verify/:code",
+      element: <VerifyCertificate />,
+      errorElement: <ErrorPage />,
+    },
+    {
       path: "/auth",
       element: <Navigate to="/auth/login" replace />,
     },

@@ -144,3 +144,19 @@ export const adminDemoteToCHW = async (
   });
   return res.data.data;
 };
+
+export const exportGroupProgressExcel = async (): Promise<Blob> => {
+  const res = await api.get("/ceho-groups/export-excel", {
+    responseType: "blob",
+  });
+  return res.data;
+};
+
+export const cehoSendLearningNudge = async (
+  targetStudentIds?: string[],
+  message?: string,
+): Promise<{ message: string; count?: number }> => {
+  const res = await api.post("/ceho-groups/mine/nudge", { targetStudentIds, message });
+  return res.data;
+};
+
