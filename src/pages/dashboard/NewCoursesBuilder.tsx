@@ -59,6 +59,8 @@ function mapICourseToCourseBuilderData(course: ICourse): CourseBuilderData {
               fileType: detectFileType(slide.file),
               fileUrl: slide.file ?? "",
               fileName: slide.file?.split("/").pop() ?? `slide-${sli + 1}`,
+              audioUrl: slide.audioUrl ?? null,
+              audioName: slide.audioUrl ? slide.audioUrl.split("/").pop() : null,
               order: slide.slideNumber ?? sli + 1,
               createdAt: slide.createdAt,
             })
@@ -183,6 +185,7 @@ function buildApiPayload(data: CourseBuilderData): Record<string, unknown> {
               !!chapter.midTest,
             ),
             file: slide.fileUrl,
+            audioUrl: slide.audioUrl || undefined,
             isPublished: true,
           })),
         ...(chapter.midTest

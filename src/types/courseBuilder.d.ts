@@ -6,6 +6,8 @@ export interface CourseSlide {
   fileType: "pdf" | "image" | "video" | "document";
   fileUrl: string;
   fileName: string;
+  audioUrl?: string | null;
+  audioName?: string | null;
   order: number;
   createdAt: string;
 }
