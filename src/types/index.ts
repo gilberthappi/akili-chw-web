@@ -397,7 +397,7 @@ export interface ICEHOGroup {
   updatedAt: string;
   ceho?: {
     id: string;
-    user: { id: string; fullNames: string; photo: string | null; phoneNumber: string | null };
+    user: { id: string; fullNames: string; photo: string | null; phoneNumber: string | null; district?: string | null; sector?: string | null };
   };
   _count?: { members: number };
 }
@@ -430,15 +430,16 @@ export interface ICEHOGroupInvitation {
   group?: {
     id: string;
     name: string;
-    ceho?: { user: { id: string; fullNames: string; photo: string | null; phoneNumber: string | null } };
+    ceho?: { user: { id: string; fullNames: string; photo: string | null; phoneNumber: string | null; district?: string | null; sector?: string | null } };
   };
-  student?: { user: { id: string; fullNames: string; photo: string | null; phoneNumber: string | null } };
+  student?: { user: { id: string; fullNames: string; photo: string | null; phoneNumber: string | null; district?: string | null; sector?: string | null } };
 }
 
 export interface ICEHOGroupMonitoringMember {
   studentId: string;
-  user: { id: string; fullNames: string; photo: string | null; phoneNumber: string | null };
+  user: { id: string; fullNames: string; photo: string | null; phoneNumber: string | null; district?: string | null; sector?: string | null };
   status: string;
+  activityStatus?: "TODAY" | "THIS_WEEK" | "INACTIVE" | string;
   joinedGroupAt: string;
   courseProgress: Array<{
     courseId: string;

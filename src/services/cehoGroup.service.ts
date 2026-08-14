@@ -160,3 +160,8 @@ export const cehoSendLearningNudge = async (
   return res.data;
 };
 
+export const postGroupAnnouncement = async (content: string): Promise<any> => {
+  const res = await api.post("/ceho-groups/mine/announcements", { content });
+  return res.data;
+};
+

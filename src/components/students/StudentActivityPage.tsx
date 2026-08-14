@@ -655,35 +655,38 @@ const StudentActivityPage: React.FC = () => {
                 <Calendar className="w-4 h-4 text-gray-400" />
               </div>
               <div className="divide-y divide-gray-100">
-                {testAttempts.detailedAttempts.slice(0, 5).map((attempt) => (
-                  <div
-                    key={attempt.attemptId}
-                    className="flex items-center justify-between px-5 py-3.5"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                          attempt.isPassed ? 'bg-green-500' : 'bg-red-400'
-                        }`}
-                      />
-                      <div>
-                        <p className="text-sm font-medium text-[#333333]">{attempt.testType}</p>
-                        <p className="text-xs text-gray-400 mt-0.5">{attempt.testInfo.course}</p>
+                {testAttempts.detailedAttempts
+                  .filter((attempt) => attempt.testType !== 'Mid-Test' && attempt.testType !== 'midtest')
+                  .slice(0, 5)
+                  .map((attempt) => (
+                    <div
+                      key={attempt.attemptId}
+                      className="flex items-center justify-between px-5 py-3.5"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                            attempt.isPassed ? 'bg-green-500' : 'bg-red-400'
+                          }`}
+                        />
+                        <div>
+                          <p className="text-sm font-medium text-[#333333]">{attempt.testType}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">{attempt.testInfo.course}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p
+                          className={`text-sm font-bold ${
+                            attempt.isPassed ? 'text-green-600' : 'text-red-500'
+                          }`}
+                        >
+                          {attempt.totalMarks}%
+                        </p>
+                        <p className="text-xs text-gray-400">{formatDate(attempt.attemptDate)}</p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p
-                        className={`text-sm font-bold ${
-                          attempt.isPassed ? 'text-green-600' : 'text-red-500'
-                        }`}
-                      >
-                        {attempt.totalMarks}%
-                      </p>
-                      <p className="text-xs text-gray-400">{formatDate(attempt.attemptDate)}</p>
-                    </div>
-                  </div>
-                ))}
-                {testAttempts.detailedAttempts.length === 0 && (
+                  ))}
+                {testAttempts.detailedAttempts.filter((attempt) => attempt.testType !== 'Mid-Test' && attempt.testType !== 'midtest').length === 0 && (
                   <div className="px-5 py-10 text-center text-sm text-gray-400">
                     No test attempts yet
                   </div>
@@ -694,34 +697,33 @@ const StudentActivityPage: React.FC = () => {
             {/* Test Type Distribution */}
             <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
               <div className="px-5 py-4 border-b border-gray-100">
-                <h3 className="font-semibold text-[#333333]">Test Type Distribution</h3>
+                <h3 className="font-semibold text-[#333333]">Test Type Attempts</h3>
               </div>
               <div className="p-5 space-y-5">
-                {Object.entries(testAttempts.attemptsByType).map(([type, count], i) => {
-                  const pct =
-                    testAttempts.totalAttempts > 0
-                      ? (count / testAttempts.totalAttempts) * 100
-                      : 0;
-                  return (
-                    <div key={type}>
-                      <div className="flex items-center justify-between text-sm mb-1.5">
-                        <span className="font-medium text-gray-700 capitalize">
-                          {type.replace(/([A-Z])/g, ' $1').trim()}
-                        </span>
-                        <span className="font-semibold text-[#333333]">{count}</span>
+                {Object.entries(testAttempts.attemptsByType)
+                  .filter(([type]) => type !== "midTests" && type !== "midTest")
+                  .map(([type, count], i) => {
+                    const pct =
+                      testAttempts.totalAttempts > 0
+                        ? (count / testAttempts.totalAttempts) * 100
+                        : 0;
+                    return (
+                      <div key={type}>
+                        <div className="flex items-center justify-between text-sm mb-1.5">
+                          <span className="font-medium text-gray-700 capitalize">
+                            {type.replace(/([A-Z])/g, ' $1').trim()}
+                          </span>
+                          <span className="font-semibold text-[#333333]">{count}</span>
+                        </div>
+                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full ${typeColors[i % typeColors.length]} rounded-full transition-all duration-500`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
                       </div>
-                      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full ${typeColors[i % typeColors.length]} rounded-full transition-all duration-500`}
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-                {Object.keys(testAttempts.attemptsByType).length === 0 && (
-                  <p className="text-sm text-gray-400 text-center py-6">No data available</p>
-                )}
+                    );
+                  })}
               </div>
             </div>
           </div>
@@ -834,6 +836,25 @@ const StudentActivityPage: React.FC = () => {
               <div key={s.label} className={`${s.cls} rounded-xl p-4 text-center`}>
                 <p className="text-2xl font-bold">{s.value}</p>
                 <p className="text-xs mt-0.5 opacity-70">{s.label}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Academic Performance Breakdown Cards (Pre-Test, Final Test, Final Exam, Knowledge Gained) */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { label: 'Avg Pre-Test', value: `${(testAttempts as any).preTestAvg ?? 0}%`, cls: 'bg-blue-50 text-blue-700 border border-blue-100' },
+              { label: 'Avg Final Test', value: `${(testAttempts as any).finalTestAvg ?? 0}%`, cls: 'bg-emerald-50 text-emerald-700 border border-emerald-100' },
+              { label: 'Avg Final Exam', value: `${(testAttempts as any).finalExamAvg ?? 0}%`, cls: 'bg-purple-50 text-purple-700 border border-purple-100' },
+              {
+                label: 'Knowledge Gained',
+                value: `${((testAttempts as any).knowledgeGainedPct ?? 0) >= 0 ? '+' : ''}${(testAttempts as any).knowledgeGainedPct ?? 0}%`,
+                cls: 'bg-amber-50 text-amber-700 border border-amber-100',
+              },
+            ].map((s) => (
+              <div key={s.label} className={`${s.cls} rounded-xl p-4 text-center shadow-sm`}>
+                <p className="text-2xl font-bold">{s.value}</p>
+                <p className="text-xs mt-0.5 font-semibold opacity-80">{s.label}</p>
               </div>
             ))}
           </div>
