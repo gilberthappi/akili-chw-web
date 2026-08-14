@@ -355,6 +355,51 @@ const CEHOGroupPage = () => {
     ).values(),
   );
 
+  // Group academic performance metrics
+  const overallPreTestAvg = useMemo(() => {
+    let totalScore = 0;
+    let count = 0;
+    monitoringMembers.forEach((m: any) => {
+      const attempts = (m.recentTestAttempts || []).filter((a: any) => a.preTestId != null);
+      if (attempts.length > 0) {
+        totalScore += attempts.reduce((s: number, a: any) => s + (a.marks || 0), 0) / attempts.length;
+        count++;
+      }
+    });
+    return count > 0 ? Math.round(totalScore / count) : 0;
+  }, [monitoringMembers]);
+
+  const overallFinalTestAvg = useMemo(() => {
+    let totalScore = 0;
+    let count = 0;
+    monitoringMembers.forEach((m: any) => {
+      const attempts = (m.recentTestAttempts || []).filter((a: any) => a.finalTestId != null);
+      if (attempts.length > 0) {
+        totalScore += attempts.reduce((s: number, a: any) => s + (a.marks || 0), 0) / attempts.length;
+        count++;
+      }
+    });
+    return count > 0 ? Math.round(totalScore / count) : 0;
+  }, [monitoringMembers]);
+
+  const overallFinalExamAvg = useMemo(() => {
+    let totalScore = 0;
+    let count = 0;
+    monitoringMembers.forEach((m: any) => {
+      const attempts = (m.recentTestAttempts || []).filter((a: any) => a.finalExamId != null);
+      if (attempts.length > 0) {
+        totalScore += attempts.reduce((s: number, a: any) => s + (a.marks || 0), 0) / attempts.length;
+        count++;
+      }
+    });
+    return count > 0 ? Math.round(totalScore / count) : 0;
+  }, [monitoringMembers]);
+
+  const overallKnowledgeGained = useMemo(() => {
+    if (overallPreTestAvg <= 0) return 0;
+    return Math.round(((overallFinalTestAvg - overallPreTestAvg) / overallPreTestAvg) * 100);
+  }, [overallPreTestAvg, overallFinalTestAvg]);
+
   // Filter CHW regular members list for Bose tab (EXCLUDING CEHO to prevent duplicate leader card display!)
   const filteredCHWs = members.filter((m: ICEHOGroupMember) => {
     // 1. Prevent CEHO duplication: Exclude CEHO from regular CHW members list
@@ -945,25 +990,32 @@ const CEHOGroupPage = () => {
       {/* ── TAB 2: LEARNING & PROGRESS ── */}
       {activeTab === "learning" && (
         <div className="space-y-6">
-          {/* Metric Cards Row */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {/* Metric Cards Row (4 Academic Overview Cards) */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <MetricCard
-              title="Total Members"
-              value={memberCount}
-              icon={<Users size={18} />}
-              iconBg="bg-[#EBF0F9]"
-              iconColor="text-[#3363AD]"
+              title="Avg Pre-Test"
+              value={`${overallPreTestAvg}%`}
+              icon={<Award size={18} />}
+              iconBg="bg-blue-50"
+              iconColor="text-blue-600"
             />
             <MetricCard
-              title="Avg Progress"
-              value={`${avgProgress}%`}
+              title="Avg Final Test"
+              value={`${overallFinalTestAvg}%`}
               icon={<TrendingUp size={18} />}
+              iconBg="bg-emerald-50"
+              iconColor="text-emerald-600"
+            />
+            <MetricCard
+              title="Avg Final Exam"
+              value={`${overallFinalExamAvg}%`}
+              icon={<Crown size={18} />}
               iconBg="bg-purple-50"
               iconColor="text-purple-600"
             />
             <MetricCard
-              title="Actively Learning"
-              value={activeCount}
+              title="Knowledge Gained"
+              value={`${overallKnowledgeGained >= 0 ? "+" : ""}${overallKnowledgeGained}%`}
               icon={<Activity size={18} />}
               iconBg="bg-amber-50"
               iconColor="text-amber-600"
@@ -1013,7 +1065,7 @@ const CEHOGroupPage = () => {
                     "text-orange-800 bg-orange-200/80 border-orange-300",
                   ];
 
-                  const gradedAttempts = (tp.recentTestAttempts || []).filter((x: any) => x.preTestId == null);
+                  const gradedAttempts = (tp.recentTestAttempts || []).filter((x: any) => x.midTestId == null);
                   const avgScore = gradedAttempts.length > 0
                     ? Math.round(gradedAttempts.reduce((s: number, a: any) => s + (a.marks || 0), 0) / gradedAttempts.length)
                     : 0;
@@ -1096,7 +1148,7 @@ const CEHOGroupPage = () => {
                 const totalC = m.courseProgress.length;
                 const completedC = m.courseProgress.filter((cp: any) => cp.isCompleted).length;
                 const avgP = totalC > 0 ? Math.round(m.courseProgress.reduce((sum: number, c: any) => sum + (c.progress || 0), 0) / totalC) : 0;
-                const gradedAttempts = (m.recentTestAttempts || []).filter((a: any) => a.preTestId == null);
+                const gradedAttempts = (m.recentTestAttempts || []).filter((a: any) => a.midTestId == null);
                 const passing = gradedAttempts.filter((a: any) => a.marks >= 70).length;
 
                 return (

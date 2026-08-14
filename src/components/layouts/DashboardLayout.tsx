@@ -433,25 +433,25 @@ const DashboardLayout = ({
       roles: ["ADMIN", "TRAINEE", "TRAINER", "DEVELOPER", "CEHO"],
       icon: <Squares2X2Icon className='w-5 h-5' />,
     },
-    {
-      label: "Analytics",
-      path: "/analytics",
-      roles: ["ADMIN", "TRAINER", "DEVELOPER", "STAFF"],
-      industries: ["SFH", "WELTEL", "RBC"],
-      icon: <BarChart3 className='w-5 h-5' />,
-      submenus: [
-        {
-          label: "Courses",
-          path: "/analytics/courses",
-          icon: <BarChart2 className='w-4 h-4' />,
-        },
-        {
-          label: "CHW",
-          path: "/analytics/student",
-          icon: <Users className='w-4 h-4' />,
-        },
-      ],
-    },
+    // {
+    //   label: "Analytics",
+    //   path: "/analytics",
+    //   roles: ["ADMIN", "TRAINER", "DEVELOPER", "STAFF"],
+    //   industries: ["SFH", "WELTEL", "RBC"],
+    //   icon: <BarChart3 className='w-5 h-5' />,
+    //   submenus: [
+    //     {
+    //       label: "Courses",
+    //       path: "/analytics/courses",
+    //       icon: <BarChart2 className='w-4 h-4' />,
+    //     },
+    //     {
+    //       label: "CHW",
+    //       path: "/analytics/student",
+    //       icon: <Users className='w-4 h-4' />,
+    //     },
+    //   ],
+    // },
 
     {
       label: "Staff",
