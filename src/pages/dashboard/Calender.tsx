@@ -2494,18 +2494,7 @@ const Calendar: React.FC = () => {
                             </button>
                             {selectedEvent.location && (selectedEvent.location.startsWith("http") || selectedEvent.location.includes("/meeting/")) && (
                               <a
-                                href={(() => {
-                                  const cleanUrl = getCleanMeetingUrl(selectedEvent.location);
-                                  const token = localStorage.getItem("token") || localStorage.getItem("accessToken");
-                                  if (token) {
-                                    try {
-                                      const u = new URL(cleanUrl);
-                                      u.searchParams.set("token", token);
-                                      return u.toString();
-                                    } catch (e) {}
-                                  }
-                                  return cleanUrl;
-                                })()}
+                                href={getCleanMeetingUrl(selectedEvent.location)}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary text-white rounded-lg text-xs font-medium hover:bg-[#4d81d2] transition-colors ml-2"

@@ -290,14 +290,13 @@ export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({
 
     socket.on("notification", (notification: Notification) => {
       console.log("[NotificationsContext] New notification:", notification.title);
-      setNotifications((prev) => [notification, ...prev]);
+      setNotifications((prev) => {
+        if (prev.some((n) => n.id === notification.id)) return prev;
+        return [notification, ...prev];
+      });
       if (!notification.isRead) {
         setUnreadCount((prev) => prev + 1);
       }
-      // OS push notifications are handled exclusively by the FCM service worker
-      // (firebase-messaging-sw.js). Showing them here too caused triple-popups
-      // because socket events arrive faster than FCM, and multiple tabs each
-      // had their own handler racing against the 2-second BroadcastChannel debounce.
     });
 
     socket.on("unread_count_updated", (data: { unreadCount: number }) => {
