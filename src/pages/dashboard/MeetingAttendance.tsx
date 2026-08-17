@@ -122,6 +122,7 @@ const MeetingAttendance: React.FC = () => {
       const res = await api.get(`/attendance/event/${eventId}`);
       return {
         records: (res.data?.data ?? []) as AttendanceRecord[],
+        event: (res.data?.event ?? null) as any,
         invited: (res.data?.invited ?? null) as InvitedInfo | null,
       };
     },
@@ -131,12 +132,14 @@ const MeetingAttendance: React.FC = () => {
   });
 
   const records = data?.records ?? [];
+  const eventData = data?.event ?? null;
   const invited = data?.invited ?? null;
-  const eventTitle = records[0]?.event?.title;
+  const eventTitle = eventData?.title ?? records[0]?.event?.title;
 
   // Group by user — sum duration across all sessions in the same meeting.
   const attendees = useMemo<AggregatedAttendee[]>(() => {
-    const hostId = records[0]?.event?.createdById ?? null;
+    const hostId = eventData?.createdById ?? records.find((r) => r.event?.createdById)?.event?.createdById ?? null;
+    const hostUser = eventData?.createdBy ?? null;
 
     const meetingEndMs = records.reduce((max, r) => {
       if (!r.leftAt) return max;
@@ -164,8 +167,16 @@ const MeetingAttendance: React.FC = () => {
       if (estimatedDuration < 0 || isNaN(estimatedDuration)) estimatedDuration = 0;
 
       if (!map.has(key)) {
-        const nameVal = r.user?.fullNames ?? r.survey?.name ?? r.guestName ?? 'Unknown';
-        const emailVal = r.user?.email ?? r.survey?.phoneNumber ?? null;
+        let nameVal = r.user?.fullNames ?? r.survey?.name ?? r.guestName;
+        if (!nameVal || nameVal.trim() === '' || nameVal === 'Unknown') {
+          if (r.userId && hostId && r.userId === hostId && hostUser?.fullNames) {
+            nameVal = hostUser.fullNames;
+          } else {
+            nameVal = 'Unknown';
+          }
+        }
+
+        const emailVal = r.user?.email ?? r.survey?.phoneNumber ?? (r.userId && r.userId === hostId ? hostUser?.email ?? null : null);
         const hcVal   = r.user?.healthCenter?.name ?? r.survey?.hospital ?? r.survey?.healthCenter ?? '—';
         const genVal  = r.user?.gender ?? r.survey?.gender ?? '—';
         const distVal = r.user?.district ?? r.survey?.district ?? '—';
@@ -173,12 +184,18 @@ const MeetingAttendance: React.FC = () => {
         const cellVal = r.user?.cell ?? r.survey?.cell ?? '—';
         const vilVal  = r.user?.village ?? r.survey?.village ?? '—';
 
+        const isHost =
+          (!!r.userId && !!hostId && r.userId === hostId) ||
+          (!!hostUser &&
+            (nameVal.toLowerCase() === hostUser.fullNames.toLowerCase() ||
+              (emailVal && emailVal.toLowerCase() === (hostUser.email ?? '').toLowerCase())));
+
         map.set(key, {
           key,
           userId: r.userId,
-          name: nameVal,
+          name: isHost && hostUser?.fullNames ? hostUser.fullNames : nameVal,
           email: emailVal,
-          photo: r.user?.photo ?? null,
+          photo: r.user?.photo ?? (isHost ? hostUser?.photo : null) ?? null,
           role: r.user?.userRoles?.[0]?.name ?? '—',
           healthCenter: hcVal,
           gender: genVal,
@@ -187,8 +204,8 @@ const MeetingAttendance: React.FC = () => {
           cell: cellVal,
           village: vilVal,
           totalDurationSec: estimatedDuration,
-          isGuest: !r.userId,
-          isHost: !!r.userId && r.userId === hostId,
+          isGuest: !r.userId && !isHost,
+          isHost,
         });
       } else {
         map.get(key)!.totalDurationSec += estimatedDuration;
@@ -200,7 +217,7 @@ const MeetingAttendance: React.FC = () => {
       if (a.isGuest !== b.isGuest) return a.isGuest ? 1 : -1;
       return a.name.localeCompare(b.name);
     });
-  }, [records]);
+  }, [records, eventData]);
 
   const registered = attendees.filter((a) => !a.isGuest);
   const guests = attendees.filter((a) => a.isGuest);
