@@ -16,6 +16,7 @@ import {
   ITestScoreAnalytics,
   ICourseDurationStats,
 } from "@/types";
+import { OBLIQUE_BAR_MARGIN, OBLIQUE_X_AXIS } from "./shared/chartAxis";
 
 interface CourseChartsCardProps {
   courseAnalytics: ICourseAnalytics | null;
@@ -161,12 +162,12 @@ export const CourseChartsCard: React.FC<CourseChartsCardProps> = ({
           No data available
         </div>
       ) : (
-        <div style={{ height: 260 }}>
+        <div style={{ height: 300 }}>
           <ResponsiveContainer width='100%' height='100%'>
             {activeChart === "completion" ? (
               <BarChart
                 data={completionData}
-                margin={{ top: 4, right: 8, left: 20, bottom: 32 }}
+                margin={OBLIQUE_BAR_MARGIN}
                 barSize={28}
               >
                 <CartesianGrid
@@ -176,15 +177,7 @@ export const CourseChartsCard: React.FC<CourseChartsCardProps> = ({
                 />
                 <XAxis
                   dataKey='name'
-                  tick={{ fontSize: 11 }}
-                  axisLine={false}
-                  tickLine={false}
-                  label={{
-                    value: "Course",
-                    position: "insideBottomRight",
-                    offset: -8,
-                    style: { fontSize: 10, fill: "#9ca3af" },
-                  }}
+                  {...OBLIQUE_X_AXIS}
                 />
                 <YAxis
                   tick={{ fontSize: 11 }}
@@ -220,7 +213,7 @@ export const CourseChartsCard: React.FC<CourseChartsCardProps> = ({
             ) : activeChart === "duration" ? (
               <BarChart
                 data={durationData}
-                margin={{ top: 4, right: 8, left: 20, bottom: 32 }}
+                margin={OBLIQUE_BAR_MARGIN}
                 barSize={48}
               >
                 <CartesianGrid
@@ -230,15 +223,7 @@ export const CourseChartsCard: React.FC<CourseChartsCardProps> = ({
                 />
                 <XAxis
                   dataKey='name'
-                  tick={{ fontSize: 11 }}
-                  axisLine={false}
-                  tickLine={false}
-                  label={{
-                    value: "Course",
-                    position: "insideBottomRight",
-                    offset: -8,
-                    style: { fontSize: 10, fill: "#9ca3af" },
-                  }}
+                  {...OBLIQUE_X_AXIS}
                 />
                 <YAxis
                   tick={{ fontSize: 11 }}
@@ -269,7 +254,7 @@ export const CourseChartsCard: React.FC<CourseChartsCardProps> = ({
             ) : (
               <BarChart
                 data={testScoreData}
-                margin={{ top: 4, right: 8, left: 20, bottom: 32 }}
+                margin={OBLIQUE_BAR_MARGIN}
                 barSize={20}
               >
                 <CartesianGrid
@@ -279,15 +264,7 @@ export const CourseChartsCard: React.FC<CourseChartsCardProps> = ({
                 />
                 <XAxis
                   dataKey='name'
-                  tick={{ fontSize: 11 }}
-                  axisLine={false}
-                  tickLine={false}
-                  label={{
-                    value: "Course",
-                    position: "insideBottomRight",
-                    offset: -8,
-                    style: { fontSize: 10, fill: "#9ca3af" },
-                  }}
+                  {...OBLIQUE_X_AXIS}
                 />
                 <YAxis
                   domain={[0, 100]}

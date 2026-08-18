@@ -1,12 +1,20 @@
 import React, { useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { debounce } from "lodash";
+import toast from "react-hot-toast";
 import Table from "@/components/table/Table";
 import { IHealthCenter } from "@/types";
-import { getAllHospitals } from "@/services/healthCenters.service";
+import {
+  exportHospitalsToExcel,
+  getAllHospitals,
+} from "@/services/healthCenters.service";
 import { formatDate } from "@/utils/formats/formats";
 import { LuCirclePlus } from "react-icons/lu";
-import { ArrowUpTrayIcon, InformationCircleIcon } from "@heroicons/react/24/outline";
+import {
+  ArrowDownTrayIcon,
+  ArrowUpTrayIcon,
+  InformationCircleIcon,
+} from "@heroicons/react/24/outline";
 import TableActions from "@/components/table/TableActions";
 import HealthCenterTableActions from "@/components/healthCenters/HealthCenterTableActions";
 import HealthCenterFormDialog from "@/components/healthCenters/HealthCenterFormDialog";
@@ -37,6 +45,7 @@ const HealthCenters: React.FC = () => {
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [selectedHospital, setSelectedHospital] = useState<IHealthCenter | null>(null);
   const [selectedDetailId, setSelectedDetailId] = useState<string | null>(null);
 
@@ -93,6 +102,32 @@ const HealthCenters: React.FC = () => {
     setIsFormOpen(true);
   };
 
+  const handleExportExcel = async () => {
+    try {
+      setIsExporting(true);
+      toast.loading("Generating Excel file…", { id: "hc-excel-export" });
+      const blob = await exportHospitalsToExcel(
+        buildQueryParams(1, searchKeyword),
+      );
+      const dateStr = new Date().toISOString().split("T")[0];
+      const filename = `Health_Centers_Export_${dateStr}.xlsx`;
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success("Excel exported successfully", { id: "hc-excel-export" });
+    } catch (error: unknown) {
+      console.error("Export error:", error);
+      toast.error("Failed to export health centers", { id: "hc-excel-export" });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   if (selectedDetailId) {
     return (
       <HealthCenterDetail
@@ -115,6 +150,19 @@ const HealthCenters: React.FC = () => {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={handleExportExcel}
+            disabled={isExporting}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-gray-300 text-gray-700 font-medium transition-all duration-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isExporting ? (
+              <span className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <ArrowDownTrayIcon className="w-4 h-4" />
+            )}
+            <span>{isExporting ? "Exporting…" : "Export Excel"}</span>
+          </button>
           <button
             onClick={() => setIsImportOpen(true)}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-gray-300 text-gray-700 font-medium transition-all duration-300 hover:bg-gray-50"

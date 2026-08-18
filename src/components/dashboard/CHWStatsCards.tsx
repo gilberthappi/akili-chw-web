@@ -55,36 +55,40 @@ const CHWStatCard: React.FC<CardConfig> = ({
   primaryRate,
   subItems,
 }) => (
-  <div className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-sm transition-shadow duration-200">
-    <div className="flex items-start justify-between gap-2">
-      <div className="flex items-center gap-3">
-        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}>
-          <span className={iconColor}>{icon}</span>
-        </div>
-        <div>
-          <p className="text-sm text-gray-500 font-medium">{title}</p>
-          <div className="flex items-baseline gap-2 mt-0.5 flex-wrap">
-            <p className="text-2xl font-bold text-gray-900">{primary}</p>
-            {primaryRate && (
-              <span className="text-sm font-semibold text-[#3363AD]">
-                {primaryRate}
-              </span>
-            )}
-          </div>
+  <div className="bg-white rounded-xl border border-gray-200 p-4 h-full min-h-[148px] flex flex-col hover:shadow-sm hover:border-[#3363AD]/25 transition-all duration-200">
+    <div className="flex items-start gap-3">
+      <div
+        className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}
+      >
+        <span className={iconColor}>{icon}</span>
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-xs text-gray-500 font-medium leading-snug">{title}</p>
+        <div className="flex items-baseline gap-2 mt-1 flex-wrap">
+          <p className="text-2xl font-bold text-gray-900 tracking-tight">
+            {primary}
+          </p>
+          {primaryRate && (
+            <span className="text-xs font-semibold text-[#3363AD] whitespace-nowrap">
+              {primaryRate}
+            </span>
+          )}
         </div>
       </div>
     </div>
 
     {subItems.length > 0 && (
-      <div className="mt-4 pt-3 border-t border-gray-100">
-        <div className="flex items-center gap-3 flex-wrap">
+      <div className="mt-auto pt-3">
+        <div className="flex items-center gap-1.5 flex-wrap">
           {subItems.map((item) => (
             <span
               key={item.label}
-              className="text-xs font-medium text-[#3363AD]"
+              className="inline-flex items-center gap-1 rounded-full bg-gray-50 px-2 py-0.5 text-[11px] text-gray-600"
             >
-              {item.value.toLocaleString()}{" "}
-              <span className="font-normal text-gray-500">{item.label}</span>
+              <span className="font-semibold text-[#3363AD]">
+                {item.value.toLocaleString()}
+              </span>
+              {item.label}
             </span>
           ))}
         </div>
@@ -102,7 +106,7 @@ export const CHWStatsCards: React.FC<CHWStatsCardsProps> = ({
     return (
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 animate-pulse">
         {[...Array(8)].map((_, i) => (
-          <div key={i} className="h-32 bg-gray-100 rounded-xl" />
+          <div key={i} className="h-[148px] bg-gray-100 rounded-xl" />
         ))}
       </div>
     );
@@ -129,16 +133,15 @@ export const CHWStatsCards: React.FC<CHWStatsCardsProps> = ({
       : ROLE_SHORT_LABELS[roleFilter] ?? "users";
 
   const cards: CardConfig[] = [
-    // Row 1
     {
-      icon: <Users size={22} />,
+      icon: <Users size={20} />,
       iconBg: "bg-[#3363AD]/10",
       iconColor: "text-[#3363AD]",
       title: totalTitle,
       primary: (data?.chws.total ?? 0).toLocaleString(),
       primaryRate:
         roleFilter === "TRAINEE" || roleFilter === ""
-          ? `${chwPercent}% of ${chwTarget.toLocaleString()}`
+          ? `${chwPercent}% / ${chwTarget.toLocaleString()}`
           : undefined,
       subItems: [
         {
@@ -152,12 +155,12 @@ export const CHWStatsCards: React.FC<CHWStatsCardsProps> = ({
       ],
     },
     {
-      icon: <MonitorCheck size={22} />,
+      icon: <MonitorCheck size={20} />,
       iconBg: "bg-[#3363AD]/10",
       iconColor: "text-[#3363AD]",
       title: "Able to Use Platform",
       primary: (ready?.total ?? 0).toLocaleString(),
-      primaryRate: `${ready?.percentOfRegistered ?? 0}% of registered ·`,
+      primaryRate: `${ready?.percentOfRegistered ?? 0}% / registered`,
       subItems: [
         {
           label: "completed a course",
@@ -170,15 +173,11 @@ export const CHWStatsCards: React.FC<CHWStatsCardsProps> = ({
       ],
     },
     {
-      icon: <Calculator size={22} />,
+      icon: <Calculator size={20} />,
       iconBg: "bg-[#3363AD]/10",
       iconColor: "text-[#3363AD]",
-      title: "Eligible",
+      title: "Eligible Certificates",
       primary: (eligible?.total ?? 0).toLocaleString(),
-      primaryRate:
-        eligible != null
-          ? `${(eligible.chws ?? 0).toLocaleString()} × ${(eligible.courses ?? 0).toLocaleString()}`
-          : undefined,
       subItems: [
         {
           label: eligiblePeopleLabel,
@@ -191,7 +190,7 @@ export const CHWStatsCards: React.FC<CHWStatsCardsProps> = ({
       ],
     },
     {
-      icon: <UserCheck size={22} />,
+      icon: <UserCheck size={20} />,
       iconBg: "bg-[#3363AD]/10",
       iconColor: "text-[#3363AD]",
       title: "Total CEHO",
@@ -207,23 +206,22 @@ export const CHWStatsCards: React.FC<CHWStatsCardsProps> = ({
         },
       ],
     },
-    // Row 2
     {
-      icon: <Hourglass size={22} />,
+      icon: <Hourglass size={20} />,
       iconBg: "bg-[#3363AD]/10",
       iconColor: "text-[#3363AD]",
       title: "In Progress",
       primary: inProgress.toLocaleString(),
-      primaryRate: `${inProgressRate}% of eligible`,
+      primaryRate: `${inProgressRate}% / eligible certificates`,
       subItems: [
         {
-          label: "eligible",
+          label: "eligible certificates",
           value: completion?.total ?? eligible?.total ?? 0,
         },
       ],
     },
     {
-      icon: <CheckCircle size={22} />,
+      icon: <CheckCircle size={20} />,
       iconBg: "bg-[#3363AD]/10",
       iconColor: "text-[#3363AD]",
       title: "Course Completion",
@@ -234,13 +232,13 @@ export const CHWStatsCards: React.FC<CHWStatsCardsProps> = ({
           value: completion?.completed ?? 0,
         },
         {
-          label: "eligible",
+          label: "eligible certificates",
           value: completion?.total ?? eligible?.total ?? 0,
         },
       ],
     },
     {
-      icon: <Award size={22} />,
+      icon: <Award size={20} />,
       iconBg: "bg-[#3363AD]/10",
       iconColor: "text-[#3363AD]",
       title: "Certification",
@@ -257,7 +255,7 @@ export const CHWStatsCards: React.FC<CHWStatsCardsProps> = ({
       ],
     },
     {
-      icon: <ClipboardList size={22} />,
+      icon: <ClipboardList size={20} />,
       iconBg: "bg-[#3363AD]/10",
       iconColor: "text-[#3363AD]",
       title: "Test Attempts",
@@ -281,8 +279,8 @@ export const CHWStatsCards: React.FC<CHWStatsCardsProps> = ({
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      {cards.map((card, i) => (
-        <CHWStatCard key={i} {...card} />
+      {cards.map((card) => (
+        <CHWStatCard key={card.title} {...card} />
       ))}
     </div>
   );

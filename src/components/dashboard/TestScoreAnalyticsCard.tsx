@@ -14,6 +14,7 @@ import { Card } from "@/components/common/Card";
 import { DashboardSectionHeader } from "./shared/DashboardSectionHeader";
 import { ITestScoreAnalytics } from "@/types";
 import { BookOpen } from "lucide-react";
+import { OBLIQUE_BAR_MARGIN, OBLIQUE_X_AXIS } from "./shared/chartAxis";
 
 interface TestScoreAnalyticsCardProps {
   data: ITestScoreAnalytics | null;
@@ -116,11 +117,11 @@ export const TestScoreAnalyticsCard: React.FC<TestScoreAnalyticsCardProps> = ({
 
       {/* Bar chart */}
       {chartData.length > 0 && (
-        <div style={{ height: 200 }}>
+        <div style={{ height: 260 }}>
           <ResponsiveContainer width='100%' height='100%'>
             <BarChart
               data={chartData}
-              margin={{ top: 4, right: 8, left: 20, bottom: 32 }}
+              margin={OBLIQUE_BAR_MARGIN}
               barSize={28}
             >
               <CartesianGrid
@@ -130,15 +131,7 @@ export const TestScoreAnalyticsCard: React.FC<TestScoreAnalyticsCardProps> = ({
               />
               <XAxis
                 dataKey='name'
-                tick={{ fontSize: 10 }}
-                axisLine={false}
-                tickLine={false}
-                label={{
-                  value: view === "course" ? "Course" : "District",
-                  position: "insideBottomRight",
-                  offset: -8,
-                  style: { fontSize: 10, fill: "#9ca3af" },
-                }}
+                {...OBLIQUE_X_AXIS}
               />
               <YAxis
                 domain={[0, 100]}

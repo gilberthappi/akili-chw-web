@@ -17,6 +17,7 @@ import { Award, ChevronDown } from "lucide-react";
 import { Card } from "@/components/common/Card";
 import { DashboardSectionHeader } from "./shared/DashboardSectionHeader";
 import { ICertificationAnalytics, IDashboardFilters } from "@/types";
+import { OBLIQUE_BAR_MARGIN, OBLIQUE_X_AXIS } from "./shared/chartAxis";
 
 interface CertificationRateCardProps {
   data: ICertificationAnalytics | null;
@@ -131,11 +132,11 @@ export const CertificationRateCard: React.FC<CertificationRateCardProps> = ({
     chartData.length === 0 ? (
       <p className="text-sm text-gray-400 text-center py-6">No data available</p>
     ) : (
-      <div style={{ height: 260 }}>
+      <div style={{ height: 300 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} margin={{ top: 4, right: 8, left: 20, bottom: 32 }} barSize={28}>
+          <BarChart data={chartData} margin={OBLIQUE_BAR_MARGIN} barSize={28}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
-            <XAxis dataKey="name" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+            <XAxis dataKey="name" {...OBLIQUE_X_AXIS} />
             <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
             <Tooltip
               contentStyle={tooltipStyle}

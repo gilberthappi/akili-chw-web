@@ -59,3 +59,11 @@ export const importHospitals = async (
     })
   ).data;
 };
+
+export const exportHospitalsToExcel = async (params?: string): Promise<Blob> => {
+  const queryParams = params ? params : "";
+  const response = await api.get(`/healthCenters/export/excel${queryParams}`, {
+    responseType: "blob",
+  });
+  return response.data;
+};

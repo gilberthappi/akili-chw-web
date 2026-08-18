@@ -12,6 +12,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
+import { OBLIQUE_BAR_MARGIN, OBLIQUE_X_AXIS } from "./shared/chartAxis";
 
 interface TestScoreCardProps {
   studentAnalytics: IStudentAnalytics | null;
@@ -46,24 +47,6 @@ export const TestScoreCard: React.FC<TestScoreCardProps> = ({
     { name: "Failing",   range: performanceDistribution.failing.range,   value: performanceDistribution.failing.count,   fill: "#ef4444" },
   ];
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const CustomXAxisTick = (props: any) => {
-    const { x, y, payload } = props;
-    const item = chartData.find((d) => d.name === payload.value);
-    return (
-      <g transform={`translate(${x},${y})`}>
-        <text x={0} y={0} dy={12} textAnchor="middle" fill="#6b7280" fontSize={11} fontWeight={500}>
-          {payload.value}
-        </text>
-        {item?.range && (
-          <text x={0} y={0} dy={26} textAnchor="middle" fill="#9ca3af" fontSize={9}>
-            {item.range}
-          </text>
-        )}
-      </g>
-    );
-  };
-
   // Calculate average score from top performers
   const avgScore =
     topPerformers && topPerformers.length > 0
@@ -77,26 +60,17 @@ export const TestScoreCard: React.FC<TestScoreCardProps> = ({
         <h3 className='text-lg font-semibold text-gray-800'>CHW Performance</h3>
       </div>
 
-      <div style={{ height: "200px" }}>
-        <ResponsiveContainer width='100%' height={200}>
+      <div style={{ height: "240px" }}>
+        <ResponsiveContainer width='100%' height={240}>
           <BarChart
             data={chartData}
-            margin={{ top: 4, right: 8, left: 20, bottom: 40 }}
+            margin={OBLIQUE_BAR_MARGIN}
             barSize={40}
           >
             <CartesianGrid strokeDasharray='3 3' stroke='#f0f0f0' />
             <XAxis
               dataKey='name'
-              tick={<CustomXAxisTick />}
-              axisLine={false}
-              tickLine={false}
-              height={50}
-              label={{
-                value: "Performance Level",
-                position: "insideBottomRight",
-                offset: -8,
-                style: { fontSize: 10, fill: "#9ca3af" },
-              }}
+              {...OBLIQUE_X_AXIS}
             />
             <YAxis
               tick={{ fontSize: 11 }}
@@ -111,7 +85,10 @@ export const TestScoreCard: React.FC<TestScoreCardProps> = ({
               }}
             />
             <Tooltip
-              formatter={(value: number) => [value, "CHW"]}
+              formatter={(value: number, _name, props) => {
+                const range = (props?.payload as { range?: string } | undefined)?.range;
+                return [range ? `${value} (${range})` : value, "CHW"];
+              }}
               contentStyle={{ fontSize: 12 }}
             />
             <Bar dataKey='value' radius={[4, 4, 0, 0]}>

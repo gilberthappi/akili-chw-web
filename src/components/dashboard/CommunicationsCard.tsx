@@ -12,6 +12,7 @@ import { MessageSquare } from "lucide-react";
 import { Card } from "@/components/common/Card";
 import { DashboardSectionHeader } from "./shared/DashboardSectionHeader";
 import { ICommunicationsAnalytics } from "@/types";
+import { OBLIQUE_BAR_MARGIN, OBLIQUE_X_AXIS } from "./shared/chartAxis";
 
 interface CommunicationsCardProps {
   data: ICommunicationsAnalytics | null;
@@ -120,21 +121,13 @@ export const CommunicationsCard: React.FC<CommunicationsCardProps> = ({
         <ResponsiveContainer width='100%' height='100%'>
           <BarChart
             data={filteredTrend ?? data.monthlyTrend}
-            margin={{ top: 0, right: 8, left: 20, bottom: 32 }}
+            margin={OBLIQUE_BAR_MARGIN}
             barSize={40}
           >
             <CartesianGrid strokeDasharray='3 3' stroke='#f0f0f0' vertical={false} />
             <XAxis
               dataKey='month'
-              tick={{ fontSize: 9 }}
-              axisLine={false}
-              tickLine={false}
-              label={{
-                value: "Month",
-                position: "insideBottomRight",
-                offset: -8,
-                style: { fontSize: 10, fill: "#9ca3af" },
-              }}
+              {...OBLIQUE_X_AXIS}
             />
             <YAxis
               tick={{ fontSize: 9 }}
