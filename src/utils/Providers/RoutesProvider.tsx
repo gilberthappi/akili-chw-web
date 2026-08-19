@@ -6,6 +6,7 @@ import AdminLayout from "@/pages/Layout";
 import LearningLayout from "@/components/layouts/LearningLayout";
 import NotFound from "@/pages/NotFound";
 import { Dashboard } from "@/pages/dashboard/Dashboard";
+import { DashboardV2 } from "@/pages/dashboard/DashboardV2";
 import { MyCourses } from "@/pages/dashboard/MyCourses";
 import { Messaging } from "@/pages/dashboard/Messaging";
 import { Staff } from "@/pages/dashboard/Staff";
@@ -27,6 +28,7 @@ import NewCoursePage from "@/components/courses/NewCoursePage";
 import NewCoursesBuilder from "@/pages/dashboard/NewCoursesBuilder";
 import StudentsPage from "@/pages/dashboard/Students";
 import StudentActivityPage from "@/components/students/StudentActivityPage";
+import { StudentDetailsV2 } from "@/components/students/StudentDetailsV2";
 import Calendar from "@/pages/dashboard/Calender";
 import MeetingRecordings from "@/pages/dashboard/MeetingRecordings";
 import WatchRecordings from "@/pages/dashboard/WatchRecordings";
@@ -63,6 +65,14 @@ const RoutesProvider = () => {
         {
           index: true,
           element: <Dashboard />,
+        },
+        {
+          path: "v2",
+          element: <DashboardV2 />,
+        },
+        {
+          path: "new",
+          element: <DashboardV2 />,
         },
         {
           path: "analytics",
@@ -154,7 +164,7 @@ const RoutesProvider = () => {
             <ProtectedRoute
               allowedRoles={["ADMIN", "TRAINER", "DEVELOPER", "CEHO"]}
             >
-              <StudentActivityPage />
+              <StudentDetailsV2 />
             </ProtectedRoute>
           ),
         },
