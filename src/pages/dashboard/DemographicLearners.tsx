@@ -1,20 +1,15 @@
-import { useMemo, useState, useCallback, FC, type ReactNode } from "react";
+import { useMemo, useState, useCallback, FC } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { debounce } from "lodash";
 import toast from "react-hot-toast";
 import {
-  ArrowLeft,
   Award,
-  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   FileSpreadsheet,
   Search,
   Users,
-  UserCheck,
-  UsersRound,
-  Gauge,
 } from "lucide-react";
 import {
   exportDemographicLearners,
@@ -34,7 +29,7 @@ const BAND_LABELS: Record<string, string> = {
   failing: "Failing (<60%)",
 };
 
-const buildTitle = (
+const buildSubtitle = (
   params: URLSearchParams,
   courseName?: string | null,
 ): string => {
@@ -52,76 +47,50 @@ const buildTitle = (
     parts.push(`${params.get("province")} province`);
   }
   if (params.get("role")) parts.push(params.get("role")!);
-  return parts.length > 0 ? parts.join(" · ") : "All learners";
+  return parts.length > 0
+    ? `Filtered by ${parts.join(" · ")}`
+    : "Learners matching the selected dashboard filters";
 };
 
-const FilterChip: FC<{ label: string }> = ({ label }) => (
-  <span className='inline-flex items-center rounded-full bg-white/80 px-3 py-1 text-[11px] font-medium text-[#3C3C43]/80 shadow-sm ring-1 ring-black/5 backdrop-blur'>
-    {label}
-  </span>
-);
-
-const StatCard: FC<{
+function StatCard({
+  label,
+  value,
+  color = "text-gray-900",
+  sub,
+}: {
   label: string;
-  value: string;
-  hint?: string;
-  icon: ReactNode;
-  accent: string;
-}> = ({ label, value, hint, icon, accent }) => (
-  <div className='relative overflow-hidden rounded-[22px] bg-white/90 p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_rgba(0,0,0,0.06)] ring-1 ring-black/[0.04] backdrop-blur-xl'>
-    <div
-      className={`absolute -right-4 -top-4 h-20 w-20 rounded-full opacity-[0.12] ${accent}`}
-    />
-    <div className='flex items-start justify-between gap-3'>
-      <div className='min-w-0'>
-        <p className='text-[11px] font-semibold uppercase tracking-[0.04em] text-[#8E8E93]'>
-          {label}
-        </p>
-        <p className='mt-1.5 text-[28px] font-semibold leading-none tracking-tight text-[#1C1C1E]'>
-          {value}
-        </p>
-        {hint ? (
-          <p className='mt-2 text-[12px] font-medium text-[#8E8E93]'>{hint}</p>
-        ) : null}
-      </div>
-      <div
-        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] text-white shadow-sm ${accent}`}
-      >
-        {icon}
-      </div>
+  value: string | number;
+  color?: string;
+  sub?: string;
+}) {
+  return (
+    <div className='bg-white rounded-xl border border-gray-200 p-4 flex flex-col gap-0.5'>
+      <p className='text-xs font-semibold text-gray-500 uppercase tracking-wide'>
+        {label}
+      </p>
+      <p className={`text-3xl font-bold ${color}`}>{value}</p>
+      {sub ? <p className='text-xs text-gray-400'>{sub}</p> : null}
     </div>
-  </div>
-);
+  );
+}
 
 const StatusBadge: FC<{ status: string }> = ({ status }) => {
   const tone =
     status === "ACTIVE"
-      ? "bg-[#34C759]/15 text-[#248A3D]"
+      ? "bg-green-50 text-green-700"
       : status === "INACTIVE"
-        ? "bg-[#8E8E93]/15 text-[#636366]"
+        ? "bg-gray-100 text-gray-600"
         : status === "SUSPENDED"
-          ? "bg-[#FF9F0A]/15 text-[#C93400]"
-          : "bg-[#007AFF]/15 text-[#0051D4]";
+          ? "bg-amber-50 text-amber-700"
+          : "bg-blue-50 text-blue-700";
   return (
     <span
-      className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${tone}`}
+      className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${tone}`}
     >
       {status}
     </span>
   );
 };
-
-const BoolPill: FC<{ yes: boolean }> = ({ yes }) => (
-  <span
-    className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-      yes
-        ? "bg-[#34C759]/15 text-[#248A3D]"
-        : "bg-[#8E8E93]/12 text-[#8E8E93]"
-    }`}
-  >
-    {yes ? "Yes" : "No"}
-  </span>
-);
 
 const DemographicLearnersPage: FC = () => {
   const navigate = useNavigate();
@@ -178,27 +147,13 @@ const DemographicLearnersPage: FC = () => {
   const learners = data?.data?.learners ?? [];
   const pagination = data?.data?.pagination;
   const summary: IDemographicLearnersSummary | undefined = data?.data?.summary;
-  const subtitle = buildTitle(searchParams, data?.data?.filters?.courseName);
+  const subtitle = buildSubtitle(
+    searchParams,
+    data?.data?.filters?.courseName,
+  );
   const showAvgScore =
     !!searchParams.get("performanceBand") ||
     learners.some((l) => l.avgScore != null);
-
-  const chips = useMemo(() => {
-    const list: string[] = [];
-    if (data?.data?.filters?.courseName)
-      list.push(data.data.filters.courseName);
-    const band = searchParams.get("performanceBand");
-    if (band) list.push(BAND_LABELS[band.toLowerCase()] ?? band);
-    if (searchParams.get("district"))
-      list.push(searchParams.get("district")!);
-    else if (searchParams.get("province"))
-      list.push(`${searchParams.get("province")} province`);
-    if (searchParams.get("gender")) list.push(searchParams.get("gender")!);
-    if (searchParams.get("ageGroup"))
-      list.push(`Age ${searchParams.get("ageGroup")}`);
-    if (searchParams.get("role")) list.push(searchParams.get("role")!);
-    return list;
-  }, [searchParams, data?.data?.filters?.courseName]);
 
   const openStudent = (row: IDemographicLearner) => {
     navigate(`/students/${row.id}`);
@@ -221,7 +176,9 @@ const DemographicLearnersPage: FC = () => {
       toast.success("Excel exported", { id: "learners-export" });
     } catch (error: unknown) {
       let errMsg = "Failed to export Excel";
-      const err = error as { response?: { data?: Blob | { message?: string } } };
+      const err = error as {
+        response?: { data?: Blob | { message?: string } };
+      };
       if (err?.response?.data instanceof Blob) {
         try {
           const text = await err.response.data.text();
@@ -244,297 +201,279 @@ const DemographicLearnersPage: FC = () => {
   };
 
   return (
-    <div className='min-h-[calc(100vh-4rem)] bg-gradient-to-b from-[#F2F2F7] via-[#F2F2F7] to-[#E5E5EA]'>
-      <div className='mx-auto max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8'>
-        {/* iOS-style large title header */}
-        <div className='mb-5 flex flex-wrap items-start justify-between gap-4'>
-          <div className='min-w-0'>
-            <button
-              type='button'
-              onClick={() => navigate(-1)}
-              className='mb-2 inline-flex items-center gap-1 text-[15px] font-medium text-[#007AFF] transition active:opacity-60'
-            >
-              <ArrowLeft size={18} strokeWidth={2.25} />
-              Back
-            </button>
-            <h1 className='text-[34px] font-bold tracking-tight text-[#1C1C1E]'>
-              Learners
-            </h1>
-            <p className='mt-1 max-w-2xl text-[15px] font-medium text-[#8E8E93]'>
-              {subtitle}
-              {isFetching && !isLoading ? (
-                <span className='ml-2 text-[13px] text-[#AEAEB2]'>Updating…</span>
-              ) : null}
+    <div className='w-full min-h-full bg-gray-50 p-6'>
+      {/* Header */}
+      <div className='mb-6 flex items-start justify-between gap-4'>
+        <div>
+          <h1 className='text-2xl font-bold text-gray-900 flex items-center gap-2'>
+            <Users className='w-6 h-6 text-blue-600' />
+            Learners
+          </h1>
+          <p className='text-sm text-gray-500 mt-0.5'>
+            {subtitle}
+            {isFetching && !isLoading ? (
+              <span className='ml-2 text-gray-400'>Updating…</span>
+            ) : null}
+          </p>
+        </div>
+        <button
+          type='button'
+          onClick={handleExport}
+          disabled={isExporting || isLoading}
+          className='flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed shrink-0'
+        >
+          {isExporting ? (
+            <span className='w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin' />
+          ) : (
+            <FileSpreadsheet className='w-4 h-4 text-green-600' />
+          )}
+          Export Excel
+        </button>
+      </div>
+
+      {/* Stats */}
+      {isLoading && !summary ? (
+        <div className='grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6'>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div
+              key={i}
+              className='h-[96px] bg-white rounded-xl border border-gray-200 animate-pulse'
+            />
+          ))}
+        </div>
+      ) : summary ? (
+        <div className='grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6'>
+          <StatCard
+            label='Total'
+            value={summary.total.toLocaleString()}
+            color='text-gray-900'
+            sub={`${summary.active.toLocaleString()} active`}
+          />
+          <StatCard
+            label='Active'
+            value={summary.active.toLocaleString()}
+            color='text-green-600'
+            sub={`${summary.inactive + summary.suspended} inactive / suspended`}
+          />
+          <StatCard
+            label='Completed'
+            value={summary.completed.toLocaleString()}
+            color='text-primary'
+            sub={`${summary.completionRate}% of total`}
+          />
+          <StatCard
+            label='Certified'
+            value={summary.certified.toLocaleString()}
+            color='text-primary'
+            sub={`${summary.certificationRate}% of completed`}
+          />
+          <StatCard
+            label='Female / Male'
+            value={`${summary.female} / ${summary.male}`}
+            color='text-gray-900'
+            sub={
+              summary.otherGender > 0
+                ? `${summary.otherGender} other / unknown`
+                : undefined
+            }
+          />
+          <StatCard
+            label='Avg score'
+            value={
+              summary.avgScore != null ? `${summary.avgScore}%` : "—"
+            }
+            color='text-gray-900'
+            sub={
+              summary.avgScore != null
+                ? "Performance band average"
+                : showAvgScore
+                  ? "See table for scores"
+                  : undefined
+            }
+          />
+        </div>
+      ) : null}
+
+      {/* Search */}
+      <div className='flex gap-3 mb-5'>
+        <div className='relative flex-1 max-w-md'>
+          <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400' />
+          <input
+            type='search'
+            placeholder='Search by name, phone, or NID…'
+            value={searchInput}
+            onChange={(e) => {
+              setSearchInput(e.target.value);
+              debouncedSearch(e.target.value);
+            }}
+            className='w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white'
+          />
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className='bg-white border border-gray-200 rounded-xl overflow-hidden'>
+        {isLoading ? (
+          <div className='flex items-center justify-center h-48 text-sm text-gray-400'>
+            Loading learners…
+          </div>
+        ) : (
+          <div className='overflow-x-auto'>
+            <table className='w-full text-sm min-w-[1100px]'>
+              <thead>
+                <tr className='border-b border-gray-200 bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500'>
+                  <th className='px-4 py-3'>Name</th>
+                  <th className='px-3 py-3'>Phone</th>
+                  <th className='px-3 py-3'>Gender</th>
+                  <th className='px-3 py-3'>Age</th>
+                  <th className='px-3 py-3'>Location</th>
+                  <th className='px-3 py-3'>Health center</th>
+                  <th className='px-3 py-3'>Role</th>
+                  <th className='px-3 py-3'>Status</th>
+                  <th className='px-3 py-3'>NID</th>
+                  <th className='px-3 py-3'>Email</th>
+                  <th className='px-3 py-3 text-right'>Courses</th>
+                  {showAvgScore ? (
+                    <th className='px-3 py-3 text-right'>Avg score</th>
+                  ) : null}
+                  <th className='px-3 py-3'>Completed</th>
+                  <th className='px-3 py-3'>Certified</th>
+                  <th className='px-3 py-3 text-right'>Certs</th>
+                  <th className='px-3 py-3'>Registered</th>
+                  <th className='px-4 py-3'>Last login</th>
+                </tr>
+              </thead>
+              <tbody>
+                {learners.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={showAvgScore ? 17 : 16}
+                      className='px-4 py-16 text-center text-gray-400'
+                    >
+                      <Award className='w-10 h-10 mx-auto mb-2 opacity-40' />
+                      <p className='font-medium text-gray-500'>
+                        No learners found
+                      </p>
+                      <p className='text-sm mt-1'>
+                        Try adjusting search or dashboard filters
+                      </p>
+                    </td>
+                  </tr>
+                ) : (
+                  learners.map((row) => (
+                    <tr
+                      key={row.id}
+                      onClick={() => openStudent(row)}
+                      className='border-b border-gray-100 hover:bg-blue-50/40 cursor-pointer transition-colors last:border-0'
+                    >
+                      <td className='px-4 py-3'>
+                        <div className='flex items-center gap-2.5 min-w-[150px]'>
+                          <img
+                            src={row.photo}
+                            alt=''
+                            className='w-8 h-8 rounded-full object-cover bg-gray-100 shrink-0'
+                          />
+                          <span className='font-medium text-gray-900'>
+                            {row.fullNames}
+                          </span>
+                        </div>
+                      </td>
+                      <td className='px-3 py-3 text-gray-600 whitespace-nowrap'>
+                        {row.phoneNumber}
+                      </td>
+                      <td className='px-3 py-3 text-gray-600'>{row.gender}</td>
+                      <td className='px-3 py-3 text-gray-600 whitespace-nowrap'>
+                        {row.age != null
+                          ? `${row.age} (${row.ageGroup})`
+                          : row.ageGroup}
+                      </td>
+                      <td className='px-3 py-3 text-gray-600 max-w-[200px]'>
+                        <div
+                          className='truncate'
+                          title={`${row.district} / ${row.sector} / ${row.cell} / ${row.village}`}
+                        >
+                          {[row.district, row.sector, row.cell, row.village]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </div>
+                      </td>
+                      <td className='px-3 py-3 text-gray-600 max-w-[140px] truncate'>
+                        {row.healthCenterName || "—"}
+                      </td>
+                      <td className='px-3 py-3 text-gray-600'>{row.role}</td>
+                      <td className='px-3 py-3'>
+                        <StatusBadge status={row.status} />
+                      </td>
+                      <td className='px-3 py-3 text-gray-600 whitespace-nowrap'>
+                        {row.NID || "—"}
+                      </td>
+                      <td className='px-3 py-3 text-gray-600 max-w-[140px] truncate'>
+                        {row.email || "—"}
+                      </td>
+                      <td className='px-3 py-3 text-right text-gray-700'>
+                        {row.enrolledCourses}
+                      </td>
+                      {showAvgScore ? (
+                        <td className='px-3 py-3 text-right font-medium text-gray-800'>
+                          {row.avgScore != null ? `${row.avgScore}%` : "—"}
+                        </td>
+                      ) : null}
+                      <td className='px-3 py-3 text-gray-600'>
+                        {row.hasCompletedModule ? "Yes" : "No"}
+                      </td>
+                      <td className='px-3 py-3 text-gray-600'>
+                        {row.isCertified ? "Yes" : "No"}
+                      </td>
+                      <td className='px-3 py-3 text-right text-gray-600'>
+                        {row.certificates}
+                      </td>
+                      <td className='px-3 py-3 text-gray-600 whitespace-nowrap'>
+                        {formatDate(row.registeredAt)}
+                      </td>
+                      <td className='px-4 py-3 text-gray-600 whitespace-nowrap'>
+                        {formatDate(row.lastLoginAt)}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {pagination ? (
+          <div className='flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-gray-200 bg-gray-50'>
+            <p className='text-sm text-gray-500'>
+              {pagination.total.toLocaleString()} learner
+              {pagination.total === 1 ? "" : "s"}
+              {pagination.totalPages > 1
+                ? ` · Page ${pagination.page} of ${pagination.totalPages}`
+                : null}
             </p>
-            {chips.length > 0 ? (
-              <div className='mt-3 flex flex-wrap gap-2'>
-                {chips.map((c) => (
-                  <FilterChip key={c} label={c} />
-                ))}
+            {pagination.totalPages > 1 ? (
+              <div className='flex gap-2'>
+                <button
+                  type='button'
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  className='inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-40'
+                >
+                  <ChevronLeft size={14} /> Prev
+                </button>
+                <button
+                  type='button'
+                  disabled={page >= pagination.totalPages}
+                  onClick={() =>
+                    setPage((p) => Math.min(pagination.totalPages, p + 1))
+                  }
+                  className='inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-40'
+                >
+                  Next <ChevronRight size={14} />
+                </button>
               </div>
             ) : null}
           </div>
-        </div>
-
-        {/* Stats */}
-        {isLoading && !summary ? (
-          <div className='mb-5 grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6'>
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div
-                key={i}
-                className='h-[108px] animate-pulse rounded-[22px] bg-white/70'
-              />
-            ))}
-          </div>
-        ) : summary ? (
-          <div className='mb-5 grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6'>
-            <StatCard
-              label='Total'
-              value={summary.total.toLocaleString()}
-              hint={`${summary.active.toLocaleString()} active`}
-              icon={<Users size={18} />}
-              accent='bg-[#007AFF]'
-            />
-            <StatCard
-              label='Active'
-              value={summary.active.toLocaleString()}
-              hint={`${summary.inactive + summary.suspended} inactive / suspended`}
-              icon={<UserCheck size={18} />}
-              accent='bg-[#34C759]'
-            />
-            <StatCard
-              label='Completed'
-              value={summary.completed.toLocaleString()}
-              hint={`${summary.completionRate}% of total`}
-              icon={<CheckCircle2 size={18} />}
-              accent='bg-[#5856D6]'
-            />
-            <StatCard
-              label='Certified'
-              value={summary.certified.toLocaleString()}
-              hint={`${summary.certificationRate}% of completed`}
-              icon={<Award size={18} />}
-              accent='bg-[#FF9F0A]'
-            />
-            <StatCard
-              label='Gender'
-              value={`${summary.female} / ${summary.male}`}
-              hint='Female / Male'
-              icon={<UsersRound size={18} />}
-              accent='bg-[#AF52DE]'
-            />
-            <StatCard
-              label='Avg score'
-              value={
-                summary.avgScore != null ? `${summary.avgScore}%` : "—"
-              }
-              hint={
-                summary.avgScore != null
-                  ? "Band average"
-                  : showAvgScore
-                    ? "See table"
-                    : "Not in this view"
-              }
-              icon={<Gauge size={18} />}
-              accent='bg-[#FF2D55]'
-            />
-          </div>
         ) : null}
-
-        {/* Table card */}
-        <div className='overflow-hidden rounded-[24px] bg-white/95 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_12px_40px_rgba(0,0,0,0.08)] ring-1 ring-black/[0.04]'>
-          <div className='flex flex-wrap items-center justify-between gap-3 border-b border-black/[0.06] px-4 py-3.5 sm:px-5'>
-            <div className='relative min-w-[220px] flex-1 sm:max-w-sm'>
-              <Search
-                size={15}
-                className='pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8E8E93]'
-              />
-              <input
-                type='search'
-                placeholder='Search name, phone, NID…'
-                value={searchInput}
-                onChange={(e) => {
-                  setSearchInput(e.target.value);
-                  debouncedSearch(e.target.value);
-                }}
-                className='w-full rounded-2xl border-0 bg-[#F2F2F7] py-2.5 pl-10 pr-4 text-[14px] text-[#1C1C1E] placeholder:text-[#8E8E93] outline-none ring-0 transition focus:bg-white focus:shadow-[0_0_0_3px_rgba(0,122,255,0.25)]'
-              />
-            </div>
-            <button
-              type='button'
-              onClick={handleExport}
-              disabled={isExporting || isLoading}
-              className='inline-flex items-center gap-2 rounded-2xl bg-[#007AFF] px-4 py-2.5 text-[13px] font-semibold text-white shadow-sm transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50'
-            >
-              {isExporting ? (
-                <span className='h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent' />
-              ) : (
-                <FileSpreadsheet size={16} />
-              )}
-              Export Excel
-            </button>
-          </div>
-
-          {isLoading ? (
-            <div className='flex h-48 items-center justify-center text-[14px] text-[#8E8E93]'>
-              Loading learners…
-            </div>
-          ) : (
-            <div className='overflow-x-auto'>
-              <table className='w-full min-w-[1100px] text-left text-[13px]'>
-                <thead>
-                  <tr className='border-b border-black/[0.06] bg-[#F9F9FB] text-[11px] font-semibold uppercase tracking-[0.05em] text-[#8E8E93]'>
-                    <th className='px-5 py-3'>Name</th>
-                    <th className='px-3 py-3'>Phone</th>
-                    <th className='px-3 py-3'>Gender</th>
-                    <th className='px-3 py-3'>Age</th>
-                    <th className='px-3 py-3'>Location</th>
-                    <th className='px-3 py-3'>Health center</th>
-                    <th className='px-3 py-3'>Role</th>
-                    <th className='px-3 py-3'>Status</th>
-                    <th className='px-3 py-3'>NID</th>
-                    <th className='px-3 py-3'>Email</th>
-                    <th className='px-3 py-3 text-right'>Courses</th>
-                    {showAvgScore ? (
-                      <th className='px-3 py-3 text-right'>Avg score</th>
-                    ) : null}
-                    <th className='px-3 py-3'>Completed</th>
-                    <th className='px-3 py-3'>Certified</th>
-                    <th className='px-3 py-3 text-right'>Certs</th>
-                    <th className='px-3 py-3'>Registered</th>
-                    <th className='px-5 py-3'>Last login</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {learners.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={showAvgScore ? 17 : 16}
-                        className='px-5 py-16 text-center text-[15px] text-[#8E8E93]'
-                      >
-                        No learners match these filters
-                      </td>
-                    </tr>
-                  ) : (
-                    learners.map((row) => (
-                      <tr
-                        key={row.id}
-                        onClick={() => openStudent(row)}
-                        className='cursor-pointer border-b border-black/[0.04] transition-colors hover:bg-[#007AFF]/[0.04] active:bg-[#007AFF]/[0.08]'
-                      >
-                        <td className='px-5 py-3'>
-                          <div className='flex min-w-[150px] items-center gap-2.5'>
-                            <img
-                              src={row.photo}
-                              alt=''
-                              className='h-9 w-9 shrink-0 rounded-full object-cover ring-1 ring-black/5'
-                            />
-                            <span className='font-semibold text-[#1C1C1E]'>
-                              {row.fullNames}
-                            </span>
-                          </div>
-                        </td>
-                        <td className='whitespace-nowrap px-3 py-3 text-[#3C3C43]/80'>
-                          {row.phoneNumber}
-                        </td>
-                        <td className='px-3 py-3 text-[#3C3C43]/80'>
-                          {row.gender}
-                        </td>
-                        <td className='whitespace-nowrap px-3 py-3 text-[#3C3C43]/80'>
-                          {row.age != null
-                            ? `${row.age} (${row.ageGroup})`
-                            : row.ageGroup}
-                        </td>
-                        <td className='max-w-[200px] px-3 py-3 text-[#3C3C43]/80'>
-                          <div
-                            className='truncate'
-                            title={`${row.district} / ${row.sector} / ${row.cell} / ${row.village}`}
-                          >
-                            {[row.district, row.sector, row.cell, row.village]
-                              .filter(Boolean)
-                              .join(" · ")}
-                          </div>
-                        </td>
-                        <td className='max-w-[140px] truncate px-3 py-3 text-[#3C3C43]/80'>
-                          {row.healthCenterName || "—"}
-                        </td>
-                        <td className='px-3 py-3 text-[#3C3C43]/80'>
-                          {row.role}
-                        </td>
-                        <td className='px-3 py-3'>
-                          <StatusBadge status={row.status} />
-                        </td>
-                        <td className='whitespace-nowrap px-3 py-3 text-[#3C3C43]/80'>
-                          {row.NID || "—"}
-                        </td>
-                        <td className='max-w-[140px] truncate px-3 py-3 text-[#3C3C43]/80'>
-                          {row.email || "—"}
-                        </td>
-                        <td className='px-3 py-3 text-right font-medium text-[#1C1C1E]'>
-                          {row.enrolledCourses}
-                        </td>
-                        {showAvgScore ? (
-                          <td className='px-3 py-3 text-right font-semibold text-[#007AFF]'>
-                            {row.avgScore != null ? `${row.avgScore}%` : "—"}
-                          </td>
-                        ) : null}
-                        <td className='px-3 py-3'>
-                          <BoolPill yes={row.hasCompletedModule} />
-                        </td>
-                        <td className='px-3 py-3'>
-                          <BoolPill yes={row.isCertified} />
-                        </td>
-                        <td className='px-3 py-3 text-right text-[#3C3C43]/80'>
-                          {row.certificates}
-                        </td>
-                        <td className='whitespace-nowrap px-3 py-3 text-[#3C3C43]/80'>
-                          {formatDate(row.registeredAt)}
-                        </td>
-                        <td className='whitespace-nowrap px-5 py-3 text-[#3C3C43]/80'>
-                          {formatDate(row.lastLoginAt)}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {pagination ? (
-            <div className='flex flex-wrap items-center justify-between gap-3 border-t border-black/[0.06] bg-[#F9F9FB]/80 px-4 py-3 sm:px-5'>
-              <p className='text-[13px] font-medium text-[#8E8E93]'>
-                {pagination.total.toLocaleString()} learner
-                {pagination.total === 1 ? "" : "s"}
-                {pagination.totalPages > 1
-                  ? ` · Page ${pagination.page} of ${pagination.totalPages}`
-                  : null}
-              </p>
-              {pagination.totalPages > 1 ? (
-                <div className='flex gap-2'>
-                  <button
-                    type='button'
-                    disabled={page <= 1}
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    className='inline-flex items-center gap-1 rounded-xl bg-white px-3.5 py-2 text-[13px] font-semibold text-[#007AFF] shadow-sm ring-1 ring-black/5 transition active:scale-[0.98] disabled:opacity-40'
-                  >
-                    <ChevronLeft size={16} /> Prev
-                  </button>
-                  <button
-                    type='button'
-                    disabled={page >= pagination.totalPages}
-                    onClick={() =>
-                      setPage((p) => Math.min(pagination.totalPages, p + 1))
-                    }
-                    className='inline-flex items-center gap-1 rounded-xl bg-white px-3.5 py-2 text-[13px] font-semibold text-[#007AFF] shadow-sm ring-1 ring-black/5 transition active:scale-[0.98] disabled:opacity-40'
-                  >
-                    Next <ChevronRight size={16} />
-                  </button>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
       </div>
     </div>
   );
