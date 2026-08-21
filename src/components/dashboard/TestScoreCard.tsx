@@ -1,6 +1,7 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/common/Card";
-import { IStudentAnalytics } from "@/types";
+import { IDashboardFilters, IStudentAnalytics } from "@/types";
 import { BarChart2 } from "lucide-react";
 import {
   BarChart,
@@ -13,14 +14,30 @@ import {
   Cell,
 } from "recharts";
 import { OBLIQUE_BAR_MARGIN, OBLIQUE_X_AXIS } from "./shared/chartAxis";
+import {
+  buildLearnerListSearch,
+  LEARNER_LIST_PATH,
+} from "@/utils/dashboardLearnerNav";
 
 interface TestScoreCardProps {
   studentAnalytics: IStudentAnalytics | null;
+  filters?: IDashboardFilters;
 }
+
+const BAND_BY_NAME: Record<string, string> = {
+  Excellent: "excellent",
+  Good: "good",
+  Average: "average",
+  Poor: "poor",
+  Failing: "failing",
+};
 
 export const TestScoreCard: React.FC<TestScoreCardProps> = ({
   studentAnalytics,
+  filters,
 }) => {
+  const navigate = useNavigate();
+
   if (!studentAnalytics || !studentAnalytics.performanceDistribution) {
     return (
       <Card>
@@ -47,18 +64,30 @@ export const TestScoreCard: React.FC<TestScoreCardProps> = ({
     { name: "Failing",   range: performanceDistribution.failing.range,   value: performanceDistribution.failing.count,   fill: "#ef4444" },
   ];
 
-  // Calculate average score from top performers
   const avgScore =
     topPerformers && topPerformers.length > 0
       ? topPerformers.reduce((sum, p) => sum + p.avgScore, 0) / topPerformers.length
       : 0;
 
+  const openBand = (name: string) => {
+    const band = BAND_BY_NAME[name];
+    if (!band) return;
+    navigate(
+      `${LEARNER_LIST_PATH}?${buildLearnerListSearch(filters, {
+        performanceBand: band,
+      })}`,
+    );
+  };
+
   return (
     <Card>
-      <div className='flex items-center gap-2 mb-4'>
+      <div className='flex items-center gap-2 mb-1'>
         <BarChart2 size={20} className='text-[#3363AD]' />
         <h3 className='text-lg font-semibold text-gray-800'>CHW Performance</h3>
       </div>
+      <p className='text-[11px] text-gray-400 mb-3'>
+        Click a bar to list learners in that score band
+      </p>
 
       <div style={{ height: "240px" }}>
         <ResponsiveContainer width='100%' height={240}>
@@ -91,7 +120,19 @@ export const TestScoreCard: React.FC<TestScoreCardProps> = ({
               }}
               contentStyle={{ fontSize: 12 }}
             />
-            <Bar dataKey='value' radius={[4, 4, 0, 0]}>
+            <Bar
+              dataKey='value'
+              radius={[4, 4, 0, 0]}
+              cursor='pointer'
+              onClick={(data) => {
+                const point = data as {
+                  name?: string;
+                  payload?: { name?: string };
+                };
+                const name = point?.name ?? point?.payload?.name;
+                if (name) openBand(name);
+              }}
+            >
               {chartData.map((entry, index) => (
                 <Cell key={index} fill={entry.fill} />
               ))}

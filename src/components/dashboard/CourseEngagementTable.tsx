@@ -1,13 +1,24 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ArrowUpDown, BookOpen } from "lucide-react";
 import { Card } from "@/components/common/Card";
 import { DashboardSectionHeader } from "./shared/DashboardSectionHeader";
-import { ICourseAnalytics, ITestScoreAnalytics, IAvgStudyTimeByCourse } from "@/types";
+import {
+  ICourseAnalytics,
+  IDashboardFilters,
+  ITestScoreAnalytics,
+  IAvgStudyTimeByCourse,
+} from "@/types";
+import {
+  buildLearnerListSearch,
+  LEARNER_LIST_PATH,
+} from "@/utils/dashboardLearnerNav";
 
 interface CourseEngagementTableProps {
   courseAnalytics: ICourseAnalytics | null;
   testScores: ITestScoreAnalytics | null;
   avgStudyTimeByCourse: IAvgStudyTimeByCourse[];
+  filters?: IDashboardFilters;
 }
 
 type SortKey =
@@ -26,7 +37,9 @@ export const CourseEngagementTable: React.FC<CourseEngagementTableProps> = ({
   courseAnalytics,
   testScores,
   avgStudyTimeByCourse,
+  filters,
 }) => {
+  const navigate = useNavigate();
   const [sortKey, setSortKey] = useState<SortKey>("students");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
@@ -37,6 +50,12 @@ export const CourseEngagementTable: React.FC<CourseEngagementTableProps> = ({
       setSortKey(key);
       setSortDir("desc");
     }
+  };
+
+  const openCourseLearners = (courseId: string) => {
+    navigate(
+      `${LEARNER_LIST_PATH}?${buildLearnerListSearch(filters, { courseId })}`,
+    );
   };
 
   // Build test score lookup by courseId
@@ -97,7 +116,10 @@ export const CourseEngagementTable: React.FC<CourseEngagementTableProps> = ({
     align?: "left" | "right";
   }> = ({ label, fullLabel, k, align = "left" }) => (
     <button
-      onClick={() => handleSort(k)}
+      onClick={(e) => {
+        e.stopPropagation();
+        handleSort(k);
+      }}
       title={fullLabel ?? label}
       className={`flex items-center gap-0.5 w-full min-w-0 text-[10px] font-medium uppercase
                  text-gray-500 hover:text-[rgba(51,99,173,0.9)] transition-colors ${
@@ -118,6 +140,9 @@ export const CourseEngagementTable: React.FC<CourseEngagementTableProps> = ({
         icon={<BookOpen size={16} />}
         title='Course Engagement'
       />
+      <p className='text-[11px] text-gray-400 mb-2 -mt-1'>
+        Click a course row to list enrolled learners
+      </p>
 
       {rows.length === 0 ? (
         <div className='flex items-center justify-center h-32 text-sm text-gray-400'>
@@ -170,8 +195,17 @@ export const CourseEngagementTable: React.FC<CourseEngagementTableProps> = ({
               {sorted.map((row) => (
                 <tr
                   key={row.id}
-                  className='border-b border-gray-50 hover:bg-gray-50
-                             transition-colors last:border-0'
+                  role='button'
+                  tabIndex={0}
+                  onClick={() => openCourseLearners(row.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      openCourseLearners(row.id);
+                    }
+                  }}
+                  className='border-b border-gray-50 hover:bg-[#EBF0F9]
+                             transition-colors last:border-0 cursor-pointer'
                 >
                   <td className='py-1.5 pr-3 font-medium text-gray-800 truncate text-xs'>
                     {row.name}

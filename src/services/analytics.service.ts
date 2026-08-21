@@ -11,6 +11,7 @@ import {
   ITestScoreAnalytics,
   ICommunicationsAnalytics,
   IDemographicsAnalytics,
+  IDemographicLearnersResponse,
   ICHWStats,
   ICourseDurationStats,
   IRecentActivityFeed,
@@ -73,6 +74,24 @@ export const getDemographicsAnalytics = async (qs: string = ""): Promise<
   IResponse<IDemographicsAnalytics>
 > => {
   return (await api.get(withQuery("/export/dashboard/demographics/analytics", qs))).data;
+};
+
+export const getDemographicLearners = async (
+  qs: string = "",
+): Promise<IResponse<IDemographicLearnersResponse>> => {
+  return (
+    await api.get(withQuery("/export/dashboard/demographics/learners", qs))
+  ).data;
+};
+
+export const exportDemographicLearners = async (
+  qs: string = "",
+): Promise<Blob> => {
+  const response = await api.get(
+    withQuery("/export/dashboard/demographics/learners/export", qs),
+    { responseType: "blob" },
+  );
+  return response.data;
 };
 
 export const getCHWDashboardStats = async (qs: string = ""): Promise<IResponse<ICHWStats>> => {

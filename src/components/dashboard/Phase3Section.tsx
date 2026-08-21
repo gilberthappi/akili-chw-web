@@ -105,11 +105,11 @@ export const Phase3Section: React.FC<Phase3SectionProps> = ({
       {showChartsRow && (
         showPerformance && showRecommendations ? (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <TestScoreCard studentAnalytics={studentAnalytics} />
+            <TestScoreCard studentAnalytics={studentAnalytics} filters={filters} />
             <RecommendationReviewCard filters={filters} />
           </div>
         ) : showPerformance ? (
-          <TestScoreCard studentAnalytics={studentAnalytics} />
+          <TestScoreCard studentAnalytics={studentAnalytics} filters={filters} />
         ) : (
           <RecommendationReviewCard filters={filters} />
         )

@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { Users } from "lucide-react";
 import { Card } from "@/components/common/Card";
 import { DashboardSectionHeader } from "./shared/DashboardSectionHeader";
@@ -9,6 +10,10 @@ import {
   IDashboardFilters,
 } from "@/types";
 import { PROVINCE_DISTRICTS } from "@/utils/constants/provinceDistricts";
+import {
+  buildLearnerListSearch,
+  LEARNER_LIST_PATH,
+} from "@/utils/dashboardLearnerNav";
 
 interface DemographicsSectionProps {
   data: IDemographicsAnalytics | null;
@@ -47,6 +52,7 @@ export const DemographicsSection: React.FC<DemographicsSectionProps> = ({
   filteredByGender,
   filters,
 }) => {
+  const navigate = useNavigate();
   const [activeView, setActiveView] = useState<FilterView>("district");
   const [searchDistrict, setSearchDistrict] = useState("");
 
@@ -185,6 +191,17 @@ export const DemographicsSection: React.FC<DemographicsSectionProps> = ({
     return raw;
   };
 
+  /** Preserve dashboard scope + add the clicked demographic slice. */
+  const openLearners = (slice: {
+    district?: string;
+    gender?: string;
+    ageGroup?: string;
+  }) => {
+    navigate(
+      `${LEARNER_LIST_PATH}?${buildLearnerListSearch(filters, slice)}`,
+    );
+  };
+
   if (!data) {
     return (
       <Card>
@@ -210,6 +227,9 @@ export const DemographicsSection: React.FC<DemographicsSectionProps> = ({
         Total learners:{" "}
         <span className='font-semibold text-gray-700'>
           {data.totalStudents.toLocaleString()}
+        </span>
+        <span className='ml-2 text-gray-400'>
+          Click a row to see the learner list
         </span>
       </p>
 
@@ -253,7 +273,7 @@ export const DemographicsSection: React.FC<DemographicsSectionProps> = ({
           <div className='overflow-x-auto max-h-[420px] overflow-y-auto'>
             <p className='text-[11px] text-gray-400 mb-2'>
               Breakdown by district → gender → age (one district shown once per
-              group).
+              group). Click a row for that slice.
             </p>
             <table className='w-full text-xs'>
               <thead className='sticky top-0 bg-white z-10'>
@@ -307,7 +327,26 @@ export const DemographicsSection: React.FC<DemographicsSectionProps> = ({
                     return (
                       <tr
                         key={`${row.district}-${row.gender}-${row.ageGroup}-${i}`}
-                        className={`${rowSep} hover:bg-gray-50`}
+                        role='button'
+                        tabIndex={0}
+                        onClick={() =>
+                          openLearners({
+                            district: row.district || undefined,
+                            gender: row.gender || undefined,
+                            ageGroup: row.ageGroup || undefined,
+                          })
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            openLearners({
+                              district: row.district || undefined,
+                              gender: row.gender || undefined,
+                              ageGroup: row.ageGroup || undefined,
+                            });
+                          }
+                        }}
+                        className={`${rowSep} hover:bg-[#EBF0F9] cursor-pointer`}
                       >
                         {!sameDistrict && (
                           <td
@@ -386,7 +425,33 @@ export const DemographicsSection: React.FC<DemographicsSectionProps> = ({
               {rows.map((row, i) => (
                 <tr
                   key={i}
-                  className='border-b border-gray-50 hover:bg-gray-50'
+                  role='button'
+                  tabIndex={0}
+                  onClick={() => {
+                    if (activeView === "district") {
+                      openLearners({ district: row.district || getLabel(row) });
+                    } else if (activeView === "gender") {
+                      openLearners({ gender: getLabel(row) });
+                    } else {
+                      openLearners({
+                        ageGroup: row.ageGroup || getLabel(row),
+                      });
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key !== "Enter" && e.key !== " ") return;
+                    e.preventDefault();
+                    if (activeView === "district") {
+                      openLearners({ district: row.district || getLabel(row) });
+                    } else if (activeView === "gender") {
+                      openLearners({ gender: getLabel(row) });
+                    } else {
+                      openLearners({
+                        ageGroup: row.ageGroup || getLabel(row),
+                      });
+                    }
+                  }}
+                  className='border-b border-gray-50 hover:bg-[#EBF0F9] cursor-pointer'
                 >
                   <td className='py-2.5 pr-3 font-medium text-gray-800'>
                     {getLabel(row)}

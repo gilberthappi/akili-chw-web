@@ -26,6 +26,7 @@ import CoursesPage from "@/pages/dashboard/Courses";
 import NewCoursePage from "@/components/courses/NewCoursePage";
 import NewCoursesBuilder from "@/pages/dashboard/NewCoursesBuilder";
 import StudentsPage from "@/pages/dashboard/Students";
+import DemographicLearnersPage from "@/pages/dashboard/DemographicLearners";
 import StudentActivityPage from "@/components/students/StudentActivityPage";
 import Calendar from "@/pages/dashboard/Calender";
 import MeetingRecordings from "@/pages/dashboard/MeetingRecordings";
@@ -145,6 +146,22 @@ const RoutesProvider = () => {
               allowedRoles={["ADMIN", "TRAINER","DEVELOPER"]}
             >
               <StudentsPage />
+            </ProtectedRoute>
+          ),
+        },
+        {
+          path: "demographics/learners",
+          element: (
+            <ProtectedRoute
+              allowedRoles={[
+                "ADMIN",
+                "STAFF",
+                "TRAINER",
+                "DEVELOPER",
+                "CEHO",
+              ]}
+            >
+              <DemographicLearnersPage />
             </ProtectedRoute>
           ),
         },

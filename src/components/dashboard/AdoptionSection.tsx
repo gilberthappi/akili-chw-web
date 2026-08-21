@@ -132,6 +132,7 @@ export const AdoptionSection: React.FC<AdoptionSectionProps> = ({
             courseAnalytics={courseAnalytics}
             testScores={testScores}
             avgStudyTimeByCourse={avgStudyTimeByCourse}
+            filters={filters}
           />
           <CourseChartsCard
             courseAnalytics={courseAnalytics}
@@ -147,7 +148,7 @@ export const AdoptionSection: React.FC<AdoptionSectionProps> = ({
 
         {/* 4. Performance + certification outcomes */}
         <div className='grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch'>
-          <TestScoreCard studentAnalytics={studentAnalytics} />
+          <TestScoreCard studentAnalytics={studentAnalytics} filters={filters} />
           <CertificationRateCard data={certification} filters={filters} />
         </div>
 

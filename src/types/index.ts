@@ -1410,6 +1410,76 @@ export interface IDemographicsAnalytics {
   combined: IDemographicCombinedRow[];
 }
 
+export interface IDemographicLearner {
+  id: string;
+  userId: string;
+  fullNames: string;
+  phoneNumber: string;
+  email: string | null;
+  gender: string;
+  birthdate: string | null;
+  age: number | null;
+  ageGroup: string;
+  NID: string | null;
+  district: string;
+  sector: string;
+  cell: string;
+  village: string;
+  photo: string;
+  healthCenterId: string | null;
+  healthCenterName: string | null;
+  role: string;
+  status: string;
+  enrolledCourses: number;
+  certificates: number;
+  hasCompletedModule: boolean;
+  isCertified: boolean;
+  avgScore?: number | null;
+  courseId?: string | null;
+  courseName?: string | null;
+  lastLoginAt: string | null;
+  registeredAt: string;
+  studentCreatedAt: string;
+}
+
+export interface IDemographicLearnersSummary {
+  total: number;
+  active: number;
+  inactive: number;
+  suspended: number;
+  graduated: number;
+  female: number;
+  male: number;
+  otherGender: number;
+  completed: number;
+  certified: number;
+  completionRate: number;
+  certificationRate: number;
+  avgScore: number | null;
+}
+
+export interface IDemographicLearnersResponse {
+  learners: IDemographicLearner[];
+  summary: IDemographicLearnersSummary;
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+  filters: {
+    district: string | null;
+    province: string | null;
+    gender: string | null;
+    ageGroup: string | null;
+    role: string | null;
+    healthCenterId: string | null;
+    courseId?: string | null;
+    courseName?: string | null;
+    performanceBand?: string | null;
+  };
+}
+
 export interface IDashboardFilters {
   province: string; // "" means all
   district: string; // "" means all
