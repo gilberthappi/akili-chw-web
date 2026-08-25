@@ -2,10 +2,12 @@ import React, { useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Mail, User, Phone, Calendar, MapPin,
-  Users as UsersIcon, CreditCard, Building2,
+  Users as UsersIcon, CreditCard, Building2, GraduationCap,
+  Eye, EyeOff,
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { AuthDecorativePanel } from "@/components/auth/AuthDecorativePanel";
 import { zodResolver } from "@hookform/resolvers/zod";
 import toast from "react-hot-toast";
@@ -131,6 +133,7 @@ const SectionHeading: React.FC<{ children: React.ReactNode }> = ({ children }) =
 // ─── Main Signup Component ────────────────────────────────────────────────────
 
 export const Signup: React.FC = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [selectedDistrict, setSelectedDistrict] = useState("");
   const [selectedSector, setSelectedSector]     = useState("");
@@ -210,6 +213,14 @@ export const Signup: React.FC = () => {
   };
 
   const genderOptions = [{ value: "Female", label: "Female" }, { value: "Male", label: "Male" }, { value: "Other", label: "Other" }];
+  const educationOptions = [
+    { value: "HIGH_SCHOOL", label: t("education.HIGH_SCHOOL") },
+    { value: "ASSOCIATE_DEGREE_A1", label: t("education.ASSOCIATE_DEGREE_A1") },
+    { value: "BACHELORS_DEGREE_A0", label: t("education.BACHELORS_DEGREE_A0") },
+    { value: "MASTERS_DEGREE", label: t("education.MASTERS_DEGREE") },
+    { value: "PHD", label: t("education.PHD") },
+    { value: "PROFESSOR", label: t("education.PROFESSOR") },
+  ];
 
   return (
     <div className="min-h-screen flex items-center justify-center p-0 lg:p-3" style={{ background: "#0e0a1f" }}>
@@ -248,6 +259,9 @@ export const Signup: React.FC = () => {
                   <DarkField label="Email Address" placeholder="john.doe@example.com" type="email" icon={<Mail size={16} />} error={errors.email?.message} reg={register("email")} />
                   <DarkField label="National ID (NID)" placeholder="1XXXXXXXXXXXXXXXX" icon={<CreditCard size={16} />} error={errors.NID?.message} reg={register("NID")} />
                   <DarkField label="Date of Birth" type="date" icon={<Calendar size={16} />} error={errors.birthdate?.message} reg={register("birthdate")} />
+                  <div className="col-span-2">
+                    <DarkSelect label="Level of Education" icon={<GraduationCap size={16} />} error={errors.educationLevel?.message} reg={register("educationLevel")} options={educationOptions} defaultLabel="Select Level of Education" />
+                  </div>
                 </div>
               </div>
 

@@ -28,4 +28,5 @@ export const signupSchema = z.object({
     }),
   gender: z.string().min(1, "Gender is required"),
   healthCenterId: z.string().optional(),
+  educationLevel: z.string().optional(),
 });

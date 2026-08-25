@@ -31,6 +31,8 @@
     "sector": "Umurenge",
     "cell": "Akagari",
     "village": "Umudugudu",
+    "educationLevel": "Amashuri wize",
+    "educationLevelSelect": "Hitamo amashuri wize",
     "saveChanges": "Bika Impinduka"
   },
   "notifications": {
@@ -100,5 +102,13 @@
     "deleteAccountDesc": "Siba burundu konti yawe n'amakuru yose. Ibi ntibishobora gusubirwaho.",
     "deleteAccountBtn": "Siba Konti",
     "deleteAccountContact": "Vugana n'umuyobozi kugira ngo usibe konti yawe"
+  },
+  "education": {
+    "HIGH_SCHOOL": "Amashuri Y'isumbuye",
+    "ASSOCIATE_DEGREE_A1": "Icyiciro cya 1 cya Kaminuza (A1)",
+    "BACHELORS_DEGREE_A0": "Icyiciro cya 2 cya Kaminuza (A0)",
+    "MASTERS_DEGREE": "Master's Degree",
+    "PHD": "PhD",
+    "PROFESSOR": "Professor"
   }
 }
