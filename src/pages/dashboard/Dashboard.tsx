@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Sparkles, ArrowRight } from "lucide-react";
 import { Phase3Section } from "@/components/dashboard/Phase3Section";
 import { LearnerSection } from "@/components/dashboard/LearnerSection";
 import { AdoptionSection } from "@/components/dashboard/AdoptionSection";
@@ -14,6 +16,7 @@ import { DEFAULT_DASHBOARD_FILTERS } from "@/utils/constants/dashboardFilters";
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const [filters, setFilters] = useState<IDashboardFilters>(DEFAULT_DASHBOARD_FILTERS);
   const idleReady = useIdleReady(2500);
@@ -99,17 +102,28 @@ export const Dashboard: React.FC = () => {
           </p>
         </div>
 
-        {showAnalyticsFilters && (
-          <div className='flex items-center gap-3'>
-            <DashboardGlobalFilters filters={filters} onChange={setFilters} />
-            {isRefetching && (
-              <span className='flex items-center gap-1.5 text-xs text-gray-400'>
-                <span className='h-3 w-3 rounded-full border-2 border-gray-300 border-t-[#3363AD] animate-spin' />
-                Updating…
-              </span>
-            )}
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate("/v2")}
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#3363AD] to-[#254b85] hover:from-[#284f8a] hover:to-[#1d3b6a] text-white text-xs font-bold shadow-xs transition-all hover:scale-[1.02]"
+          >
+            <Sparkles size={14} className="text-amber-300 animate-pulse" />
+            <span>Try New Dashboard (Beta)</span>
+            <ArrowRight size={14} />
+          </button>
+
+          {showAnalyticsFilters && (
+            <div className='flex items-center gap-3'>
+              <DashboardGlobalFilters filters={filters} onChange={setFilters} />
+              {isRefetching && (
+                <span className='flex items-center gap-1.5 text-xs text-gray-400'>
+                  <span className='h-3 w-3 rounded-full border-2 border-gray-300 border-t-[#3363AD] animate-spin' />
+                  Updating…
+                </span>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {isAnyOf("ADMIN", "STAFF", "DEVELOPER") && (
