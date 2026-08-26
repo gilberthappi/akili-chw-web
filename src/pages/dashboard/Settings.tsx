@@ -57,6 +57,7 @@ const profileSchema = z.object({
   NID: z.string().optional(),
   birthdate: z.string().optional(),
   healthCenterId: z.string().optional().default(""),
+  educationLevel: z.string().optional().default(""),
 });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
@@ -135,7 +136,7 @@ export const Settings: React.FC = () => {
 
   // ── Load settings from API ──────────────────────────────────────────────────
 
-  const { data: settingsData, isLoading: settingsLoading } = useQuery({
+  const { data: settingsData } = useQuery({
     queryKey: ["userSettings"],
     queryFn: getSettings,
     staleTime: 5 * 60 * 1000,
@@ -259,6 +260,7 @@ export const Settings: React.FC = () => {
           NID: profile.NID ?? "",
           birthdate: profile.birthdate?.substring(0, 10) ?? "",
           healthCenterId: profile.healthCenterId ?? "",
+          educationLevel: profile.educationLevel ?? "",
         }
       : undefined,
   });
@@ -502,6 +504,20 @@ export const Settings: React.FC = () => {
                           className={inputCls}
                           placeholder={t("profile.nidPlaceholder")}
                         />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+                          {t("profile.educationLevel")}
+                        </label>
+                        <select {...rp("educationLevel")} className={inputCls}>
+                          <option value="">{t("profile.educationLevelSelect")}</option>
+                          <option value="HIGH_SCHOOL">{t("education.HIGH_SCHOOL")}</option>
+                          <option value="ASSOCIATE_DEGREE_A1">{t("education.ASSOCIATE_DEGREE_A1")}</option>
+                          <option value="BACHELORS_DEGREE_A0">{t("education.BACHELORS_DEGREE_A0")}</option>
+                          <option value="MASTERS_DEGREE">{t("education.MASTERS_DEGREE")}</option>
+                          <option value="PHD">{t("education.PHD")}</option>
+                          <option value="PROFESSOR">{t("education.PROFESSOR")}</option>
+                        </select>
                       </div>
                     </div>
 

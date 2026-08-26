@@ -17,6 +17,7 @@ export const getPublicHospitals = async (params?: {
   sector?: string;
   cell?: string;
   village?: string;
+  limit?: number;
 }): Promise<IHealthCenter[]> => {
   const res = await api.get("/healthCenters/public", { params });
   const body = res.data;

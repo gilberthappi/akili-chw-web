@@ -41,4 +41,5 @@ export interface ISignUp {
   birthdate?: string;
   gender?: string;
   healthCenterId?: string;
+  educationLevel?: string;
 }

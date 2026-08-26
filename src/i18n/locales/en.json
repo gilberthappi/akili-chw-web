@@ -31,6 +31,8 @@
     "sector": "Sector",
     "cell": "Cell",
     "village": "Village",
+    "educationLevel": "Level of Education",
+    "educationLevelSelect": "Select level of education",
     "saveChanges": "Save Changes"
   },
   "notifications": {
@@ -100,5 +102,13 @@
     "deleteAccountDesc": "Permanently delete your account and all associated data. This action cannot be undone.",
     "deleteAccountBtn": "Delete Account",
     "deleteAccountContact": "Please contact an administrator to delete your account"
+  },
+  "education": {
+    "HIGH_SCHOOL": "High School / Secondary",
+    "ASSOCIATE_DEGREE_A1": "Associate Degree (A1)",
+    "BACHELORS_DEGREE_A0": "Bachelor's Degree (A0)",
+    "MASTERS_DEGREE": "Master's Degree",
+    "PHD": "PhD",
+    "PROFESSOR": "Professor"
   }
 }
