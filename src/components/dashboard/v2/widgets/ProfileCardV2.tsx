@@ -1,185 +1,211 @@
 import React from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useNavigate } from "react-router-dom";
-import {
-  Mail,
-  Phone,
-  MapPin,
-  MessageSquare,
-  Award,
-  Edit3,
-  User as UserIcon,
-  CheckCircle2,
-  ShieldCheck,
-} from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { getCurrentUser } from "@/services/auth.service";
+import { Building2, Phone, MapPin } from "lucide-react";
 
-interface ProfileCardV2Props {
-  completedCoursesCount?: number;
-  totalCertificatesCount?: number;
-  customUser?: {
-    fullNames?: string;
-    email?: string;
-    phoneNumber?: string;
-    photo?: string | null;
-    roleLabel?: string;
-  };
-}
-
-export const ProfileCardV2: React.FC<ProfileCardV2Props> = ({
-  completedCoursesCount = 0,
-  totalCertificatesCount = 0,
-  customUser,
-}) => {
+export const ProfileCardV2: React.FC = () => {
   const { user: authUser } = useAuth();
-  const navigate = useNavigate();
 
-  const fullNames = customUser?.fullNames || authUser?.fullNames || "Community Health Worker";
-  const email = customUser?.email || authUser?.email || "chw@akili.org";
-  const phone = customUser?.phoneNumber || authUser?.phoneNumber || "+250 788 000 000";
-  const location = "Kigali, Rwanda";
-  const roleLabel =
-    customUser?.roleLabel ||
-    (Array.isArray(authUser?.roles) ? authUser.roles[0] : authUser?.roles || "CHW");
+  // Fetch full detailed profile from /auth/me
+  const { data: profileResponse } = useQuery({
+    queryKey: ["userProfileMe"],
+    queryFn: getCurrentUser,
+    staleTime: 1000 * 60 * 5,
+  });
 
-  const avatarUrl = customUser?.photo !== undefined ? customUser.photo : (authUser?.photo || null);
+  const fullUser = profileResponse?.data || authUser;
+
+  const fullNames = fullUser?.fullNames || authUser?.fullNames || "User Profile";
+  const phone = fullUser?.phoneNumber || authUser?.phoneNumber || "+250700000000";
+
+  // Extract health center name
+  const rawHealthCenter =
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+    (fullUser as any)?.healthCenter ||
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+    (authUser as any)?.healthCenter;
+
+  const healthCenter =
+    typeof rawHealthCenter === "object" && rawHealthCenter !== null
+      ? rawHealthCenter.name
+      : typeof rawHealthCenter === "string" && rawHealthCenter.trim()
+      ? rawHealthCenter
+      : "Mwulire CS";
+
+  // Extract location address
+  const userObj = (fullUser || authUser) as {
+    village?: string;
+    cell?: string;
+    sector?: string;
+    district?: string;
+  };
+
+  const locationParts = [
+    userObj?.village,
+    userObj?.cell,
+    userObj?.sector,
+    userObj?.district,
+  ].filter((part): part is string => Boolean(part && part.trim()));
+
+  const locationAddress =
+    locationParts.length > 0
+      ? locationParts.join(", ")
+      : "Nkira, Ntunga, Mwulire, Rwamagana";
+
+  // Format real enrollment date
+  const rawDate =
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+    (fullUser as any)?.createdAt ||
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+    (authUser as any)?.createdAt ||
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+    (fullUser as any)?.created_at ||
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+    (authUser as any)?.created_at ||
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+    (fullUser as any)?.joinedDate ||
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+    (fullUser as any)?.enrollmentDate;
+
+  const getFormattedEnrollmentDate = (dateVal?: string | Date) => {
+    if (!dateVal) return null;
+    try {
+      const d = new Date(dateVal);
+      if (isNaN(d.getTime())) return null;
+
+      const day = d.getDate();
+      const month = d.toLocaleDateString("en-US", { month: "long" });
+      const year = d.getFullYear();
+
+      const getOrdinal = (n: number) => {
+        const s = ["th", "st", "nd", "rd"];
+        const v = n % 100;
+        return n + (s[(v - 20) % 10] || s[v] || s[0]);
+      };
+
+      return `Enrolled on ${getOrdinal(day)}, ${month}, ${year}`;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  const formattedDate = getFormattedEnrollmentDate(rawDate);
+
+  const gender =
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+    (fullUser as any)?.gender || authUser?.gender || "Male";
+
+  // Role display: Replace "TRAINEE" / "TESTER" with "CHW" (or "CEHO" if CEHO)
+  const rawRole = Array.isArray(authUser?.roles)
+    ? authUser.roles[0]
+    : authUser?.roles || "CHW";
+
+  const roleLabel = ["TRAINEE", "TESTER", "CHW"].includes(rawRole)
+    ? "CHW"
+    : rawRole === "CEHO"
+    ? "CEHO"
+    : "CHW";
+
+  const avatarUrl = fullUser?.photo || authUser?.photo;
+
+  // Fallback initials
+  const initials = fullNames
+    ? fullNames
+        .split(" ")
+        .map((n) => n[0])
+        .filter(Boolean)
+        .slice(0, 2)
+        .join("")
+        .toUpperCase()
+    : "CHW";
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden flex flex-col h-full">
-      {/* Top Banner & Avatar Header */}
-      <div className="relative bg-gradient-to-r from-[#3363AD]/20 via-[#3363AD]/10 to-[#EBF0F9] pt-8 pb-4 px-6 flex flex-col items-center text-center">
-        {/* Avatar */}
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden flex flex-col">
+      {/* Primary Brand Top Banner */}
+      <div className="bg-gradient-to-r from-[#285192] via-[#3363AD] to-[#4275C4] h-28 w-full relative rounded-t-2xl" />
+
+      {/* Main Card Content */}
+      <div className="px-5 pb-6 pt-0 flex flex-col items-center text-center -mt-14">
+        {/* Profile Avatar */}
         <div className="relative mb-3">
-          <div className="w-24 h-24 rounded-full ring-4 ring-white shadow-md overflow-hidden bg-[#3363AD] flex items-center justify-center text-white text-2xl font-bold">
-            {avatarUrl ? (
-              <img
-                src={avatarUrl}
-                alt={fullNames}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  (e.target as HTMLElement).style.display = "none";
-                }}
-              />
-            ) : (
-              <UserIcon size={40} className="text-white/80" />
-            )}
-          </div>
-          <span className="absolute bottom-0 right-1 bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full border-2 border-white flex items-center gap-1 shadow-xs">
-            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt={fullNames}
+              className="w-24 h-24 rounded-full ring-4 ring-white shadow-md object-cover bg-gray-100"
+              onError={(e) => {
+                (e.target as HTMLElement).style.display = "none";
+              }}
+            />
+          ) : (
+            <div className="w-24 h-24 rounded-full ring-4 ring-white shadow-md bg-[#3363AD] text-white flex items-center justify-center font-extrabold text-2xl">
+              {initials}
+            </div>
+          )}
+        </div>
+
+        {/* Status & Role Badges */}
+        <div className="flex items-center justify-center gap-2 mb-3 flex-wrap">
+          <span className="bg-[#FFF0EB] text-[#E06D53] border border-[#FCD8CF] font-extrabold text-[11px] px-3.5 py-0.5 rounded-full uppercase tracking-wider">
+            {roleLabel}
+          </span>
+          <span className="bg-[#E8F8F8] text-[#2FA8A8] border border-[#C5EFEF] font-extrabold text-[11px] px-3.5 py-0.5 rounded-full capitalize">
+            {gender}
+          </span>
+          <span className="bg-[#EBF0F9] text-[#3363AD] border border-[#3363AD]/20 font-extrabold text-[11px] px-3.5 py-0.5 rounded-full capitalize">
             Active
           </span>
         </div>
 
-        {/* User Code / Role pill */}
-        <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#3363AD]/10 text-[#3363AD] text-[11px] font-bold tracking-wide uppercase mb-1">
-          <ShieldCheck size={12} />
-          {roleLabel}
-        </div>
-
-        <h3 className="text-base font-bold text-gray-900 truncate max-w-full">
+        {/* User Full Name */}
+        <h2 className="text-base font-extrabold text-gray-900 uppercase tracking-tight max-w-[240px] leading-tight">
           {fullNames}
-        </h3>
-        <p className="text-xs text-gray-500 mt-0.5">
-          Member since {new Date().getFullYear()}
+        </h2>
+
+        {/* Enrolled Date */}
+        <p className="text-xs font-medium text-gray-400 mt-1 mb-2">
+          {formattedDate || "Active CHW Member"}
         </p>
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-2 mt-4 w-full">
-          <button
-            onClick={() => navigate("/messaging")}
-            className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-[#3363AD]/10 hover:bg-[#3363AD]/20 text-[#3363AD] text-xs font-semibold transition-colors"
-          >
-            <MessageSquare size={14} />
-            Messages
-          </button>
-          <button
-            onClick={() => navigate("/settings")}
-            className="inline-flex items-center justify-center p-2 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-600 text-xs font-semibold transition-colors"
-            title="Edit Profile"
-          >
-            <Edit3 size={14} />
-          </button>
-        </div>
-      </div>
+        {/* Horizontal Divider Line */}
+        <div className="w-full h-px bg-gray-100 my-4" />
 
-      {/* Contact Details */}
-      <div className="p-5 border-b border-gray-100 space-y-3">
-        <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wider">
-          Contact Details
-        </h4>
-
-        <div className="space-y-2.5 text-xs">
-          <div className="flex items-center gap-2.5 text-gray-600">
-            <div className="w-7 h-7 rounded-lg bg-[#EBF0F9] text-[#3363AD] flex items-center justify-center shrink-0">
-              <Mail size={13} />
+        {/* Metadata Details */}
+        <div className="w-full space-y-4 text-left">
+          {/* Health Center */}
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-[#EBF0F9] text-[#3363AD] flex items-center justify-center shrink-0">
+              <Building2 size={17} />
             </div>
-            <span className="truncate">{email}</span>
-          </div>
-
-          <div className="flex items-center gap-2.5 text-gray-600">
-            <div className="w-7 h-7 rounded-lg bg-[#EBF0F9] text-[#3363AD] flex items-center justify-center shrink-0">
-              <Phone size={13} />
-            </div>
-            <span>{phone}</span>
-          </div>
-
-          <div className="flex items-center gap-2.5 text-gray-600">
-            <div className="w-7 h-7 rounded-lg bg-[#EBF0F9] text-[#3363AD] flex items-center justify-center shrink-0">
-              <MapPin size={13} />
-            </div>
-            <span className="truncate">{location}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Awards & Recognitions */}
-      <div className="p-5 flex-1 space-y-3">
-        <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wider flex items-center justify-between">
-          <span>Awards & Milestones</span>
-          <Award size={14} className="text-[#3363AD]" />
-        </h4>
-
-        <div className="space-y-2 text-xs">
-          <div className="flex items-start gap-2.5 p-2 rounded-xl bg-amber-50/60 border border-amber-100/60">
-            <div className="w-6 h-6 rounded-md bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0 mt-0.5">
-              🏆
-            </div>
-            <div>
-              <p className="font-semibold text-gray-900">
-                {totalCertificatesCount > 0
-                  ? `${totalCertificatesCount} Certificates Earned`
-                  : "Certified Health Practitioner"}
-              </p>
-              <p className="text-[11px] text-gray-500">
-                Official Ministry & Partner Accreditation
-              </p>
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold text-gray-400">Health Center</p>
+              <p className="text-xs font-extrabold text-gray-900 truncate">{healthCenter}</p>
             </div>
           </div>
 
-          <div className="flex items-start gap-2.5 p-2 rounded-xl bg-emerald-50/60 border border-emerald-100/60">
-            <div className="w-6 h-6 rounded-md bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
-              <CheckCircle2 size={13} />
+          {/* Phone Number */}
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-[#EBF0F9] text-[#3363AD] flex items-center justify-center shrink-0">
+              <Phone size={17} />
             </div>
-            <div>
-              <p className="font-semibold text-gray-900">
-                {completedCoursesCount} Courses Completed
-              </p>
-              <p className="text-[11px] text-gray-500">
-                100% Modules Passed Successfully
-              </p>
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold text-gray-400">Phone Number</p>
+              <p className="text-xs font-extrabold text-gray-900 truncate">{phone}</p>
+            </div>
+          </div>
+
+          {/* Location Address */}
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-[#EBF0F9] text-[#3363AD] flex items-center justify-center shrink-0">
+              <MapPin size={17} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold text-gray-400">Location Address</p>
+              <p className="text-xs font-extrabold text-gray-900 truncate">{locationAddress}</p>
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Footer Edit Link */}
-      <div className="p-4 bg-gray-50/50 border-t border-gray-100 mt-auto">
-        <button
-          onClick={() => navigate("/settings")}
-          className="w-full py-2 px-3 rounded-xl border border-gray-200 text-xs font-semibold text-gray-700 bg-white hover:bg-gray-50 transition-colors flex items-center justify-center gap-1.5"
-        >
-          <Edit3 size={13} />
-          Edit Profile Information
-        </button>
       </div>
     </div>
   );
