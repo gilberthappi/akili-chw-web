@@ -15,7 +15,7 @@ export const DashboardV2: React.FC = () => {
       : [user.roles as string]
     : [];
 
-  const isLearner = userRoles.some((r) => ["TRAINEE", "TESTER"].includes(r));
+  const isLearner = userRoles.some((r) => ["TRAINEE", "TESTER", "CEHO"].includes(r));
 
   const hour = new Date().getHours();
   const greeting =
