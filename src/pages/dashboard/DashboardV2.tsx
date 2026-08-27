@@ -1,7 +1,7 @@
 import React from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { CHWLearnerDashboardV2 } from "@/components/dashboard/v2/CHWLearnerDashboardV2";
-import { CEHODashboardV2 } from "@/components/dashboard/v2/CEHODashboardV2";
+import { AdminDashboardV2 } from "@/components/dashboard/v2/AdminDashboardV2";
 import { useNavigate } from "react-router-dom";
 import { Sparkles, ArrowLeft } from "lucide-react";
 
@@ -16,7 +16,6 @@ export const DashboardV2: React.FC = () => {
     : [];
 
   const isLearner = userRoles.some((r) => ["TRAINEE", "TESTER"].includes(r));
-  const isCEHO = userRoles.includes("CEHO");
 
   const hour = new Date().getHours();
   const greeting =
@@ -56,7 +55,7 @@ export const DashboardV2: React.FC = () => {
       </div>
 
       {/* Role-based Dashboard Views */}
-      <CHWLearnerDashboardV2 />
+      {isLearner ? <CHWLearnerDashboardV2 /> : <AdminDashboardV2 />}
     </div>
   );
 };
