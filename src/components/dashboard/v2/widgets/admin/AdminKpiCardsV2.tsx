@@ -20,10 +20,11 @@ export const AdminKpiCardsV2: React.FC<AdminKpiCardsV2Props> = ({
 }) => {
   // Helper to extract primitive number/string value from potential object responses
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-  const getValue = (val: any, fallback: number = 390): number | string => {
+  const getValue = (val: any, fallback: number = 0): number | string => {
+    if (val === 0) return 0;
     if (val === null || val === undefined) return fallback;
     if (typeof val === "number" || typeof val === "string") return val;
-    if (typeof val === "object") {
+    if (typeof val === "object" && val !== null) {
       if (val.value !== undefined) return val.value;
       if (val.count !== undefined) return val.count;
       if (val.total !== undefined) return val.total;
@@ -33,8 +34,11 @@ export const AdminKpiCardsV2: React.FC<AdminKpiCardsV2Props> = ({
 
   // Helper to extract trend/growth percentage string cleanly without [object Object]
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-  const getGrowth = (val: any, fallback: string = "17.69%"): string => {
+  const getGrowth = (val: any, fallback: string = "Active"): string => {
     if (typeof val === "object" && val !== null) {
+      if (val.trend && typeof val.trend === "object" && val.trend.value !== undefined) {
+        return `${val.trend.value >= 0 ? "+" : ""}${val.trend.value}%`;
+      }
       if (typeof val.trend === "number" || typeof val.trend === "string") return `${val.trend}%`;
       if (typeof val.growth === "number" || typeof val.growth === "string") return `${val.growth}%`;
       if (typeof val.percentage === "number" || typeof val.percentage === "string") return `${val.percentage}%`;
@@ -46,31 +50,27 @@ export const AdminKpiCardsV2: React.FC<AdminKpiCardsV2Props> = ({
   const cards = [
     {
       title: "TOTAL USERS",
-      value: getValue(totalUsers, 390),
-      max: 6000,
+      value: getValue(totalUsers, 0),
       subtext: "Registrations",
-      growth: getGrowth(totalUsers, "17.69%"),
+      growth: getGrowth(totalUsers, "+0%"),
     },
     {
       title: "TOTAL COURSES",
-      value: getValue(totalCourses, 9),
-      max: 20,
+      value: getValue(totalCourses, 0),
       subtext: "Active Modules",
-      growth: getGrowth(totalCourses, "12.69%"),
+      growth: getGrowth(totalCourses, "+0%"),
     },
     {
       title: "ENROLLMENT",
-      value: getValue(totalEnrollments, 390),
-      max: 6000,
-      subtext: "Registrations",
-      growth: getGrowth(totalEnrollments, "17.69%"),
+      value: getValue(totalEnrollments, 0),
+      subtext: "Total Registrations",
+      growth: getGrowth(totalEnrollments, "+0%"),
     },
     {
       title: "HEALTH CENTERS",
-      value: getValue(totalHealthCenters, 390),
-      max: null,
-      subtext: "Registrations",
-      growth: getGrowth(totalHealthCenters, "17.69%"),
+      value: getValue(totalHealthCenters, 0),
+      subtext: "Registered Centers",
+      growth: getGrowth(totalHealthCenters, "+0%"),
     },
   ];
 
