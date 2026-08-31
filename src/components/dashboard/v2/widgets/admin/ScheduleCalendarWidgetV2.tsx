@@ -43,12 +43,12 @@ export const ScheduleCalendarWidgetV2: React.FC<ScheduleCalendarWidgetV2Props> =
     return true;
   });
 
-  // Use the 5 last meetings from filtered list (or sorted list)
-  const last5Events = filteredEvents.length > 0 ? filteredEvents.slice(0, 5) : sortedEvents.slice(0, 5);
+  // Use the 5 last meetings from filtered list
+  const last5Events = filteredEvents.slice(0, 5);
 
   // Format real event time cleanly from startAt / startTime / createdAt
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-  const getEventTime = (e: any, idx: number) => {
+  const getEventTime = (e: any) => {
     const rawDate = e.startAt || e.startDate || e.startTime || e.date || e.createdAt;
     if (rawDate) {
       try {
@@ -60,19 +60,18 @@ export const ScheduleCalendarWidgetV2: React.FC<ScheduleCalendarWidgetV2Props> =
         console.error(err);
       }
     }
-    const defaultTimes = ["08:30 AM", "10:00 AM", "01:30 PM", "03:15 PM", "04:45 PM"];
-    return defaultTimes[idx % defaultTimes.length];
+    return "09:00 AM";
   };
 
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-  const displayMeetings = last5Events.map((e: any, idx: number) => {
-    const rawBadge = e.meetingType || e.eventType || e.type || "Virtual meeting";
+  const displayMeetings = last5Events.map((e: any) => {
+    const rawBadge = e.meetingType || e.eventType || e.type || "Virtual Meeting";
     const badgeClean = String(rawBadge).replace(/_/g, " ").toUpperCase();
 
     return {
-      time: getEventTime(e, idx),
+      time: getEventTime(e),
       badge: badgeClean,
-      title: e.title || e.name || "Scheduled Health Training Session",
+      title: e.title || e.name || "Scheduled Session",
     };
   });
 

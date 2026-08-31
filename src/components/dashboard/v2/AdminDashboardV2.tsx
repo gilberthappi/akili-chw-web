@@ -223,7 +223,10 @@ export const AdminDashboardV2: React.FC = () => {
           <MapRegionalOverviewWidgetV2 byDistrict={adoptionData?.byDistrict ?? summaryData?.byDistrict} />
         </div>
         <div className="lg:col-span-3 xl:col-span-3 flex flex-col gap-6">
-          <EnrollmentTrendsWidgetV2 trendsData={summaryData?.monthlyActiveTrends || adoptionData?.enrollmentTrends} />
+          <EnrollmentTrendsWidgetV2
+            trendsData={summaryData?.monthlyActiveTrends || adoptionData?.enrollmentTrends}
+            summaryData={summaryData}
+          />
           <AdminFeedbackWidgetV2 />
         </div>
       </div>

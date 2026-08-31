@@ -7,55 +7,55 @@ interface AdminMapWidgetV2Props {
   onDistrictClick?: (district: string) => void;
 }
 
-// Province mappings for all 30 districts of Rwanda
-const DISTRICT_PROVINCE_MAP: Record<string, { province: string; code: "EST" | "OUEST" | "NORD" | "SUD" | "KIGALI"; color: string }> = {
-  // VILLE DE KIGALI
-  gasabo: { province: "VILLE DE KIGALI", code: "KIGALI", color: "#2DD4BF" },
-  kicukiro: { province: "VILLE DE KIGALI", code: "KIGALI", color: "#2DD4BF" },
-  nyarugenge: { province: "VILLE DE KIGALI", code: "KIGALI", color: "#2DD4BF" },
+// Province mappings for all 30 districts of Rwanda in English
+const DISTRICT_PROVINCE_MAP: Record<string, { province: string; code: "EAST" | "WEST" | "NORTH" | "SOUTH" | "KIGALI"; color: string }> = {
+  // KIGALI CITY
+  gasabo: { province: "KIGALI CITY", code: "KIGALI", color: "#2DD4BF" },
+  kicukiro: { province: "KIGALI CITY", code: "KIGALI", color: "#2DD4BF" },
+  nyarugenge: { province: "KIGALI CITY", code: "KIGALI", color: "#2DD4BF" },
 
-  // NORD (Northern)
-  burera: { province: "NORD", code: "NORD", color: "#FDE047" },
-  gakenke: { province: "NORD", code: "NORD", color: "#FDE047" },
-  gicumbi: { province: "NORD", code: "NORD", color: "#FDE047" },
-  musanze: { province: "NORD", code: "NORD", color: "#FDE047" },
-  rulindo: { province: "NORD", code: "NORD", color: "#FDE047" },
+  // NORTH (Northern Province)
+  burera: { province: "NORTH", code: "NORTH", color: "#FDE047" },
+  gakenke: { province: "NORTH", code: "NORTH", color: "#FDE047" },
+  gicumbi: { province: "NORTH", code: "NORTH", color: "#FDE047" },
+  musanze: { province: "NORTH", code: "NORTH", color: "#FDE047" },
+  rulindo: { province: "NORTH", code: "NORTH", color: "#FDE047" },
 
-  // SUD (Southern)
-  gisagara: { province: "SUD", code: "SUD", color: "#60A5FA" },
-  huye: { province: "SUD", code: "SUD", color: "#60A5FA" },
-  kamonyi: { province: "SUD", code: "SUD", color: "#60A5FA" },
-  muhanga: { province: "SUD", code: "SUD", color: "#60A5FA" },
-  nyamagabe: { province: "SUD", code: "SUD", color: "#60A5FA" },
-  nyanza: { province: "SUD", code: "SUD", color: "#60A5FA" },
-  nyaruguru: { province: "SUD", code: "SUD", color: "#60A5FA" },
-  ruhango: { province: "SUD", code: "SUD", color: "#60A5FA" },
+  // SOUTH (Southern Province)
+  gisagara: { province: "SOUTH", code: "SOUTH", color: "#60A5FA" },
+  huye: { province: "SOUTH", code: "SOUTH", color: "#60A5FA" },
+  kamonyi: { province: "SOUTH", code: "SOUTH", color: "#60A5FA" },
+  muhanga: { province: "SOUTH", code: "SOUTH", color: "#60A5FA" },
+  nyamagabe: { province: "SOUTH", code: "SOUTH", color: "#60A5FA" },
+  nyanza: { province: "SOUTH", code: "SOUTH", color: "#60A5FA" },
+  nyaruguru: { province: "SOUTH", code: "SOUTH", color: "#60A5FA" },
+  ruhango: { province: "SOUTH", code: "SOUTH", color: "#60A5FA" },
 
-  // EST (Eastern)
-  bugesera: { province: "EST", code: "EST", color: "#F87171" },
-  gatsibo: { province: "EST", code: "EST", color: "#F87171" },
-  kayonza: { province: "EST", code: "EST", color: "#F87171" },
-  kirehe: { province: "EST", code: "EST", color: "#F87171" },
-  ngoma: { province: "EST", code: "EST", color: "#F87171" },
-  nyagatare: { province: "EST", code: "EST", color: "#F87171" },
-  rwamagana: { province: "EST", code: "EST", color: "#F87171" },
+  // EAST (Eastern Province)
+  bugesera: { province: "EAST", code: "EAST", color: "#F87171" },
+  gatsibo: { province: "EAST", code: "EAST", color: "#F87171" },
+  kayonza: { province: "EAST", code: "EAST", color: "#F87171" },
+  kirehe: { province: "EAST", code: "EAST", color: "#F87171" },
+  ngoma: { province: "EAST", code: "EAST", color: "#F87171" },
+  nyagatare: { province: "EAST", code: "EAST", color: "#F87171" },
+  rwamagana: { province: "EAST", code: "EAST", color: "#F87171" },
 
-  // OUEST (Western)
-  karongi: { province: "OUEST", code: "OUEST", color: "#FB923C" },
-  ngororero: { province: "OUEST", code: "OUEST", color: "#FB923C" },
-  nyabihu: { province: "OUEST", code: "OUEST", color: "#FB923C" },
-  nyamasheke: { province: "OUEST", code: "OUEST", color: "#FB923C" },
-  rubavu: { province: "OUEST", code: "OUEST", color: "#FB923C" },
-  rusizi: { province: "OUEST", code: "OUEST", color: "#FB923C" },
-  rutsiro: { province: "OUEST", code: "OUEST", color: "#FB923C" },
+  // WEST (Western Province)
+  karongi: { province: "WEST", code: "WEST", color: "#FB923C" },
+  ngororero: { province: "WEST", code: "WEST", color: "#FB923C" },
+  nyabihu: { province: "WEST", code: "WEST", color: "#FB923C" },
+  nyamasheke: { province: "WEST", code: "WEST", color: "#FB923C" },
+  rubavu: { province: "WEST", code: "WEST", color: "#FB923C" },
+  rusizi: { province: "WEST", code: "WEST", color: "#FB923C" },
+  rutsiro: { province: "WEST", code: "WEST", color: "#FB923C" },
 };
 
 const PROVINCE_LEGEND = [
-  { code: "EST", label: "EST", color: "#F87171" },
-  { code: "OUEST", label: "OUEST", color: "#FB923C" },
-  { code: "NORD", label: "NORD", color: "#FDE047" },
-  { code: "SUD", label: "SUD", color: "#60A5FA" },
-  { code: "KIGALI", label: "VILLE DE KIGALI", color: "#2DD4BF" },
+  { code: "EAST", label: "EAST", color: "#F87171" },
+  { code: "WEST", label: "WEST", color: "#FB923C" },
+  { code: "NORTH", label: "NORTH", color: "#FDE047" },
+  { code: "SOUTH", label: "SOUTH", color: "#60A5FA" },
+  { code: "KIGALI", label: "KIGALI CITY", color: "#2DD4BF" },
 ];
 
 export const AdminMapWidgetV2: React.FC<AdminMapWidgetV2Props> = ({
@@ -126,7 +126,7 @@ export const AdminMapWidgetV2: React.FC<AdminMapWidgetV2Props> = ({
       const lowerName = rawName.toLowerCase();
       const provInfo = DISTRICT_PROVINCE_MAP[lowerName] || {
         province: "UNKNOWN",
-        code: "EST",
+        code: "EAST",
         color: "#CBD5E1",
       };
       const demoData = districtDataMap.get(lowerName);
@@ -162,7 +162,7 @@ export const AdminMapWidgetV2: React.FC<AdminMapWidgetV2Props> = ({
         {selectedDistrict && (
           <button
             onClick={() => handleDistrictSelect("")}
-            className="text-[11px] font-bold text-[#3363AD] hover:underline"
+            className="text-[11px] font-bold text-[#3363AD] hover:underline cursor-pointer"
           >
             Clear Filter ({selectedDistrict})
           </button>
