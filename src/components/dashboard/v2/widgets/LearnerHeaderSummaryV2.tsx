@@ -5,14 +5,11 @@ import {
   User as UserIcon,
   ShieldCheck,
   Flame,
-  Award,
-  BookOpen,
   MessageSquare,
   Settings,
   Mail,
   Phone,
   MapPin,
-  CheckCircle2,
 } from "lucide-react";
 
 interface LearnerHeaderSummaryV2Props {
@@ -29,8 +26,8 @@ interface LearnerHeaderSummaryV2Props {
 
 export const LearnerHeaderSummaryV2: React.FC<LearnerHeaderSummaryV2Props> = ({
   customUser,
-  completedCoursesCount = 0,
-  totalCertificatesCount = 0,
+  completedCoursesCount: _completedCoursesCount = 0,
+  totalCertificatesCount: _totalCertificatesCount = 0,
 }) => {
   const { user: authUser } = useAuth();
   const navigate = useNavigate();
