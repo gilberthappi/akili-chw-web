@@ -9,11 +9,21 @@ export const AiRecommendationsWidgetV2: React.FC<AiRecommendationsWidgetV2Props>
   recommendations = [],
 }) => {
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-  const displayList = recommendations.slice(0, 5).map((item: any) => ({
-    score: Math.round(item.score ?? item.priorityScore ?? item.completionRate ?? 75),
-    title: item.courseTitle || item.title || item.name || "HEALTH MODULE",
-    info: `${item.totalChapters || item.chaptersCount || 5} Chapters • ${item.candidateCount || item.enrollments || 150} Candidates`,
-  }));
+  const displayList = (recommendations || []).slice(0, 5).map((item: any) => {
+    const chaptersVal = item.totalChapters || item.chaptersCount || item.chapters || 0;
+    const candidatesVal = item.candidateCount || item.enrollments || item.studentsCount || 0;
+    const infoStr = chaptersVal > 0 && candidatesVal > 0 
+      ? `${chaptersVal} Chapters • ${candidatesVal} Candidates`
+      : chaptersVal > 0 
+      ? `${chaptersVal} Chapters` 
+      : `${candidatesVal} Candidates`;
+
+    return {
+      score: Math.round(item.score ?? item.priorityScore ?? item.completionRate ?? 0),
+      title: item.courseTitle || item.title || item.name || "Training Module",
+      info: infoStr,
+    };
+  });
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-xs flex flex-col justify-between space-y-3.5 h-full">

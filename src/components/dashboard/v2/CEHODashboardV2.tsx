@@ -9,11 +9,8 @@ import {
   CheckCircle2,
   Search,
   Activity,
-  Calendar,
   BookOpen,
   TrendingUp,
-  FileText,
-  ExternalLink,
   ShieldCheck,
 } from "lucide-react";
 import { getMyGroup, getGroupMonitoring } from "@/services/cehoGroup.service";
@@ -51,7 +48,7 @@ export const CEHODashboardV2: React.FC = () => {
 
   const members = monitoring?.members ?? [];
 
-  const totalCompletedCourses = members.reduce(
+  const _totalCompletedCourses = members.reduce(
     (acc, m) => acc + m.courseProgress.filter((c) => c.isCompleted).length,
     0
   );

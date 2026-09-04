@@ -117,19 +117,9 @@ export const ProgramCoursesGridV2: React.FC<ProgramCoursesGridV2Props> = ({
       c.completedTests ||
       0;
 
-    if (attemptsCount === 0 && enrollmentsCount > 0) {
-      attemptsCount = enrollmentsCount * 4;
-    }
-
-    // 7. Certificates (EXACT 1-TO-1 MATCH WITH CertificatesDonutWidgetV2)
-    const rawTotalCerts =
-      typeof summaryData?.certification?.total?.issued === "number"
-        ? summaryData.certification.total.issued
-        : summaryData?.dashboardStats?.certificatesIssued?.value ?? 1545;
-
+    // 7. Certificates (True database certificates issued per course)
     const rawBreakdown = summaryData?.certification?.byCourse || summaryData?.certification?.byCategory || [];
-
-    let certsCount = 0;
+    let certsCount = c.certificatesEarned || c.certificatesCount || c.certificates || 0;
 
     if (rawBreakdown.length > 0) {
       /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
@@ -141,22 +131,6 @@ export const ProgramCoursesGridV2: React.FC<ProgramCoursesGridV2Props> = ({
       if (match) {
         certsCount = Number(match.certificates || match.count || match.value || 0);
       }
-    }
-
-    if (certsCount === 0) {
-      // CertificatesDonutWidgetV2 limits to 8 courses maximum (slice(0, 8))
-      const targetCourses = (courses && courses.length > 0 ? courses : []).slice(0, 8);
-      const courseCount = Math.max(1, targetCourses.length > 0 ? targetCourses.length : 8);
-      const perCourse = Math.max(1, Math.floor(rawTotalCerts / courseCount));
-      const firstCourseVal = rawTotalCerts - perCourse * (courseCount - 1);
-
-      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-      const certIdx = targetCourses.findIndex(
-        (tc: any) => (tc.courseId || tc.id) === courseId || (tc.title && tc.title === courseTitle)
-      );
-      const activeIdx = certIdx !== -1 ? certIdx : idx;
-
-      certsCount = activeIdx === 0 ? firstCourseVal : perCourse;
     }
 
     return {

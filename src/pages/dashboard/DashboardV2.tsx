@@ -1,6 +1,7 @@
 import React from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { CHWLearnerDashboardV2 } from "@/components/dashboard/v2/CHWLearnerDashboardV2";
+import { CEHODashboardV2 } from "@/components/dashboard/v2/CEHODashboardV2";
 import { AdminDashboardV2 } from "@/components/dashboard/v2/AdminDashboardV2";
 import { useNavigate } from "react-router-dom";
 import { Sparkles, ArrowLeft } from "lucide-react";
@@ -15,9 +16,13 @@ export const DashboardV2: React.FC = () => {
       : [user.roles as string]
     : [];
 
-  const isLearner = userRoles.some((r) =>
-    ["TRAINEE", "TESTER", "CEHO"].includes(r)
-  ) && !userRoles.some((r) => ["ADMIN", "STAFF", "DEVELOPER"].includes(r));
+  const isCEHO =
+    userRoles.includes("CEHO") &&
+    !userRoles.some((r) => ["ADMIN", "STAFF", "DEVELOPER"].includes(r));
+
+  const isLearner =
+    userRoles.some((r) => ["TRAINEE", "TESTER"].includes(r)) &&
+    !userRoles.some((r) => ["ADMIN", "STAFF", "DEVELOPER"].includes(r));
 
   const hour = new Date().getHours();
   const greeting =
@@ -49,7 +54,7 @@ export const DashboardV2: React.FC = () => {
         {/* Toggle Switch back to classic view */}
         <button
           onClick={() => navigate("/")}
-          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-semibold transition-colors"
+          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-semibold transition-colors cursor-pointer"
         >
           <ArrowLeft size={14} className="text-gray-500" />
           <span>Switch to Classic Dashboard</span>
@@ -57,7 +62,13 @@ export const DashboardV2: React.FC = () => {
       </div>
 
       {/* Role-based Dashboard Views */}
-      {isLearner ? <CHWLearnerDashboardV2 /> : <AdminDashboardV2 />}
+      {isCEHO ? (
+        <CEHODashboardV2 />
+      ) : isLearner ? (
+        <CHWLearnerDashboardV2 />
+      ) : (
+        <AdminDashboardV2 />
+      )}
     </div>
   );
 };

@@ -17,7 +17,11 @@ import { ProgramCoursesGridV2 } from "./widgets/admin/ProgramCoursesGridV2";
 import { AiRecommendationsWidgetV2 } from "./widgets/admin/AiRecommendationsWidgetV2";
 import { ScheduleCalendarWidgetV2 } from "./widgets/admin/ScheduleCalendarWidgetV2";
 import { ChwDataTableV2 } from "./widgets/admin/ChwDataTableV2";
+import { KnowledgeGainWidgetV2 } from "./widgets/admin/KnowledgeGainWidgetV2";
 import { RecentActivitiesWidgetV2 } from "./widgets/admin/RecentActivitiesWidgetV2";
+import { MapRegionalOverviewWidgetV2 } from "./widgets/admin/MapRegionalOverviewWidgetV2";
+import { EnrollmentTrendsWidgetV2 } from "./widgets/admin/EnrollmentTrendsWidgetV2";
+import { AdminFeedbackWidgetV2 } from "./widgets/admin/AdminFeedbackWidgetV2";
 import { SectionSkeleton } from "../shared/SectionSkeleton";
 import { ICourseStatEntry } from "@/services/progress.service";
 
@@ -203,6 +207,27 @@ export const AdminDashboardV2: React.FC = () => {
         </div>
         <div className="lg:col-span-4 xl:col-span-3">
           <RecentActivitiesWidgetV2 activities={Array.isArray(activityList) ? activityList : []} />
+        </div>
+      </div>
+
+      {/* Row 5: Knowledge Gain Grid (Full Width Knowledge Gain Table / Graph) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+        <div className="lg:col-span-12 xl:col-span-12">
+          <KnowledgeGainWidgetV2 courses={realCourses} />
+        </div>
+      </div>
+
+      {/* Row 6: Regional Analytics & Performance Grid (Combined Map & Course Performance Card + Right Column Enrollment Trends & Feedback) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+        <div className="lg:col-span-9 xl:col-span-9">
+          <MapRegionalOverviewWidgetV2 byDistrict={adoptionData?.byDistrict ?? summaryData?.byDistrict} />
+        </div>
+        <div className="lg:col-span-3 xl:col-span-3 flex flex-col gap-6">
+          <EnrollmentTrendsWidgetV2
+            trendsData={summaryData?.monthlyActiveTrends || adoptionData?.enrollmentTrends}
+            summaryData={summaryData}
+          />
+          <AdminFeedbackWidgetV2 />
         </div>
       </div>
     </div>

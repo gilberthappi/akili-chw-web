@@ -3,7 +3,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getStudentById } from "@/services/students.service";
 import { StudentProfileCardV2 } from "./StudentProfileCardV2";
-import { LearnerKpiRowV2 } from "../dashboard/v2/widgets/LearnerKpiRowV2";
 import { LearningActivityV2 } from "../dashboard/v2/widgets/LearningActivityV2";
 import { PerformanceMeterV2 } from "../dashboard/v2/widgets/PerformanceMeterV2";
 import { EnrolledCoursesTableV2 } from "../dashboard/v2/widgets/EnrolledCoursesTableV2";

@@ -88,27 +88,11 @@ export const AssessmentAttemptsWidgetV2: React.FC<AssessmentAttemptsWidgetV2Prop
       0
   );
 
-  const existingSum = preVal + midVal + finalVal + certVal;
-
-  // Distribute test attempts across all 4 test categories (PreTest, MidTest, FinalTest, FinalExam(Certificate))
-  if (existingSum > 0) {
-    if (midVal === 0) {
-      midVal = Math.round(existingSum * 0.18);
-    }
-    if (certVal === 0) {
-      certVal = Math.round(existingSum * 0.12);
-    }
-    const sumOthers = midVal + certVal;
-    if (preVal > sumOthers) preVal = Math.max(1, preVal - Math.round(sumOthers * 0.6));
-    if (finalVal > sumOthers) finalVal = Math.max(1, finalVal - Math.round(sumOthers * 0.4));
-  } else {
-    // If breakdown sums to 0, use system total tests taken metrics
-    const totalToDistribute = totalFromStats > 0 ? totalFromStats : 1240;
-    preVal = Math.round(totalToDistribute * 0.45);
-    midVal = Math.round(totalToDistribute * 0.20);
-    finalVal = Math.round(totalToDistribute * 0.23);
-    certVal = Math.max(0, totalToDistribute - (preVal + midVal + finalVal));
-  }
+  // 4. Pure database values (zero dummy scaling)
+  if (preVal < 0) preVal = 0;
+  if (midVal < 0) midVal = 0;
+  if (finalVal < 0) finalVal = 0;
+  if (certVal < 0) certVal = 0;
 
   const allAttemptTypes = [
     { key: "pre", name: "PreTest", value: preVal, color: "#38BDF8" },

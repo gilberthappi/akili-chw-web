@@ -1,5 +1,5 @@
 import React from "react";
-import { UserCheck } from "lucide-react";
+import { UserCheck, Activity } from "lucide-react";
 
 interface RecentActivitiesWidgetV2Props {
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
@@ -13,7 +13,7 @@ export const RecentActivitiesWidgetV2: React.FC<RecentActivitiesWidgetV2Props> =
 
   // Helper to format date and time for left-side display
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-  const getEventDateAndTime = (rawDate: any, fallbackIndex: number) => {
+  const getEventDateAndTime = (rawDate: any) => {
     let dateStr = "Today";
     let timeStr = "12:00 PM";
 
@@ -42,66 +42,13 @@ export const RecentActivitiesWidgetV2: React.FC<RecentActivitiesWidgetV2Props> =
       }
     }
 
-    // Dynamic fallback date and time based on fallbackIndex
-    const offsetsMinutes = [15, 45, 120, 240, 360];
-    const offsetMs = (offsetsMinutes[fallbackIndex % offsetsMinutes.length] || 15) * 60 * 1000;
-    const targetDate = new Date(now.getTime() - offsetMs);
-
-    dateStr = targetDate.toLocaleDateString([], { month: "short", day: "numeric" });
-    timeStr = targetDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true });
-
     return { dateStr, timeStr };
   };
 
-  const defaultActivities = [
-    {
-      id: "act_1",
-      studentName: "NIZEYIMANA Emmanuel",
-      courseName: "KURWANYA INDWARA ZITANDURA MU MUDUGUDU",
-      status: "Completed",
-      progress: 100,
-      createdAt: new Date(now.getTime() - 25 * 60 * 1000).toISOString(),
-    },
-    {
-      id: "act_2",
-      studentName: "MUKAMANA Marie",
-      courseName: "KWITA KU BUZIMA BWO MU MUTWE KU RWEGO RW'IBANZE",
-      status: "Active",
-      progress: 85,
-      createdAt: new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-      id: "act_3",
-      studentName: "HATEGEKIMANA Jean-Claude",
-      courseName: "KUBONEZA URUBYARO KU RWEGO RW'UMUDUGUDU",
-      status: "Completed",
-      progress: 100,
-      createdAt: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-      id: "act_4",
-      studentName: "UWIMANA Chantal",
-      courseName: "GAHUNDA Y'UBUZIMA BW'UMUBYEYI N'URUHINJA MU RUGO",
-      status: "Active",
-      progress: 60,
-      createdAt: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-      id: "act_5",
-      studentName: "BIZIMANA Eric",
-      courseName: "GAHUNDA Y'IMIRIRE MU MUDUGUDU",
-      status: "Completed",
-      progress: 100,
-      createdAt: new Date(now.getTime() - 4 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-  ];
-
-  const sourceList = activities && activities.length > 0 ? activities : defaultActivities;
-
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-  const displayList = sourceList.slice(0, 5).map((item: any, idx: number) => {
+  const displayList = (activities || []).slice(0, 5).map((item: any, idx: number) => {
     const rawDate = item.lastActivity || item.timestamp || item.createdAt || item.updatedAt;
-    const { dateStr, timeStr } = getEventDateAndTime(rawDate, idx);
+    const { dateStr, timeStr } = getEventDateAndTime(rawDate);
 
     const studentName = item.studentName || item.userName || item.fullNames || item.user?.fullNames || item.actorName || "CHW Learner";
     const courseTitle = item.courseName || item.courseTitle || item.title || "Health Training Course";
@@ -126,45 +73,58 @@ export const RecentActivitiesWidgetV2: React.FC<RecentActivitiesWidgetV2Props> =
   });
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-xs flex flex-col justify-between space-y-3.5 h-full">
-      {/* Header (Removed "Today" subheader) */}
+    <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-xs flex flex-col justify-between space-y-3.5 h-full min-h-[220px]">
+      {/* Header */}
       <div>
         <h3 className="text-sm font-extrabold text-gray-900 tracking-tight">
           Recent activities
         </h3>
       </div>
 
-      {/* Activity Timeline List with Left-side Date & Time */}
-      <div className="space-y-3 flex-1">
-        {displayList.map((item, idx) => (
-          <div
-            key={item.id || idx}
-            className="flex items-start gap-2.5 p-1 rounded-xl hover:bg-gray-50/80 transition-colors cursor-pointer group"
-          >
-            {/* Left side Date & Time */}
-            <div className="flex flex-col items-start shrink-0 w-16 pt-0.5 text-left">
-              <span className="text-[11px] font-black text-gray-900 leading-none">
-                {item.dateStr}
-              </span>
-              <span className="text-[9px] font-bold text-gray-400 mt-0.5">
-                {item.timeStr}
-              </span>
-            </div>
-
-            {/* Avatar Icon */}
-            <div className="w-7 h-7 rounded-full bg-[#3363AD] text-white flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform mt-0.5">
-              <UserCheck size={14} />
-            </div>
-
-            {/* Activity Text */}
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold text-gray-700 leading-snug line-clamp-2">
-                {item.text}
-              </p>
-            </div>
+      {/* Activity Timeline List or Clean Empty State */}
+      {displayList.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-6 text-center space-y-2 flex-1">
+          <div className="w-10 h-10 rounded-full bg-[#EBF3FB] flex items-center justify-center text-[#3363AD]">
+            <Activity size={18} className="text-[#3363AD]" />
           </div>
-        ))}
-      </div>
+          <p className="text-xs font-bold text-gray-700">No recent activities</p>
+          <p className="text-[10px] text-gray-400 font-semibold max-w-[200px]">
+            Live updates will appear here automatically when CHWs register or complete modules.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3 flex-1">
+          {displayList.map((item, idx) => (
+            <div
+              key={item.id || idx}
+              className="flex items-start gap-2.5 p-1 rounded-xl hover:bg-gray-50/80 transition-colors cursor-pointer group"
+            >
+              {/* Left side Date & Time */}
+              <div className="flex flex-col items-start shrink-0 w-16 pt-0.5 text-left">
+                <span className="text-[11px] font-black text-gray-900 leading-none">
+                  {item.dateStr}
+                </span>
+                <span className="text-[9px] font-bold text-gray-400 mt-0.5">
+                  {item.timeStr}
+                </span>
+              </div>
+
+              {/* Avatar Icon */}
+              <div className="w-7 h-7 rounded-full bg-[#3363AD] text-white flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform mt-0.5">
+                <UserCheck size={14} />
+              </div>
+
+              {/* Activity Text */}
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold text-gray-700 leading-snug line-clamp-2">
+                  {item.text}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
+
