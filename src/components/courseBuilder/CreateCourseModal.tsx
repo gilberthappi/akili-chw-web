@@ -121,11 +121,11 @@ export default function CreateCourseModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 py-6 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-3 sm:px-4 py-4 sm:py-6 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-5xl overflow-hidden rounded-[28px] bg-white shadow-2xl ring-1 ring-black/5"
+        className="w-full max-w-5xl max-h-[92vh] overflow-y-auto rounded-[20px] sm:rounded-[28px] bg-white shadow-2xl ring-1 ring-black/5"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-start justify-between border-b border-blue-100 bg-gradient-to-r from-primary via-primary to-sky-500 px-6 py-5 text-white sm:px-8">

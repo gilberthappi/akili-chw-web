@@ -857,11 +857,14 @@ export default function CourseBuilder({
     setSelectedSectionId(sectionId);
     setSelectedChapterId(chapterId);
     setViewMode("slides");
+    if (typeof window !== "undefined" && window.innerWidth < 1024) {
+      setSidebarOpen(false);
+    }
   };
 
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
-    <div className="h-full flex bg-page-bg">
+    <div className="h-full flex bg-page-bg relative">
       <CreateCourseModal
         isOpen={showEditCourseModal}
         mode="edit"
@@ -882,10 +885,18 @@ export default function CourseBuilder({
         }}
       />
 
+      {/* Mobile Sidebar Overlay Backdrop */}
+      {sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          className="fixed inset-0 bg-black/40 z-30 lg:hidden transition-opacity"
+        />
+      )}
+
       {/* ── Sidebar ── */}
       <div
-        className={`bg-white border-r border-gray-200 flex flex-col transition-all duration-300 ${
-          sidebarOpen ? "w-80" : "w-0"
+        className={`bg-white border-r border-gray-200 flex flex-col transition-all duration-300 fixed inset-y-0 left-0 z-40 lg:static lg:z-auto ${
+          sidebarOpen ? "w-80 shadow-2xl lg:shadow-none" : "w-0"
         } overflow-hidden`}
       >
         {/* Header */}
@@ -959,10 +970,20 @@ export default function CourseBuilder({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
+                        startEditingSection(section);
+                      }}
+                      title="Rename section"
+                      className="opacity-0 group-hover:opacity-100 transition text-secondary hover:text-dark p-0.5"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
                         addChapter(section.id);
                       }}
-                      className="opacity-0 group-hover:opacity-100 transition text-green-600 hover:text-green-700 p-1"
                       title="Add chapter"
+                      className="opacity-0 group-hover:opacity-100 transition text-green-600 hover:text-green-700 p-1"
                     >
                       <Plus className="w-4 h-4" />
                     </button>
@@ -971,30 +992,21 @@ export default function CourseBuilder({
                         e.stopPropagation();
                         deleteSection(section.id);
                       }}
-                      className="opacity-0 group-hover:opacity-100 transition text-destructive/60 hover:text-destructive p-1"
                       title="Delete section"
+                      className="opacity-0 group-hover:opacity-100 transition text-destructive/60 hover:text-destructive p-1"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setExpandedSectionId(
-                          expandedSectionId === section.id ? "" : section.id
-                        );
-                      }}
-                    >
-                      {expandedSectionId === section.id ? (
-                        <ChevronUp className="w-4 h-4" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4" />
-                      )}
-                    </button>
+                    {expandedSectionId === section.id ? (
+                      <ChevronUp className="w-4 h-4" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4" />
+                    )}
                   </div>
                 </div>
               )}
 
-              {/* Chapters */}
+              {/* Chapters List */}
               {expandedSectionId === section.id && section.chapters.length > 0 && (
                 <div className="pl-3 mt-1">
                   <div className="space-y-0.5 border-l-2 border-primary/20 pl-2 ml-1">
@@ -1076,6 +1088,9 @@ export default function CourseBuilder({
               onClick={() => {
                 setSelectedChapterId("");
                 setViewMode("questionBank");
+                if (typeof window !== "undefined" && window.innerWidth < 1024) {
+                  setSidebarOpen(false);
+                }
               }}
               className={`flex-1 px-3 py-2 text-xs font-semibold rounded-lg border transition flex items-center justify-center gap-1 ${
                 viewMode === "questionBank"
@@ -1090,6 +1105,9 @@ export default function CourseBuilder({
               onClick={() => {
                 setSelectedChapterId("");
                 setViewMode("tests");
+                if (typeof window !== "undefined" && window.innerWidth < 1024) {
+                  setSidebarOpen(false);
+                }
               }}
               className={`flex-1 px-3 py-2 text-xs font-semibold rounded-lg border transition flex items-center justify-center gap-1 ${
                 viewMode === "tests"
@@ -1116,71 +1134,73 @@ export default function CourseBuilder({
       </div>
 
       {/* ── Main Content ── */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* ── Header ── */}
-        <div className="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
+        <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4 flex-shrink-0">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3 sm:mb-4">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
               <button
                 onClick={onBack}
                 title="Back to courses"
-                className="p-1.5 rounded-lg text-secondary hover:text-dark hover:bg-gray-100 transition"
+                className="p-1.5 rounded-lg text-secondary hover:text-dark hover:bg-gray-100 transition flex-shrink-0"
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
-              {!sidebarOpen && (
-                <button
-                  onClick={() => setSidebarOpen(true)}
-                  className="text-secondary hover:text-dark p-1"
-                >
-                  <Menu className="w-6 h-6" />
-                </button>
-              )}
-              <h2 className="text-2xl font-bold text-dark">{localCourseTitle}</h2>
+              <button
+                onClick={() => setSidebarOpen((prev) => !prev)}
+                className="p-1.5 rounded-lg text-secondary hover:text-dark hover:bg-gray-100 transition flex-shrink-0 flex items-center gap-1 text-xs font-semibold"
+                title="Toggle Sections Sidebar"
+              >
+                <Menu className="w-5 h-5" />
+                <span className="hidden sm:inline">Sections</span>
+              </button>
+              <h2 className="text-base sm:text-2xl font-bold text-dark truncate flex-1">
+                {localCourseTitle}
+              </h2>
               <button
                 onClick={() => setShowEditCourseModal(true)}
                 title="Edit course details"
-                className="p-1.5 rounded-lg text-secondary hover:text-primary hover:bg-primary/10 transition"
+                className="p-1.5 rounded-lg text-secondary hover:text-primary hover:bg-primary/10 transition flex-shrink-0"
               >
                 <Pencil className="w-4 h-4" />
               </button>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap justify-end w-full sm:w-auto">
               {autoSaveStatus === "saving" && (
                 <span className="text-xs text-secondary flex items-center gap-1">
                   <Loader2 className="w-3 h-3 animate-spin" />
-                  Auto-saving...
+                  <span className="hidden sm:inline">Auto-saving...</span>
                 </span>
               )}
               {autoSaveStatus === "saved" && (
                 <span className="text-xs text-green-600 flex items-center gap-1">
                   <CheckCircle className="w-3 h-3" />
-                  Saved
+                  <span className="hidden sm:inline">Saved</span>
                 </span>
               )}
               {autoSaveStatus === "error" && (
                 <span className="text-xs text-destructive flex items-center gap-1">
                   <AlertCircle className="w-3 h-3" />
-                  Auto-save failed
+                  <span className="hidden sm:inline">Auto-save failed</span>
                 </span>
               )}
               {showNotifyButton && (
                 <button
                   onClick={handleNotifyUsers}
                   disabled={isNotifying || isPublishing}
-                  className="px-4 py-2 text-sm bg-amber-500 text-white font-semibold rounded-lg hover:bg-amber-600 transition flex items-center gap-2 disabled:opacity-60"
+                  className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm bg-amber-500 text-white font-semibold rounded-lg hover:bg-amber-600 transition flex items-center gap-1.5 disabled:opacity-60"
                   title="Send push notification to CHWs, testers, and CHOs"
                 >
-                  <Bell className="w-4 h-4" />
+                  <Bell className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   {isNotifying ? "Sending..." : notifyButtonLabel}
                 </button>
               )}
               <button
                 onClick={handlePublish}
                 disabled={isPublishing}
-                className="px-4 py-2 text-sm bg-primary text-white font-semibold rounded-lg hover:bg-primary/90 transition flex items-center gap-2 disabled:opacity-60"
+                className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm bg-primary text-white font-semibold rounded-lg hover:bg-primary/90 transition flex items-center gap-1.5 disabled:opacity-60"
               >
-                <Globe className="w-4 h-4" />
+                <Globe className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 {isPublishing ? "Publishing..." : isPublished ? "Republish" : "Publish"}
               </button>
             </div>
@@ -1188,29 +1208,29 @@ export default function CourseBuilder({
 
           {/* Breadcrumb / Tabs */}
           {viewMode === "questionBank" && (
-            <p className="text-sm text-primary font-medium flex items-center gap-1.5">
-              <Database className="w-4 h-4" />
+            <p className="text-xs sm:text-sm text-primary font-medium flex items-center gap-1.5">
+              <Database className="w-4 h-4 flex-shrink-0" />
               Question Bank — shared across Pre-Test, Final Test, and Exam
             </p>
           )}
           {viewMode === "tests" && (
-            <p className="text-sm text-primary font-medium flex items-center gap-1.5">
-              <LayoutList className="w-4 h-4" />
+            <p className="text-xs sm:text-sm text-primary font-medium flex items-center gap-1.5">
+              <LayoutList className="w-4 h-4 flex-shrink-0" />
               Tests Configuration
             </p>
           )}
           {(viewMode === "slides" || viewMode === "midTest") && (
             <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm text-secondary">
-                <span className="text-dark font-medium">
-                📂 Section:  {selectedSection?.title || "—"}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs sm:text-sm text-secondary">
+                <span className="text-dark font-medium truncate">
+                  📂 Section: {selectedSection?.title || "—"}
                 </span>
-                <span className="text-dark font-medium">
-                📘 Chapter:  {selectedChapter?.title || "Select a chapter"}
+                <span className="text-dark font-medium truncate">
+                  📘 Chapter: {selectedChapter?.title || "Select a chapter"}
                 </span>
               </div>
               {selectedChapter && (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <button
                     onClick={() => setViewMode("slides")}
                     className={`px-3 py-1.5 text-xs font-semibold rounded-md border transition ${
@@ -1255,19 +1275,19 @@ export default function CourseBuilder({
 
         {/* ── Content Area ── */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Pinned header – Question Bank (title + description sit above the scroll area) */}
+          {/* Pinned header – Question Bank */}
           {viewMode === "questionBank" && (
-            <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-4">
-              <h3 className="text-lg font-semibold text-dark">Question Bank</h3>
-              <p className="text-sm text-secondary mt-1">
-                All questions stored here are randomly selected when chw take the
+            <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4">
+              <h3 className="text-base sm:text-lg font-semibold text-dark">Question Bank</h3>
+              <p className="text-xs sm:text-sm text-secondary mt-1">
+                All questions stored here are randomly selected when CHWs take the
                 Pre-Test, Final Test, or Exam. Each test draws the number of questions
                 you configure. Mid-Test uses its own separate questions.
               </p>
             </div>
           )}
           <div className="flex-1 overflow-auto">
-          <div className={`max-w-8xl mx-auto px-6 pb-6 ${viewMode === "questionBank" ? "pt-0" : "pt-6"}`}>
+            <div className={`max-w-8xl mx-auto px-3 sm:px-6 pb-6 ${viewMode === "questionBank" ? "pt-0" : "pt-4 sm:pt-6"}`}>
 
             {/* ── Question Bank Panel ── */}
             {/* The panel's own sticky summary bar (count + Add Question) pins to top-0 of this
