@@ -9,6 +9,19 @@ export interface CreateQuestionnairePayload {
   midTestId?: string | null;
 }
 
+export interface BulkDuplicateCheckResult {
+  question: string;
+  isDuplicate: boolean;
+  existingLocation?: string;
+}
+
+export const checkBulkDuplicates = async (
+  questions: string[]
+): Promise<BulkDuplicateCheckResult[]> => {
+  const res = await api.post("/questionnaires/check-duplicates", { questions });
+  return res.data?.data ?? [];
+};
+
 export const createQuestionnaire = async (
   data: CreateQuestionnairePayload
 ): Promise<IQuestionnaire> => {
