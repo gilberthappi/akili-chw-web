@@ -277,7 +277,7 @@ export default function QuestionBankPanel({
       setEditingQuestion(null);
       fetchQuestions();
     } catch {
-      toast.error(editingQuestion ? "Failed to update question" : "Failed to save question");
+      // Error toast is automatically handled by the axios response interceptor in api.ts
     } finally {
       setSaving(false);
     }
