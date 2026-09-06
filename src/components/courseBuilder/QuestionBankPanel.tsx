@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Plus, Trash2, Pencil, X, CheckCircle, Loader2, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import toast from "react-hot-toast";
 import { getCourseById } from "@/services/course.service";
@@ -53,12 +53,16 @@ interface QuestionBankPanelProps {
 
 // ─── Component ─────────────────────────────────────────────────────────────────
 
+interface ExtendedQuestionnaire extends IQuestionnaire {
+  originChapterTitle?: string;
+}
+
 export default function QuestionBankPanel({
   courseId,
   midTestId,
   refreshKey,
 }: QuestionBankPanelProps) {
-  const [questions, setQuestions] = useState<IQuestionnaire[]>([]);
+  const [questions, setQuestions] = useState<ExtendedQuestionnaire[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string>("");
@@ -67,6 +71,7 @@ export default function QuestionBankPanel({
   const [editingQuestion, setEditingQuestion] = useState<IQuestionnaire | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string>("");
+  const [filterTab, setFilterTab] = useState<"all" | "bank" | "midtest">("all");
 
   const QUESTIONS_PER_PAGE = 10;
 
@@ -81,7 +86,7 @@ export default function QuestionBankPanel({
       const course = res.data as ICourse;
 
       if (midTestId) {
-        let found: IQuestionnaire[] = [];
+        let found: ExtendedQuestionnaire[] = [];
         for (const section of course.sections ?? []) {
           for (const chapter of section.chapters ?? []) {
             if (chapter.midTest?.id === midTestId) {
@@ -93,7 +98,24 @@ export default function QuestionBankPanel({
         }
         setQuestions(found);
       } else {
-        setQuestions(course.questionnaires ?? []);
+        const allQuestions: ExtendedQuestionnaire[] = [
+          ...(course.questionnaires ?? []),
+        ];
+
+        for (const section of course.sections ?? []) {
+          for (const chapter of section.chapters ?? []) {
+            const midQs = chapter.midTest?.questionnaires ?? [];
+            for (const q of midQs) {
+              allQuestions.push({
+                ...q,
+                originChapterTitle:
+                  chapter.title ||
+                  `Chapter ${chapter.chapterNumber ?? ""}`.trim(),
+              });
+            }
+          }
+        }
+        setQuestions(allQuestions);
       }
     } catch {
       toast.error("Failed to load questions");
@@ -268,8 +290,6 @@ export default function QuestionBankPanel({
         );
 
         toast.success("Question added");
-        const newLastPage = Math.ceil((questions.length + 1) / QUESTIONS_PER_PAGE);
-        setCurrentPage(newLastPage);
       }
 
       setDraft(emptyDraft());
@@ -283,10 +303,29 @@ export default function QuestionBankPanel({
     }
   };
 
-  const totalPages = Math.max(1, Math.ceil(questions.length / QUESTIONS_PER_PAGE));
-  const paginatedQuestions = questions.slice(
+  const bankCount = useMemo(
+    () => questions.filter((q) => !q.midTestId).length,
+    [questions],
+  );
+  const midTestCount = useMemo(
+    () => questions.filter((q) => !!q.midTestId).length,
+    [questions],
+  );
+
+  const filteredQuestions = useMemo(() => {
+    if (midTestId) return questions;
+    if (filterTab === "bank") return questions.filter((q) => !q.midTestId);
+    if (filterTab === "midtest") return questions.filter((q) => !!q.midTestId);
+    return questions;
+  }, [questions, filterTab, midTestId]);
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredQuestions.length / QUESTIONS_PER_PAGE),
+  );
+  const paginatedQuestions = filteredQuestions.slice(
     (currentPage - 1) * QUESTIONS_PER_PAGE,
-    currentPage * QUESTIONS_PER_PAGE
+    currentPage * QUESTIONS_PER_PAGE,
   );
 
   return (
@@ -296,7 +335,9 @@ export default function QuestionBankPanel({
         <span className="text-sm text-secondary">
           {loading
             ? "Loading…"
-            : `${questions.length} question${questions.length !== 1 ? "s" : ""} in bank`}
+            : midTestId
+            ? `${questions.length} question${questions.length !== 1 ? "s" : ""} in test`
+            : `${questions.length} questions total (${bankCount} Bank • ${midTestCount} Mid-Tests)`}
         </span>
         <button
           onClick={() => setShowAddForm(true)}
@@ -306,6 +347,51 @@ export default function QuestionBankPanel({
           Add Question
         </button>
       </div>
+
+      {/* Category filter tabs — shown when viewing main Question Bank */}
+      {!midTestId && !loading && questions.length > 0 && (
+        <div className="flex items-center gap-2 border-b border-gray-200 pb-2">
+          <button
+            onClick={() => {
+              setFilterTab("all");
+              setCurrentPage(1);
+            }}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+              filterTab === "all"
+                ? "bg-primary text-white"
+                : "bg-gray-100 text-secondary hover:bg-gray-200"
+            }`}
+          >
+            All ({questions.length})
+          </button>
+          <button
+            onClick={() => {
+              setFilterTab("bank");
+              setCurrentPage(1);
+            }}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+              filterTab === "bank"
+                ? "bg-primary text-white"
+                : "bg-gray-100 text-secondary hover:bg-gray-200"
+            }`}
+          >
+            Question Bank ({bankCount})
+          </button>
+          <button
+            onClick={() => {
+              setFilterTab("midtest");
+              setCurrentPage(1);
+            }}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+              filterTab === "midtest"
+                ? "bg-primary text-white"
+                : "bg-gray-100 text-secondary hover:bg-gray-200"
+            }`}
+          >
+            Mid-Tests ({midTestCount})
+          </button>
+        </div>
+      )}
 
       {/* Add Question Modal */}
       {showAddForm && (
@@ -447,10 +533,14 @@ export default function QuestionBankPanel({
       )}
 
       {/* Empty state */}
-      {!loading && questions.length === 0 && !showAddForm && (
+      {!loading && filteredQuestions.length === 0 && !showAddForm && (
         <div className="text-center py-10 text-secondary border-2 border-dashed border-gray-200 rounded-lg">
           <AlertCircle className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-          <p className="text-sm">No questions yet. Add your first question above.</p>
+          <p className="text-sm">
+            {questions.length === 0
+              ? "No questions yet. Add your first question above."
+              : "No questions found for this filter."}
+          </p>
         </div>
       )}
 
@@ -464,9 +554,16 @@ export default function QuestionBankPanel({
               className="border border-gray-200 rounded-lg p-4 space-y-2 bg-page-bg"
             >
               <div className="flex items-start justify-between gap-3">
-                <p className="text-sm font-semibold text-dark">
-                  {globalIdx + 1}. {q.question}
-                </p>
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-dark">
+                    {globalIdx + 1}. {q.question}
+                  </p>
+                  {(q.midTestId || q.originChapterTitle) && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-purple-100 text-purple-800 border border-purple-200">
+                      Mid-Test{q.originChapterTitle ? `: ${q.originChapterTitle}` : ""}
+                    </span>
+                  )}
+                </div>
                 <div className="flex items-center gap-1 flex-shrink-0">
                   <button
                     onClick={() => handleEditClick(q)}
