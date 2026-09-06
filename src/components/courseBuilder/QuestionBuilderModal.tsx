@@ -275,12 +275,12 @@ export default function QuestionBuilderModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col mx-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 sm:p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 flex-shrink-0">
           <div>
-            <h2 className="text-lg font-bold text-gray-900">{label}</h2>
+            <h2 className="text-base sm:text-lg font-bold text-gray-900">{label}</h2>
             <p className="text-xs text-gray-500 mt-0.5">
               {midTestId
                 ? "Questions linked to this chapter's mid-test"
@@ -296,7 +296,7 @@ export default function QuestionBuilderModal({
         </div>
 
         {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-4">
           {/* Loading */}
           {loading && (
             <div className="flex items-center justify-center py-10 text-gray-400 gap-2">

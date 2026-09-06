@@ -569,8 +569,8 @@ export default function QuestionBankPanel({
   return (
     <div className="space-y-4">
       {/* Summary bar — sticky so Add Question button stays visible while scrolling */}
-      <div className="sticky top-0 bg-white z-10 flex items-center justify-between py-3 border-b border-gray-200">
-        <span className="text-sm text-secondary">
+      <div className="sticky top-0 bg-white z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-3 border-b border-gray-200">
+        <span className="text-xs sm:text-sm text-secondary">
           {loading
             ? "Loading…"
             : midTestId
@@ -579,7 +579,7 @@ export default function QuestionBankPanel({
         </span>
         <button
           onClick={() => setShowAddForm(true)}
-          className="px-3 py-1.5 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary/90 transition flex items-center gap-1.5"
+          className="px-3 py-1.5 bg-primary text-white text-xs sm:text-sm font-semibold rounded-lg hover:bg-primary/90 transition flex items-center justify-center gap-1.5 self-end sm:self-auto"
         >
           <Plus className="w-4 h-4" />
           Add Question
@@ -588,7 +588,7 @@ export default function QuestionBankPanel({
 
       {/* Category filter tabs — shown when viewing main Question Bank */}
       {!midTestId && !loading && questions.length > 0 && (
-        <div className="flex items-center gap-2 border-b border-gray-200 pb-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap border-b border-gray-200 pb-2">
           <button
             onClick={() => {
               setFilterTab("all");
