@@ -13,7 +13,7 @@ import { StudentData } from "@/types";
 import { Button } from "@/components/common/Button";
 
 const STUDENT_ROLE_OPTIONS = [
-  { label: "Trainee (CHW)", value: "TRAINEE" },
+  { label: "CHW", value: "TRAINEE" },
   { label: "CEHO", value: "CEHO" },
   { label: "Tester", value: "TESTER" },
 ];

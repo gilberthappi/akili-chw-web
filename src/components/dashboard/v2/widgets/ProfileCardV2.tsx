@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { getCurrentUser } from "@/services/auth.service";
 import { Building2, Phone, MapPin } from "lucide-react";
+import { formatRoleLabel } from "@/utils/roles";
 
 export const ProfileCardV2: React.FC = () => {
   const { user: authUser } = useAuth();
@@ -96,16 +97,12 @@ export const ProfileCardV2: React.FC = () => {
     /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
     (fullUser as any)?.gender || authUser?.gender || "Male";
 
-  // Role display: Replace "TRAINEE" / "TESTER" with "CHW" (or "CEHO" if CEHO)
+  // Role display: TRAINEE/TESTER → CHW
   const rawRole = Array.isArray(authUser?.roles)
     ? authUser.roles[0]
     : authUser?.roles || "CHW";
 
-  const roleLabel = ["TRAINEE", "TESTER", "CHW"].includes(rawRole)
-    ? "CHW"
-    : rawRole === "CEHO"
-    ? "CEHO"
-    : "CHW";
+  const roleLabel = formatRoleLabel(rawRole) || "CHW";
 
   const avatarUrl = fullUser?.photo || authUser?.photo;
 

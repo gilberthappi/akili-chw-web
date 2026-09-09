@@ -8,14 +8,9 @@ import StaffTableActions from "@/components/staff/StaffTableActions";
 import { IStaff } from "@/types";
 import { getAllStaff } from "@/services/staff.service";
 import { formatDate } from "@/utils/formats/formats";
+import { formatRoleLabel, STAFF_ROLE_OPTIONS } from "@/utils/roles";
 
-const ROLE_OPTIONS = [
-  { label: "Admin", value: "ADMIN" },
-  { label: "Trainer", value: "TRAINER" },
-  { label: "CEHO", value: "CEHO" },
-  { label: "Staff", value: "STAFF" },
-  { label: "Developer", value: "DEVELOPER" },
-];
+const ROLE_OPTIONS = STAFF_ROLE_OPTIONS;
 
 export const Staff = () => {
   const [currentPage, setCurrentPage] = useState(1);
@@ -192,18 +187,20 @@ export const Staff = () => {
             render: (row: IStaff) => (
               <span
                 className={`px-2.5 py-1 text-xs font-semibold rounded-full ${
-                  row.role === "ADMIN"
-                    ? "bg-purple-100 text-purple-800"
-                    : row.role === "DEVELOPER"
-                      ? "bg-blue-100 text-blue-800"
-                      : row.role === "TRAINER"
+                  row.role?.startsWith("WELTEL_") || row.role === "ADMIN" || row.role === "DEVELOPER"
+                    ? "bg-blue-100 text-blue-800"
+                    : row.role?.startsWith("RBC_")
+                      ? "bg-purple-100 text-purple-800"
+                      : row.role?.startsWith("CIIC_") || row.role === "TRAINER"
                         ? "bg-green-100 text-green-800"
-                        : row.role === "CEHO"
-                          ? "bg-orange-100 text-orange-800"
-                          : "bg-gray-100 text-gray-800"
+                        : row.role?.startsWith("SFH_")
+                          ? "bg-amber-100 text-amber-800"
+                          : row.role === "CEHO"
+                            ? "bg-orange-100 text-orange-800"
+                            : "bg-gray-100 text-gray-800"
                 }`}
               >
-                {row.role}
+                {formatRoleLabel(row.role)}
               </span>
             ),
           },

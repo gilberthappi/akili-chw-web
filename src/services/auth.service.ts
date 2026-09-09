@@ -7,19 +7,16 @@ import { setCookieForAllDomains, clearCookiesFromAllDomains } from "@/utils/cook
 
 export const login = async (formData: ILoginFormData): Promise<AuthState> => {
   const { data } = await api.post("/auth/signin/staff", formData);
-  const { token, roles, permissions, industry, ...userData } = data.data;
+  const { token, roles, permissions, department, industry, ...userData } = data.data;
+  const dept = department ?? industry;
   localStorage.setItem(
     "chw",
-    JSON.stringify({ ...userData, roles, permissions, industry }),
+    JSON.stringify({ ...userData, roles, permissions, department: dept, industry: dept }),
   );
   localStorage.setItem("accessToken", token);
-  // Also store auth_user for cross-app compatibility
-  localStorage.setItem("auth_user", JSON.stringify(userData));
+  localStorage.setItem("auth_user", JSON.stringify({ ...userData, department: dept, industry: dept }));
   
-  // Set cookies for both www.ebumenyi.online and meeting.ebumenyi.online
   setCookieForAllDomains(token);
-  
-  // Broadcast login to other tabs/ports
   broadcastAuthChange('login');
   
   return {
@@ -27,19 +24,24 @@ export const login = async (formData: ILoginFormData): Promise<AuthState> => {
     token,
     roles,
     permissions,
-    industry,
+    department: dept,
+    industry: dept,
   };
 };
 
 export const loginStudent = async (formData: IStudentLoginFormData): Promise<AuthState> => {
   const { data } = await api.post("/auth/signin/student/id-phone", formData);
-  const { token, roles, permissions, industry, ...userData } = data.data;
-  localStorage.setItem("chw", JSON.stringify({ ...userData, roles, permissions, industry }));
+  const { token, roles, permissions, department, industry, ...userData } = data.data;
+  const dept = department ?? industry;
+  localStorage.setItem(
+    "chw",
+    JSON.stringify({ ...userData, roles, permissions, department: dept, industry: dept }),
+  );
   localStorage.setItem("accessToken", token);
-  localStorage.setItem("auth_user", JSON.stringify(userData));
+  localStorage.setItem("auth_user", JSON.stringify({ ...userData, department: dept, industry: dept }));
   setCookieForAllDomains(token);
   broadcastAuthChange("login");
-  return { ...userData, token, roles, permissions, industry };
+  return { ...userData, token, roles, permissions, department: dept, industry: dept };
 };
 
 export const signup = async (data: ISignup): Promise<IResponse<User>> => {

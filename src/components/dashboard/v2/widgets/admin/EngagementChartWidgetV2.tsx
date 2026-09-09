@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { RotateCcw } from "lucide-react";
+import { CalendarDays, ChevronDown } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -7,238 +7,149 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
+  CartesianGrid,
 } from "recharts";
+import {
+  SECTION2_ENGAGEMENT_DOMAINS,
+  SECTION2_ENGAGEMENT_MONTHS,
+} from "./section2DesignData";
 
 interface EngagementChartWidgetV2Props {
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
   trendsData?: any[];
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
   courses?: any[];
+  useDesignDummy?: boolean;
 }
 
 export const EngagementChartWidgetV2: React.FC<EngagementChartWidgetV2Props> = ({
-  trendsData,
-  courses = [],
+  useDesignDummy = true,
 }) => {
-  const [timeframe, setTimeframe] = useState("This Year");
+  const [timeframe, setTimeframe] = useState("Today");
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
 
-  // Toggle category filter selection matching CHW / CEHO dashboard behavior
-  const isCourseActive = (key: string) =>
+  const domains = [...SECTION2_ENGAGEMENT_DOMAINS];
+  const monthlyData = SECTION2_ENGAGEMENT_MONTHS.map((row) => ({ ...row }));
+
+  const isActive = (key: string) =>
     selectedKeys.length === 0 || selectedKeys.includes(key);
 
-  const toggleCourse = (key: string) => {
-    if (selectedKeys.length === 0) {
-      setSelectedKeys([key]);
-    } else if (selectedKeys.includes(key)) {
+  const toggle = (key: string) => {
+    if (selectedKeys.length === 0) setSelectedKeys([key]);
+    else if (selectedKeys.includes(key)) {
       const next = selectedKeys.filter((k) => k !== key);
       setSelectedKeys(next);
-    } else {
-      setSelectedKeys([...selectedKeys, key]);
-    }
+    } else setSelectedKeys([...selectedKeys, key]);
   };
 
-  const resetFilters = () => {
-    setSelectedKeys([]);
-  };
+  void useDesignDummy;
 
-  // Palette of crisp modern colors for dynamic course bars
-  const colorPalette = [
-    "#D97706", // Dark Amber
-    "#DB2777", // Dark Pink
-    "#64748B", // Slate
-    "#059669", // Emerald
-    "#9333EA", // Purple
-    "#2563EB", // Blue
-    "#4F46E5", // Indigo
-    "#7C3AED", // Violet
-  ];
-
-  // Derive dynamic course domains from published courses list with FULL titles (no cut off)
-  const domains =
-    courses && courses.length > 0
-      ? courses.slice(0, 8).map((c, idx) => {
-          const fullTitle = c.title || c.name || `Course ${idx + 1}`;
-          const realEnrollments = Number(c.totalEnrollments ?? c.enrollmentsCount ?? c.studentsCount ?? (c.isEnrolled ? 1 : 0));
-          return {
-            key: `course_${idx}`,
-            name: fullTitle,
-            color: colorPalette[idx % colorPalette.length],
-            enrollments: realEnrollments,
-          };
-        })
-      : [];
-
-  const totalAllEnrollments = domains.reduce((sum, d) => sum + d.enrollments, 0);
-
-  // Determine X-Axis ticks and time labels based on selected timeframe
-  let timeLabels: string[] = [];
-
-  if (timeframe === "Today") {
-    timeLabels = ["08:00", "10:00", "12:00", "14:00", "16:00", "18:00"];
-  } else if (timeframe === "This Week") {
-    timeLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  } else if (timeframe === "This Month") {
-    timeLabels = ["Week 1", "Week 2", "Week 3", "Week 4"];
-  } else {
-    // This Year
-    timeLabels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun"];
-  }
-
-  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-  const monthlyData = timeLabels.map((label, tIdx) => {
-    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-    const row: Record<string, any> = { month: label };
-
-    domains.forEach((domain) => {
-      // If course is not selected in active filter mode, value is 0
-      if (!isCourseActive(domain.key)) {
-        row[domain.key] = 0;
-        return;
-      }
-
-      const trendItem = trendsData?.[tIdx];
-      const monthlyTotal = Number(trendItem?.enrollments ?? trendItem?.count ?? 0);
-
-      if (monthlyTotal > 0 && totalAllEnrollments > 0) {
-        // Distribute real backend monthly total by course enrollment ratio
-        row[domain.key] = Math.round(monthlyTotal * (domain.enrollments / totalAllEnrollments));
-      } else if ((timeframe === "This Year" || timeframe === "This Month") && domain.enrollments > 0) {
-        // Real database course enrollment count
-        row[domain.key] = domain.enrollments;
-      } else {
-        // Strictly 0 if no database records exist for this interval
-        row[domain.key] = 0;
-      }
-    });
-
-    return row;
-  });
-
-  // Calculate max stacked value for dynamic Y-Axis height based on active visible bars
-  const visibleDomains = domains.filter((d) => isCourseActive(d.key));
-  const maxStackedValue = Math.max(
-    20,
-    ...monthlyData.map((row) =>
-      visibleDomains.reduce((sum, d) => sum + (Number(row[d.key]) || 0), 0)
-    )
-  );
-
-  const roundedYMax = Math.ceil(maxStackedValue / 20) * 20 || 50;
+  const activeDomains = domains.filter((d) => isActive(d.key));
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-xs flex flex-col justify-between space-y-4 h-full">
-      {/* Header & Controls */}
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="text-sm font-extrabold text-gray-900 tracking-tight">
-          Engagement
-        </h3>
+    <div className="bg-white rounded-[20px] border border-[#C8D6E3] p-3.5 flex flex-col w-full h-[380px] shrink-0 overflow-hidden">
+      {/* Header: title + legend + Today */}
+      <div className="flex items-start justify-between gap-3 mb-2 shrink-0">
+        <div className="flex items-center gap-3 min-w-0 flex-1 flex-wrap">
+          <h3 className="text-[14px] font-bold text-[#1A2332] tracking-tight shrink-0">
+            Engagement
+          </h3>
 
-        {/* Timeframe Selector Dropdown */}
-        <select
-          value={timeframe}
-          onChange={(e) => setTimeframe(e.target.value)}
-          className="text-xs font-bold bg-white border border-gray-200 text-gray-700 rounded-xl px-3 py-1.5 focus:outline-none cursor-pointer shadow-2xs hover:border-[#3363AD] transition-colors"
-        >
-          <option>Today</option>
-          <option>This Week</option>
-          <option>This Month</option>
-          <option>This Year</option>
-        </select>
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 min-w-0">
+            {domains.map((d) => {
+              const active = isActive(d.key);
+              return (
+                <button
+                  type="button"
+                  key={d.key}
+                  onClick={() => toggle(d.key)}
+                  className={`inline-flex items-center gap-1 text-[10px] font-medium cursor-pointer transition-opacity ${
+                    active ? "opacity-100 text-[#5B6575]" : "opacity-35 text-gray-400"
+                  }`}
+                >
+                  <span
+                    className="w-2.5 h-2.5 rounded-[2px] shrink-0"
+                    style={{ backgroundColor: d.color }}
+                  />
+                  <span className="max-w-[4.5rem] truncate">{d.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="relative shrink-0">
+          <CalendarDays
+            size={12}
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5B6575] pointer-events-none"
+          />
+          <select
+            value={timeframe}
+            onChange={(e) => setTimeframe(e.target.value)}
+            className="appearance-none text-[11px] font-semibold bg-white border border-[#B8CDE0] text-[#5B6575] rounded-lg pl-7 pr-7 py-1.5 focus:outline-none cursor-pointer hover:border-[#4B82BA] transition-colors"
+          >
+            <option>Today</option>
+            <option>This Week</option>
+            <option>This Month</option>
+            <option>This Year</option>
+          </select>
+          <ChevronDown
+            size={12}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-[#5B6575] pointer-events-none"
+          />
+        </div>
       </div>
 
-      {/* Stacked Bar Chart */}
-      <div className="h-52 w-full pt-1">
+      {/* Fixed chart area — fills rest of fixed card height */}
+      <div className="flex-1 min-h-0 w-full bg-[#F8FAFC] rounded-xl px-1 pt-1 pb-0">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={monthlyData}
-            margin={{ top: 10, right: 0, left: -20, bottom: 0 }}
+            margin={{ top: 6, right: 6, left: -14, bottom: 2 }}
+            barCategoryGap="12%"
           >
+            <CartesianGrid vertical={false} stroke="#E8EEF5" strokeDasharray="0" />
             <XAxis
               dataKey="month"
               axisLine={false}
               tickLine={false}
-              tick={{ fill: "#9CA3AF", fontSize: 10, fontWeight: 600 }}
+              tick={{ fill: "#9AA3B2", fontSize: 10, fontWeight: 500 }}
             />
             <YAxis
-              domain={[0, roundedYMax]}
+              domain={[0, 300]}
+              ticks={[0, 50, 100, 150, 200, 250, 300]}
               axisLine={false}
               tickLine={false}
-              tick={{ fill: "#9CA3AF", fontSize: 9 }}
+              tick={{ fill: "#9AA3B2", fontSize: 10, fontWeight: 500 }}
             />
             <Tooltip
-              cursor={{ fill: "#F8FAFC", radius: 6 }}
+              cursor={{ fill: "rgba(200, 214, 227, 0.25)" }}
               contentStyle={{
                 backgroundColor: "#FFFFFF",
-                borderRadius: "12px",
-                border: "1px solid #E2E8F0",
-                color: "#0F172A",
+                borderRadius: "10px",
+                border: "1px solid #C8D6E3",
                 fontSize: "11px",
-                boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1)",
+                boxShadow: "0 8px 20px -6px rgba(0,0,0,0.08)",
               }}
             />
-            {domains.map((d, idx) =>
-              isCourseActive(d.key) ? (
-                <Bar
-                  key={d.key}
-                  dataKey={d.key}
-                  name={d.name}
-                  stackId="a"
-                  fill={d.color}
-                  radius={idx === domains.length - 1 ? [3, 3, 0, 0] : [0, 0, 0, 0]}
-                  barSize={16}
-                />
-              ) : null
-            )}
+            {activeDomains.map((d, idx) => (
+              <Bar
+                key={d.key}
+                dataKey={d.key}
+                name={d.name}
+                stackId="a"
+                fill={d.color}
+                radius={
+                  idx === activeDomains.length - 1 ? [6, 6, 0, 0] : [0, 0, 0, 0]
+                }
+                maxBarSize={28}
+              />
+            ))}
           </BarChart>
         </ResponsiveContainer>
-      </div>
-
-      {/* Course Indicators / Legend BELOW the graph matching CEHO & CHW 2-column layout */}
-      <div className="pt-3 border-t border-gray-100 space-y-2">
-        {selectedKeys.length > 0 && (
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={resetFilters}
-              className="text-[11px] font-extrabold text-[#3363AD] hover:underline flex items-center gap-1 cursor-pointer"
-            >
-              <RotateCcw size={11} />
-              Reset Filters (Show All {domains.length})
-            </button>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2.5 gap-x-4 text-xs font-semibold">
-          {domains.map((d) => {
-            const active = isCourseActive(d.key);
-            return (
-              <div
-                key={d.key}
-                onClick={() => toggleCourse(d.key)}
-                className={`flex items-start gap-2 cursor-pointer select-none transition-opacity ${
-                  active ? "opacity-100" : "opacity-35 hover:opacity-60"
-                }`}
-                title="Click to filter this course in chart"
-              >
-                <span
-                  className={`w-2.5 h-2.5 rounded-xs shrink-0 mt-1 transition-transform ${
-                    active ? "scale-100 shadow-2xs" : "scale-75"
-                  }`}
-                  style={{ backgroundColor: d.color }}
-                />
-                <span
-                  className={`leading-snug text-xs font-extrabold uppercase break-words ${
-                    active ? "text-gray-800" : "line-through text-gray-400"
-                  }`}
-                >
-                  {d.name}
-                </span>
-              </div>
-            );
-          })}
-        </div>
       </div>
     </div>
   );
 };
+
+export default EngagementChartWidgetV2;

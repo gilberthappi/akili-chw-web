@@ -1,5 +1,6 @@
 import React from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { formatRoleLabel } from "@/utils/roles";
 import { useNavigate } from "react-router-dom";
 import {
   User as UserIcon,
@@ -36,9 +37,11 @@ export const LearnerHeaderSummaryV2: React.FC<LearnerHeaderSummaryV2Props> = ({
   const email = customUser?.email || authUser?.email || "chw@akili.org";
   const phone = customUser?.phoneNumber || authUser?.phoneNumber || "+250 788 000 000";
   const location = "Kigali, Rwanda";
+  const rawRole = Array.isArray(authUser?.roles)
+    ? authUser.roles[0]
+    : authUser?.roles;
   const roleLabel =
-    customUser?.roleLabel ||
-    (Array.isArray(authUser?.roles) ? authUser.roles[0] : authUser?.roles || "CHW Practitioner");
+    customUser?.roleLabel || formatRoleLabel(rawRole) || "CHW Practitioner";
 
   const avatarUrl = customUser?.photo !== undefined ? customUser.photo : (authUser?.photo || null);
 

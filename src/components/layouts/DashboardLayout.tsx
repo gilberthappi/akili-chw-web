@@ -12,7 +12,6 @@ import {
 } from "@heroicons/react/24/outline";
 import {
   Award,
-  BarChart2,
   BarChart3,
   Calendar,
   GraduationCap,
@@ -23,15 +22,81 @@ import {
   Users,
   UsersRound,
   Video,
+  KanbanSquare,
+  ClipboardList,
+  LineChart,
+  FileText,
+  Activity,
+  Headset,
+  Plug,
+  KeyRound,
+  Map,
+  Network,
+  Target,
+  FolderOpen,
+  Image,
+  BookOpen,
+  History,
+  LayoutTemplate,
+  ListTodo,
 } from "lucide-react";
 import ProfileAvatar from "@/components/profile/ProfileAvatar";
 import { useProfilePhoto } from "@/hooks/useProfilePhoto";
 import { ChatWidget } from "@/components/chat/ChatWidget";
 import { useUnreadCounts } from "@/hooks/useUnreadCounts";
 import { postHeartbeat } from "@/services/activity.service";
+import {
+  APP_SHELL_ROLES,
+  CEHO_ONLY,
+  COLLAB_ROLES,
+  COURSE_MGMT_ROLES,
+  FIELD_LEARNER_ROLES,
+  HEALTH_CENTER_ROLES,
+  LEARNER_MGMT_ROLES,
+  MEETING_ROLES,
+  STAFF_MGMT_ROLES,
+} from "@/utils/roles";
+import {
+  isDepartmentStaffUser,
+  navItemsForRoles,
+} from "@/utils/departmentNav";
 
 const HEARTBEAT_INTERVAL_MS = 4 * 60 * 1000; // 4 minutes
 
+const NAV_ICONS: Record<string, JSX.Element> = {
+  "/kanban-board": <KanbanSquare className="w-5 h-5" />,
+  "/interventions": <ClipboardList className="w-5 h-5" />,
+  "/briefings": <FileText className="w-5 h-5" />,
+  "/platform-health": <Activity className="w-5 h-5" />,
+  "/support-desk": <Headset className="w-5 h-5" />,
+  "/integrations": <Plug className="w-5 h-5" />,
+  "/access-grants": <KeyRound className="w-5 h-5" />,
+  "/documents": <FolderOpen className="w-5 h-5" />,
+  "/glossary": <BookOpen className="w-5 h-5" />,
+  "/resources": <Image className="w-5 h-5" />,
+  "/tasks": <ListTodo className="w-5 h-5" />,
+  "/templates": <LayoutTemplate className="w-5 h-5" />,
+  "/version-history": <History className="w-5 h-5" />,
+  "/coverage": <Map className="w-5 h-5" />,
+  "/ceho-network": <Network className="w-5 h-5" />,
+  "/campaigns": <Target className="w-5 h-5" />,
+  "/user-lookup": <Users className="w-4 h-4" />,
+  "/demographics/learners": <LineChart className="w-5 h-5" />,
+  "/analytics": <BarChart3 className="w-5 h-5" />,
+  "/announcement": <Megaphone className="w-5 h-5" />,
+  "/students": <Users className="w-4 h-4" />,
+  "/certificates": <Award className="w-4 h-4" />,
+  "/certificates/issued": <Award className="w-4 h-4" />,
+  "/calender": <Calendar className="w-5 h-5" />,
+  "/messaging": <MessageSquare className="w-4 h-4" />,
+  "/staff": <UsersRound className="w-4 h-4" />,
+  "/healthCenters": <Building2 className="w-5 h-5" />,
+  "/recordings": <Video className="w-5 h-5" />,
+  "/settings": <Cog8ToothIcon className="w-5 h-5" />,
+  "/courses": <ClipboardDocumentListIcon className="w-5 h-5" />,
+  "/feedbacks": <MessageCircle className="w-4 h-4" />,
+  "/meetings": <Video className="w-5 h-5" />,
+};
 
 const AdminSidebar = ({
   links,
@@ -425,125 +490,137 @@ const DashboardLayout = ({
   };
 
   // Get industry-specific configuration
+  const userRolesList: string[] = user?.roles
+    ? Array.isArray(user.roles)
+      ? (user.roles as string[])
+      : [user.roles as string]
+    : [];
+  const isDeptStaff = isDepartmentStaffUser(userRolesList);
 
-  const sidebarLinks: NavLink[] = [
+  const legacySidebarLinks: NavLink[] = [
     {
       label: "Dashboard",
       path: "/",
-      roles: ["ADMIN", "TRAINEE", "TRAINER", "DEVELOPER", "CEHO"],
+      roles: [...APP_SHELL_ROLES],
       icon: <Squares2X2Icon className='w-5 h-5' />,
     },
-    // {
-    //   label: "Analytics",
-    //   path: "/analytics",
-    //   roles: ["ADMIN", "TRAINER", "DEVELOPER", "STAFF"],
-    //   industries: ["SFH", "WELTEL", "RBC"],
-    //   icon: <BarChart3 className='w-5 h-5' />,
-    //   submenus: [
-    //     {
-    //       label: "Courses",
-    //       path: "/analytics/courses",
-    //       icon: <BarChart2 className='w-4 h-4' />,
-    //     },
-    //     {
-    //       label: "CHW",
-    //       path: "/analytics/student",
-    //       icon: <Users className='w-4 h-4' />,
-    //     },
-    //   ],
-    // },
-
     {
       label: "Staff",
       icon: <UsersRound className='w-4 h-4' />,
       path: "/staff",
-      roles: ["ADMIN", "DEVELOPER"],
+      roles: [...STAFF_MGMT_ROLES],
     },
-
     {
       label: "Health Centers",
       path: "/healthCenters",
-      roles: ["ADMIN", "TRAINER", "DEVELOPER"],
-      industries: ["SFH", "RBC"],
+      roles: [...HEALTH_CENTER_ROLES],
       icon: <Building2 className='w-5 h-5' />,
     },
     {
       label: "Courses",
       path: "/courses",
-      roles: ["ADMIN", "TRAINER", "DEVELOPER", "STAFF"],
-      industries: ["SFH", "WELTEL", "RBC"],
+      roles: [...LEARNER_MGMT_ROLES],
+      industries: ["SFH", "WELTEL", "RBC", "CIIC_HIN"],
       icon: <ClipboardDocumentListIcon className='w-5 h-5' />,
     },
     {
       label: "My Learning",
       icon: <GraduationCap className='w-4 h-4' />,
       path: "/my-learning",
-      roles: ["TRAINEE", "CEHO"],
+      roles: [...FIELD_LEARNER_ROLES],
     },
     {
       label: "My Group",
       icon: <UsersRound className='w-4 h-4' />,
       path: "/ceho-group",
-      roles: ["CEHO"],
+      roles: [...CEHO_ONLY],
     },
     {
       label: "CHW & CEHO",
       icon: <Users className='w-4 h-4' />,
       path: "/students",
-      roles: ["ADMIN", "DEVELOPER", "TRAINER", "STAFF"],
+      roles: [...LEARNER_MGMT_ROLES],
     },
     {
       label: "My Certificates",
       icon: <Award className='w-4 h-4' />,
       path: "/my-certificates",
-      roles: ["TRAINEE", "CEHO"],
+      roles: [...FIELD_LEARNER_ROLES],
     },
     {
       label: "Certificates",
       icon: <Award className='w-4 h-4' />,
       path: "/certificates",
-      roles: ["ADMIN", "TRAINER", "DEVELOPER", "STAFF"],
+      roles: [...LEARNER_MGMT_ROLES],
     },
     {
       label: "Feedbacks",
       icon: <MessageCircle className='w-4 h-4' />,
       path: "/feedbacks",
-      roles: ["ADMIN", "TRAINER", "DEVELOPER", "STAFF"],
+      roles: [...LEARNER_MGMT_ROLES],
     },
-
     {
       label: "Calender",
       path: "/calender",
-      roles: ["ADMIN", "TRAINER", "TRAINEE", "DEVELOPER", "CEHO"],
+      roles: [...COLLAB_ROLES],
       icon: <Calendar className='w-5 h-5' />,
     },
     {
       label: "Meetings",
       path: "/meetings",
-      roles: ["ADMIN", "TRAINER", "DEVELOPER", "STAFF", "CEHO"],
+      roles: [...MEETING_ROLES],
       icon: <Video className='w-5 h-5' />,
     },
     {
       label: "Messaging",
       icon: <MessageSquare className='w-4 h-4' />,
       path: "/messaging",
-      roles: ["ADMIN", "TRAINER", "TRAINEE", "DEVELOPER", "CEHO", "STAFF"],
+      roles: [...COLLAB_ROLES],
     },
     {
       label: "Announcement",
       path: "/announcement",
-      roles: ["ADMIN", "TRAINER", "DEVELOPER"],
+      roles: [...COURSE_MGMT_ROLES],
       icon: <Megaphone className='w-5 h-5' />,
     },
-
     {
       label: "My Settings",
       path: "/settings",
-      roles: ["ADMIN", "TRAINER", "TRAINEE", "DEVELOPER", "CEHO"],
+      roles: [...APP_SHELL_ROLES],
       icon: <Cog8ToothIcon className='w-5 h-5' />,
     },
   ];
 
+  const departmentSidebarLinks: NavLink[] = [
+    {
+      label: "Dashboard",
+      path: "/",
+      roles: [...APP_SHELL_ROLES],
+      icon: <Squares2X2Icon className='w-5 h-5' />,
+    },
+    ...navItemsForRoles(userRolesList).map((item) => ({
+      label: item.label,
+      path: item.path,
+      roles: item.roles,
+      icon: NAV_ICONS[item.path] ?? <Squares2X2Icon className='w-5 h-5' />,
+    })),
+    {
+      label: "Messaging",
+      path: "/messaging",
+      roles: [...APP_SHELL_ROLES],
+      icon: <MessageSquare className='w-4 h-4' />,
+    },
+    {
+      label: "My Settings",
+      path: "/settings",
+      roles: [...APP_SHELL_ROLES],
+      icon: <Cog8ToothIcon className='w-5 h-5' />,
+    },
+  ];
+
+  const sidebarLinks: NavLink[] = isDeptStaff
+    ? departmentSidebarLinks
+    : legacySidebarLinks;
   // Use the navigation filter hook to filter links based on permissions
   const filteredLinks = useNavigationFilter(sidebarLinks);
 
@@ -565,7 +642,7 @@ const DashboardLayout = ({
       {/* Main Content */}
       <div className='flex-1 flex flex-col transition-all h-screen overflow-hidden'>
         <TopBar onMenuClick={() => setSidebarVisible((s) => !s)} />
-        <main className={mainClassName ?? 'flex-1 p-4 overflow-y-auto'}>{children}</main>
+        <main className={mainClassName ?? 'flex-1 p-4 overflow-y-auto bg-white'}>{children}</main>
       </div>
 
       {/* Overlay for mobile sidebar */}

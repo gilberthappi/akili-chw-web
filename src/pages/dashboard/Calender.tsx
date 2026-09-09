@@ -39,6 +39,7 @@ import {
   updateOccurrence,
 } from "@/services/calender.service";
 import { useAuth } from "@/hooks/useAuth";
+import { expandRoles, formatRoleLabel } from "@/utils/roles";
 import { uploadFileByType } from "@/services/uploader.api";
 import { getPublicHospitals } from "@/services/healthCenters.service";
 
@@ -177,18 +178,11 @@ const Calendar: React.FC = () => {
     : user?.roles
       ? [user.roles]
       : [];
-  const isAdmin = userRoles.some((role) =>
-    ["ADMIN", "ADMINISTRATOR"].includes(role),
-  );
-  const isCEHO = userRoles.some((role) =>
-    ["CEHO"].includes(role),
-  );
-  const isStaff = userRoles.some((role) =>
-    ["STAFF"].includes(role),
-  );
-  const isTrainer = userRoles.some((role) =>
-    ["TRAINER"].includes(role),
-  );
+  const effectiveRoles = expandRoles(userRoles as string[]);
+  const isAdmin = ["ADMIN", "ADMINISTRATOR"].some((r) => effectiveRoles.has(r));
+  const isCEHO = effectiveRoles.has("CEHO");
+  const isStaff = effectiveRoles.has("STAFF");
+  const isTrainer = effectiveRoles.has("TRAINER");
 
   // Fetch all users
   const { data: usersData } = useQuery({
@@ -3384,7 +3378,7 @@ const Calendar: React.FC = () => {
                       <OptionsField
                         options={[
                           { value: "all", label: "All Roles" },
-                          { value: "CHW", label: "Trainee" },
+                          { value: "CHW", label: "CHW" },
                           { value: "TRAINER", label: "Trainer" },
                         ]}
                         value={attendeeFilterRole}
@@ -3450,7 +3444,7 @@ const Calendar: React.FC = () => {
                           <div className='flex-1'>
                             <div className='font-medium text-sm'>{user.fullNames}</div>
                             <div className='text-xs text-gray-600'>
-                              {user.userRoles[0]?.name} •{" "}
+                              {formatRoleLabel(user.userRoles[0]?.name)} •{" "}
                               {user.healthCenter?.name || "No healthCenter"} • {user.phoneNumber}
                             </div>
                             <div className='text-xs text-gray-500'>

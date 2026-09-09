@@ -3,8 +3,7 @@ import { User, UserRole, Permission, UserIndustry } from "../types";
 import { decodeJWT, getCookieValue } from "../utils/jwt";
 import { broadcastAuthChange } from "../utils/authSync";
 import { clearCookiesFromAllDomains } from "../utils/cookieHelper";
-
-const isLearnerRole = (role: UserRole) => role === "TRAINEE" || role === "TESTER";
+import { expandRoles, isLearnerRole } from "../utils/roles";
 
 const asRoleArray = (roles: UserRole | UserRole[]): UserRole[] =>
   Array.isArray(roles) ? roles : [roles];
@@ -14,18 +13,14 @@ export const useAuth = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Try to get token from localStorage first
     let storedToken = localStorage.getItem("accessToken");
 
-    // If no localStorage token, try to read from cookie
     if (!storedToken) {
       storedToken = getCookieValue("accessToken");
 
-      // If found in cookie, store in localStorage for stability
       if (storedToken) {
         localStorage.setItem("accessToken", storedToken);
 
-        // Also try to extract user info from JWT token
         const tokenPayload = decodeJWT(storedToken);
         if (tokenPayload) {
           const userData: User = {
@@ -36,6 +31,7 @@ export const useAuth = () => {
               ? tokenPayload.userRoles
               : [tokenPayload.userRoles],
             permissions: [],
+            department: undefined,
             industry: undefined,
             isActive: true,
             createdAt: new Date(),
@@ -49,7 +45,6 @@ export const useAuth = () => {
       }
     }
 
-    // Try to get user from localStorage
     const storedUser = localStorage.getItem("chw");
     if (storedUser) {
       try {
@@ -65,15 +60,10 @@ export const useAuth = () => {
 
   const logout = () => {
     setUser(null);
-    // Clear all localStorage items
     localStorage.removeItem("chw");
     localStorage.removeItem("accessToken");
     localStorage.removeItem("auth_user");
-
-    // Clear cookies from all domains (handles cross-domain cookies)
     clearCookiesFromAllDomains();
-
-    // Broadcast logout to other tabs/ports
     broadcastAuthChange("logout");
   };
 
@@ -81,11 +71,13 @@ export const useAuth = () => {
     if (!user) return false;
     const userRoles = asRoleArray(user.roles);
     const requestedRoles = asRoleArray(roles);
+    const effective = expandRoles(userRoles);
 
     return requestedRoles.some((role) =>
-      userRoles.some(
-        (userRole: UserRole) =>
-          userRole === role || (isLearnerRole(role) && isLearnerRole(userRole)),
+      [...effective].some(
+        (userRole) =>
+          userRole === role ||
+          (isLearnerRole(role) && isLearnerRole(userRole as UserRole)),
       ),
     );
   };
@@ -95,24 +87,27 @@ export const useAuth = () => {
     return user.permissions.includes(permission) || user.permissions.includes("ALL");
   };
 
+  const userDept = user?.department ?? user?.industry;
+
   const hasIndustry = (industries: UserIndustry | UserIndustry[]): boolean => {
-    if (!user || !user.industry) return false;
-    if (Array.isArray(industries)) {
-      return industries.includes(user.industry);
-    }
-    return user.industry === industries;
+    if (!user || !userDept) return false;
+    const normalized = userDept === "CIIC-HIN" ? "CIIC_HIN" : userDept;
+    const list = Array.isArray(industries) ? industries : [industries];
+    return list.some((i) => {
+      const n = i === "CIIC-HIN" ? "CIIC_HIN" : i;
+      return n === normalized;
+    });
   };
+
+  const hasDepartment = hasIndustry;
 
   const hasRoleAndIndustry = (
     roles: UserRole | UserRole[],
     industries?: UserIndustry | UserIndustry[],
   ): boolean => {
     const hasRequiredRole = hasRole(roles);
-
     if (!industries) return hasRequiredRole;
-
-    const hasRequiredIndustry = hasIndustry(industries);
-    return hasRequiredRole && hasRequiredIndustry;
+    return hasRequiredRole && hasIndustry(industries);
   };
 
   return {
@@ -122,6 +117,7 @@ export const useAuth = () => {
     hasRole,
     hasPermission,
     hasIndustry,
+    hasDepartment,
     hasRoleAndIndustry,
     isAuthenticated: !!user,
   };

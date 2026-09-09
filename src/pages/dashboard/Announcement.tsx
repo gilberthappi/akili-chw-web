@@ -20,6 +20,10 @@ import {
   deleteAnnouncement,
   type IAnnouncement,
 } from "@/services/announcement.service";
+import {
+  DEPARTMENT_STAFF_ROLES,
+  formatRoleLabel,
+} from "@/utils/roles";
 
 const Announcement: React.FC = () => {
   const queryClient = useQueryClient();
@@ -67,8 +71,8 @@ const Announcement: React.FC = () => {
     "TRAINEE",
     "TESTER",
     "DEVELOPER",
-    "ADMINISTRATOR",
     "STAFF",
+    ...DEPARTMENT_STAFF_ROLES,
   ];
 
   const { data: announcements = [], isLoading } = useQuery({
@@ -482,7 +486,7 @@ const Announcement: React.FC = () => {
                         </span>
                       )}
                       <span className="px-2 py-0.5 rounded-md bg-primary/10 text-primary font-medium">
-                        {announcement.segment}
+                        {formatRoleLabel(announcement.segment) || announcement.segment}
                       </span>
                       {announcement.category && (
                         <span className="px-2 py-0.5 rounded-md bg-purple-50 text-purple-600 font-medium">
@@ -562,7 +566,7 @@ const Announcement: React.FC = () => {
                 <option value="">Select segment</option>
                 {segmentOptions.map((segment) => (
                   <option key={segment} value={segment}>
-                    {segment}
+                    {segment === "all" ? "All users" : formatRoleLabel(segment)}
                   </option>
                 ))}
               </select>

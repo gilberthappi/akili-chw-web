@@ -37,21 +37,15 @@ export const ContactInfoPanel: React.FC<ContactInfoPanelProps> = ({
   onDeleteConversation,
   availableUsers,
 }) => {
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, hasRole } = useAuth();
   const isDirect = conversation.type === "direct";
   const isCreator = !isDirect && conversation.createdById === currentUser?.id;
   const otherParticipant = conversation.participants[0];
   const displayName = isDirect ? otherParticipant?.user?.fullNames || "User" : conversation.name || "Unnamed";
   const displayPhoto = isDirect ? otherParticipant?.user?.photo : conversation.photo;
 
-  // Role helpers — roles can be a string or array depending on the JWT shape
-  const userRoles: string[] = Array.isArray(currentUser?.roles)
-    ? (currentUser!.roles as string[])
-    : currentUser?.roles
-    ? [currentUser.roles as string]
-    : [];
-  const isAdmin = userRoles.includes("ADMIN") || userRoles.includes("DEVELOPER");
-  const isCehoOrAdmin = isAdmin || userRoles.includes("CEHO");
+  const isAdmin = hasRole(["ADMIN", "DEVELOPER"]);
+  const isCehoOrAdmin = isAdmin || hasRole(["CEHO"]);
 
   const [selectedNewMember, setSelectedNewMember] = useState("");
 

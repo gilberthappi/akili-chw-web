@@ -8,8 +8,23 @@ export type UserRole =
   | "TESTER"
   | "DEVELOPER"
   | "CEHO"
-  | "STAFF";
-export type UserIndustry = "WELTEL" | "RBC" | "SFH" | "CIIC-HIN";
+  | "STAFF"
+  | "RBC_COORDINATOR"
+  | "RBC_ANALYST"
+  | "RBC_VIEWER"
+  | "WELTEL_ADMIN"
+  | "WELTEL_DEVELOPER"
+  | "WELTEL_SUPPORT"
+  | "CIIC_CONTENT_LEAD"
+  | "CIIC_EDITOR"
+  | "CIIC_REVIEWER"
+  | "SFH_COORDINATOR"
+  | "SFH_CEHO_MANAGER"
+  | "SFH_ENROLLMENT";
+
+/** @deprecated use UserDepartment — industry renamed to department */
+export type UserIndustry = "WELTEL" | "RBC" | "SFH" | "CIIC-HIN" | "CIIC_HIN";
+export type UserDepartment = "WELTEL" | "RBC" | "SFH" | "CIIC_HIN";
 export type Permission = "ALL" | "DEFAULT";
 
 export interface User {
@@ -20,6 +35,8 @@ export interface User {
   roles: UserRole | UserRole[];
   permissions: string[];
   photo?: string;
+  department?: UserDepartment;
+  /** @deprecated use department */
   industry?: UserIndustry;
   isActive: boolean;
   lastLogin?: Date;

@@ -1,229 +1,140 @@
 import React, { useState } from "react";
-import { Folder, MoreHorizontal } from "lucide-react";
+import { BookOpen, ChevronDown, MoreHorizontal, ArrowDown, ArrowUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { ICourseStatEntry } from "@/services/progress.service";
+import { SECTION3_PROGRAM_COURSES } from "./section3DesignData";
 
 interface ProgramCoursesGridV2Props {
-  courses?: ICourseStatEntry[];
+  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+  courses?: any[];
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
   summaryData?: any;
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
   adoptionData?: any;
+  useDesignDummy?: boolean;
+  /** When true, omit outer card chrome (used inside shared Section 3 shell) */
+  embedded?: boolean;
 }
 
 export const ProgramCoursesGridV2: React.FC<ProgramCoursesGridV2Props> = ({
-  courses = [],
-  summaryData,
-  adoptionData,
+  embedded = false,
 }) => {
   const navigate = useNavigate();
   const [sortBy, setSortBy] = useState("Recently added");
+  const { totalCount, items } = SECTION3_PROGRAM_COURSES;
 
-  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-  const displayList = (courses || []).slice(0, 4).map((c: any, idx: number) => {
-    const courseId = c.courseId || c.id || `c_${idx}`;
-    const courseTitle = c.title || "Health Training Course";
-
-    // 1. Sections Count (from c.sections array or c.sectionsCount)
-    const sectionsCount = Array.isArray(c.sections) ? c.sections.length : (c.sectionsCount || 0);
-
-    // 2. Chapters Count (sum across sections or c.chapters array)
-    let chaptersCount = 0;
-    if (Array.isArray(c.sections)) {
-      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-      c.sections.forEach((sec: any) => {
-        if (Array.isArray(sec.chapters)) {
-          chaptersCount += sec.chapters.length;
-        }
-      });
-    }
-    if (chaptersCount === 0) {
-      chaptersCount = c.totalChapters || c.chaptersCount || (Array.isArray(c.chapters) ? c.chapters.length : 0);
-    }
-
-    // 3. Media Files Count (sum slides across chapters or c.slides or c.mediaFilesCount)
-    let mediaFilesCount = 0;
-    if (Array.isArray(c.sections)) {
-      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-      c.sections.forEach((sec: any) => {
-        if (Array.isArray(sec.chapters)) {
-          /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-          sec.chapters.forEach((chap: any) => {
-            if (Array.isArray(chap.slides)) {
-              mediaFilesCount += chap.slides.length;
-            }
-          });
-        }
-      });
-    }
-    if (mediaFilesCount === 0) {
-      mediaFilesCount = c.mediaFilesCount || (Array.isArray(c.slides) ? c.slides.length : 0) || (Array.isArray(c.media) ? c.media.length : 0);
-    }
-
-    // 4. Questions Count (sum questionnaires across standalone, preTests, midTests, finalTest, finalExam)
-    let questionsCount = Array.isArray(c.questionnaires) ? c.questionnaires.length : (c.questionsCount || 0);
-    if (Array.isArray(c.sections)) {
-      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-      c.sections.forEach((sec: any) => {
-        if (Array.isArray(sec.chapters)) {
-          /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-          sec.chapters.forEach((chap: any) => {
-            if (chap.midTest && Array.isArray(chap.midTest.questionnaires)) {
-              questionsCount += chap.midTest.questionnaires.length;
-            }
-          });
-        }
-      });
-    }
-    if (Array.isArray(c.preTests)) {
-      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-      c.preTests.forEach((pt: any) => {
-        if (Array.isArray(pt.questionnaires)) questionsCount += pt.questionnaires.length;
-      });
-    }
-    if (Array.isArray(c.finalTest)) {
-      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-      c.finalTest.forEach((ft: any) => {
-        if (Array.isArray(ft.questionnaires)) questionsCount += ft.questionnaires.length;
-      });
-    }
-    if (Array.isArray(c.finalExam)) {
-      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-      c.finalExam.forEach((fe: any) => {
-        if (Array.isArray(fe.questionnaires)) questionsCount += fe.questionnaires.length;
-      });
-    }
-
-    // 5. Enrollments (true database student enrollments)
-    const enrollmentsCount = c.totalEnrollments || c.enrollmentCount || c.studentsCount || (Array.isArray(c.progresses) ? c.progresses.length : 0);
-
-    // 6. Test Attempts (true database test attempts for this course)
-    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-    const testScoreMatch = adoptionData?.testScores?.byCourse?.find(
-      (ts: any) =>
-        ts.courseId === courseId ||
-        (ts.courseTitle && courseTitle && (
-          ts.courseTitle.toLowerCase() === courseTitle.toLowerCase() ||
-          courseTitle.toLowerCase().includes(ts.courseTitle.toLowerCase()) ||
-          ts.courseTitle.toLowerCase().includes(courseTitle.toLowerCase())
-        ))
-    );
-
-    let attemptsCount =
-      testScoreMatch?.totalAttempts ||
-      (testScoreMatch ? (testScoreMatch.preTest || 0) + (testScoreMatch.midTest || 0) + (testScoreMatch.finalTest || 0) + (testScoreMatch.finalExam || 0) : 0) ||
-      c.totalAttempts ||
-      c.attemptsCount ||
-      c.completedTests ||
-      0;
-
-    // 7. Certificates (True database certificates issued per course)
-    const rawBreakdown = summaryData?.certification?.byCourse || summaryData?.certification?.byCategory || [];
-    let certsCount = c.certificatesEarned || c.certificatesCount || c.certificates || 0;
-
-    if (rawBreakdown.length > 0) {
-      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-      const match = rawBreakdown.find(
-        (item: any) =>
-          item.courseId === courseId ||
-          (item.courseTitle && courseTitle && item.courseTitle.toLowerCase() === courseTitle.toLowerCase())
-      );
-      if (match) {
-        certsCount = Number(match.certificates || match.count || match.value || 0);
-      }
-    }
-
-    return {
-      courseId,
-      title: courseTitle,
-      chapters: chaptersCount,
-      sections: sectionsCount,
-      mediaFiles: mediaFilesCount,
-      questions: questionsCount,
-      enrollments: enrollmentsCount,
-      attempts: attemptsCount,
-      certificates: certsCount,
-    };
-  });
+  const shell = embedded
+    ? "flex flex-col w-full h-full min-h-0 p-3.5"
+    : "bg-white rounded-[20px] border border-[#C8D6E3] p-3.5 flex flex-col w-full h-full min-h-0";
 
   return (
-    <div className="space-y-4 h-full flex flex-col justify-between">
-      {/* Header Row */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <h3 className="text-sm font-extrabold text-gray-900 tracking-tight">
-          Program Courses ({courses.length > 0 ? courses.length : 14})
+    <div className={shell}>
+      <div className="flex items-center justify-between gap-3 flex-wrap mb-3 shrink-0">
+        <h3 className="text-[14px] font-bold text-[#1A2332] tracking-tight">
+          Program Courses ({totalCount})
         </h3>
 
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1 text-xs font-semibold text-gray-500">
+        <div className="flex items-center gap-2">
+          <div className="relative flex items-center gap-1.5 text-[11px] font-semibold text-[#5B6575]">
             <span>Sort by:</span>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="font-bold text-gray-800 bg-white border border-gray-200 rounded-xl px-2.5 py-1 focus:outline-none cursor-pointer shadow-2xs"
-            >
-              <option>Recently added</option>
-              <option>Most Enrolled</option>
-            </select>
+            <div className="relative">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="appearance-none font-semibold text-[#5B6575] bg-white border border-[#B8CDE0] rounded-lg pl-2.5 pr-7 py-1.5 focus:outline-none cursor-pointer hover:border-[#4B82BA] transition-colors"
+              >
+                <option>Recently added</option>
+                <option>Most Enrolled</option>
+              </select>
+              <ChevronDown
+                size={12}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-[#5B6575] pointer-events-none"
+              />
+            </div>
           </div>
 
           <button
+            type="button"
             onClick={() => navigate("/courses")}
-            className="px-3.5 py-1 bg-[#3363AD] text-white text-xs font-bold rounded-xl hover:bg-[#284f8a] transition-colors shadow-2xs"
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-white border border-[#B8CDE0] text-[#5B6575] text-[11px] font-semibold rounded-lg hover:border-[#4B82BA] transition-colors cursor-pointer"
           >
             See All
+            <ChevronDown size={12} />
           </button>
         </div>
       </div>
 
-      {/* Grid of 4 Course Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1">
-        {displayList.map((item, idx) => (
-          <div
-            key={item.courseId || idx}
-            onClick={() => navigate(`/courses`)}
-            className="bg-white rounded-2xl border border-gray-100 p-4 shadow-xs flex flex-col justify-between space-y-3 hover:border-[#3363AD]/30 transition-all cursor-pointer group"
-          >
-            {/* Title & Icon Header */}
-            <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-xl bg-[#3363AD] text-white flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
-                <Folder size={18} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-extrabold text-gray-900 uppercase tracking-tight line-clamp-2 leading-tight group-hover:text-[#3363AD] transition-colors">
-                  {item.title}
+      {/* 2-row horizontal scroll — design */}
+      <div
+        className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden overscroll-contain pb-1
+          [scrollbar-gutter:stable]
+          [&::-webkit-scrollbar]:h-1.5
+          [&::-webkit-scrollbar-track]:bg-[#E8EEF4]
+          [&::-webkit-scrollbar-track]:rounded-full
+          [&::-webkit-scrollbar-thumb]:bg-[#A8B8C8]
+          [&::-webkit-scrollbar-thumb]:rounded-full"
+      >
+        <div
+          className="grid grid-rows-2 grid-flow-col gap-2 content-start h-full"
+          style={{ gridAutoColumns: "minmax(320px, 340px)" }}
+        >
+          {items.map((item) => {
+            const TrendIcon = item.growthPositive ? ArrowUp : ArrowDown;
+            const trendBg = item.growthPositive ? "bg-[#5BA8A0]" : "bg-[#E07070]";
+
+            return (
+              <button
+                type="button"
+                key={item.id}
+                onClick={() => navigate("/courses")}
+                className="text-left bg-[#E8F0F8] hover:bg-[#DDE8F3] rounded-[10px] px-2.5 py-2 flex flex-col justify-between gap-1 transition-colors cursor-pointer group min-h-[108px] h-full"
+              >
+                <div className="flex items-start gap-2">
+                  <span
+                    className="w-6 h-6 rounded-md text-white flex items-center justify-center shrink-0"
+                    style={{ backgroundColor: item.iconColor }}
+                  >
+                    <BookOpen size={12} />
+                  </span>
+                  <p className="flex-1 min-w-0 text-[10px] font-bold text-[#1A2332] uppercase tracking-tight leading-snug pt-0.5">
+                    {item.title}
+                  </p>
+                  <span className="text-[#9AA3B2] shrink-0" aria-hidden>
+                    <MoreHorizontal size={14} />
+                  </span>
+                </div>
+
+                <p className="text-[9px] font-medium text-[#5B6575] leading-snug">
+                  <span>{item.chapters} Chapters</span>
+                  <span className="text-[#4B82BA] mx-1">•</span>
+                  <span>{item.sections} Sections</span>
+                  <span className="text-[#4B82BA] mx-1">•</span>
+                  <span>{item.mediaFiles} Media files</span>
+                  <span className="text-[#4B82BA] mx-1">•</span>
+                  <span>{item.questions} Questions</span>
                 </p>
-              </div>
-              <button className="text-gray-400 hover:text-gray-600 p-0.5">
-                <MoreHorizontal size={15} />
+
+                <div className="flex items-center gap-2 whitespace-nowrap overflow-hidden text-[9px] font-semibold text-[#1A2332]">
+                  <span className="shrink-0">{item.enrollments} Enrollments</span>
+                  <span className="shrink-0">{item.attempts} test attempts</span>
+                  <span className="shrink-0">{item.certificates} certificates</span>
+                  <span className="ml-auto inline-flex items-center gap-1 shrink-0">
+                    <span
+                      className={`w-4 h-4 rounded-full ${trendBg} text-white flex items-center justify-center`}
+                    >
+                      <TrendIcon size={9} strokeWidth={2.5} />
+                    </span>
+                    <span className="text-[9px] font-semibold text-[#5B6575] tabular-nums">
+                      {item.growth}
+                    </span>
+                  </span>
+                </div>
               </button>
-            </div>
-
-            {/* Gray Badge Pills Row matching Figma mockup */}
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="bg-[#F1F5F9] text-[#595F74] text-[10px] font-bold px-2 py-0.5 rounded-md">
-                {item.chapters} Chapters
-              </span>
-              <span className="bg-[#F1F5F9] text-[#595F74] text-[10px] font-bold px-2 py-0.5 rounded-md">
-                {item.sections} Sections
-              </span>
-              <span className="bg-[#F1F5F9] text-[#595F74] text-[10px] font-bold px-2 py-0.5 rounded-md">
-                {item.mediaFiles} Media files
-              </span>
-              <span className="bg-[#F1F5F9] text-[#595F74] text-[10px] font-bold px-2 py-0.5 rounded-md">
-                {item.questions} Questions
-              </span>
-            </div>
-
-            {/* Bottom Footer Stats matching Figma mockup */}
-            <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-[10px] font-bold text-gray-400">
-              <span>{item.enrollments} Enrollments</span>
-              <span>{item.attempts} test attempts</span>
-              <span>{item.certificates} certificates</span>
-            </div>
-          </div>
-        ))}
+            );
+          })}
+        </div>
       </div>
     </div>
   );
 };
+
+export default ProgramCoursesGridV2;

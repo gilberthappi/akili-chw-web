@@ -1,22 +1,22 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Sparkles, ArrowRight } from "lucide-react";
 import { Phase3Section } from "@/components/dashboard/Phase3Section";
 import { LearnerSection } from "@/components/dashboard/LearnerSection";
 import { AdoptionSection } from "@/components/dashboard/AdoptionSection";
 import { DeveloperSection } from "@/components/dashboard/DeveloperSection";
 import { CEHOSection } from "@/components/dashboard/CEHOSection";
 import { DashboardGlobalFilters } from "@/components/dashboard/DashboardGlobalFilters";
+import { DashboardVersionSwitcher } from "@/components/dashboard/DashboardVersionSwitcher";
+import { RoleWorkspaceHome } from "@/components/dashboard/RoleWorkspaceHome";
 import { useAuth } from "@/hooks/useAuth";
 import { IDashboardFilters } from "@/types";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { useAdoptionStats } from "@/hooks/useAdoptionStats";
 import { useIdleReady } from "@/hooks/useIdleReady";
 import { DEFAULT_DASHBOARD_FILTERS } from "@/utils/constants/dashboardFilters";
+import { expandRoles, usesRoleWorkspaceHome } from "@/utils/roles";
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
 
   const [filters, setFilters] = useState<IDashboardFilters>(DEFAULT_DASHBOARD_FILTERS);
   const idleReady = useIdleReady(2500);
@@ -27,15 +27,17 @@ export const Dashboard: React.FC = () => {
       : [user.roles as string]
     : [];
 
-  const needsAnalytics = userRoles.some((r) =>
-    ["ADMIN", "TRAINER", "STAFF", "DEVELOPER"].includes(r),
-  );
-  const needsAdoption = userRoles.some((r) =>
-    ["ADMIN", "STAFF", "DEVELOPER"].includes(r),
-  );
+  const roleWorkspaceHome = usesRoleWorkspaceHome(userRoles);
+  const effectiveRoles = expandRoles(userRoles);
 
-  // TRAINER (no adoption section): fetch course/student here after idle.
-  // ADMIN/STAFF/DEVELOPER: course/student come from useAdoptionStats (no duplicate).
+  // Role-workspace homes skip legacy analytics; RBC Coordinator keeps classic admin dashboard.
+  const needsAnalytics =
+    !roleWorkspaceHome &&
+    ["ADMIN", "TRAINER", "STAFF", "DEVELOPER"].some((r) => effectiveRoles.has(r));
+  const needsAdoption =
+    !roleWorkspaceHome &&
+    ["ADMIN", "STAFF", "DEVELOPER"].some((r) => effectiveRoles.has(r));
+
   const {
     dashboardStats,
     courseAnalytics: statsCourseAnalytics,
@@ -64,8 +66,8 @@ export const Dashboard: React.FC = () => {
     : isStatsLoading;
   const isRefetching = isStatsFetching || isAdoptionFetching;
 
-  const is = (role: string) => userRoles.includes(role);
-  const isAnyOf = (...roles: string[]) => roles.some((r) => userRoles.includes(r));
+  const is = (role: string) => effectiveRoles.has(role);
+  const isAnyOf = (...roles: string[]) => roles.some((r) => effectiveRoles.has(r));
 
   if (!user) {
     return (
@@ -73,6 +75,10 @@ export const Dashboard: React.FC = () => {
         <div className='animate-spin rounded-full h-10 w-10 border-b-2 border-[#3363AD]' />
       </div>
     );
+  }
+
+  if (roleWorkspaceHome) {
+    return <RoleWorkspaceHome />;
   }
 
   const isLearner = isAnyOf("TRAINEE", "TESTER", "CEHO");
@@ -103,14 +109,7 @@ export const Dashboard: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate("/v2")}
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#3363AD] to-[#254b85] hover:from-[#284f8a] hover:to-[#1d3b6a] text-white text-xs font-bold shadow-xs transition-all hover:scale-[1.02]"
-          >
-            <Sparkles size={14} className="text-amber-300 animate-pulse" />
-            <span>Try New Dashboard (Beta)</span>
-            <ArrowRight size={14} />
-          </button>
+          <DashboardVersionSwitcher />
 
           {showAnalyticsFilters && (
             <div className='flex items-center gap-3'>
@@ -147,7 +146,6 @@ export const Dashboard: React.FC = () => {
         />
       )}
 
-      {/* TRAINER (no adoption section): training analytics alone */}
       {is("TRAINER") && !isAnyOf("ADMIN", "STAFF", "DEVELOPER") && (
         <Phase3Section
           dashboardStats={dashboardStats}

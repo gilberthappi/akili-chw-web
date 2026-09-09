@@ -86,7 +86,7 @@ export const Terms: React.FC = () => {
                 </p>
                 <div className="space-y-3">
                   <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                    <h3 className="font-semibold text-gray-900 mb-2">TRAINEE (Community Health Worker)</h3>
+                    <h3 className="font-semibold text-gray-900 mb-2">CHW (Community Health Worker)</h3>
                     <p className="text-gray-700 text-sm">
                       Access to training courses, learning materials, certificates, and progress tracking. 
                       Responsible for completing assigned courses and maintaining learning standards.

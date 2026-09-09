@@ -19,6 +19,7 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
+import { expandRoles, isLearnerRole } from "@/utils/roles";
 
 // ─── Auth helpers ────────────────────────────────────────────────────────────
 
@@ -55,7 +56,8 @@ const resetBounceCount = () => {
 };
 
 const getRoleRedirect = (roles: string[]): string => {
-  if (roles.some((r) => ["TRAINEE", "TESTER"].includes(r))) return "/my-learning";
+  const effective = expandRoles(roles);
+  if ([...effective].some((r) => isLearnerRole(r))) return "/my-learning";
   return "/";
 };
 

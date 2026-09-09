@@ -3,72 +3,42 @@ import { useAuth } from "@/hooks/useAuth";
 import { CHWLearnerDashboardV2 } from "@/components/dashboard/v2/CHWLearnerDashboardV2";
 import { CEHODashboardV2 } from "@/components/dashboard/v2/CEHODashboardV2";
 import { AdminDashboardV2 } from "@/components/dashboard/v2/AdminDashboardV2";
-import { useNavigate } from "react-router-dom";
-import { Sparkles, ArrowLeft } from "lucide-react";
+import { RoleWorkspaceHome } from "@/components/dashboard/RoleWorkspaceHome";
+import { DashboardVersionSwitcher } from "@/components/dashboard/DashboardVersionSwitcher";
+import { usesRoleWorkspaceHome } from "@/utils/roles";
 
 export const DashboardV2: React.FC = () => {
-  const { user } = useAuth();
-  const navigate = useNavigate();
+  const { user, hasRole } = useAuth();
 
-  const userRoles: string[] = user?.roles
-    ? Array.isArray(user.roles)
-      ? (user.roles as string[])
-      : [user.roles as string]
-    : [];
+  const roleWorkspaceHome = usesRoleWorkspaceHome(
+    user?.roles as string[] | string | undefined,
+  );
+  const isStaffLike = hasRole(["ADMIN", "STAFF", "DEVELOPER"]);
+  const isCEHO = hasRole(["CEHO"]) && !isStaffLike;
+  const isLearner = hasRole(["TRAINEE", "TESTER"]) && !isStaffLike;
 
-  const isCEHO =
-    userRoles.includes("CEHO") &&
-    !userRoles.some((r) => ["ADMIN", "STAFF", "DEVELOPER"].includes(r));
+  if (roleWorkspaceHome) {
+    return (
+      <div className="space-y-4 pb-12">
+        <div className="flex justify-end">
+          <DashboardVersionSwitcher />
+        </div>
+        <RoleWorkspaceHome />
+      </div>
+    );
+  }
 
-  const isLearner =
-    userRoles.some((r) => ["TRAINEE", "TESTER"].includes(r)) &&
-    !userRoles.some((r) => ["ADMIN", "STAFF", "DEVELOPER"].includes(r));
-
-  const hour = new Date().getHours();
-  const greeting =
-    hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  // Admin / staff V2 — switcher lives inside AdminDashboardV2 (canvas-safe)
+  if (!isCEHO && !isLearner) {
+    return <AdminDashboardV2 />;
+  }
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Top Bar: Greeting & Switch to Classic Toggle */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-xs flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#EBF0F9] text-[#3363AD] flex items-center justify-center font-bold">
-            <Sparkles size={20} />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-lg font-extrabold text-gray-900">
-                {greeting}, {user?.fullNames || "User"}!
-              </h1>
-              <span className="bg-[#3363AD] text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
-                V2 Dashboard (Beta)
-              </span>
-            </div>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Welcome to the upgraded modern dashboard experience
-            </p>
-          </div>
-        </div>
-
-        {/* Toggle Switch back to classic view */}
-        <button
-          onClick={() => navigate("/")}
-          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-semibold transition-colors cursor-pointer"
-        >
-          <ArrowLeft size={14} className="text-gray-500" />
-          <span>Switch to Classic Dashboard</span>
-        </button>
+      <div className="flex justify-end px-1">
+        <DashboardVersionSwitcher />
       </div>
-
-      {/* Role-based Dashboard Views */}
-      {isCEHO ? (
-        <CEHODashboardV2 />
-      ) : isLearner ? (
-        <CHWLearnerDashboardV2 />
-      ) : (
-        <AdminDashboardV2 />
-      )}
+      {isCEHO ? <CEHODashboardV2 /> : <CHWLearnerDashboardV2 />}
     </div>
   );
 };

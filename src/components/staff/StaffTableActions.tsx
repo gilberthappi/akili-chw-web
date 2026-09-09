@@ -5,14 +5,7 @@ import toast from "react-hot-toast";
 import { IStaff } from "@/types";
 import { updateStaffInfo } from "@/services/staff.service";
 import EditUserModal, { EditUserFormData } from "@/components/common/EditUserModal";
-
-const STAFF_ROLE_OPTIONS = [
-  { label: "Admin", value: "ADMIN" },
-  { label: "Trainer", value: "TRAINER" },
-  { label: "CEHO", value: "CEHO" },
-  { label: "Staff", value: "STAFF" },
-  { label: "Developer", value: "DEVELOPER" },
-];
+import { STAFF_ROLE_OPTIONS } from "@/utils/roles";
 
 interface StaffTableActionsProps {
   item: IStaff;

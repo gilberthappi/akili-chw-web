@@ -1,224 +1,204 @@
 import React, { useState } from "react";
-import { ArrowUpDown, BookOpen, PlayCircle } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { ICourseStatEntry } from "@/services/progress.service";
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  ChevronDown,
+  Clock3,
+  Play,
+} from "lucide-react";
+import {
+  SECTION4_DEMOGRAPHICS_ROWS,
+  SECTION4_DEMOGRAPHICS_TABS,
+} from "./section4DesignData";
 
 interface ChwDataTableV2Props {
-  courses?: ICourseStatEntry[];
+  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+  courses?: any[];
+  useDesignDummy?: boolean;
 }
 
-export const ChwDataTableV2: React.FC<ChwDataTableV2Props> = ({
-  courses = [],
-}) => {
-  const navigate = useNavigate();
-  const [sortBy, setSortBy] = useState("Recently added");
+export const ChwDataTableV2: React.FC<ChwDataTableV2Props> = () => {
+  const [sortBy, setSortBy] = useState("Monthly");
+  const [viewMode, setViewMode] = useState<"Graph" | "Table">("Table");
   const [activeTab, setActiveTab] = useState(0);
+  const rows = SECTION4_DEMOGRAPHICS_ROWS;
 
-  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-  const sourceCourses = (courses || []).slice(0, 6);
-
-  // Build course filter pills with true enrollment counts
-  const coursePills = [
-    { label: "All Courses", count: sourceCourses.reduce((sum, c: any) => sum + (c.totalEnrollments || c.enrollmentCount || 150), 0) },
-    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-    ...sourceCourses.map((c: any) => ({
-      label: c.title || "Health Training Course",
-      count: c.totalEnrollments || c.enrollmentCount || c.studentsCount || 150,
-    })),
-  ];
-
-  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-  const filteredCourses = activeTab === 0 ? sourceCourses : [sourceCourses[activeTab - 1] || sourceCourses[0]];
-
-  // cert count map matching CertificatesDonutWidgetV2 exactly (194, 193, 193, 193...)
-  const certCountMap = [194, 193, 193, 193, 193, 193];
-
-  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-  const displayList = filteredCourses.map((c: any, idx: number) => {
-    const origIdx = activeTab === 0 ? idx : activeTab - 1;
-    const chapters = c.totalChapters || c.chaptersCount || (Array.isArray(c.chapters) ? c.chapters.length : 0) || ([12, 9, 13, 25, 10, 8][origIdx % 6]);
-    const durationHours = c.courseDuration || c.estimatedHours || ([15, 12, 18, 24, 16, 14][origIdx % 6]);
-    
-    const defaultCompletion = [94, 92, 89, 96, 95, 90];
-    const progressPct = c.progress && c.progress > 0 ? Math.round(c.progress) : defaultCompletion[origIdx % defaultCompletion.length];
-
-    const statusText = progressPct >= 90 ? "Completed" : progressPct > 0 ? "In-Progress" : "Not Started";
-    const statusBg = progressPct >= 90 ? "bg-[#ECFDF5] text-[#10B981] border-[#A7F3D0]" : "bg-[#EFF6FF] text-[#3363AD] border-[#BFDBFE]";
-
-    const preScore = c.preTestScore ?? [86, 88, 84, 90, 85, 87][origIdx % 6];
-    const midScore = c.midTestScore ?? [88, 90, 86, 92, 87, 89][origIdx % 6];
-    const postScore = c.postTestScore ?? [94, 92, 89, 96, 95, 90][origIdx % 6];
-
-    const certNum = certCountMap[origIdx % certCountMap.length];
-    const certText = `Certificate: ${certNum} Issued`;
-
-    return {
-      courseId: c.courseId || c.id || `c_${origIdx}`,
-      title: c.title || "Health Training Course",
-      level: c.level || c.category || "General",
-      duration: `${chapters} ch • ${durationHours}h`,
-      completion: progressPct,
-      status: statusText,
-      statusBg: statusBg,
-      preTest: `${preScore}/100`,
-      midTest: `${midScore}/100`,
-      finalTest: `${postScore}/100`,
-      certificate: certText,
-    };
-  });
+  const headers = [
+    "Course Name",
+    "Enrollment",
+    "Completion",
+    "Time period",
+    "Pre Test",
+    "Mid Test",
+    "Post Test",
+    "Certificates",
+  ] as const;
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-5 sm:p-6 shadow-xs space-y-4">
+    <div className="bg-white rounded-[20px] border border-[#C8D6E3] p-3.5 flex flex-col w-full h-full min-h-0 overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-3 flex-wrap">
-          {/* Course Selection Dropdown */}
-          <select
-            value={activeTab}
-            onChange={(e) => setActiveTab(Number(e.target.value))}
-            className="text-xs font-bold bg-[#F1F5F9] border border-gray-200 text-gray-800 rounded-xl px-3 py-1.5 focus:outline-none cursor-pointer shadow-2xs hover:border-[#3363AD] transition-colors max-w-xs truncate"
-          >
-            {coursePills.map((pill, tabIdx) => (
-              <option key={tabIdx} value={tabIdx}>
-                {pill.label} ({pill.count} Enrollments)
-              </option>
-            ))}
-          </select>
-        </div>
+      <div className="flex items-center justify-between gap-3 flex-wrap mb-3 shrink-0">
+        <h3 className="text-[14px] font-bold text-[#1A2332] tracking-tight">
+          CHW Demographics{" "}
+          <span className="font-semibold text-[#5B6575]">Performance analysis</span>
+        </h3>
 
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1 text-xs font-semibold text-gray-500">
+        <div className="flex items-center gap-2.5">
+          <div className="relative flex items-center gap-1.5 text-[11px] font-semibold text-[#5B6575]">
             <span>Sort by:</span>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="font-bold text-gray-800 bg-white border border-gray-200 rounded-xl px-2.5 py-1 focus:outline-none cursor-pointer shadow-2xs"
-            >
-              <option>Recently added</option>
-              <option>Most Active</option>
-            </select>
+            <div className="relative">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="appearance-none font-semibold text-[#5B6575] bg-white border border-[#B8CDE0] rounded-lg pl-2.5 pr-7 py-1.5 focus:outline-none cursor-pointer hover:border-[#4B82BA] transition-colors"
+              >
+                <option>Monthly</option>
+                <option>Weekly</option>
+                <option>Yearly</option>
+              </select>
+              <ChevronDown
+                size={12}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-[#5B6575] pointer-events-none"
+              />
+            </div>
           </div>
 
-          <button
-            onClick={() => navigate("/courses")}
-            className="px-3.5 py-1 bg-[#3363AD] text-white text-xs font-bold rounded-xl hover:bg-[#284f8a] transition-colors shadow-2xs cursor-pointer"
-          >
-            See All
-          </button>
+          <div className="inline-flex items-center rounded-lg border border-[#B8CDE0] bg-[#E8F0F8] p-0.5">
+            {(["Graph", "Table"] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setViewMode(mode)}
+                className={`px-3 py-1 text-[11px] font-semibold rounded-md transition-colors cursor-pointer ${
+                  viewMode === mode
+                    ? "bg-white text-[#1A2332] shadow-sm"
+                    : "text-[#5B6575] hover:text-[#1A2332]"
+                }`}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Data Table */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse min-w-[900px]">
+      {/* Filter tabs */}
+      <div className="flex items-center gap-1.5 flex-wrap mb-3 shrink-0">
+        {SECTION4_DEMOGRAPHICS_TABS.map((tab, idx) => (
+          <button
+            key={tab}
+            type="button"
+            onClick={() => setActiveTab(idx)}
+            className={`px-3 py-1.5 text-[11px] font-semibold rounded-lg transition-colors cursor-pointer ${
+              activeTab === idx
+                ? "bg-[#E8F0F8] text-[#1A2332]"
+                : "text-[#5B6575] hover:bg-[#F1F5F9]"
+            }`}
+          >
+            {tab}
+          </button>
+        ))}
+      </div>
+
+      {/* Table */}
+      <div className="flex-1 min-h-0 overflow-auto rounded-[12px] border border-[#E8EEF4]">
+        <table className="w-full text-left border-collapse min-w-[920px]">
           <thead>
-            <tr className="border-b border-gray-100 text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-              <th className="py-3 px-3 min-w-[220px]">
-                <div className="flex items-center gap-1 cursor-pointer whitespace-nowrap">
-                  <span>Course Name</span>
-                  <ArrowUpDown size={12} className="text-gray-400" />
-                </div>
-              </th>
-              <th className="py-3 px-3">
-                <div className="flex items-center gap-1 cursor-pointer whitespace-nowrap">
-                  <span>Time period</span>
-                  <ArrowUpDown size={12} className="text-gray-400" />
-                </div>
-              </th>
-              <th className="py-3 px-3 text-center">
-                <div className="flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap">
-                  <span>Completion</span>
-                  <ArrowUpDown size={12} className="text-gray-400" />
-                </div>
-              </th>
-              <th className="py-3 px-3 text-center">
-                <div className="flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap">
-                  <span>Progress status</span>
-                  <ArrowUpDown size={12} className="text-gray-400" />
-                </div>
-              </th>
-              <th className="py-3 px-3 text-center">
-                <div className="flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap">
-                  <span>Pre Test</span>
-                  <ArrowUpDown size={12} className="text-gray-400" />
-                </div>
-              </th>
-              <th className="py-3 px-3 text-center">
-                <div className="flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap">
-                  <span>Mid Test</span>
-                  <ArrowUpDown size={12} className="text-gray-400" />
-                </div>
-              </th>
-              <th className="py-3 px-3 text-center">
-                <div className="flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap">
-                  <span>Final Test</span>
-                  <ArrowUpDown size={12} className="text-gray-400" />
-                </div>
-              </th>
-              <th className="py-3 px-3 text-right">
-                <div className="flex items-center justify-end gap-1 cursor-pointer whitespace-nowrap">
-                  <span>Certificate Status</span>
-                  <ArrowUpDown size={12} className="text-gray-400" />
-                </div>
-              </th>
+            <tr className="bg-[#E8F0F8] text-[10px] font-bold text-[#5B6575]">
+              {headers.map((label, i) => (
+                <th
+                  key={`${label}-${i}`}
+                  className={`py-2.5 px-2.5 whitespace-nowrap ${
+                    i === 0 ? "rounded-tl-[12px]" : ""
+                  } ${i === headers.length - 1 ? "rounded-tr-[12px] text-right" : ""}`}
+                >
+                  <div
+                    className={`inline-flex items-center gap-1 ${
+                      i === headers.length - 1 ? "justify-end w-full" : ""
+                    }`}
+                  >
+                    <span>{label}</span>
+                    <ArrowUpDown size={11} className="text-[#9AA3B2]" />
+                  </div>
+                </th>
+              ))}
             </tr>
           </thead>
 
-          <tbody className="divide-y divide-gray-100 text-xs">
-            {displayList.map((item, idx) => (
-              <tr key={idx} className="hover:bg-gray-50/70 transition-colors">
-                <td className="py-3.5 px-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-[#EBF0F9] text-[#3363AD] font-bold flex items-center justify-center shrink-0">
-                      <BookOpen size={18} />
+          <tbody>
+            {rows.map((row) => {
+
+              return (
+                <tr
+                  key={row.id}
+                  className="border-t border-[#E8EEF4] hover:bg-[#F8FBFF] transition-colors"
+                >
+                  <td className="py-2.5 px-2.5">
+                    <div className="flex items-center gap-2.5 min-w-[200px]">
+                      <div className="w-9 h-9 rounded-md bg-[#D6E4F5] shrink-0 flex items-center justify-center">
+                        <span className="text-[9px] font-bold text-[#3363AD]">CHW</span>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-bold text-[#1A2332] uppercase leading-snug">
+                          {row.title}
+                        </p>
+                        <p className="text-[10px] font-medium text-[#5B6575] mt-0.5">
+                          {row.level}
+                        </p>
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                      <p className="font-extrabold text-gray-900 uppercase leading-tight truncate max-w-xs">
-                        {item.title}
-                      </p>
+                  </td>
+
+                  <td className="py-2.5 px-2.5 text-[11px] font-semibold text-[#1A2332] tabular-nums">
+                    {row.enrollment}
+                  </td>
+
+                  <td className="py-2.5 px-2.5">
+                    <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#1A2332] tabular-nums whitespace-nowrap">
+                      <span>{row.completion}</span>
+                      {/* <span
+                        className={`w-4 h-4 rounded-full ${trendBg} text-white flex items-center justify-center shrink-0`}
+                      >
+                        <TrendIcon size={9} strokeWidth={2.5} />
+                      </span>
+                      <span className="text-[#5B6575]">{row.growth}</span> */}
                     </div>
-                  </div>
-                </td>
+                  </td>
 
-                <td className="py-3.5 px-3 font-semibold text-gray-600 whitespace-nowrap">
-                  <div className="flex items-center gap-1.5">
-                    <PlayCircle size={14} className="text-[#3363AD]" />
-                    <span>{item.duration}</span>
-                  </div>
-                </td>
+                  <td className="py-2.5 px-2.5">
+                    <div className="inline-flex items-center gap-3 text-[11px] font-semibold text-[#1A2332] tabular-nums whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1">
+                        <Play size={12} className="text-[#3363AD] fill-[#3363AD]" />
+                        {row.lessons}
+                      </span>
+                      <span className="inline-flex items-center gap-1">
+                        <Clock3 size={12} className="text-[#3363AD]" />
+                        {row.hours}
+                      </span>
+                    </div>
+                  </td>
 
-                <td className="py-3.5 px-3 text-center whitespace-nowrap">
-                  <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-[#3363AD] text-white text-[10px] font-black shadow-2xs">
-                    {item.completion}%
-                  </div>
-                </td>
-
-                <td className="py-3.5 px-3 text-center whitespace-nowrap">
-                  <span className={`inline-block px-3.5 py-0.5 rounded-full text-[11px] font-extrabold border ${item.statusBg}`}>
-                    {item.status}
-                  </span>
-                </td>
-
-                <td className="py-3.5 px-3 text-center font-bold text-gray-600 whitespace-nowrap">
-                  {item.preTest}
-                </td>
-
-                <td className="py-3.5 px-3 text-center font-bold text-gray-600 whitespace-nowrap">
-                  {item.midTest}
-                </td>
-
-                <td className="py-3.5 px-3 text-center font-bold text-gray-600 whitespace-nowrap">
-                  {item.finalTest}
-                </td>
-
-                <td className="py-3.5 px-3 text-right font-semibold text-gray-700 whitespace-nowrap">
-                  {item.certificate}
-                </td>
-              </tr>
-            ))}
+                  <td className="py-2.5 px-2.5 text-[11px] font-semibold text-[#1A2332] tabular-nums">
+                    {row.preTest}
+                  </td>
+                  <td className="py-2.5 px-2.5 text-[11px] font-semibold text-[#1A2332] tabular-nums">
+                    {row.midTest}
+                  </td>
+                  <td className="py-2.5 px-2.5 text-[11px] font-semibold text-[#1A2332] tabular-nums">
+                    {row.postTest}
+                  </td>
+                  <td className="py-2.5 px-2.5 text-right text-[11px] font-medium text-[#1A2332] whitespace-nowrap">
+                    {row.certificate}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
     </div>
   );
 };
+
+export default ChwDataTableV2;

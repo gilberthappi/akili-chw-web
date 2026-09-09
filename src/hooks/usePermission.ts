@@ -1,91 +1,101 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useAuthUser, useIsAuthenticated } from "react-auth-kit";
-import { UserRole, UserIndustry } from "@/types";
+import { UserRole, UserIndustry, UserDepartment } from "@/types";
+import { expandRoles, isLearnerRole } from "@/utils/roles";
 
 interface PermissionConfig {
   allowedRoles?: UserRole[];
+  /** @deprecated prefer allowedDepartments */
   allowedIndustries?: UserIndustry[];
-  requireAll?: boolean; // If true, user must match both role AND industry (if both provided)
+  allowedDepartments?: UserDepartment[];
+  requireAll?: boolean;
 }
 
-const isLearnerRole = (role?: UserRole) => role === "TRAINEE" || role === "TESTER";
+const normalizeDepartment = (
+  value?: string | null,
+): UserDepartment | UserIndustry | undefined => {
+  if (!value) return undefined;
+  if (value === "CIIC-HIN") return "CIIC_HIN";
+  return value as UserDepartment;
+};
 
-// Normalize legacy role names to their current equivalents
-const normalizeRole = (role: string): string =>
-  role === "CEHO" ? "CEHO" : role;
-
-// Hook to check if the current user has permission based on roles and/or industries
 export const usePermission = (config: PermissionConfig = {}) => {
-  const { allowedRoles, allowedIndustries, requireAll = true } = config;
+  const {
+    allowedRoles,
+    allowedIndustries,
+    allowedDepartments,
+    requireAll = true,
+  } = config;
   const isAuthenticated = useIsAuthenticated();
   const auth = useAuthUser();
 
-  // If user is not authenticated, they have no permissions
   if (!isAuthenticated()) {
     return {
       hasPermission: false,
       isAuthenticated: false,
       userRole: undefined,
       userIndustry: undefined,
+      userDepartment: undefined,
     };
   }
 
-  const user = auth();
+  const user = auth() as any;
   const userRoles = (
     user?.roles
       ? Array.isArray(user.roles)
         ? user.roles
         : [user.roles]
       : []
-  ).map(normalizeRole);
-  const userIndustry = user?.industry;
+  ) as string[];
+  const userDepartment = normalizeDepartment(
+    user?.department ?? user?.industry,
+  );
+  const deptAllowList = (allowedDepartments ?? allowedIndustries)?.map((d) =>
+    normalizeDepartment(d),
+  );
 
-  // If no restrictions provided, user has permission (authenticated only)
-  if (!allowedRoles && !allowedIndustries) {
+  if (!allowedRoles && !deptAllowList) {
     return {
       hasPermission: true,
       isAuthenticated: true,
-      userRole: userRoles[0],
-      userIndustry,
+      userRole: userRoles[0] as UserRole,
+      userIndustry: userDepartment as UserIndustry,
+      userDepartment: userDepartment as UserDepartment,
     };
   }
 
-  // Check role permission
+  const effectiveRoles = expandRoles(userRoles);
+
   const hasRolePermission = allowedRoles
-    ? userRoles.some((role: any) =>
+    ? [...effectiveRoles].some((role) =>
         allowedRoles.some(
           (allowedRole) =>
             allowedRole === role ||
-            (isLearnerRole(allowedRole) && isLearnerRole(role)),
+            (isLearnerRole(allowedRole) && isLearnerRole(role as UserRole)),
         ),
       )
     : true;
 
-  // Check industry permission
-  const hasIndustryPermission = allowedIndustries
-    ? userIndustry && allowedIndustries.includes(userIndustry)
+  const hasDepartmentPermission = deptAllowList
+    ? !!userDepartment && deptAllowList.includes(userDepartment)
     : true;
 
-  // Determine final permission based on requireAll flag
   let hasPermission = false;
-
-  if (allowedRoles && allowedIndustries) {
-    // Both roles and industries are specified
+  if (allowedRoles && deptAllowList) {
     hasPermission = requireAll
-      ? hasRolePermission && hasIndustryPermission
-      : hasRolePermission || hasIndustryPermission;
+      ? hasRolePermission && hasDepartmentPermission
+      : hasRolePermission || hasDepartmentPermission;
   } else if (allowedRoles) {
-    // Only roles specified
     hasPermission = hasRolePermission;
-  } else if (allowedIndustries) {
-    // Only industries specified
-    hasPermission = hasIndustryPermission;
+  } else if (deptAllowList) {
+    hasPermission = hasDepartmentPermission;
   }
 
   return {
     hasPermission,
     isAuthenticated: true,
-    userRole: userRoles[0],
-    userIndustry,
+    userRole: userRoles[0] as UserRole,
+    userIndustry: userDepartment as UserIndustry,
+    userDepartment: userDepartment as UserDepartment,
   };
 };
