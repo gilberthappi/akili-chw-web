@@ -206,9 +206,9 @@ const overviewBars = (
 };
 
 export const MapRegionalOverviewWidgetV2: React.FC = () => {
-  const { filters, setFilters } = useAdminDashboardFilters();
+  const { filters } = useAdminDashboardFilters();
 
-  // Load all districts for map tooltips; overview list filters by selection.
+  // Always load all districts for the map; global/local district only affects highlight + overview.
   const mapFilters = useMemo(
     () => ({ ...filters, district: "" }),
     [filters],
@@ -222,7 +222,11 @@ export const MapRegionalOverviewWidgetV2: React.FC = () => {
   const [filterMode, setFilterMode] = useState<OverviewMode>("all");
   const [geoData, setGeoData] = useState<GeoJSON.FeatureCollection | null>(null);
   const [isLoadingGeo, setIsLoadingGeo] = useState(true);
-  const selectedDistrict = filters.district ?? "";
+  /** Map/overview-only selection — does not write global filters. */
+  const [localDistrict, setLocalDistrict] = useState("");
+  const globalDistrict = filters.district ?? "";
+  /** Global district wins; otherwise use map click selection. */
+  const selectedDistrict = globalDistrict || localDistrict;
   const [hoveredDistrict, setHoveredDistrict] = useState<{
     name: string;
     province: string;
@@ -234,6 +238,11 @@ export const MapRegionalOverviewWidgetV2: React.FC = () => {
     x: number;
     y: number;
   } | null>(null);
+
+  // When global district changes, drop local map selection so global drives the map.
+  useEffect(() => {
+    setLocalDistrict("");
+  }, [globalDistrict]);
 
   const districtByKey = useMemo(() => {
     const map = new Map<string, MapDistrictOverview>();
@@ -351,16 +360,15 @@ export const MapRegionalOverviewWidgetV2: React.FC = () => {
   }, [geoData, pathGen, districtByKey]);
 
   const toggleDistrictSelection = (districtName: string) => {
+    // Global district filter owns selection — map click must not change globals.
+    if (globalDistrict.trim()) return;
+
     const canonical =
       districtByKey.get(districtName.toLowerCase().trim())?.district ??
       districtName;
     const isSame =
-      selectedDistrict.trim().toLowerCase() === canonical.toLowerCase();
-    setFilters({
-      ...filters,
-      district: isSame ? "" : canonical,
-      healthCenterId: "",
-    });
+      localDistrict.trim().toLowerCase() === canonical.toLowerCase();
+    setLocalDistrict(isSame ? "" : canonical);
   };
 
   const isLoading = isLoadingGeo || (isLoadingData && districts.length === 0);
