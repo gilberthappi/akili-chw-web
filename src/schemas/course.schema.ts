@@ -3,6 +3,7 @@ import { z } from 'zod';
 export const courseSchema = z.object({
   title: z.string().min(1, 'Title is required').default(''),
   shortName: z.string().max(40, 'Short name must be 40 characters or less').optional().default(''),
+  level: z.enum(['BEGINNER', 'INTERMEDIATE', 'ADVANCED']).default('BEGINNER'),
   coverIcon: z.string().default(''), // Will be handled as binary file
   description: z.string().default(''),
   isPublished: z.boolean().default(false),

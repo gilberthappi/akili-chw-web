@@ -34,6 +34,33 @@ export const dashboardKeys = {
   /** Cheap first-paint shell aggregates. */
   summary: (filters: readonly string[]) =>
     [...dashboardKeys.all, "summary", ...filters] as const,
+  /** Admin Dashboard V2 KPI strip. */
+  v2Kpis: (filters: readonly string[]) =>
+    [...dashboardKeys.all, "v2", "kpis", ...filters] as const,
+  v2AssessmentAttempts: (filters: readonly string[]) =>
+    [...dashboardKeys.all, "v2", "assessment-attempts", ...filters] as const,
+  v2Engagement: (filters: readonly string[]) =>
+    [...dashboardKeys.all, "v2", "engagement", ...filters] as const,
+  v2Certificates: (filters: readonly string[]) =>
+    [...dashboardKeys.all, "v2", "certificates", ...filters] as const,
+  v2ProgramCourses: (filters: readonly string[]) =>
+    [...dashboardKeys.all, "v2", "program-courses", ...filters] as const,
+  v2AiRecommendations: (filters: readonly string[]) =>
+    [...dashboardKeys.all, "v2", "ai-recommendations", ...filters] as const,
+  v2Schedule: (filters: readonly string[]) =>
+    [...dashboardKeys.all, "v2", "schedule", ...filters] as const,
+  v2RecentActivities: (filters: readonly string[]) =>
+    [...dashboardKeys.all, "v2", "recent-activities", ...filters] as const,
+  v2DemographicsPerformance: (filters: readonly string[]) =>
+    [...dashboardKeys.all, "v2", "demographics-performance", ...filters] as const,
+  v2KnowledgeGain: (filters: readonly string[]) =>
+    [...dashboardKeys.all, "v2", "knowledge-gain", ...filters] as const,
+  v2EnrollmentTrends: (filters: readonly string[]) =>
+    [...dashboardKeys.all, "v2", "enrollment-trends", ...filters] as const,
+  v2CourseRatings: (filters: readonly string[]) =>
+    [...dashboardKeys.all, "v2", "course-ratings", ...filters] as const,
+  v2MapOverview: (filters: readonly string[]) =>
+    [...dashboardKeys.all, "v2", "map-overview", ...filters] as const,
   /** Deep adoption charts (course/student/test/demographics/cert breakdowns). */
   adoption: (filters: readonly string[]) =>
     [...dashboardKeys.all, "adoption", ...filters] as const,

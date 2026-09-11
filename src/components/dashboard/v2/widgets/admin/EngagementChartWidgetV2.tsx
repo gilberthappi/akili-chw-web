@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { CalendarDays, ChevronDown } from "lucide-react";
 import {
   BarChart,
@@ -9,27 +9,26 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
-import {
-  SECTION2_ENGAGEMENT_DOMAINS,
-  SECTION2_ENGAGEMENT_MONTHS,
-} from "./section2DesignData";
+import { useAdminDashboardFilters } from "../../AdminDashboardFiltersContext";
+import { useAdminDashboardV2Engagement } from "@/hooks/useAdminDashboardV2Engagement";
+import { ChartSkeleton } from "./AdminWidgetSkeleton";
 
-interface EngagementChartWidgetV2Props {
-  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-  trendsData?: any[];
-  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-  courses?: any[];
-  useDesignDummy?: boolean;
-}
-
-export const EngagementChartWidgetV2: React.FC<EngagementChartWidgetV2Props> = ({
-  useDesignDummy = true,
-}) => {
-  const [timeframe, setTimeframe] = useState("Today");
+export const EngagementChartWidgetV2: React.FC = () => {
+  const { filters } = useAdminDashboardFilters();
+  const [timeframe, setTimeframe] = useState("This Year");
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
+  const { data, isLoading } = useAdminDashboardV2Engagement(filters, timeframe);
 
-  const domains = [...SECTION2_ENGAGEMENT_DOMAINS];
-  const monthlyData = SECTION2_ENGAGEMENT_MONTHS.map((row) => ({ ...row }));
+  const domains = data?.domains ?? [];
+  const series = data?.series ?? [];
+  const yMax = data?.yMax ?? 50;
+
+  const yTicks = useMemo(() => {
+    const step = yMax <= 100 ? 10 : yMax <= 300 ? 50 : 100;
+    const ticks: number[] = [];
+    for (let v = 0; v <= yMax; v += step) ticks.push(v);
+    return ticks;
+  }, [yMax]);
 
   const isActive = (key: string) =>
     selectedKeys.length === 0 || selectedKeys.includes(key);
@@ -42,13 +41,10 @@ export const EngagementChartWidgetV2: React.FC<EngagementChartWidgetV2Props> = (
     } else setSelectedKeys([...selectedKeys, key]);
   };
 
-  void useDesignDummy;
-
   const activeDomains = domains.filter((d) => isActive(d.key));
 
   return (
     <div className="bg-white rounded-[20px] border border-[#C8D6E3] p-3.5 flex flex-col w-full h-[380px] shrink-0 overflow-hidden">
-      {/* Header: title + legend + Today */}
       <div className="flex items-start justify-between gap-3 mb-2 shrink-0">
         <div className="flex items-center gap-3 min-w-0 flex-1 flex-wrap">
           <h3 className="text-[14px] font-bold text-[#1A2332] tracking-tight shrink-0">
@@ -64,7 +60,9 @@ export const EngagementChartWidgetV2: React.FC<EngagementChartWidgetV2Props> = (
                   key={d.key}
                   onClick={() => toggle(d.key)}
                   className={`inline-flex items-center gap-1 text-[10px] font-medium cursor-pointer transition-opacity ${
-                    active ? "opacity-100 text-[#5B6575]" : "opacity-35 text-gray-400"
+                    active
+                      ? "opacity-100 text-[#5B6575]"
+                      : "opacity-35 text-gray-400"
                   }`}
                 >
                   <span
@@ -100,53 +98,62 @@ export const EngagementChartWidgetV2: React.FC<EngagementChartWidgetV2Props> = (
         </div>
       </div>
 
-      {/* Fixed chart area — fills rest of fixed card height */}
       <div className="flex-1 min-h-0 w-full bg-[#F8FAFC] rounded-xl px-1 pt-1 pb-0">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={monthlyData}
-            margin={{ top: 6, right: 6, left: -14, bottom: 2 }}
-            barCategoryGap="12%"
-          >
-            <CartesianGrid vertical={false} stroke="#E8EEF5" strokeDasharray="0" />
-            <XAxis
-              dataKey="month"
-              axisLine={false}
-              tickLine={false}
-              tick={{ fill: "#9AA3B2", fontSize: 10, fontWeight: 500 }}
-            />
-            <YAxis
-              domain={[0, 300]}
-              ticks={[0, 50, 100, 150, 200, 250, 300]}
-              axisLine={false}
-              tickLine={false}
-              tick={{ fill: "#9AA3B2", fontSize: 10, fontWeight: 500 }}
-            />
-            <Tooltip
-              cursor={{ fill: "rgba(200, 214, 227, 0.25)" }}
-              contentStyle={{
-                backgroundColor: "#FFFFFF",
-                borderRadius: "10px",
-                border: "1px solid #C8D6E3",
-                fontSize: "11px",
-                boxShadow: "0 8px 20px -6px rgba(0,0,0,0.08)",
-              }}
-            />
-            {activeDomains.map((d, idx) => (
-              <Bar
-                key={d.key}
-                dataKey={d.key}
-                name={d.name}
-                stackId="a"
-                fill={d.color}
-                radius={
-                  idx === activeDomains.length - 1 ? [6, 6, 0, 0] : [0, 0, 0, 0]
-                }
-                maxBarSize={28}
+        {isLoading && !data ? (
+          <ChartSkeleton className="h-full" />
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={series}
+              margin={{ top: 6, right: 6, left: -14, bottom: 2 }}
+              barCategoryGap="12%"
+            >
+              <CartesianGrid
+                vertical={false}
+                stroke="#E8EEF5"
+                strokeDasharray="0"
               />
-            ))}
-          </BarChart>
-        </ResponsiveContainer>
+              <XAxis
+                dataKey="month"
+                axisLine={false}
+                tickLine={false}
+                tick={{ fill: "#9AA3B2", fontSize: 10, fontWeight: 500 }}
+              />
+              <YAxis
+                domain={[0, yMax]}
+                ticks={yTicks}
+                axisLine={false}
+                tickLine={false}
+                tick={{ fill: "#9AA3B2", fontSize: 10, fontWeight: 500 }}
+              />
+              <Tooltip
+                cursor={{ fill: "rgba(200, 214, 227, 0.25)" }}
+                contentStyle={{
+                  backgroundColor: "#FFFFFF",
+                  borderRadius: "10px",
+                  border: "1px solid #C8D6E3",
+                  fontSize: "11px",
+                  boxShadow: "0 8px 20px -6px rgba(0,0,0,0.08)",
+                }}
+              />
+              {activeDomains.map((d, idx) => (
+                <Bar
+                  key={d.key}
+                  dataKey={d.key}
+                  name={d.name}
+                  stackId="a"
+                  fill={d.color}
+                  radius={
+                    idx === activeDomains.length - 1
+                      ? [6, 6, 0, 0]
+                      : [0, 0, 0, 0]
+                  }
+                  maxBarSize={28}
+                />
+              ))}
+            </BarChart>
+          </ResponsiveContainer>
+        )}
       </div>
     </div>
   );

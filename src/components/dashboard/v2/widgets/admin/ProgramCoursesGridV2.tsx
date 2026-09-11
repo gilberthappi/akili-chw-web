@@ -1,16 +1,17 @@
 import React, { useState } from "react";
-import { BookOpen, ChevronDown, MoreHorizontal, ArrowDown, ArrowUp } from "lucide-react";
+import {
+  BookOpen,
+  ChevronDown,
+  MoreHorizontal,
+  ArrowDown,
+  ArrowUp,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { SECTION3_PROGRAM_COURSES } from "./section3DesignData";
+import { useAdminDashboardFilters } from "../../AdminDashboardFiltersContext";
+import { useAdminDashboardV2ProgramCourses } from "@/hooks/useAdminDashboardV2ProgramCourses";
+import { CardsGridSkeleton } from "./AdminWidgetSkeleton";
 
 interface ProgramCoursesGridV2Props {
-  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-  courses?: any[];
-  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-  summaryData?: any;
-  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-  adoptionData?: any;
-  useDesignDummy?: boolean;
   /** When true, omit outer card chrome (used inside shared Section 3 shell) */
   embedded?: boolean;
 }
@@ -19,8 +20,15 @@ export const ProgramCoursesGridV2: React.FC<ProgramCoursesGridV2Props> = ({
   embedded = false,
 }) => {
   const navigate = useNavigate();
+  const { filters } = useAdminDashboardFilters();
   const [sortBy, setSortBy] = useState("Recently added");
-  const { totalCount, items } = SECTION3_PROGRAM_COURSES;
+  const { data, isLoading } = useAdminDashboardV2ProgramCourses(
+    filters,
+    sortBy,
+  );
+
+  const totalCount = data?.totalCount ?? 0;
+  const items = data?.items ?? [];
 
   const shell = embedded
     ? "flex flex-col w-full h-full min-h-0 p-3.5"
@@ -55,15 +63,13 @@ export const ProgramCoursesGridV2: React.FC<ProgramCoursesGridV2Props> = ({
           <button
             type="button"
             onClick={() => navigate("/courses")}
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-white border border-[#B8CDE0] text-[#5B6575] text-[11px] font-semibold rounded-lg hover:border-[#4B82BA] transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-[#3363AD] text-white text-[11px] font-semibold rounded-lg hover:bg-[#2a5290] transition-colors cursor-pointer"
           >
             See All
-            <ChevronDown size={12} />
           </button>
         </div>
       </div>
 
-      {/* 2-row horizontal scroll — design */}
       <div
         className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden overscroll-contain pb-1
           [scrollbar-gutter:stable]
@@ -73,65 +79,77 @@ export const ProgramCoursesGridV2: React.FC<ProgramCoursesGridV2Props> = ({
           [&::-webkit-scrollbar-thumb]:bg-[#A8B8C8]
           [&::-webkit-scrollbar-thumb]:rounded-full"
       >
-        <div
-          className="grid grid-rows-2 grid-flow-col gap-2 content-start h-full"
-          style={{ gridAutoColumns: "minmax(320px, 340px)" }}
-        >
-          {items.map((item) => {
-            const TrendIcon = item.growthPositive ? ArrowUp : ArrowDown;
-            const trendBg = item.growthPositive ? "bg-[#5BA8A0]" : "bg-[#E07070]";
+        {isLoading && !data ? (
+          <CardsGridSkeleton count={4} />
+        ) : (
+          <div
+            className="grid grid-rows-2 grid-flow-col gap-2 content-start h-full"
+            style={{ gridAutoColumns: "minmax(320px, 340px)" }}
+          >
+            {items.map((item) => {
+              const TrendIcon = item.growthPositive ? ArrowUp : ArrowDown;
+              const trendBg = item.growthPositive
+                ? "bg-[#5BA8A0]"
+                : "bg-[#E07070]";
 
-            return (
-              <button
-                type="button"
-                key={item.id}
-                onClick={() => navigate("/courses")}
-                className="text-left bg-[#E8F0F8] hover:bg-[#DDE8F3] rounded-[10px] px-2.5 py-2 flex flex-col justify-between gap-1 transition-colors cursor-pointer group min-h-[108px] h-full"
-              >
-                <div className="flex items-start gap-2">
-                  <span
-                    className="w-6 h-6 rounded-md text-white flex items-center justify-center shrink-0"
-                    style={{ backgroundColor: item.iconColor }}
-                  >
-                    <BookOpen size={12} />
-                  </span>
-                  <p className="flex-1 min-w-0 text-[10px] font-bold text-[#1A2332] uppercase tracking-tight leading-snug pt-0.5">
-                    {item.title}
-                  </p>
-                  <span className="text-[#9AA3B2] shrink-0" aria-hidden>
-                    <MoreHorizontal size={14} />
-                  </span>
-                </div>
-
-                <p className="text-[9px] font-medium text-[#5B6575] leading-snug">
-                  <span>{item.chapters} Chapters</span>
-                  <span className="text-[#4B82BA] mx-1">•</span>
-                  <span>{item.sections} Sections</span>
-                  <span className="text-[#4B82BA] mx-1">•</span>
-                  <span>{item.mediaFiles} Media files</span>
-                  <span className="text-[#4B82BA] mx-1">•</span>
-                  <span>{item.questions} Questions</span>
-                </p>
-
-                <div className="flex items-center gap-2 whitespace-nowrap overflow-hidden text-[9px] font-semibold text-[#1A2332]">
-                  <span className="shrink-0">{item.enrollments} Enrollments</span>
-                  <span className="shrink-0">{item.attempts} test attempts</span>
-                  <span className="shrink-0">{item.certificates} certificates</span>
-                  <span className="ml-auto inline-flex items-center gap-1 shrink-0">
+              return (
+                <button
+                  type="button"
+                  key={item.id}
+                  onClick={() => navigate(`/courses/${item.id}`)}
+                  className="text-left bg-[#E8F0F8] hover:bg-[#DDE8F3] rounded-[10px] px-2.5 py-2 flex flex-col justify-between gap-1 transition-colors cursor-pointer group min-h-[108px] h-full"
+                >
+                  <div className="flex items-start gap-2">
                     <span
-                      className={`w-4 h-4 rounded-full ${trendBg} text-white flex items-center justify-center`}
+                      className="w-6 h-6 rounded-md text-white flex items-center justify-center shrink-0"
+                      style={{ backgroundColor: item.iconColor }}
                     >
-                      <TrendIcon size={9} strokeWidth={2.5} />
+                      <BookOpen size={12} />
                     </span>
-                    <span className="text-[9px] font-semibold text-[#5B6575] tabular-nums">
-                      {item.growth}
+                    <p className="flex-1 min-w-0 text-[10px] font-bold text-[#1A2332] uppercase tracking-tight leading-snug pt-0.5">
+                      {item.title}
+                    </p>
+                    <span className="text-[#9AA3B2] shrink-0" aria-hidden>
+                      <MoreHorizontal size={14} />
                     </span>
-                  </span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+                  </div>
+
+                  <p className="text-[10px] font-medium text-[#5B6575] leading-snug">
+                    <span>{item.chapters} Chapters</span>
+                    <span className="text-[#4B82BA] mx-1">•</span>
+                    <span>{item.sections} Sections</span>
+                    <span className="text-[#4B82BA] mx-1">•</span>
+                    <span>{item.mediaFiles} Media files</span>
+                    <span className="text-[#4B82BA] mx-1">•</span>
+                    <span>{item.questions} Questions</span>
+                  </p>
+
+                  <div className="flex items-center gap-2 whitespace-nowrap overflow-hidden text-[9px] font-semibold text-[#1A2332]">
+                    <span className="shrink-0">
+                      {item.enrollments} Enrollments
+                    </span>
+                    <span className="shrink-0">
+                      {item.attempts} test attempts
+                    </span>
+                    <span className="shrink-0">
+                      {item.certificates} certificates
+                    </span>
+                    <span className="ml-auto inline-flex items-center gap-1 shrink-0">
+                      <span
+                        className={`w-4 h-4 rounded-full ${trendBg} text-white flex items-center justify-center`}
+                      >
+                        <TrendIcon size={9} strokeWidth={2.5} />
+                      </span>
+                      <span className="text-[9px] font-semibold text-[#5B6575] tabular-nums">
+                        {item.growth}
+                      </span>
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -91,6 +91,7 @@ const CoursesPage = () => {
       const response = (await createCourseMutation.mutateAsync({
         title: formData.title.trim(),
         shortName: formData.shortName?.trim() || null,
+        level: formData.level ?? "BEGINNER",
         description: formData.description.trim(),
         coverIcon: coverIconUrl,
         isPublished: false,

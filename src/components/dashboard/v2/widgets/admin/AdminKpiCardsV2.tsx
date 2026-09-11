@@ -30,6 +30,7 @@ export type AdminKpiCardModel = {
 
 interface AdminKpiCardsV2Props {
   cards?: AdminKpiCardModel[];
+  isLoading?: boolean;
   totalUsers?: unknown;
   totalCourses?: unknown;
   totalEnrollments?: unknown;
@@ -39,10 +40,10 @@ interface AdminKpiCardsV2Props {
   statsData?: Record<string, unknown> | null;
 }
 
-/** Card 1 — Total Users (design-locked). Refine other cards one-by-one next. */
+/** Card 1 — title depends on role filter (Total CHW / Testers / CEHO / Users). */
 export const SECTION1_DESIGN_DUMMY: AdminKpiCardModel[] = [
   {
-    title: "Total Users",
+    title: "Total CHW",
     value: 390,
     max: 6000,
     unit: "Onboard",
@@ -221,20 +222,61 @@ const KpiCard: React.FC<{ card: AdminKpiCardModel }> = ({ card }) => {
   );
 };
 
-export const AdminKpiCardsV2: React.FC<AdminKpiCardsV2Props> = (props) => {
-  const cards = props.cards ?? SECTION1_DESIGN_DUMMY;
+const KpiCardSkeleton: React.FC = () => (
+  <div className="bg-[#E8F0F8] rounded-[20px] p-3.5 flex flex-col gap-3 min-h-[148px] animate-pulse">
+    <div className="flex items-start gap-2.5">
+      <span className="inline-flex h-9 w-9 rounded-[10px] bg-white/80 shrink-0" />
+      <div className="flex-1 min-w-0 space-y-2 pt-0.5">
+        <div className="flex items-center justify-between gap-2">
+          <div className="h-3 w-24 rounded bg-[#D7E3F0]" />
+          <div className="h-3 w-3 rounded bg-[#D7E3F0]" />
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <div className="h-5 w-28 rounded bg-[#D7E3F0]" />
+          <div className="h-4 w-12 rounded bg-[#D7E3F0]" />
+        </div>
+      </div>
+    </div>
+    <div className="space-y-2">
+      {[0, 1, 2].map((row) => (
+        <div key={row} className="flex items-center justify-between gap-3">
+          <div className="h-2.5 w-20 rounded bg-[#D7E3F0]" />
+          <div className="h-2.5 w-14 rounded bg-[#D7E3F0]" />
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+export const AdminKpiCardsV2: React.FC<AdminKpiCardsV2Props> = ({
+  cards,
+  isLoading = false,
+}) => {
+  if (isLoading && (!cards || cards.length === 0)) {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-0">
+        {[0, 1, 2, 3].map((i) => (
+          <KpiCardSkeleton key={i} />
+        ))}
+      </div>
+    );
+  }
+
+  const resolved = cards && cards.length > 0 ? cards : SECTION1_DESIGN_DUMMY;
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-0">
-      {cards.map((card) => (
+      {resolved.map((card) => (
         <KpiCard key={card.title} card={card} />
       ))}
     </div>
   );
 };
 
-export function buildAdminKpiCards(): AdminKpiCardModel[] {
-  return SECTION1_DESIGN_DUMMY;
+export function buildAdminKpiCards(
+  cards?: AdminKpiCardModel[] | null,
+): AdminKpiCardModel[] {
+  return cards && cards.length > 0 ? cards : SECTION1_DESIGN_DUMMY;
 }
 
 export default AdminKpiCardsV2;

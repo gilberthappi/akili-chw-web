@@ -125,6 +125,7 @@ function mapICourseToCourseBuilderData(course: ICourse): CourseBuilderData {
     id: course.id,
     title: course.title,
     shortName: course.shortName ?? "",
+    level: course.level ?? "BEGINNER",
     description: course.description ?? "",
     coverIcon: course.coverIcon ?? "",
     sections,
@@ -154,6 +155,7 @@ function buildApiPayload(data: CourseBuilderData): Record<string, unknown> {
   return {
     title: data.title,
     shortName: data.shortName?.trim() || null,
+    level: data.level ?? "BEGINNER",
     coverIcon: data.coverIcon,
     description: data.description,
     isPublished: data.isPublished,

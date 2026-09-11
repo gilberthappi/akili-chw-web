@@ -198,6 +198,9 @@ export default function CourseBuilder({
   const [localCourseShortName, setLocalCourseShortName] = useState(
     courseData.shortName ?? "",
   );
+  const [localCourseLevel, setLocalCourseLevel] = useState<
+    "BEGINNER" | "INTERMEDIATE" | "ADVANCED"
+  >(courseData.level ?? "BEGINNER");
   const [localCourseDescription, setLocalCourseDescription] = useState(courseData.description);
   const [localCourseCoverIcon, setLocalCourseCoverIcon] = useState(courseData.coverIcon);
 
@@ -235,6 +238,10 @@ export default function CourseBuilder({
   const applyCourseMeta = (fresh: CourseBuilderData) => {
     setIsPublished(fresh.isPublished);
     setPendingNotificationType(fresh.pendingNotificationType ?? null);
+    if (fresh.level) setLocalCourseLevel(fresh.level);
+    if (fresh.shortName !== undefined) {
+      setLocalCourseShortName(fresh.shortName ?? "");
+    }
   };
 
   const showNotifyButton = isPublished && !!pendingNotificationType;
@@ -261,6 +268,7 @@ export default function CourseBuilder({
         ...courseDataRef.current,
         title: localCourseTitle,
         shortName: localCourseShortName,
+        level: localCourseLevel,
         description: localCourseDescription,
         coverIcon: localCourseCoverIcon,
         sections,
@@ -311,7 +319,7 @@ export default function CourseBuilder({
       if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     };
    
-  }, [sections, preTest, finalTest, finalExam, localCourseTitle, localCourseShortName, localCourseDescription, localCourseCoverIcon]);
+  }, [sections, preTest, finalTest, finalExam, localCourseTitle, localCourseShortName, localCourseLevel, localCourseDescription, localCourseCoverIcon]);
 
   const selectedSection = sections.find((s) => s.id === selectedSectionId);
   const selectedChapter = selectedSection?.chapters.find((c) => c.id === selectedChapterId);
@@ -825,6 +833,7 @@ export default function CourseBuilder({
       ...courseData,
       title: localCourseTitle,
       shortName: localCourseShortName,
+      level: localCourseLevel,
       description: localCourseDescription,
       coverIcon: localCourseCoverIcon,
       sections,
@@ -871,6 +880,7 @@ export default function CourseBuilder({
         initialValues={{
           title: localCourseTitle,
           shortName: localCourseShortName,
+          level: localCourseLevel,
           description: localCourseDescription,
           coverIcon: localCourseCoverIcon,
         }}
@@ -878,6 +888,7 @@ export default function CourseBuilder({
         onSubmit={(data) => {
           setLocalCourseTitle(data.title);
           setLocalCourseShortName(data.shortName ?? "");
+          setLocalCourseLevel(data.level ?? "BEGINNER");
           setLocalCourseDescription(data.description);
           setLocalCourseCoverIcon(data.coverIcon);
           setShowEditCourseModal(false);

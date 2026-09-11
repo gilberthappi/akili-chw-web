@@ -1,189 +1,295 @@
 import React, { useEffect, useState, useMemo, useRef } from "react";
 import * as d3 from "d3";
-import { useQuery } from "@tanstack/react-query";
 import { ChevronDown } from "lucide-react";
-import { getDemographicsAnalytics, getTestScoreAnalytics } from "@/services/analytics.service";
-import { listAllHospitals } from "@/services/healthCenters.service";
-import { IDemographicRow } from "@/types";
-import { SECTION5_DISTRICT_PERFORMANCE } from "./section5DesignData";
+import { useAdminDashboardFilters } from "../../AdminDashboardFiltersContext";
+import {
+  MapDistrictOverview,
+  useAdminDashboardV2MapOverview,
+} from "@/hooks/useAdminDashboardV2MapOverview";
 
-interface MapRegionalOverviewWidgetV2Props {
-  byDistrict?: IDemographicRow[];
-}
+type OverviewMode =
+  | "all"
+  | "enrollment"
+  | "completion"
+  | "certification"
+  | "healthCenter";
 
-interface DistrictPerformanceItem {
-  district: string;
-  completionRate: number;
-  totalTests: number;
-  avgScore: number;
-  totalChws: number;
-  healthCentersCount: number;
-}
-
-const DISTRICT_PROVINCE_MAP: Record<string, { province: string; code: "EAST" | "WEST" | "NORTH" | "SOUTH" | "KIGALI"; color: string }> = {
-  // KIGALI CITY
-  gasabo: { province: "Kigali City", code: "KIGALI", color: "#2DD4BF" },
-  kicukiro: { province: "Kigali City", code: "KIGALI", color: "#2DD4BF" },
-  nyarugenge: { province: "Kigali City", code: "KIGALI", color: "#2DD4BF" },
-
-  // NORTH (Northern Province)
-  burera: { province: "Northern Province", code: "NORTH", color: "#FDE047" },
-  gakenke: { province: "Northern Province", code: "NORTH", color: "#FDE047" },
-  gicumbi: { province: "Northern Province", code: "NORTH", color: "#FDE047" },
-  musanze: { province: "Northern Province", code: "NORTH", color: "#FDE047" },
-  rulindo: { province: "Northern Province", code: "NORTH", color: "#FDE047" },
-
-  // SOUTH (Southern Province)
-  gisagara: { province: "Southern Province", code: "SOUTH", color: "#60A5FA" },
-  huye: { province: "Southern Province", code: "SOUTH", color: "#60A5FA" },
-  kamonyi: { province: "Southern Province", code: "SOUTH", color: "#60A5FA" },
-  muhanga: { province: "Southern Province", code: "SOUTH", color: "#60A5FA" },
-  nyamagabe: { province: "Southern Province", code: "SOUTH", color: "#60A5FA" },
-  nyanza: { province: "Southern Province", code: "SOUTH", color: "#60A5FA" },
-  nyaruguru: { province: "Southern Province", code: "SOUTH", color: "#60A5FA" },
-  ruhango: { province: "Southern Province", code: "SOUTH", color: "#60A5FA" },
-
-  // EAST (Eastern Province)
-  bugesera: { province: "Eastern Province", code: "EAST", color: "#F87171" },
-  gatsibo: { province: "Eastern Province", code: "EAST", color: "#F87171" },
-  kayonza: { province: "Eastern Province", code: "EAST", color: "#F87171" },
-  kirehe: { province: "Eastern Province", code: "EAST", color: "#F87171" },
-  ngoma: { province: "Eastern Province", code: "EAST", color: "#F87171" },
-  nyagatare: { province: "Eastern Province", code: "EAST", color: "#F87171" },
-  rwamagana: { province: "Eastern Province", code: "EAST", color: "#F87171" },
-
-  // WEST (Western Province)
-  karongi: { province: "Western Province", code: "WEST", color: "#FB923C" },
-  ngororero: { province: "Western Province", code: "WEST", color: "#FB923C" },
-  nyabihu: { province: "Western Province", code: "WEST", color: "#FB923C" },
-  nyamasheke: { province: "Western Province", code: "WEST", color: "#FB923C" },
-  rubavu: { province: "Western Province", code: "WEST", color: "#FB923C" },
-  rusizi: { province: "Western Province", code: "WEST", color: "#FB923C" },
-  rutsiro: { province: "Western Province", code: "WEST", color: "#FB923C" },
+const DISTRICT_PROVINCE_MAP: Record<
+  string,
+  { province: string; code: "EAST" | "WEST" | "NORTH" | "SOUTH" | "KIGALI"; color: string }
+> = {
+  gasabo: { province: "Kigali City", code: "KIGALI", color: "#14B8A6" },
+  kicukiro: { province: "Kigali City", code: "KIGALI", color: "#14B8A6" },
+  nyarugenge: { province: "Kigali City", code: "KIGALI", color: "#14B8A6" },
+  burera: { province: "Northern Province", code: "NORTH", color: "#EAB308" },
+  gakenke: { province: "Northern Province", code: "NORTH", color: "#EAB308" },
+  gicumbi: { province: "Northern Province", code: "NORTH", color: "#EAB308" },
+  musanze: { province: "Northern Province", code: "NORTH", color: "#EAB308" },
+  rulindo: { province: "Northern Province", code: "NORTH", color: "#EAB308" },
+  gisagara: { province: "Southern Province", code: "SOUTH", color: "#3B82F6" },
+  huye: { province: "Southern Province", code: "SOUTH", color: "#3B82F6" },
+  kamonyi: { province: "Southern Province", code: "SOUTH", color: "#3B82F6" },
+  muhanga: { province: "Southern Province", code: "SOUTH", color: "#3B82F6" },
+  nyamagabe: { province: "Southern Province", code: "SOUTH", color: "#3B82F6" },
+  nyanza: { province: "Southern Province", code: "SOUTH", color: "#3B82F6" },
+  nyaruguru: { province: "Southern Province", code: "SOUTH", color: "#3B82F6" },
+  ruhango: { province: "Southern Province", code: "SOUTH", color: "#3B82F6" },
+  bugesera: { province: "Eastern Province", code: "EAST", color: "#EF4444" },
+  gatsibo: { province: "Eastern Province", code: "EAST", color: "#EF4444" },
+  kayonza: { province: "Eastern Province", code: "EAST", color: "#EF4444" },
+  kirehe: { province: "Eastern Province", code: "EAST", color: "#EF4444" },
+  ngoma: { province: "Eastern Province", code: "EAST", color: "#EF4444" },
+  nyagatare: { province: "Eastern Province", code: "EAST", color: "#EF4444" },
+  rwamagana: { province: "Eastern Province", code: "EAST", color: "#EF4444" },
+  karongi: { province: "Western Province", code: "WEST", color: "#F97316" },
+  ngororero: { province: "Western Province", code: "WEST", color: "#F97316" },
+  nyabihu: { province: "Western Province", code: "WEST", color: "#F97316" },
+  nyamasheke: { province: "Western Province", code: "WEST", color: "#F97316" },
+  rubavu: { province: "Western Province", code: "WEST", color: "#F97316" },
+  rusizi: { province: "Western Province", code: "WEST", color: "#F97316" },
+  rutsiro: { province: "Western Province", code: "WEST", color: "#F97316" },
 };
 
 const PROVINCE_LEGEND = [
-  { code: "EAST", label: "East", color: "#F87171" },
-  { code: "NORTH", label: "North", color: "#FDE047" },
-  { code: "WEST", label: "West", color: "#FB923C" },
-  { code: "SOUTH", label: "South", color: "#60A5FA" },
-  { code: "KIGALI", label: "Kigali City", color: "#2DD4BF" },
+  { code: "EAST", label: "East", color: "#EF4444" },
+  { code: "NORTH", label: "North", color: "#EAB308" },
+  { code: "WEST", label: "West", color: "#F97316" },
+  { code: "SOUTH", label: "South", color: "#3B82F6" },
+  { code: "KIGALI", label: "Kigali City", color: "#14B8A6" },
 ];
 
-export const MapRegionalOverviewWidgetV2: React.FC<MapRegionalOverviewWidgetV2Props> = ({
-  byDistrict: initialByDistrict = [],
-}) => {
+type OverviewBarTone = {
+  /** Light track / primary single bar */
+  track: string;
+  /** Text on light track */
+  trackText: string;
+  /** Filled (secondary) bar */
+  fill: string;
+  /** Track behind fill */
+  fillTrack: string;
+};
+
+/** Higher-contrast tones so labels stay readable on every metric. */
+const BAR_TONES: Record<Exclude<OverviewMode, "all">, OverviewBarTone> = {
+  enrollment: {
+    track: "#8BB4D9",
+    trackText: "#1A2F45",
+    fill: "#3363AD",
+    fillTrack: "#D6E4F2",
+  },
+  completion: {
+    track: "#7BC4A0",
+    trackText: "#143828",
+    fill: "#1F7A4D",
+    fillTrack: "#D5EDE1",
+  },
+  certification: {
+    track: "#D4B15C",
+    trackText: "#3D2E0A",
+    fill: "#A67C1A",
+    fillTrack: "#F0E6C8",
+  },
+  healthCenter: {
+    track: "#9AA3B5",
+    trackText: "#1A2332",
+    fill: "#4A5568",
+    fillTrack: "#E2E5EC",
+  },
+};
+
+type OverviewBar = {
+  topLabel: string;
+  /** Right of top row — omit to hide */
+  topRight?: string;
+  /** Blue bar label — omit to hide the blue row entirely */
+  bottomLabel?: string;
+  /** Right of blue row — omit to hide */
+  bottomRight?: string;
+  /** Blue bar width 0–100 */
+  barWidth: number;
+  tone: OverviewBarTone;
+};
+
+const singleModeBar = (
+  d: MapDistrictOverview,
+  mode: Exclude<OverviewMode, "all">,
+  totalChwsAll: number,
+  totalHealthCentersAll: number,
+  /** In "All", CHWs only on Health centers — avoid duplicate CHW bars */
+  includeChws = true,
+): OverviewBar => {
+  const tone = BAR_TONES[mode];
+  switch (mode) {
+    case "enrollment":
+      return includeChws
+        ? {
+            topLabel: `${d.enrollments} Enrollments`,
+            bottomLabel: `${d.totalChws} CHWs`,
+            barWidth: 100,
+            tone,
+          }
+        : {
+            topLabel: `${d.enrollments} Enrollments`,
+            barWidth: 0,
+            tone,
+          };
+    case "completion":
+      return {
+        topLabel: `${d.completions} Completions`,
+        topRight: `${d.avgFinalTestScore}%`,
+        barWidth: Math.min(100, Math.max(0, d.avgFinalTestScore)),
+        tone,
+      };
+    case "certification":
+      return {
+        topLabel: `${d.certifications} Certificates`,
+        topRight: `${d.avgFinalExamScore}%`,
+        barWidth: Math.min(100, Math.max(0, d.avgFinalExamScore)),
+        tone,
+      };
+    case "healthCenter": {
+      const hcPct =
+        totalHealthCentersAll > 0
+          ? Math.round(
+              (d.healthCentersCount / totalHealthCentersAll) * 1000,
+            ) / 10
+          : 0;
+      const chwPct =
+        totalChwsAll > 0
+          ? Math.round((d.totalChws / totalChwsAll) * 1000) / 10
+          : 0;
+      return includeChws
+        ? {
+            topLabel: `${d.healthCentersCount} Health centers`,
+            topRight: `${hcPct}%`,
+            bottomLabel: `${d.totalChws} CHWs`,
+            bottomRight: `${chwPct}%`,
+            barWidth: Math.min(100, Math.max(chwPct > 0 ? 8 : 0, chwPct)),
+            tone,
+          }
+        : {
+            topLabel: `${d.healthCentersCount} Health centers`,
+            topRight: `${hcPct}%`,
+            barWidth: 0,
+            tone,
+          };
+    }
+  }
+};
+
+const overviewBars = (
+  d: MapDistrictOverview,
+  mode: OverviewMode,
+  totalChwsAll: number,
+  totalHealthCentersAll: number,
+): OverviewBar[] => {
+  if (mode === "all") {
+    return (
+      [
+        "enrollment",
+        "completion",
+        "certification",
+        "healthCenter",
+      ] as const
+    ).map((m) =>
+      // CHWs only once under Health centers when showing All
+      singleModeBar(
+        d,
+        m,
+        totalChwsAll,
+        totalHealthCentersAll,
+        m === "healthCenter",
+      ),
+    );
+  }
+  return [singleModeBar(d, mode, totalChwsAll, totalHealthCentersAll, true)];
+};
+
+export const MapRegionalOverviewWidgetV2: React.FC = () => {
+  const { filters, setFilters } = useAdminDashboardFilters();
+
+  // Load all districts for map tooltips; overview list filters by selection.
+  const mapFilters = useMemo(
+    () => ({ ...filters, district: "" }),
+    [filters],
+  );
+  const { districts, isLoading: isLoadingData } =
+    useAdminDashboardV2MapOverview(mapFilters);
+
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
-  const [filterMode, setFilterMode] = useState("Course Completion");
-  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+  const [filterMode, setFilterMode] = useState<OverviewMode>("all");
   const [geoData, setGeoData] = useState<GeoJSON.FeatureCollection | null>(null);
   const [isLoadingGeo, setIsLoadingGeo] = useState(true);
-  const [selectedDistrict, setSelectedDistrict] = useState<string>("");
+  const selectedDistrict = filters.district ?? "";
   const [hoveredDistrict, setHoveredDistrict] = useState<{
     name: string;
     province: string;
-    total: number;
-    completionRate: number;
+    totalChws: number;
+    enrollments: number;
+    completions: number;
+    certifications: number;
     healthCentersCount: number;
     x: number;
     y: number;
   } | null>(null);
 
-  // Fetch real backend demographics by district
-  const { data: demoRes } = useQuery({
-    queryKey: ["adminMapDemographicsV2"],
-    queryFn: () => getDemographicsAnalytics(),
-    staleTime: 1000 * 60 * 5,
-  });
-
-  // Fetch real backend test scores by district
-  const { data: testScoresRes } = useQuery({
-    queryKey: ["adminMapTestScoresV2"],
-    queryFn: () => getTestScoreAnalytics(),
-    staleTime: 1000 * 60 * 5,
-  });
-
-  // Fetch real health centers list to map health center locations to districts
-  const { data: healthCentersRes } = useQuery({
-    queryKey: ["adminMapHealthCentersV2"],
-    queryFn: () => listAllHospitals(),
-    staleTime: 1000 * 60 * 5,
-  });
-
-  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-  const realByDistrict = initialByDistrict.length > 0 ? initialByDistrict : (demoRes as any)?.data?.byDistrict || [];
-  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-  const testScoresByDistrict = (testScoresRes as any)?.data?.byDistrict || [];
-  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-  const healthCentersList = (healthCentersRes as any)?.data || (Array.isArray(healthCentersRes) ? healthCentersRes : []);
-
-  // Map health centers count by district
-  const healthCentersCountByDistrict = useMemo(() => {
-    const map = new Map<string, number>();
-    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-    for (const hc of healthCentersList as any[]) {
-      const d = (hc.district || "").toLowerCase().trim();
-      if (d) {
-        map.set(d, (map.get(d) || 0) + 1);
-      }
+  const districtByKey = useMemo(() => {
+    const map = new Map<string, MapDistrictOverview>();
+    for (const d of districts) {
+      map.set(d.district.toLowerCase().trim(), d);
     }
     return map;
-  }, [healthCentersList]);
+  }, [districts]);
 
-  // Map test scores by district
-  const testScoresMap = useMemo(() => {
-    const map = new Map<string, { meanFinalTest: number; preAttempts: number; finalAttempts: number }>();
-    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-    for (const ts of testScoresByDistrict as any[]) {
-      const d = (ts.district || "").toLowerCase().trim();
-      if (d) {
-        map.set(d, {
-          meanFinalTest: ts.meanFinalTest ?? 75,
-          preAttempts: ts.preTestAttempts ?? 50,
-          finalAttempts: ts.finalTestAttempts ?? 50,
-        });
-      }
+  const totalChwsAll = useMemo(
+    () => districts.reduce((sum, d) => sum + d.totalChws, 0),
+    [districts],
+  );
+  const totalHealthCentersAll = useMemo(
+    () => districts.reduce((sum, d) => sum + d.healthCentersCount, 0),
+    [districts],
+  );
+
+  const overviewItems = useMemo(() => {
+    let items = [...districts];
+    if (selectedDistrict) {
+      items = items.filter(
+        (d) => d.district.toLowerCase() === selectedDistrict.toLowerCase(),
+      );
     }
-    return map;
-  }, [testScoresByDistrict]);
-
-  const districtDataMap = useMemo(() => {
-    const map = new Map<string, IDemographicRow>();
-    for (const row of realByDistrict) {
-      if (row.district) {
-        map.set(row.district.toLowerCase().trim(), row);
-      }
+    switch (filterMode) {
+      case "enrollment":
+        items.sort((a, b) => b.enrollments - a.enrollments);
+        break;
+      case "completion":
+        items.sort((a, b) => b.completionRate - a.completionRate);
+        break;
+      case "certification":
+        items.sort((a, b) => b.certificationRate - a.certificationRate);
+        break;
+      case "healthCenter":
+        items.sort((a, b) => b.healthCentersCount - a.healthCentersCount);
+        break;
+      default:
+        items.sort((a, b) => b.totalChws - a.totalChws);
     }
-    return map;
-  }, [realByDistrict]);
-
-  // Process district performance — always prefer design board list for overview
-  const performanceItems = useMemo(() => {
-    return SECTION5_DISTRICT_PERFORMANCE.map((d) => ({
-      district: d.district,
-      tests: d.tests,
-      avgScore: d.avgScore,
-      percent: d.percent,
-      target: d.target,
-      completionRate: d.percent,
-      totalTests: d.tests,
-      totalChws: Math.round(d.tests * 0.6),
-      healthCentersCount: 3,
-    }));
-  }, []);
+    return items;
+  }, [districts, filterMode, selectedDistrict]);
 
   const VW = 580;
   const VH = 480;
 
-  const projection = useMemo(() => {
-    return d3
-      .geoMercator()
-      .center([29.88, -1.945])
-      .scale(15800)
-      .translate([VW / 2, VH / 2 + 10]);
-  }, [VW, VH]);
+  const projection = useMemo(
+    () =>
+      d3
+        .geoMercator()
+        .center([29.88, -1.945])
+        .scale(15800)
+        .translate([VW / 2, VH / 2 + 10]),
+    [],
+  );
 
   const pathGen = useMemo(() => d3.geoPath().projection(projection), [projection]);
 
@@ -199,59 +305,79 @@ export const MapRegionalOverviewWidgetV2: React.FC<MapRegionalOverviewWidgetV2Pr
 
   const processedFeatures = useMemo(() => {
     if (!geoData) return [];
-    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-    const reverseRings = (coords: number[][][]) => coords.map((ring) => [...ring].reverse());
-    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-    return geoData.features.map((f: any) => {
+    const reverseRings = (coords: number[][][]) =>
+      coords.map((ring) => [...ring].reverse());
+    return geoData.features.map((f: GeoJSON.Feature) => {
       const geom =
         f.geometry.type === "Polygon"
-          ? { ...f.geometry, coordinates: reverseRings(f.geometry.coordinates) }
+          ? {
+              ...f.geometry,
+              coordinates: reverseRings(
+                f.geometry.coordinates as number[][][],
+              ),
+            }
           : f.geometry;
-      const centroid = pathGen.centroid({ ...f, geometry: geom });
-      const rawName = (f.properties?.shapeName || "").trim();
+      const feature = { ...f, geometry: geom } as GeoJSON.Feature;
+      const centroid = pathGen.centroid(feature);
+      const rawName = String(
+        (f.properties as { shapeName?: string } | null)?.shapeName || "",
+      ).trim();
       const lowerName = rawName.toLowerCase();
       const provInfo = DISTRICT_PROVINCE_MAP[lowerName] || {
         province: "UNKNOWN",
-        code: "EAST",
+        code: "EAST" as const,
         color: "#CBD5E1",
       };
-      const demoData = districtDataMap.get(lowerName);
-      const hcCount = healthCentersCountByDistrict.get(lowerName) || 1;
+      const metrics = districtByKey.get(lowerName);
 
       return {
-        ...f,
-        geometry: geom,
+        ...feature,
         properties: {
-          ...f.properties,
+          ...(f.properties ?? {}),
           districtName: rawName,
           province: provInfo.province,
           provCode: provInfo.code,
           fillColor: provInfo.color,
           centroid,
-          demoTotal: demoData?.total ?? 120,
-          demoCompletion: demoData?.completionRate ?? 70,
-          healthCentersCount: hcCount,
+          demoTotal: metrics?.totalChws ?? 0,
+          enrollments: metrics?.enrollments ?? 0,
+          completions: metrics?.completions ?? 0,
+          certifications: metrics?.certifications ?? 0,
+          demoCompletion: metrics?.completionRate ?? 0,
+          healthCentersCount: metrics?.healthCentersCount ?? 0,
         },
       };
     });
-  }, [geoData, pathGen, districtDataMap, healthCentersCountByDistrict]);
+  }, [geoData, pathGen, districtByKey]);
 
   const toggleDistrictSelection = (districtName: string) => {
-    setSelectedDistrict((prev) => (prev.toLowerCase() === districtName.toLowerCase() ? "" : districtName));
+    const canonical =
+      districtByKey.get(districtName.toLowerCase().trim())?.district ??
+      districtName;
+    const isSame =
+      selectedDistrict.trim().toLowerCase() === canonical.toLowerCase();
+    setFilters({
+      ...filters,
+      district: isSame ? "" : canonical,
+      healthCenterId: "",
+    });
   };
+
+  const isLoading = isLoadingGeo || (isLoadingData && districts.length === 0);
 
   return (
     <div className="bg-white rounded-[20px] border border-[#C8D6E3] p-3.5 flex flex-col space-y-3 h-full min-h-0 overflow-hidden">
-      {/* Top Combined Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 shrink-0">
-        <h3 className="text-[14px] font-bold text-[#1A2332] tracking-tight">Map</h3>
+        <h3 className="text-[14px] font-bold text-[#1A2332] tracking-tight">
+          Map
+        </h3>
       </div>
 
-      {/* Main Combined Content Body — minmax(0,…) so overview list can scroll */}
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-4 items-stretch flex-1 min-h-0 overflow-hidden">
-        {/* Left Panel: Map Container */}
-        <div ref={containerRef} className="relative flex flex-col justify-between min-h-0 overflow-hidden h-full">
-          {/* Floating Legend Box (Top Left) */}
+        <div
+          ref={containerRef}
+          className="relative flex flex-col justify-between min-h-0 overflow-hidden h-full"
+        >
           <div className="absolute top-1 left-0 z-10 bg-white/95 backdrop-blur-xs border border-[#C8D6E3] rounded-lg p-2 text-[10px] space-y-1 min-w-[130px]">
             {PROVINCE_LEGEND.map((item) => (
               <div key={item.code} className="flex items-center gap-1.5">
@@ -259,15 +385,19 @@ export const MapRegionalOverviewWidgetV2: React.FC<MapRegionalOverviewWidgetV2Pr
                   className="w-2.5 h-2.5 rounded-[2px] shrink-0"
                   style={{ backgroundColor: item.color }}
                 />
-                <span className="font-semibold text-[#5B6575] text-[9px]">{item.label}</span>
+                <span className="font-semibold text-[#5B6575] text-[9px]">
+                  {item.label}
+                </span>
               </div>
             ))}
           </div>
 
-          {/* Map Vector Render */}
-          {isLoadingGeo ? (
-            <div className="flex-1 flex items-center justify-center min-h-[380px]">
-              <div className="w-10 h-10 border-4 border-[#3363AD] border-t-transparent rounded-full animate-spin" />
+          {isLoading ? (
+            <div className="flex-1 flex items-center justify-center min-h-[380px] animate-pulse px-6">
+              <div className="w-full max-w-[320px] aspect-square rounded-[40%] bg-[#E8EEF4] relative overflow-hidden">
+                <div className="absolute inset-[12%] rounded-[36%] bg-[#D7E3F0]/80" />
+                <div className="absolute inset-[28%] rounded-[32%] bg-[#C8D6E3]/70" />
+              </div>
             </div>
           ) : (
             <div className="w-full flex-1 relative flex items-center justify-center my-auto">
@@ -278,43 +408,52 @@ export const MapRegionalOverviewWidgetV2: React.FC<MapRegionalOverviewWidgetV2Pr
                 preserveAspectRatio="xMidYMid meet"
               >
                 <g className="districts-layer">
-                  {/* District Shapes */}
-                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                  {processedFeatures.map((f: any, idx: number) => {
+                  {processedFeatures.map((f, idx) => {
                     const dPath = pathGen(f) ?? "";
-                    const name = f.properties.districtName;
-                    const isSelected = selectedDistrict.toLowerCase() === name.toLowerCase();
+                    const name = f.properties.districtName as string;
+                    const isSelected =
+                      selectedDistrict.toLowerCase() === name.toLowerCase();
                     const isHovered = hoveredDistrict?.name === name;
 
                     return (
                       <path
-                        key={f.properties.shapeID || idx}
+                        key={String(
+                          (f.properties as { shapeID?: string }).shapeID || idx,
+                        )}
                         d={dPath}
-                        fill={f.properties.fillColor}
+                        fill={f.properties.fillColor as string}
                         stroke="#FFFFFF"
                         strokeWidth={isSelected ? 2.5 : isHovered ? 2 : 1}
                         className="cursor-pointer transition-all duration-200 hover:brightness-105"
                         style={{
                           opacity: selectedDistrict && !isSelected ? 0.45 : 0.92,
-                          filter: isHovered ? "drop-shadow(0 2px 4px rgba(0,0,0,0.15))" : "none",
+                          filter: isHovered
+                            ? "drop-shadow(0 2px 4px rgba(0,0,0,0.15))"
+                            : "none",
                         }}
                         onClick={() => toggleDistrictSelection(name)}
                         onMouseEnter={(e) => {
-                          const bounds = containerRef.current?.getBoundingClientRect();
+                          const bounds =
+                            containerRef.current?.getBoundingClientRect();
                           if (bounds) {
                             setHoveredDistrict({
                               name,
-                              province: f.properties.province,
-                              total: f.properties.demoTotal,
-                              completionRate: f.properties.demoCompletion,
-                              healthCentersCount: f.properties.healthCentersCount,
+                              province: f.properties.province as string,
+                              totalChws: f.properties.demoTotal as number,
+                              enrollments: f.properties.enrollments as number,
+                              completions: f.properties.completions as number,
+                              certifications: f.properties
+                                .certifications as number,
+                              healthCentersCount: f.properties
+                                .healthCentersCount as number,
                               x: e.clientX - bounds.left,
                               y: e.clientY - bounds.top - 12,
                             });
                           }
                         }}
                         onMouseMove={(e) => {
-                          const bounds = containerRef.current?.getBoundingClientRect();
+                          const bounds =
+                            containerRef.current?.getBoundingClientRect();
                           if (bounds) {
                             setHoveredDistrict((prev) =>
                               prev
@@ -323,7 +462,7 @@ export const MapRegionalOverviewWidgetV2: React.FC<MapRegionalOverviewWidgetV2Pr
                                     x: e.clientX - bounds.left,
                                     y: e.clientY - bounds.top - 12,
                                   }
-                                : null
+                                : null,
                             );
                           }
                         }}
@@ -332,11 +471,11 @@ export const MapRegionalOverviewWidgetV2: React.FC<MapRegionalOverviewWidgetV2Pr
                     );
                   })}
 
-                  {/* District Centroid Text Labels */}
-                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                  {processedFeatures.map((f: any, idx: number) => {
-                    const centroid = f.properties.centroid;
-                    if (!centroid || isNaN(centroid[0])) return null;
+                  {processedFeatures.map((f, idx) => {
+                    const centroid = f.properties.centroid as
+                      | [number, number]
+                      | undefined;
+                    if (!centroid || Number.isNaN(centroid[0])) return null;
 
                     return (
                       <text
@@ -353,33 +492,54 @@ export const MapRegionalOverviewWidgetV2: React.FC<MapRegionalOverviewWidgetV2Pr
                         paintOrder="stroke"
                         className="pointer-events-none uppercase tracking-tighter"
                       >
-                        {f.properties.districtName}
+                        {f.properties.districtName as string}
                       </text>
                     );
                   })}
                 </g>
               </svg>
 
-              {/* Hover Tooltip */}
               {hoveredDistrict && (
                 <div
-                  className="absolute z-30 pointer-events-none bg-gray-900/95 text-white text-xs rounded-lg px-3 py-2 shadow-xl border border-gray-700 min-w-[150px] transform -translate-x-1/2 -translate-y-full transition-all duration-75"
+                  className="absolute z-30 pointer-events-none bg-gray-900/95 text-white text-xs rounded-lg px-3 py-2 shadow-xl border border-gray-700 min-w-[170px] max-w-[220px] transform -translate-x-1/2 -translate-y-full transition-all duration-75"
                   style={{ left: hoveredDistrict.x, top: hoveredDistrict.y }}
                 >
-                  <p className="font-extrabold text-white text-xs">{hoveredDistrict.name}</p>
-                  <p className="text-[10px] text-gray-300 font-semibold">{hoveredDistrict.province}</p>
+                  <p className="font-extrabold text-white text-xs">
+                    {hoveredDistrict.name}
+                  </p>
+                  <p className="text-[10px] text-gray-300 font-semibold">
+                    {hoveredDistrict.province}
+                  </p>
                   <div className="mt-1 pt-1 border-t border-gray-700 space-y-0.5 text-[11px]">
                     <div className="flex justify-between gap-3 text-gray-300">
+                      <span>CHWs:</span>
+                      <span className="font-bold text-white">
+                        {hoveredDistrict.totalChws}
+                      </span>
+                    </div>
+                    <div className="flex justify-between gap-3 text-gray-300">
+                      <span>Enrollments:</span>
+                      <span className="font-bold text-white">
+                        {hoveredDistrict.enrollments}
+                      </span>
+                    </div>
+                    <div className="flex justify-between gap-3 text-gray-300">
+                      <span>Completion:</span>
+                      <span className="font-bold text-white">
+                        {hoveredDistrict.completions}
+                      </span>
+                    </div>
+                    <div className="flex justify-between gap-3 text-gray-300">
+                      <span>Certification:</span>
+                      <span className="font-bold text-white">
+                        {hoveredDistrict.certifications}
+                      </span>
+                    </div>
+                    <div className="flex justify-between gap-3 text-gray-300">
                       <span>Health Centers:</span>
-                      <span className="font-bold text-white">{hoveredDistrict.healthCentersCount}</span>
-                    </div>
-                    <div className="flex justify-between gap-3 text-gray-300">
-                      <span>Total CHWs:</span>
-                      <span className="font-bold text-white">{hoveredDistrict.total}</span>
-                    </div>
-                    <div className="flex justify-between gap-3 text-gray-300">
-                      <span>Completion Rate:</span>
-                      <span className="font-bold text-emerald-400">{hoveredDistrict.completionRate}%</span>
+                      <span className="font-bold text-white">
+                        {hoveredDistrict.healthCentersCount}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -387,7 +547,6 @@ export const MapRegionalOverviewWidgetV2: React.FC<MapRegionalOverviewWidgetV2Pr
             </div>
           )}
 
-          {/* Scale Bar at Bottom Center */}
           <div className="absolute bottom-0 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center pointer-events-none">
             <div className="flex items-center gap-6 text-[9px] font-bold text-gray-700">
               <span>0</span>
@@ -397,26 +556,30 @@ export const MapRegionalOverviewWidgetV2: React.FC<MapRegionalOverviewWidgetV2Pr
             <div className="w-24 h-1 border-b-2 border-l-2 border-r-2 border-gray-800 flex justify-between">
               <span className="w-0.5 h-1 bg-gray-800 self-end ml-12" />
             </div>
-            <span className="text-[9px] font-semibold text-gray-600 mt-0.5">kilometers</span>
+            <span className="text-[9px] font-semibold text-gray-600 mt-0.5">
+              kilometers
+            </span>
           </div>
         </div>
 
-        {/* Right Panel: Course Performance Overview — scrollable */}
-        <div className="border-t lg:border-t-0 lg:border-l border-[#E8EEF4] pt-3 lg:pt-0 lg:pl-4 flex flex-col min-h-0 h-full overflow-hidden">
-          <div className="flex items-center justify-between mb-2.5 shrink-0">
-            <h4 className="text-[13px] font-bold text-[#1A2332] tracking-tight">
-              Course performance overview
+        <div className="border-t lg:border-t-0 lg:border-l border-[#E8EEF4] pt-3 lg:pt-0 lg:pl-4 flex flex-col min-h-0 h-full overflow-hidden min-w-0">
+          <div className="flex items-center justify-between gap-2 mb-2.5 shrink-0 min-w-0">
+            <h4 className="text-[13px] font-bold text-[#1A2332] tracking-tight truncate">
+              Overview
             </h4>
             <div className="relative shrink-0">
               <select
                 value={filterMode}
-                onChange={(e) => setFilterMode(e.target.value)}
-                className="appearance-none text-[10px] font-semibold bg-white border border-[#B8CDE0] text-[#5B6575] rounded-lg pl-2 pr-6 py-1 focus:outline-none cursor-pointer"
+                onChange={(e) =>
+                  setFilterMode(e.target.value as OverviewMode)
+                }
+                className="appearance-none text-[10px] font-semibold bg-white border border-[#B8CDE0] text-[#5B6575] rounded-lg pl-2 pr-6 py-1 focus:outline-none cursor-pointer max-w-[120px]"
               >
-                <option>Course Completion</option>
-                <option>Pre Test Scores</option>
-                <option>Post Test Scores</option>
-                <option>Pass Rates</option>
+                <option value="all">All</option>
+                <option value="enrollment">Enrollment</option>
+                <option value="completion">Completion</option>
+                <option value="certification">Certification</option>
+                <option value="healthCenter">Health Center</option>
               </select>
               <ChevronDown
                 size={11}
@@ -426,7 +589,7 @@ export const MapRegionalOverviewWidgetV2: React.FC<MapRegionalOverviewWidgetV2Pr
           </div>
 
           <div
-            className="flex-1 min-h-0 overflow-y-auto overscroll-contain space-y-3 pr-1
+            className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden overscroll-contain space-y-3 pr-1
               [scrollbar-gutter:stable]
               [&::-webkit-scrollbar]:w-1.5
               [&::-webkit-scrollbar-track]:bg-[#E8EEF4]
@@ -434,53 +597,151 @@ export const MapRegionalOverviewWidgetV2: React.FC<MapRegionalOverviewWidgetV2Pr
               [&::-webkit-scrollbar-thumb]:bg-[#A8B8C8]
               [&::-webkit-scrollbar-thumb]:rounded-full"
           >
-            {performanceItems.map((item, idx) => {
-              const isSelected =
-                selectedDistrict.toLowerCase() === item.district.toLowerCase();
-
-              return (
-                <button
-                  type="button"
-                  key={`${item.district}-${idx}`}
-                  onClick={() => toggleDistrictSelection(item.district)}
-                  className={`w-full text-left cursor-pointer transition-opacity ${
-                    isSelected ? "opacity-100" : "opacity-100 hover:opacity-90"
-                  }`}
-                >
-                  <p className="text-[11px] font-semibold text-[#1A2332] mb-1">
-                    {item.district}
-                  </p>
-
-                  {/* Dual bars — match Assessment / design */}
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <div className="flex-1 h-[14px] bg-[#CFE0EB] flex items-center justify-center px-1.5">
-                      <span className="text-[9px] font-semibold text-[#5B6575] tabular-nums">
-                        {item.tests} Tests
-                      </span>
-                    </div>
-                    <span className="text-[9px] font-medium text-[#5B6575] tabular-nums w-7 text-right shrink-0">
-                      {item.target}%
-                    </span>
+            {isLoadingData && overviewItems.length === 0 ? (
+              <div className="space-y-3 animate-pulse">
+                {Array.from({ length: 5 }, (_, i) => (
+                  <div key={i} className="space-y-1.5">
+                    <div className="h-2.5 w-20 rounded bg-[#D7E3F0]" />
+                    <div className="h-[14px] w-full rounded bg-[#D7E3F0]" />
+                    <div className="h-[14px] w-[70%] rounded bg-[#E8EEF4]" />
+                    <div className="h-[14px] w-full rounded bg-[#D7E3F0]" />
+                    <div className="h-[14px] w-[85%] rounded bg-[#E8EEF4]" />
                   </div>
-                  <div className="flex items-center gap-1.5 w-full">
-                    <div
-                      className="h-[14px] bg-[#4B82BA] flex items-center px-1.5 shrink-0 min-w-[5.5rem]"
-                      style={{ width: `${item.percent}%` }}
-                    >
-                      <span className="text-[9px] font-semibold text-white whitespace-nowrap">
-                        {item.avgScore} Avg Score
-                      </span>
+                ))}
+              </div>
+            ) : overviewItems.length === 0 ? (
+              <p className="py-8 text-center text-[12px] text-[#9AA3B2]">
+                No district data for these filters
+              </p>
+            ) : (
+              overviewItems.map((item) => {
+                const isSelected =
+                  selectedDistrict.toLowerCase() ===
+                  item.district.toLowerCase();
+                const bars = overviewBars(
+                  item,
+                  filterMode,
+                  totalChwsAll,
+                  totalHealthCentersAll,
+                );
+
+                return (
+                  <button
+                    type="button"
+                    key={item.district}
+                    onClick={() => toggleDistrictSelection(item.district)}
+                    className={`w-full min-w-0 text-left cursor-pointer transition-opacity ${
+                      isSelected ? "opacity-100" : "opacity-100 hover:opacity-90"
+                    }`}
+                  >
+                    <p className="text-[11px] font-semibold text-[#1A2332] mb-1 truncate">
+                      {item.district}
+                    </p>
+
+                    <div className="space-y-1.5 min-w-0">
+                      {bars.map((m, i) => {
+                        const showBlue =
+                          m.bottomLabel != null || m.bottomRight != null;
+                        const fillPct = Math.min(
+                          100,
+                          Math.max(m.barWidth > 0 ? 12 : 0, m.barWidth),
+                        );
+                        const { tone } = m;
+
+                        // Single bar: count left + % right (completion / certification / solo rows)
+                        if (!showBlue) {
+                          return (
+                            <div
+                              key={`${item.district}-${i}`}
+                              className="flex items-center gap-1 min-w-0"
+                            >
+                              <div
+                                className="flex-1 min-w-0 h-[14px] flex items-center px-1.5 overflow-hidden"
+                                style={{ backgroundColor: tone.track }}
+                              >
+                                <span
+                                  className="text-[9px] font-semibold tabular-nums truncate"
+                                  style={{ color: tone.trackText }}
+                                >
+                                  {m.topLabel}
+                                </span>
+                              </div>
+                              {m.topRight != null && (
+                                <span
+                                  className="text-[9px] font-medium tabular-nums shrink-0 w-9 text-right"
+                                  style={{ color: tone.trackText }}
+                                >
+                                  {m.topRight}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div key={`${item.district}-${i}`} className="min-w-0">
+                            <div className="flex items-center gap-1 mb-1 min-w-0">
+                              <div
+                                className="flex-1 min-w-0 h-[14px] flex items-center px-1.5 overflow-hidden"
+                                style={{ backgroundColor: tone.track }}
+                              >
+                                <span
+                                  className="text-[9px] font-semibold tabular-nums truncate"
+                                  style={{ color: tone.trackText }}
+                                >
+                                  {m.topLabel}
+                                </span>
+                              </div>
+                              {m.topRight != null && (
+                                <span
+                                  className="text-[9px] font-medium tabular-nums shrink-0 w-9 text-right"
+                                  style={{ color: tone.trackText }}
+                                >
+                                  {m.topRight}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1 w-full min-w-0">
+                              <div
+                                className="flex-1 min-w-0 h-[14px] overflow-hidden"
+                                style={{ backgroundColor: tone.fillTrack }}
+                              >
+                                <div
+                                  className="h-full flex items-center px-1.5 overflow-hidden"
+                                  style={{
+                                    width: `${fillPct}%`,
+                                    backgroundColor: tone.fill,
+                                  }}
+                                >
+                                  {m.bottomLabel != null && (
+                                    <span className="text-[9px] font-semibold text-white whitespace-nowrap truncate">
+                                      {m.bottomLabel}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              {m.bottomRight != null && (
+                                <span
+                                  className="text-[9px] font-medium tabular-nums shrink-0 w-9 text-right"
+                                  style={{ color: tone.trackText }}
+                                >
+                                  {m.bottomRight}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                    <span className="text-[9px] font-medium text-[#5B6575] tabular-nums shrink-0">
-                      {item.percent.toFixed(2)}%
-                    </span>
-                  </div>
-                </button>
-              );
-            })}
+                  </button>
+                );
+              })
+            )}
           </div>
         </div>
       </div>
     </div>
   );
 };
+
+export default MapRegionalOverviewWidgetV2;

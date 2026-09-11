@@ -94,8 +94,8 @@ export const useDashboardFilters = (
     () => [...new Set(
       (demographics?.byGender ?? [])
         .map((r) => r.gender ? r.gender.charAt(0).toUpperCase() + r.gender.slice(1).toLowerCase() : "")
-        .filter(Boolean)
-    )],
+        .filter((g) => g && g !== "Ntizwi"),
+    )].sort(),
     [demographics],
   );
 

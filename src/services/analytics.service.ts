@@ -142,6 +142,303 @@ export const getDashboardSummary = async (qs: string = ""): Promise<
   return (await api.get(withQuery("/export/dashboard/summary", qs))).data;
 };
 
+/** Admin Dashboard V2 — dedicated KPI cards (filter-aware). */
+export const getDashboardV2Kpis = async (
+  qs: string = "",
+): Promise<
+  IResponse<{
+    cards: Array<{
+      title: string;
+      value: number;
+      max: number;
+      unit: string;
+      growth: string;
+      growthPositive: boolean;
+      icon: "users" | "courses" | "engagement" | "health";
+      breakdown: Array<{
+        label: string;
+        value: number;
+        valueMax?: number;
+        percent?: string;
+      }>;
+    }>;
+  }>
+> => {
+  return (await api.get(withQuery("/export/dashboard/v2/kpis", qs))).data;
+};
+
+/** Admin Dashboard V2 — Assessment Test Attempts (filter-aware). */
+export const getDashboardV2AssessmentAttempts = async (
+  qs: string = "",
+): Promise<
+  IResponse<{
+    totalTests: number;
+    bars: Array<{
+      key: "pre" | "mid" | "post" | "cert";
+      name: string;
+      tests: number;
+      sharePercent: number;
+      avgScore: number;
+      variation: number;
+      variationPositive: boolean;
+    }>;
+    segments: Array<{ name: string; value: number; color: string }>;
+  }>
+> => {
+  return (
+    await api.get(withQuery("/export/dashboard/v2/assessment-attempts", qs))
+  ).data;
+};
+
+/** Admin Dashboard V2 — Engagement chart by course domain (filter-aware). */
+export const getDashboardV2Engagement = async (
+  qs: string = "",
+): Promise<
+  IResponse<{
+    timeframe: "today" | "week" | "month" | "year";
+    domains: Array<{ key: string; name: string; color: string }>;
+    series: Array<Record<string, string | number>>;
+    yMax: number;
+  }>
+> => {
+  return (await api.get(withQuery("/export/dashboard/v2/engagement", qs))).data;
+};
+
+/** Admin Dashboard V2 — Certificates donut by course (filter-aware). */
+export const getDashboardV2Certificates = async (
+  qs: string = "",
+): Promise<
+  IResponse<{
+    timeframe: "today" | "week" | "month" | "year" | "all";
+    total: number;
+    rows: Array<{
+      key: string;
+      name: string;
+      color: string;
+      avgAttempts: number;
+      certificates: number;
+      downloads: number;
+    }>;
+  }>
+> => {
+  return (await api.get(withQuery("/export/dashboard/v2/certificates", qs)))
+    .data;
+};
+
+/** Admin Dashboard V2 — Program Courses grid (filter-aware). */
+export const getDashboardV2ProgramCourses = async (
+  qs: string = "",
+): Promise<
+  IResponse<{
+    totalCount: number;
+    items: Array<{
+      id: string;
+      title: string;
+      iconColor: string;
+      chapters: number;
+      sections: number;
+      mediaFiles: number;
+      questions: number;
+      enrollments: number;
+      attempts: number;
+      certificates: number;
+      growth: string;
+      growthPositive: boolean;
+      createdAt: string;
+    }>;
+  }>
+> => {
+  return (await api.get(withQuery("/export/dashboard/v2/program-courses", qs)))
+    .data;
+};
+
+/** Admin Dashboard V2 — AI Recommendations (filter-aware). */
+export const getDashboardV2AiRecommendations = async (
+  qs: string = "",
+): Promise<
+  IResponse<{
+    items: Array<{
+      courseId: string;
+      title: string;
+      score: number;
+      chapters: number;
+      candidates: number;
+      recommendedChapters: Array<{
+        chapterId: string;
+        title: string;
+        chapterNumber: number;
+        recommendationCount: number;
+        highSeverityCount: number;
+        topReason: string;
+      }>;
+    }>;
+  }>
+> => {
+  return (
+    await api.get(withQuery("/export/dashboard/v2/ai-recommendations", qs))
+  ).data;
+};
+
+/** Admin Dashboard V2 — Schedule calendar (filter-aware). */
+export const getDashboardV2Schedule = async (
+  qs: string = "",
+): Promise<
+  IResponse<{
+    timeframe: "today" | "week" | "month" | "year";
+    items: Array<{
+      id: string;
+      time: string;
+      badge: string;
+      title: string;
+      active: boolean;
+      startAt: string;
+    }>;
+  }>
+> => {
+  return (await api.get(withQuery("/export/dashboard/v2/schedule", qs))).data;
+};
+
+/** Admin Dashboard V2 — Recent activities (filter-aware). */
+export const getDashboardV2RecentActivities = async (
+  qs: string = "",
+): Promise<
+  IResponse<{
+    group: string;
+    items: Array<{
+      id: string;
+      text: string;
+      time: string;
+      timestamp: string;
+    }>;
+  }>
+> => {
+  return (
+    await api.get(withQuery("/export/dashboard/v2/recent-activities", qs))
+  ).data;
+};
+
+/** Admin Dashboard V2 — CHW Demographics performance analysis (filter-aware). */
+export const getDashboardV2DemographicsPerformance = async (
+  qs: string = "",
+): Promise<
+  IResponse<{
+    period: "weekly" | "monthly" | "yearly";
+    rows: Array<{
+      id: string;
+      title: string;
+      level: string;
+      coverIcon: string;
+      enrollment: number;
+      completion: number;
+      avgCompletionTime: string;
+      preTest: string;
+      midTest: string;
+      postTest: string;
+      certificate: number;
+    }>;
+  }>
+> => {
+  return (
+    await api.get(
+      withQuery("/export/dashboard/v2/demographics-performance", qs),
+    )
+  ).data;
+};
+
+/** Admin Dashboard V2 — Knowledge gain table + chart (filter-aware). */
+export const getDashboardV2KnowledgeGain = async (
+  qs: string = "",
+): Promise<
+  IResponse<{
+    rows: Array<{
+      id: string;
+      idNo: string;
+      name: string;
+      course: string;
+      healthCenter: string;
+      preScore: number;
+      postScore: number;
+      gain: number;
+    }>;
+    chart: Array<{
+      label: string;
+      courseId: string;
+      preTest: number;
+      postTest: number;
+      gain: number;
+      sampleSize: number;
+    }>;
+  }>
+> => {
+  return (
+    await api.get(withQuery("/export/dashboard/v2/knowledge-gain", qs))
+  ).data;
+};
+
+/** Admin Dashboard V2 — Enrollment trends (filter-aware). */
+export const getDashboardV2EnrollmentTrends = async (
+  qs: string = "",
+): Promise<
+  IResponse<{
+    timeframe: "weekly" | "monthly" | "quarterly";
+    series: Array<{
+      label: string;
+      activeEnrollments: number;
+      certifications: number;
+      enrollments: number;
+      completions: number;
+    }>;
+  }>
+> => {
+  return (
+    await api.get(withQuery("/export/dashboard/v2/enrollment-trends", qs))
+  ).data;
+};
+
+/** Admin Dashboard V2 — Course ratings (filter-aware). */
+export const getDashboardV2CourseRatings = async (
+  qs: string = "",
+): Promise<
+  IResponse<{
+    sort: "most" | "least";
+    items: Array<{
+      id: string;
+      title: string;
+      coverIcon: string;
+      rating: number;
+      reviewCount: number;
+    }>;
+  }>
+> => {
+  return (
+    await api.get(withQuery("/export/dashboard/v2/course-ratings", qs))
+  ).data;
+};
+
+/** Admin Dashboard V2 — Map regional overview (filter-aware). */
+export const getDashboardV2MapOverview = async (
+  qs: string = "",
+): Promise<
+  IResponse<{
+    districts: Array<{
+      district: string;
+      totalChws: number;
+      enrollments: number;
+      completions: number;
+      completionRate: number;
+      certifications: number;
+      certificationRate: number;
+      healthCentersCount: number;
+      avgFinalTestScore: number;
+      avgFinalExamScore: number;
+    }>;
+  }>
+> => {
+  return (
+    await api.get(withQuery("/export/dashboard/v2/map-overview", qs))
+  ).data;
+};
+
 /** Deep adoption charts (one filter-aware call). */
 export const getDashboardAdoption = async (qs: string = ""): Promise<
   IResponse<{

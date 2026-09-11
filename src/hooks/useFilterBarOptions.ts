@@ -43,9 +43,10 @@ export const useFilterBarOptions = (filters: IDashboardFilters) => {
                   ? r.gender.charAt(0).toUpperCase() + r.gender.slice(1).toLowerCase()
                   : "",
               )
-              .filter(Boolean),
+              // "Ntizwi" = unknown/missing gender bucket from demographics — not a real filter
+              .filter((g) => g && g !== "Ntizwi"),
           ),
-        ];
+        ].sort();
       }
 
       const months: string[] = [];

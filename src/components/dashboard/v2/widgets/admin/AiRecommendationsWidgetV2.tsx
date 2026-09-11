@@ -1,10 +1,10 @@
-import React from "react";
-import { SECTION3_AI_RECOMMENDATIONS } from "./section3DesignData";
+import React, { useState } from "react";
+import { ChevronDown } from "lucide-react";
+import { useAdminDashboardFilters } from "../../AdminDashboardFiltersContext";
+import { useAdminDashboardV2AiRecommendations } from "@/hooks/useAdminDashboardV2AiRecommendations";
+import { ListSkeleton } from "./AdminWidgetSkeleton";
 
 interface AiRecommendationsWidgetV2Props {
-  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-  recommendations?: any[];
-  useDesignDummy?: boolean;
   /** When true, omit outer card chrome (used inside shared Section 3 shell) */
   embedded?: boolean;
 }
@@ -41,16 +41,18 @@ const ScoreRing: React.FC<{ score: number }> = ({ score }) => {
         />
       </svg>
       <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-[#3363AD] tabular-nums">
-        {score}%
+        {Math.round(score)}%
       </span>
     </div>
   );
 };
 
-export const AiRecommendationsWidgetV2: React.FC<AiRecommendationsWidgetV2Props> = ({
-  embedded = false,
-}) => {
-  const list = SECTION3_AI_RECOMMENDATIONS;
+export const AiRecommendationsWidgetV2: React.FC<
+  AiRecommendationsWidgetV2Props
+> = ({ embedded = false }) => {
+  const { filters } = useAdminDashboardFilters();
+  const { items, isLoading } = useAdminDashboardV2AiRecommendations(filters);
+  const [openCourseId, setOpenCourseId] = useState<string | null>(null);
 
   const shell = embedded
     ? "flex flex-col w-full h-full min-h-0 p-3.5"
@@ -71,24 +73,70 @@ export const AiRecommendationsWidgetV2: React.FC<AiRecommendationsWidgetV2Props>
           [&::-webkit-scrollbar-thumb]:bg-[#A8B8C8]
           [&::-webkit-scrollbar-thumb]:rounded-full"
       >
-        {list.map((item, idx) => (
-          <div
-            key={`${item.title}-${idx}`}
-            className="flex items-center gap-2 p-2 rounded-[10px] bg-[#E8F0F8] hover:bg-[#DDE8F3] transition-colors cursor-pointer"
-          >
-            <ScoreRing score={item.score} />
-            <div className="min-w-0">
-              <p className="text-[11px] font-bold text-[#1A2332] tracking-tight truncate">
-                {item.title}
-              </p>
-              <p className="text-[9px] font-medium text-[#5B6575] mt-0.5 truncate">
-                {item.chapters} Chapters
-                <span className="text-[#4B82BA] mx-1">•</span>
-                {item.candidates} Candidates
-              </p>
-            </div>
+        {isLoading && items.length === 0 ? (
+          <ListSkeleton rows={5} />
+        ) : items.length === 0 ? (
+          <div className="py-8 text-center text-[12px] text-[#9AA3B2]">
+            No recommendations for current filters
           </div>
-        ))}
+        ) : (
+          items.map((item) => {
+            const open = openCourseId === item.courseId;
+            return (
+              <div key={item.courseId} className="rounded-[10px] bg-[#E8F0F8]">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setOpenCourseId(open ? null : item.courseId)
+                  }
+                  className="w-full flex items-center gap-2 p-2 rounded-[10px] hover:bg-[#DDE8F3] transition-colors cursor-pointer text-left"
+                >
+                  <ScoreRing score={item.score} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11px] font-bold text-[#1A2332] tracking-tight truncate">
+                      {item.title}
+                    </p>
+                    <p className="text-[9px] font-medium text-[#5B6575] mt-0.5 truncate">
+                      {item.chapters} Chapters
+                      <span className="text-[#4B82BA] mx-1">•</span>
+                      {item.candidates} Candidates
+                    </p>
+                  </div>
+                  <ChevronDown
+                    size={14}
+                    className={`shrink-0 text-[#5B6575] transition-transform ${
+                      open ? "rotate-180" : ""
+                    }`}
+                  />
+                </button>
+
+                {open && item.recommendedChapters.length > 0 && (
+                  <div className="px-1 pb-2 pt-0 space-y-1">
+                    {item.recommendedChapters.map((ch) => (
+                      <div
+                        key={ch.chapterId}
+                        className="ml-10 rounded-lg bg-white/80 border border-[#D5E0EB] px-2.5 py-1.5"
+                      >
+                        <p className="text-[10px] font-semibold text-[#1A2332] truncate">
+                          {ch.title}
+                        </p>
+                        <p className="text-[9px] font-medium text-[#5B6575] mt-0.5">
+                          {ch.recommendationCount} flags
+                          {ch.highSeverityCount > 0 && (
+                            <>
+                              <span className="text-[#4B82BA] mx-1">•</span>
+                              {ch.highSeverityCount} high
+                            </>
+                          )}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );

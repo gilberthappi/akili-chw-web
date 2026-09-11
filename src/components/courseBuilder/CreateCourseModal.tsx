@@ -14,6 +14,7 @@ interface CreateCourseModalProps {
 const INITIAL_FORM_STATE: CourseCreationForm = {
   title: "",
   shortName: "",
+  level: "BEGINNER",
   description: "",
   coverIcon: "",
 };
@@ -109,6 +110,7 @@ export default function CreateCourseModal({
       ...formData,
       title: formData.title.trim(),
       shortName: formData.shortName?.trim() || "",
+      level: formData.level ?? "BEGINNER",
       description: formData.description.trim(),
     });
     setFormData(INITIAL_FORM_STATE);
@@ -138,8 +140,8 @@ export default function CreateCourseModal({
             </h2>
             <p className="mt-2 max-w-2xl text-sm text-white/85 sm:text-base">
               {mode === "edit"
-                ? "Update the course title, short name, description, and icon below."
-                : "Add the course title, an optional short name for dashboards, write a clear description, and upload a real icon image."}
+                ? "Update the course title, short name, level, description, and icon below."
+                : "Add the course title, level, an optional short name for dashboards, write a clear description, and upload a real icon image."}
             </p>
           </div>
           <button
@@ -184,6 +186,29 @@ export default function CreateCourseModal({
               />
               <p className="text-xs text-slate-500">
                 Used on dashboard charts instead of the full title. Keep it short.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-slate-800">
+                Course level
+              </label>
+              <select
+                value={formData.level ?? "BEGINNER"}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    level: e.target.value as CourseCreationForm["level"],
+                  })
+                }
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-orange-400 focus:bg-white focus:ring-4 focus:ring-orange-100"
+              >
+                <option value="BEGINNER">Beginner</option>
+                <option value="INTERMEDIATE">Intermediate</option>
+                <option value="ADVANCED">Advanced</option>
+              </select>
+              <p className="text-xs text-slate-500">
+                Shown on CHW Demographics performance analysis. Defaults to Beginner.
               </p>
             </div>
 
@@ -311,6 +336,13 @@ export default function CreateCourseModal({
                         Chart label: {formData.shortName.trim()}
                       </p>
                     ) : null}
+                    <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-sky-200">
+                      {(formData.level ?? "BEGINNER") === "INTERMEDIATE"
+                        ? "Intermediate"
+                        : (formData.level ?? "BEGINNER") === "ADVANCED"
+                          ? "Advanced"
+                          : "Beginner"}
+                    </p>
                     <p className="mt-2 text-sm leading-6 text-white/75 line-clamp-4">
                       {formData.description || "A short course description helps the card feel complete."}
                     </p>

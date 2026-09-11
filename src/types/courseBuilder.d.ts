@@ -45,6 +45,8 @@ export interface CourseBuilderData {
   id: string;
   title: string;
   shortName?: string | null;
+  /** BEGINNER | INTERMEDIATE | ADVANCED */
+  level?: "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
   description: string;
   coverIcon: string; // uploaded image URL/data URL or legacy icon value
   sections: CourseSection[];
@@ -61,6 +63,8 @@ export interface CourseBuilderData {
 export interface CourseCreationForm {
   title: string;
   shortName?: string;
+  /** BEGINNER | INTERMEDIATE | ADVANCED — default BEGINNER */
+  level?: "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
   description: string;
   coverIcon: string;
 }

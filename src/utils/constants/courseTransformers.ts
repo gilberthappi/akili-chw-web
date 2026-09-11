@@ -52,6 +52,7 @@ export interface CourseSectionForm extends Omit<ISection, 'id' | 'courseId' | 'c
 export interface CourseFormData {
   title: string;
   shortName?: string;
+  level?: "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
   coverIcon: string;
   description: string;
   isPublished: boolean;
@@ -87,6 +88,8 @@ export const transformCourseToFormData = (course: ICourse): CourseFormData => {
   );
   return {
     title: course.title,
+    shortName: course.shortName ?? "",
+    level: course.level ?? "BEGINNER",
     coverIcon: course.coverIcon,
     description: course.description,
     isPublished: course.isPublished,
@@ -226,6 +229,8 @@ export const transformQuestionnaireToActivity = (questionnaire: IQuestionnaire):
 export const transformFormDataToCourse = (formData: CourseFormData): Record<string, unknown> => {
   return {
     title: formData.title,
+    shortName: formData.shortName?.trim() || null,
+    level: formData.level ?? "BEGINNER",
     coverIcon: formData.coverIcon,
     description: formData.description,
     isPublished: formData.isPublished,

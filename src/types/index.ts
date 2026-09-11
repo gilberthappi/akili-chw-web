@@ -644,6 +644,7 @@ export interface ICourse {
   creatorId: string;
   title: string;
   shortName?: string | null;
+  level?: "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
   rating: number;
   coverIcon: string;
   description: string;

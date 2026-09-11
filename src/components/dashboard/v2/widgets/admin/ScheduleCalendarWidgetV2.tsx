@@ -1,16 +1,13 @@
 import React, { useState } from "react";
 import { CalendarDays, ChevronDown } from "lucide-react";
-import { SECTION3_SCHEDULE } from "./section3DesignData";
+import { useAdminDashboardFilters } from "../../AdminDashboardFiltersContext";
+import { useAdminDashboardV2Schedule } from "@/hooks/useAdminDashboardV2Schedule";
+import { ListSkeleton } from "./AdminWidgetSkeleton";
 
-interface ScheduleCalendarWidgetV2Props {
-  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-  events?: any[];
-  useDesignDummy?: boolean;
-}
-
-export const ScheduleCalendarWidgetV2: React.FC<ScheduleCalendarWidgetV2Props> = () => {
+export const ScheduleCalendarWidgetV2: React.FC = () => {
+  const { filters } = useAdminDashboardFilters();
   const [timeframe, setTimeframe] = useState("Today");
-  const meetings = SECTION3_SCHEDULE;
+  const { items, isLoading } = useAdminDashboardV2Schedule(filters, timeframe);
 
   return (
     <div className="bg-white rounded-[20px] border border-[#C8D6E3] p-3.5 flex flex-col w-full h-full shrink-0 overflow-hidden">
@@ -49,44 +46,51 @@ export const ScheduleCalendarWidgetV2: React.FC<ScheduleCalendarWidgetV2Props> =
           [&::-webkit-scrollbar-thumb]:bg-[#A8B8C8]
           [&::-webkit-scrollbar-thumb]:rounded-full"
       >
-        {/* Dashed timeline rail */}
         <div
           className="absolute left-[4.35rem] top-3 bottom-3 w-0 border-l border-dashed border-[#7BA3D4]"
           aria-hidden
         />
 
-        <div className="space-y-2.5">
-          {meetings.map((m, idx) => {
-            const isActive = "active" in m && m.active;
+        {isLoading && items.length === 0 ? (
+          <ListSkeleton rows={5} />
+        ) : items.length === 0 ? (
+          <div className="py-10 text-center text-[12px] text-[#9AA3B2]">
+            No meetings in this period
+          </div>
+        ) : (
+          <div className="space-y-2.5">
+            {items.map((m) => {
+              const isActive = Boolean(m.active);
 
-            return (
-              <div key={`${m.time}-${idx}`} className="flex items-center gap-2.5">
-                <span className="w-[3.5rem] shrink-0 text-[10px] font-semibold text-[#5B6575] tabular-nums text-right leading-none">
-                  {m.time}
-                </span>
+              return (
+                <div key={m.id} className="flex items-center gap-2.5">
+                  <span className="w-[3.5rem] shrink-0 text-[10px] font-semibold text-[#5B6575] tabular-nums text-right leading-none">
+                    {m.time}
+                  </span>
 
-                <div className="relative shrink-0 w-3 flex items-center justify-center z-10">
-                  <span
-                    className={`rounded-full bg-[#3363AD] ${
-                      isActive
-                        ? "w-3.5 h-3.5 ring-2 ring-[#3363AD]/25"
-                        : "w-2 h-2"
-                    }`}
-                  />
+                  <div className="relative shrink-0 w-3 flex items-center justify-center z-10">
+                    <span
+                      className={`rounded-full bg-[#3363AD] ${
+                        isActive
+                          ? "w-3.5 h-3.5 ring-2 ring-[#3363AD]/25"
+                          : "w-2 h-2"
+                      }`}
+                    />
+                  </div>
+
+                  <div className="flex-1 min-w-0 rounded-[10px] bg-[#E8F0F8] hover:bg-[#DDE8F3] px-2.5 py-2 transition-colors cursor-pointer">
+                    <p className="text-[11px] font-bold text-[#1A2332] leading-tight">
+                      {m.badge}
+                    </p>
+                    <p className="text-[10px] font-medium text-[#5B6575] leading-snug mt-0.5">
+                      {m.title}
+                    </p>
+                  </div>
                 </div>
-
-                <div className="flex-1 min-w-0 rounded-[10px] bg-[#E8F0F8] hover:bg-[#DDE8F3] px-2.5 py-2 transition-colors cursor-pointer">
-                  <p className="text-[11px] font-bold text-[#1A2332] leading-tight">
-                    {m.badge}
-                  </p>
-                  <p className="text-[10px] font-medium text-[#5B6575] leading-snug mt-0.5">
-                    {m.title}
-                  </p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
