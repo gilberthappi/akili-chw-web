@@ -97,15 +97,19 @@ const RoutesProvider = () => {
       children: [
         {
           index: true,
+          element: <DashboardV2 />,
+        },
+        {
+          path: "classic",
           element: <Dashboard />,
         },
         {
           path: "v2",
-          element: <DashboardV2 />,
+          element: <Navigate to="/" replace />,
         },
         {
           path: "new",
-          element: <DashboardV2 />,
+          element: <Navigate to="/" replace />,
         },
         {
           path: "analytics",

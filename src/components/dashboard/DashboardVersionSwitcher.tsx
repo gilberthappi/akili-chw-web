@@ -10,7 +10,7 @@ export const DashboardVersionSwitcher: React.FC<{
 }> = ({ className = "", onCanvas = false }) => {
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const isV2 = pathname === "/v2" || pathname === "/new";
+  const isV2 = pathname !== "/classic";
 
   const shell = onCanvas
     ? "bg-white/90 border-[#D7E3F0] shadow-sm backdrop-blur-sm"
@@ -27,25 +27,26 @@ export const DashboardVersionSwitcher: React.FC<{
       role="group"
       aria-label="Dashboard version"
     >
+
       <button
         type="button"
         onClick={() => navigate("/")}
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] font-semibold transition-colors cursor-pointer ${
+          isV2 ? active : idle
+        }`}
+      >
+        <Sparkles size={12} />
+        Beta
+      </button>
+      <button
+        type="button"
+        onClick={() => navigate("/classic")}
         className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] font-semibold transition-colors cursor-pointer ${
           !isV2 ? active : idle
         }`}
       >
         <LayoutDashboard size={12} />
         Classic
-      </button>
-      <button
-        type="button"
-        onClick={() => navigate("/v2")}
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] font-semibold transition-colors cursor-pointer ${
-          isV2 ? active : idle
-        }`}
-      >
-        <Sparkles size={12} />
-        New
       </button>
     </div>
   );
