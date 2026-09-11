@@ -104,8 +104,9 @@ export const LEARNER_MGMT_ROLES: UserRole[] = [
   ...STAFF_ROLES,
 ];
 
-/** Health Centers — RBC + SFH only (no STAFF/ADMIN aliases so WelTel cannot inherit in). */
+/** Health Centers — platform ADMIN + RBC/SFH/CEHO (no STAFF/WelTel aliases). */
 export const HEALTH_CENTER_ROLES: UserRole[] = [
+  "ADMIN",
   "RBC_COORDINATOR",
   "RBC_ANALYST",
   "SFH_COORDINATOR",

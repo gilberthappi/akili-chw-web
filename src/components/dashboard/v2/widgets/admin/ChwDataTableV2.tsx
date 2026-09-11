@@ -1,9 +1,16 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowUpDown, ChevronDown, Clock3 } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  ChevronDown,
+  Clock3,
+} from "lucide-react";
 import { useAdminDashboardFilters } from "../../AdminDashboardFiltersContext";
 import {
   DemographicsLocalFilters,
+  DemographicsPerformanceRow,
   useAdminDashboardV2DemographicsPerformance,
 } from "@/hooks/useAdminDashboardV2DemographicsPerformance";
 import { PROVINCE_DISTRICTS } from "@/utils/constants/provinceDistricts";
@@ -25,6 +32,58 @@ const EMPTY_LOCAL: DemographicsLocalFilters = {
   educationLevel: "",
   district: "",
   healthCenterId: "",
+};
+
+type SortKey =
+  | "title"
+  | "enrollment"
+  | "completion"
+  | "avgCompletionTime"
+  | "preTest"
+  | "midTest"
+  | "postTest"
+  | "certificate";
+
+type SortDir = "asc" | "desc";
+
+const HEADERS: { label: string; key: SortKey }[] = [
+  { label: "Course Name", key: "title" },
+  { label: "Enrollment", key: "enrollment" },
+  { label: "Completion", key: "completion" },
+  { label: "Time period", key: "avgCompletionTime" },
+  { label: "Pre Test", key: "preTest" },
+  { label: "Mid Test", key: "midTest" },
+  { label: "Post Test", key: "postTest" },
+  { label: "Certificates", key: "certificate" },
+];
+
+/** Parse "74%", "9d", "12 days", plain numbers → comparable float. */
+const toSortNumber = (value: string | number): number => {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  const cleaned = value.replace(/,/g, "").trim();
+  const match = cleaned.match(/-?\d+(\.\d+)?/);
+  return match ? Number(match[0]) : 0;
+};
+
+const compareRows = (
+  a: DemographicsPerformanceRow,
+  b: DemographicsPerformanceRow,
+  key: SortKey,
+  dir: SortDir,
+): number => {
+  const mul = dir === "asc" ? 1 : -1;
+  if (key === "title") {
+    return (
+      mul *
+      a.title.localeCompare(b.title, undefined, { sensitivity: "base" })
+    );
+  }
+  const av = toSortNumber(a[key]);
+  const bv = toSortNumber(b[key]);
+  if (av === bv) {
+    return a.title.localeCompare(b.title, undefined, { sensitivity: "base" });
+  }
+  return mul * (av - bv);
 };
 
 const FilterSelect: React.FC<{
@@ -149,16 +208,24 @@ export const ChwDataTableV2: React.FC = () => {
     "Yearly",
   );
 
-  const headers = [
-    "Course Name",
-    "Enrollment",
-    "Completion",
-    "Time period",
-    "Pre Test",
-    "Mid Test",
-    "Post Test",
-    "Certificates",
-  ] as const;
+  const [sortKey, setSortKey] = useState<SortKey>("enrollment");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  const sortedRows = useMemo(() => {
+    const next = [...rows];
+    next.sort((a, b) => compareRows(a, b, sortKey, sortDir));
+    return next;
+  }, [rows, sortKey, sortDir]);
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortKey(key);
+    // Metrics default to high→low; course name to A→Z.
+    setSortDir(key === "title" ? "asc" : "desc");
+  };
 
   const setLocalField = (key: keyof DemographicsLocalFilters, value: string) => {
     setLocal((prev) => {
@@ -224,44 +291,64 @@ export const ChwDataTableV2: React.FC = () => {
         <table className="w-full text-left border-collapse min-w-[920px]">
           <thead>
             <tr className="bg-[#E8F0F8] text-[10px] font-bold text-[#5B6575]">
-              {headers.map((label, i) => (
-                <th
-                  key={`${label}-${i}`}
-                  className={`py-2.5 px-2.5 whitespace-nowrap ${
-                    i === 0 ? "rounded-tl-[12px] text-left" : "text-center"
-                  } ${i === headers.length - 1 ? "rounded-tr-[12px]" : ""}`}
-                >
-                  <div
-                    className={`inline-flex items-center gap-1 ${
-                      i === 0 ? "" : "justify-center w-full"
-                    }`}
+              {HEADERS.map(({ label, key }, i) => {
+                const active = sortKey === key;
+                const SortIcon = !active
+                  ? ArrowUpDown
+                  : sortDir === "asc"
+                    ? ArrowUp
+                    : ArrowDown;
+                return (
+                  <th
+                    key={key}
+                    className={`py-2.5 px-2.5 whitespace-nowrap ${
+                      i === 0 ? "rounded-tl-[12px] text-left" : "text-center"
+                    } ${i === HEADERS.length - 1 ? "rounded-tr-[12px]" : ""}`}
                   >
-                    <span>{label}</span>
-                    <ArrowUpDown size={11} className="text-[#9AA3B2]" />
-                  </div>
-                </th>
-              ))}
+                    <button
+                      type="button"
+                      onClick={() => toggleSort(key)}
+                      className={`inline-flex items-center gap-1 cursor-pointer select-none hover:text-[#1A2332] transition-colors ${
+                        i === 0 ? "" : "justify-center w-full"
+                      } ${active ? "text-[#3363AD]" : ""}`}
+                      aria-label={`Sort by ${label} ${
+                        active
+                          ? sortDir === "asc"
+                            ? "descending"
+                            : "ascending"
+                          : "descending"
+                      }`}
+                    >
+                      <span>{label}</span>
+                      <SortIcon
+                        size={11}
+                        className={active ? "text-[#3363AD]" : "text-[#9AA3B2]"}
+                      />
+                    </button>
+                  </th>
+                );
+              })}
             </tr>
           </thead>
 
           <tbody>
             {isLoading && rows.length === 0 ? (
               <tr>
-                <td colSpan={headers.length} className="p-2">
-                  <TableSkeleton rows={8} cols={headers.length} />
+                <td colSpan={HEADERS.length} className="p-2">
+                  <TableSkeleton rows={8} cols={HEADERS.length} />
                 </td>
               </tr>
-            ) : rows.length === 0 ? (
+            ) : sortedRows.length === 0 ? (
               <tr>
                 <td
-                  colSpan={headers.length}
+                  colSpan={HEADERS.length}
                   className="py-10 text-center text-[12px] text-[#9AA3B2]"
                 >
                   No courses match these filters
                 </td>
               </tr>
             ) : (
-              rows.map((row) => (
+              sortedRows.map((row) => (
                 <tr
                   key={row.id}
                   className="border-t border-[#E8EEF4] hover:bg-[#F8FBFF] transition-colors"
