@@ -228,16 +228,12 @@ export const ChwDataTableV2: React.FC = () => {
                 <th
                   key={`${label}-${i}`}
                   className={`py-2.5 px-2.5 whitespace-nowrap ${
-                    i === 0 ? "rounded-tl-[12px]" : ""
-                  } ${
-                    i === headers.length - 1
-                      ? "rounded-tr-[12px] text-right"
-                      : ""
-                  }`}
+                    i === 0 ? "rounded-tl-[12px] text-left" : "text-center"
+                  } ${i === headers.length - 1 ? "rounded-tr-[12px]" : ""}`}
                 >
                   <div
                     className={`inline-flex items-center gap-1 ${
-                      i === headers.length - 1 ? "justify-end w-full" : ""
+                      i === 0 ? "" : "justify-center w-full"
                     }`}
                   >
                     <span>{label}</span>
@@ -296,31 +292,31 @@ export const ChwDataTableV2: React.FC = () => {
                     </div>
                   </td>
 
-                  <td className="py-2.5 px-2.5 text-[11px] font-semibold text-[#1A2332] tabular-nums">
+                  <td className="py-2.5 px-2.5 text-center text-[11px] font-semibold text-[#1A2332] tabular-nums">
                     {row.enrollment}
                   </td>
 
-                  <td className="py-2.5 px-2.5 text-[11px] font-semibold text-[#1A2332] tabular-nums">
+                  <td className="py-2.5 px-2.5 text-center text-[11px] font-semibold text-[#1A2332] tabular-nums">
                     {row.completion}
                   </td>
 
-                  <td className="py-2.5 px-2.5">
-                    <div className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#1A2332] tabular-nums whitespace-nowrap">
+                  <td className="py-2.5 px-2.5 text-center">
+                    <div className="inline-flex items-center justify-center gap-1 text-[11px] font-semibold text-[#1A2332] tabular-nums whitespace-nowrap">
                       <Clock3 size={12} className="text-[#3363AD]" />
                       {row.avgCompletionTime}
                     </div>
                   </td>
 
-                  <td className="py-2.5 px-2.5 text-[11px] font-semibold text-[#1A2332] tabular-nums">
+                  <td className="py-2.5 px-2.5 text-center text-[11px] font-semibold text-[#1A2332] tabular-nums">
                     {row.preTest}
                   </td>
-                  <td className="py-2.5 px-2.5 text-[11px] font-semibold text-[#1A2332] tabular-nums">
+                  <td className="py-2.5 px-2.5 text-center text-[11px] font-semibold text-[#1A2332] tabular-nums">
                     {row.midTest}
                   </td>
-                  <td className="py-2.5 px-2.5 text-[11px] font-semibold text-[#1A2332] tabular-nums">
+                  <td className="py-2.5 px-2.5 text-center text-[11px] font-semibold text-[#1A2332] tabular-nums">
                     {row.postTest}
                   </td>
-                  <td className="py-2.5 px-2.5 text-right text-[11px] font-medium text-[#1A2332] whitespace-nowrap">
+                  <td className="py-2.5 px-2.5 text-center text-[11px] font-medium text-[#1A2332] whitespace-nowrap">
                     {row.certificate}
                   </td>
                 </tr>
