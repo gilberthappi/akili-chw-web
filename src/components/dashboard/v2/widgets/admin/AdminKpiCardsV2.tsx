@@ -5,6 +5,7 @@ import {
   Library,
   Lightbulb,
   Hospital,
+  CalendarDays,
   ArrowUp,
   ArrowDown,
 } from "lucide-react";
@@ -24,7 +25,7 @@ export type AdminKpiCardModel = {
   unit: string;
   growth: string;
   growthPositive: boolean;
-  icon: "users" | "courses" | "engagement" | "health";
+  icon: "users" | "courses" | "engagement" | "health" | "activities";
   breakdown: KpiBreakdownItem[];
 };
 
@@ -86,16 +87,30 @@ export const SECTION1_DESIGN_DUMMY: AdminKpiCardModel[] = [
   },
   {
     title: "Health centers",
-    value: 10,
-    max: 120,
+    value: 470,
+    max: 1000,
     unit: "Health centers",
-    growth: "17.69%",
-    growthPositive: false,
+    growth: "47%",
+    growthPositive: true,
     icon: "health",
     breakdown: [
       { label: "Districts covered", value: 13 },
-      { label: "Sectors covered", value: 134 },
-      { label: "Referral & Private entity", value: 13 },
+      { label: "Sectors covered", value: 233 },
+      { label: "Referral & Private entity", value: 147 },
+    ],
+  },
+  {
+    title: "Activities",
+    value: 48,
+    max: 52,
+    unit: "Events",
+    growth: "92.31%",
+    growthPositive: true,
+    icon: "activities",
+    breakdown: [
+      { label: "Upcoming", value: 12 },
+      { label: "Completed", value: 36 },
+      { label: "Participants", value: 214 },
     ],
   },
 ];
@@ -105,6 +120,7 @@ const ICON_MAP = {
   courses: Library,
   engagement: Lightbulb,
   health: Hospital,
+  activities: CalendarDays,
 } as const;
 
 /**
@@ -254,8 +270,8 @@ export const AdminKpiCardsV2: React.FC<AdminKpiCardsV2Props> = ({
 }) => {
   if (isLoading && (!cards || cards.length === 0)) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-0">
-        {[0, 1, 2, 3].map((i) => (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-0">
+        {[0, 1, 2, 3, 4].map((i) => (
           <KpiCardSkeleton key={i} />
         ))}
       </div>
@@ -265,7 +281,7 @@ export const AdminKpiCardsV2: React.FC<AdminKpiCardsV2Props> = ({
   const resolved = cards && cards.length > 0 ? cards : SECTION1_DESIGN_DUMMY;
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-0">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-0">
       {resolved.map((card) => (
         <KpiCard key={card.title} card={card} />
       ))}

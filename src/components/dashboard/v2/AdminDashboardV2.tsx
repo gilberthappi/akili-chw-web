@@ -51,17 +51,15 @@ const AdminDashboardV2Board: React.FC = () => {
         </div>
       </div>
 
+      <AdminKpiCardsV2 cards={cards} isLoading={isLoading} />
+
       {/*
-        Shared columns: left = Eng+Cert width, right = Assessment width.
-        Rows stay aligned without separate flex math drifting.
+        Shared columns: left = Eng+Cert (+ Program/AI) width, right = Assessment / Schedule width.
       */}
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_280px] 2xl:grid-cols-[minmax(0,1fr)_300px] gap-4 xl:items-stretch">
-        <div className="min-w-0 flex flex-col gap-2">
-          <AdminKpiCardsV2 cards={cards} isLoading={isLoading} />
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <EngagementChartWidgetV2 />
-            <CertificatesDonutWidgetV2 />
-          </div>
+        <div className="min-w-0 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <EngagementChartWidgetV2 />
+          <CertificatesDonutWidgetV2 />
         </div>
 
         <div className="min-w-0 flex">
