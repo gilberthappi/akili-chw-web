@@ -3,6 +3,7 @@ import { CalendarDays, ChevronDown } from "lucide-react";
 import { useAdminDashboardFilters } from "../../AdminDashboardFiltersContext";
 import { useAdminDashboardV2Schedule } from "@/hooks/useAdminDashboardV2Schedule";
 import { ListSkeleton } from "./AdminWidgetSkeleton";
+import { V2_CARD_SHELL_PADDED } from "./v2CardStyles";
 
 export const ScheduleCalendarWidgetV2: React.FC = () => {
   const { filters } = useAdminDashboardFilters();
@@ -10,7 +11,7 @@ export const ScheduleCalendarWidgetV2: React.FC = () => {
   const { items, isLoading } = useAdminDashboardV2Schedule(filters, timeframe);
 
   return (
-    <div className="bg-white rounded-[20px] border border-[#C8D6E3] p-3.5 flex flex-col w-full h-full shrink-0 overflow-hidden">
+    <div className={`${V2_CARD_SHELL_PADDED} flex flex-col w-full h-full shrink-0 overflow-hidden`}>
       <div className="flex items-center justify-between gap-3 mb-3 shrink-0">
         <h3 className="text-[14px] font-bold text-[#1A2332] tracking-tight">
           Schedule calendar

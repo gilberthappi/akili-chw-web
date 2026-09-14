@@ -16,12 +16,19 @@ export type DemographicsPerformanceRow = {
   title: string;
   level: string;
   coverIcon: string;
+  chapters?: number;
+  sections?: number;
+  mediaFiles?: number;
+  questions?: number;
   enrollment: number;
+  enrollmentVariation?: string;
+  enrollmentVariationPositive?: boolean;
   completion: number;
   avgCompletionTime: string;
   preTest: string;
   midTest: string;
   postTest: string;
+  knowledgeGain?: string;
   certificate: number;
 };
 

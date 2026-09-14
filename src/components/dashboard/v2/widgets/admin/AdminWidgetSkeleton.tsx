@@ -29,19 +29,8 @@ export const ChartSkeleton: React.FC<{ className?: string }> = ({
 
 /** Donut + legend pulse. */
 export const DonutSkeleton: React.FC = () => (
-  <div className="flex-1 min-h-0 w-full animate-pulse flex items-center gap-4 p-2">
-    <div className="w-[42%] shrink-0 flex items-center justify-center">
-      <div className="w-28 h-28 rounded-full border-[14px] border-[#D7E3F0]" />
-    </div>
-    <div className="flex-1 space-y-3">
-      {[0, 1, 2, 3].map((i) => (
-        <div key={i} className="flex items-center gap-2">
-          <div className={`${bone} w-2.5 h-2.5 shrink-0`} />
-          <div className={`${bone} h-2.5 flex-1`} />
-          <div className={`${bone} h-2.5 w-8`} />
-        </div>
-      ))}
-    </div>
+  <div className="flex-1 min-h-0 w-full animate-pulse flex items-center justify-center p-2">
+    <div className="w-[min(100%,11rem)] aspect-square rounded-full border-[14px] border-[#D7E3F0]" />
   </div>
 );
 

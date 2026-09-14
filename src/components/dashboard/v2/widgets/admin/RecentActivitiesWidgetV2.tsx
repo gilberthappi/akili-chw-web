@@ -3,6 +3,7 @@ import { UserCheck, Activity } from "lucide-react";
 import { useAdminDashboardFilters } from "../../AdminDashboardFiltersContext";
 import { useAdminDashboardV2RecentActivities } from "@/hooks/useAdminDashboardV2RecentActivities";
 import { ListSkeleton } from "./AdminWidgetSkeleton";
+import { V2_CARD_SHELL_PADDED } from "./v2CardStyles";
 
 export const RecentActivitiesWidgetV2: React.FC = () => {
   const { filters } = useAdminDashboardFilters();
@@ -10,7 +11,7 @@ export const RecentActivitiesWidgetV2: React.FC = () => {
     useAdminDashboardV2RecentActivities(filters);
 
   return (
-    <div className="bg-white rounded-[20px] border border-[#C8D6E3] p-3.5 flex flex-col w-full h-full min-h-0 overflow-hidden shrink-0">
+    <div className={`${V2_CARD_SHELL_PADDED} flex flex-col w-full h-full min-h-0 overflow-hidden shrink-0`}>
       <h3 className="text-[14px] font-bold text-[#1A2332] tracking-tight shrink-0 mb-2">
         Recent activities
       </h3>

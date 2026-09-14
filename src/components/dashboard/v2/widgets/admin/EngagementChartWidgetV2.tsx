@@ -12,6 +12,7 @@ import {
 import { useAdminDashboardFilters } from "../../AdminDashboardFiltersContext";
 import { useAdminDashboardV2Engagement } from "@/hooks/useAdminDashboardV2Engagement";
 import { ChartSkeleton } from "./AdminWidgetSkeleton";
+import { V2_CARD_SHELL_PADDED } from "./v2CardStyles";
 
 export const EngagementChartWidgetV2: React.FC = () => {
   const { filters } = useAdminDashboardFilters();
@@ -44,7 +45,7 @@ export const EngagementChartWidgetV2: React.FC = () => {
   const activeDomains = domains.filter((d) => isActive(d.key));
 
   return (
-    <div className="bg-white rounded-[20px] border border-[#C8D6E3] p-3.5 flex flex-col w-full h-[380px] shrink-0 overflow-hidden">
+    <div className={`${V2_CARD_SHELL_PADDED} flex flex-col w-full h-full min-h-0`}>
       <div className="flex items-start justify-between gap-3 mb-2 shrink-0">
         <div className="flex items-center gap-3 min-w-0 flex-1 flex-wrap">
           <h3 className="text-[14px] font-bold text-[#1A2332] tracking-tight shrink-0">

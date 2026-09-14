@@ -12,6 +12,7 @@ import {
 import { useAdminDashboardFilters } from "../../AdminDashboardFiltersContext";
 import { useAdminDashboardV2EnrollmentTrends } from "@/hooks/useAdminDashboardV2EnrollmentTrends";
 import { ChartSkeleton } from "./AdminWidgetSkeleton";
+import { V2_CARD_SHELL_PADDED } from "./v2CardStyles";
 
 export const EnrollmentTrendsWidgetV2: React.FC = () => {
   const { filters } = useAdminDashboardFilters();
@@ -29,7 +30,7 @@ export const EnrollmentTrendsWidgetV2: React.FC = () => {
   }));
 
   return (
-    <div className="bg-white rounded-[20px] border border-[#C8D6E3] p-3.5 flex flex-col w-full h-full min-h-0 overflow-hidden">
+    <div className={`${V2_CARD_SHELL_PADDED} flex flex-col w-full h-full min-h-0 overflow-hidden`}>
       <div className="flex items-center justify-between gap-2 mb-2 shrink-0">
         <h3 className="text-[14px] font-bold text-[#1A2332] tracking-tight">
           Trends

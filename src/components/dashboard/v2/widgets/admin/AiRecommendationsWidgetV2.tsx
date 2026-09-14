@@ -3,6 +3,7 @@ import { ChevronDown } from "lucide-react";
 import { useAdminDashboardFilters } from "../../AdminDashboardFiltersContext";
 import { useAdminDashboardV2AiRecommendations } from "@/hooks/useAdminDashboardV2AiRecommendations";
 import { ListSkeleton } from "./AdminWidgetSkeleton";
+import { V2_CARD_SHELL_PADDED } from "./v2CardStyles";
 
 interface AiRecommendationsWidgetV2Props {
   /** When true, omit outer card chrome (used inside shared Section 3 shell) */
@@ -56,7 +57,7 @@ export const AiRecommendationsWidgetV2: React.FC<
 
   const shell = embedded
     ? "flex flex-col w-full h-full min-h-0 p-3.5"
-    : "bg-white rounded-[20px] border border-[#C8D6E3] p-3.5 flex flex-col w-full h-full min-h-0";
+    : `${V2_CARD_SHELL_PADDED} flex flex-col w-full h-full min-h-0`;
 
   return (
     <div className={shell}>

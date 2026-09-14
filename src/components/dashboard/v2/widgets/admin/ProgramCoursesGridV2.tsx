@@ -10,6 +10,7 @@ import { useNavigate } from "react-router-dom";
 import { useAdminDashboardFilters } from "../../AdminDashboardFiltersContext";
 import { useAdminDashboardV2ProgramCourses } from "@/hooks/useAdminDashboardV2ProgramCourses";
 import { CardsGridSkeleton } from "./AdminWidgetSkeleton";
+import { V2_CARD_SHELL_PADDED } from "./v2CardStyles";
 
 interface ProgramCoursesGridV2Props {
   /** When true, omit outer card chrome (used inside shared Section 3 shell) */
@@ -32,7 +33,7 @@ export const ProgramCoursesGridV2: React.FC<ProgramCoursesGridV2Props> = ({
 
   const shell = embedded
     ? "flex flex-col w-full h-full min-h-0 p-3.5"
-    : "bg-white rounded-[20px] border border-[#C8D6E3] p-3.5 flex flex-col w-full h-full min-h-0";
+    : `${V2_CARD_SHELL_PADDED} flex flex-col w-full h-full min-h-0`;
 
   return (
     <div className={shell}>

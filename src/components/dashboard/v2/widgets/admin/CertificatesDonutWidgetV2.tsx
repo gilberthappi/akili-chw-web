@@ -1,14 +1,72 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { CalendarDays, ChevronDown } from "lucide-react";
 import { useAdminDashboardFilters } from "../../AdminDashboardFiltersContext";
 import { useAdminDashboardV2Certificates } from "@/hooks/useAdminDashboardV2Certificates";
 import { DonutSkeleton } from "./AdminWidgetSkeleton";
+import { V2_CARD_SHELL_PADDED } from "./v2CardStyles";
+
+type CertPiePoint = {
+  name: string;
+  value: number;
+  color: string;
+  avgAttempts: number;
+  downloads: number;
+  sharePercent: number;
+};
+
+const CertificatesTooltip: React.FC<{
+  active?: boolean;
+  payload?: Array<{ payload: CertPiePoint }>;
+}> = ({ active, payload }) => {
+  if (!active || !payload?.length) return null;
+  const d = payload[0].payload;
+  if (d.name === "None") return null;
+
+  return (
+    <div className="rounded-[10px] border border-[#C8D6E3] bg-white px-3 py-2 shadow-md min-w-[160px]">
+      <div className="flex items-center gap-2 mb-1.5">
+        <span
+          className="w-2.5 h-2.5 rounded-[2px] shrink-0"
+          style={{ backgroundColor: d.color }}
+        />
+        <p className="text-[11px] font-bold text-[#1A2332] leading-snug">
+          {d.name}
+        </p>
+      </div>
+      <div className="space-y-1 text-[10px] text-[#5B6575]">
+        <div className="flex justify-between gap-4">
+          <span>Certificates</span>
+          <span className="font-semibold text-[#1A2332] tabular-nums">
+            {d.value}
+          </span>
+        </div>
+        <div className="flex justify-between gap-4">
+          <span>Share</span>
+          <span className="font-semibold text-[#1A2332] tabular-nums">
+            {d.sharePercent}%
+          </span>
+        </div>
+        <div className="flex justify-between gap-4">
+          <span>Avg attempts</span>
+          <span className="font-semibold text-[#1A2332] tabular-nums">
+            {d.avgAttempts}
+          </span>
+        </div>
+        <div className="flex justify-between gap-4">
+          <span>Downloads</span>
+          <span className="font-semibold text-[#1A2332] tabular-nums">
+            {d.downloads}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export const CertificatesDonutWidgetV2: React.FC = () => {
   const { filters } = useAdminDashboardFilters();
   const [timeframe, setTimeframe] = useState("All Time");
-  const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const { data, isLoading } = useAdminDashboardV2Certificates(
     filters,
     timeframe,
@@ -17,30 +75,39 @@ export const CertificatesDonutWidgetV2: React.FC = () => {
   const rows = data?.rows ?? [];
   const total = data?.total ?? 0;
 
-  const isActive = (key: string) =>
-    selectedKeys.length === 0 || selectedKeys.includes(key);
-
-  const toggle = (key: string) => {
-    if (selectedKeys.length === 0) setSelectedKeys([key]);
-    else if (selectedKeys.includes(key)) {
-      const next = selectedKeys.filter((k) => k !== key);
-      setSelectedKeys(next);
-    } else setSelectedKeys([...selectedKeys, key]);
-  };
-
-  const activeRows = rows.filter((r) => isActive(r.key));
-  const pieData = activeRows
-    .filter((r) => r.certificates > 0)
-    .map((r) => ({
+  const chartData = useMemo((): CertPiePoint[] => {
+    const withCerts = rows.filter((r) => r.certificates > 0);
+    if (withCerts.length === 0) {
+      return [
+        {
+          name: "None",
+          value: 1,
+          color: "#E2E8F0",
+          avgAttempts: 0,
+          downloads: 0,
+          sharePercent: 0,
+        },
+      ];
+    }
+    return withCerts.map((r) => ({
       name: r.name,
       value: r.certificates,
       color: r.color,
+      avgAttempts: r.avgAttempts,
+      downloads: r.downloads,
+      sharePercent:
+        total > 0
+          ? Math.round((r.certificates / total) * 1000) / 10
+          : 0,
     }));
+  }, [rows, total]);
 
   return (
-    <div className="bg-white rounded-[20px] border border-[#C8D6E3] p-3.5 flex flex-col w-full h-[380px] shrink-0 overflow-hidden">
-      <div className="flex items-center justify-between gap-3 mb-2 shrink-0">
-        <h3 className="text-[14px] font-bold text-[#1A2332] tracking-tight">
+    <div
+      className={`${V2_CARD_SHELL_PADDED} flex flex-col w-full h-full min-h-0`}
+    >
+      <div className="flex items-center justify-between gap-2 mb-2 shrink-0">
+        <h3 className="text-[14px] font-bold text-[#1A2332] tracking-tight min-w-0 truncate">
           Certificates
         </h3>
         <div className="relative shrink-0">
@@ -51,7 +118,7 @@ export const CertificatesDonutWidgetV2: React.FC = () => {
           <select
             value={timeframe}
             onChange={(e) => setTimeframe(e.target.value)}
-            className="appearance-none text-[11px] font-semibold bg-white border border-[#B8CDE0] text-[#5B6575] rounded-lg pl-7 pr-7 py-1.5 focus:outline-none cursor-pointer hover:border-[#4B82BA] transition-colors"
+            className="appearance-none text-[11px] font-semibold bg-white border border-[#B8CDE0] text-[#5B6575] rounded-lg pl-7 pr-7 py-1.5 focus:outline-none cursor-pointer hover:border-[#4B82BA] transition-colors max-w-[7.5rem]"
           >
             <option>Today</option>
             <option>This Week</option>
@@ -66,97 +133,48 @@ export const CertificatesDonutWidgetV2: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex gap-3 flex-1 min-h-0 items-center overflow-hidden">
+      <div className="flex-1 min-h-0 flex items-center justify-center overflow-hidden">
         {isLoading && !data ? (
           <DonutSkeleton />
         ) : (
-          <>
-            <div className="relative h-full w-[42%] shrink-0 flex items-center justify-center">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={
-                      pieData.length > 0
-                        ? pieData
-                        : [{ name: "None", value: 1, color: "#E2E8F0" }]
-                    }
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={46}
-                    outerRadius={90}
-                    paddingAngle={2}
-                    dataKey="value"
-                    nameKey="name"
-                  >
-                    {(pieData.length > 0
-                      ? pieData
-                      : [{ name: "None", value: 1, color: "#E2E8F0" }]
-                    ).map((entry, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={entry.color}
-                        stroke="#FFFFFF"
-                        strokeWidth={2}
-                        style={{ cursor: "pointer", outline: "none" }}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value: number, name: string) => [
-                      `${value} Certificates`,
-                      name,
-                    ]}
-                    contentStyle={{
-                      backgroundColor: "#FFFFFF",
-                      borderRadius: "10px",
-                      border: "1px solid #C8D6E3",
-                      fontSize: "11px",
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="absolute text-center pointer-events-none px-1">
-                <span className="text-[22px] font-bold text-[#3D4654] leading-none tabular-nums">
-                  {total}
-                </span>
-                <p className="text-[10px] font-medium text-[#9AA3B2] mt-1 leading-tight">
-                  Total Certificates
-                </p>
-              </div>
+          <div className="relative aspect-square w-full max-w-[260px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={chartData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius="46%"
+                  outerRadius="90%"
+                  paddingAngle={1}
+                  dataKey="value"
+                  nameKey="name"
+                >
+                  {chartData.map((entry, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={entry.color}
+                      stroke="#FFFFFF"
+                      strokeWidth={1}
+                      style={{ cursor: "pointer", outline: "none" }}
+                    />
+                  ))}
+                </Pie>
+                <Tooltip
+                  content={<CertificatesTooltip />}
+                  wrapperStyle={{ outline: "none", zIndex: 40 }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none px-1">
+              <span className="text-[24px] font-bold text-[#3D4654] leading-none tabular-nums">
+                {total}
+              </span>
+              <p className="text-[10px] font-medium text-[#9AA3B2] mt-1 leading-tight">
+                Total Certificates
+              </p>
             </div>
-
-            <div className="flex-1 min-w-0 h-full overflow-y-auto overscroll-contain pr-1 [scrollbar-gutter:stable] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-[#E8EEF4] [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#A8B8C8] [&::-webkit-scrollbar-thumb]:rounded-full">
-              <div className="space-y-0">
-                {rows.map((row) => {
-                  const active = isActive(row.key);
-                  return (
-                    <button
-                      type="button"
-                      key={row.key}
-                      onClick={() => toggle(row.key)}
-                      className={`w-full grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-x-2 py-2 text-left cursor-pointer transition-opacity border-b border-[#F1F5F9] last:border-0 ${
-                        active ? "opacity-100" : "opacity-35"
-                      }`}
-                    >
-                      <span
-                        className="w-2.5 h-2.5 rounded-[2px] shrink-0"
-                        style={{ backgroundColor: row.color }}
-                      />
-                      <span className="text-[12px] font-semibold text-[#1A2332] truncate">
-                        {row.name}
-                      </span>
-                      <span className="text-[11px] font-medium text-[#5B6575] tabular-nums whitespace-nowrap">
-                        {row.avgAttempts} Avg attempts
-                      </span>
-                      <span className="text-[11px] font-medium text-[#5B6575] tabular-nums whitespace-nowrap">
-                        {row.certificates} Certificates
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </>
+          </div>
         )}
       </div>
     </div>

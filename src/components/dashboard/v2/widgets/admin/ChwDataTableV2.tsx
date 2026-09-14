@@ -25,6 +25,7 @@ import {
   DEMOGRAPHICS_GENDERS,
 } from "./section4DesignData";
 import { TableSkeleton } from "./AdminWidgetSkeleton";
+import { V2_CARD_SHELL_PADDED } from "./v2CardStyles";
 
 const EMPTY_LOCAL: DemographicsLocalFilters = {
   gender: "",
@@ -36,24 +37,34 @@ const EMPTY_LOCAL: DemographicsLocalFilters = {
 
 type SortKey =
   | "title"
+  | "chapters"
+  | "sections"
+  | "mediaFiles"
+  | "questions"
   | "enrollment"
   | "completion"
   | "avgCompletionTime"
   | "preTest"
   | "midTest"
   | "postTest"
+  | "knowledgeGain"
   | "certificate";
 
 type SortDir = "asc" | "desc";
 
 const HEADERS: { label: string; key: SortKey }[] = [
   { label: "Course Name", key: "title" },
+  { label: "Chapters", key: "chapters" },
+  { label: "Sections", key: "sections" },
+  { label: "Media", key: "mediaFiles" },
+  { label: "Questions", key: "questions" },
   { label: "Enrollment", key: "enrollment" },
   { label: "Completion", key: "completion" },
   { label: "Time period", key: "avgCompletionTime" },
   { label: "Pre Test", key: "preTest" },
   { label: "Mid Test", key: "midTest" },
   { label: "Post Test", key: "postTest" },
+  { label: "Knowledge Gain", key: "knowledgeGain" },
   { label: "Certificates", key: "certificate" },
 ];
 
@@ -78,8 +89,8 @@ const compareRows = (
       a.title.localeCompare(b.title, undefined, { sensitivity: "base" })
     );
   }
-  const av = toSortNumber(a[key]);
-  const bv = toSortNumber(b[key]);
+  const av = toSortNumber(a[key] ?? 0);
+  const bv = toSortNumber(b[key] ?? 0);
   if (av === bv) {
     return a.title.localeCompare(b.title, undefined, { sensitivity: "base" });
   }
@@ -238,7 +249,7 @@ export const ChwDataTableV2: React.FC = () => {
   };
 
   return (
-    <div className="bg-white rounded-[20px] border border-[#C8D6E3] p-3.5 flex flex-col w-full h-full min-h-0 overflow-hidden">
+    <div className={`${V2_CARD_SHELL_PADDED} flex flex-col w-full h-full min-h-0 overflow-hidden`}>
       <div className="flex items-center justify-between gap-3 flex-wrap mb-3 shrink-0">
         <h3 className="text-[14px] font-bold text-[#1A2332] tracking-tight">
           CHW Demographics{" "}
@@ -379,29 +390,71 @@ export const ChwDataTableV2: React.FC = () => {
                     </div>
                   </td>
 
-                  <td className="py-2.5 px-2.5 text-center text-[11px] font-semibold text-[#1A2332] tabular-nums">
-                    {row.enrollment}
+                  <td className="py-2.5 px-2.5 text-center text-[11px] font-medium text-[#1A2332] tabular-nums">
+                    {row.chapters ?? 0}
+                  </td>
+                  <td className="py-2.5 px-2.5 text-center text-[11px] font-medium text-[#1A2332] tabular-nums">
+                    {row.sections ?? 0}
+                  </td>
+                  <td className="py-2.5 px-2.5 text-center text-[11px] font-medium text-[#1A2332] tabular-nums">
+                    {row.mediaFiles ?? 0}
+                  </td>
+                  <td className="py-2.5 px-2.5 text-center text-[11px] font-medium text-[#1A2332] tabular-nums">
+                    {row.questions ?? 0}
                   </td>
 
-                  <td className="py-2.5 px-2.5 text-center text-[11px] font-semibold text-[#1A2332] tabular-nums">
+                  <td className="py-2.5 px-2.5 text-center">
+                    <div className="inline-flex items-center justify-center gap-1.5 text-[11px] font-medium text-[#1A2332] tabular-nums whitespace-nowrap">
+                      <span>{row.enrollment}</span>
+                      ({row.enrollmentVariation ? (
+                        <span
+                          className={`inline-flex items-center gap-0.5 text-[10px] font-semibold ${
+                            row.enrollmentVariationPositive !== false
+                              ? "text-[#0F766E]"
+                              : "text-[#DC2626]"
+                          }`}
+                        >
+                          {row.enrollmentVariationPositive !== false ? (
+                            <ArrowUp size={10} strokeWidth={3} />
+                          ) : (
+                            <ArrowDown size={10} strokeWidth={3} />
+                          )}
+                          {row.enrollmentVariation}
+                        </span>
+                      ) : null})
+                    </div>
+                  </td>
+
+                  <td className="py-2.5 px-2.5 text-center text-[11px] font-medium text-[#1A2332] tabular-nums">
                     {row.completion}
                   </td>
 
                   <td className="py-2.5 px-2.5 text-center">
-                    <div className="inline-flex items-center justify-center gap-1 text-[11px] font-semibold text-[#1A2332] tabular-nums whitespace-nowrap">
+                    <div className="inline-flex items-center justify-center gap-1 text-[11px] font-medium text-[#1A2332] tabular-nums whitespace-nowrap">
                       <Clock3 size={12} className="text-[#3363AD]" />
                       {row.avgCompletionTime}
                     </div>
                   </td>
 
-                  <td className="py-2.5 px-2.5 text-center text-[11px] font-semibold text-[#1A2332] tabular-nums">
+                  <td className="py-2.5 px-2.5 text-center text-[11px] font-medium text-[#1A2332] tabular-nums">
                     {row.preTest}
                   </td>
-                  <td className="py-2.5 px-2.5 text-center text-[11px] font-semibold text-[#1A2332] tabular-nums">
+                  <td className="py-2.5 px-2.5 text-center text-[11px] font-medium text-[#1A2332] tabular-nums">
                     {row.midTest}
                   </td>
-                  <td className="py-2.5 px-2.5 text-center text-[11px] font-semibold text-[#1A2332] tabular-nums">
+                  <td className="py-2.5 px-2.5 text-center text-[11px] font-medium text-[#1A2332] tabular-nums">
                     {row.postTest}
+                  </td>
+                  <td
+                    className={`py-2.5 px-2.5 text-center text-[11px] font-semibold tabular-nums ${
+                      (row.knowledgeGain ?? "").startsWith("+")
+                        ? "text-[#0F766E]"
+                        : (row.knowledgeGain ?? "").startsWith("-")
+                          ? "text-[#DC2626]"
+                          : "text-[#1A2332]"
+                    }`}
+                  >
+                    {row.knowledgeGain ?? "—"}
                   </td>
                   <td className="py-2.5 px-2.5 text-center text-[11px] font-medium text-[#1A2332] whitespace-nowrap">
                     {row.certificate}

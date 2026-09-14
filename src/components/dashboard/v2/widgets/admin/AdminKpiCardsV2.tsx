@@ -9,6 +9,7 @@ import {
   ArrowUp,
   ArrowDown,
 } from "lucide-react";
+import { V2_CARD_SHELL_PADDED, V2_KPI_ICON_CHIP } from "./v2CardStyles";
 
 export type KpiBreakdownItem = {
   label: string;
@@ -124,21 +125,21 @@ const ICON_MAP = {
 } as const;
 
 /**
- * Design colors:
- * - Primary value (390 / 112): bold chocolate charcoal
- * - Suffix (/6000 Onboard): lighter medium grey
- * - Row labels: near-black charcoal
- * - Row numerators (1574): bold chocolate charcoal (lighter than primary)
- * - Row denominators (/2980): light grey
+ * Design colors (from Total Users KPI crop):
+ * - Primary value: medium slate gray
+ * - Suffix: lighter grey
+ * - Title / rows: dark charcoal
+ * - Icon chip: soft blue #C5D3E0
  */
 const C = {
-  primary: "#3B2F2F", // chocolate charcoal
-  suffix: "#1A2332",
-  label: "#2A2222",
-  numerator: "#4A3C3C", // softer chocolate charcoal
-  denominator: "#1A2332", // near-black (same as prior label token)
-  title: "#2A2222",
-  growth: "#2A2222",
+  primary: "#5B6575",
+  suffix: "#9AA3B2",
+  label: "#3D4654",
+  numerator: "#3D4654",
+  denominator: "#9AA3B2",
+  title: "#1A2332",
+  growth: "#1A2332",
+  icon: "#3D6BA8",
 } as const;
 
 const KpiCard: React.FC<{ card: AdminKpiCardModel }> = ({ card }) => {
@@ -146,10 +147,18 @@ const KpiCard: React.FC<{ card: AdminKpiCardModel }> = ({ card }) => {
   const TrendGlyph = card.growthPositive ? ArrowUp : ArrowDown;
 
   return (
-    <div className="bg-[#E8F0F8] rounded-[20px] p-3.5 flex flex-col gap-3 min-h-[148px]">
-      <div className="flex items-start gap-2.5">
-        <span className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] bg-white shrink-0 shadow-[0_1px_2px_rgba(15,23,42,0.06)]">
-          <Icon size={18} strokeWidth={2} className="text-[#334155]" />
+    <div className={`${V2_CARD_SHELL_PADDED} flex flex-col gap-3.5 min-h-[148px]`}>
+      <div className="flex items-start gap-3">
+        <span
+          className={`inline-flex h-10 w-10 items-center justify-center rounded-[12px] ${V2_KPI_ICON_CHIP} shrink-0`}
+        >
+          <Icon
+            size={20}
+            strokeWidth={2}
+            className="text-[#3D6BA8]"
+            fill="currentColor"
+            fillOpacity={0.15}
+          />
         </span>
 
         <div className="flex-1 min-w-0">
@@ -162,17 +171,17 @@ const KpiCard: React.FC<{ card: AdminKpiCardModel }> = ({ card }) => {
             </h4>
             <button
               type="button"
-              className="text-[#94A3B8] hover:text-[#64748B] transition-colors p-0.5 shrink-0"
+              className="text-[#9AA3B2] hover:text-[#64748B] transition-colors p-0.5 shrink-0"
               aria-label={`${card.title} options`}
             >
               <MoreHorizontal size={16} />
             </button>
           </div>
 
-          <div className="flex items-center justify-between gap-2 mt-1.5">
+          <div className="flex items-center justify-between gap-2 mt-2">
             <p className="min-w-0 leading-none whitespace-nowrap overflow-hidden text-ellipsis">
               <span
-                className="text-[20px] font-bold tracking-tight tabular-nums"
+                className="text-[22px] font-bold tracking-tight tabular-nums"
                 style={{ color: C.primary }}
               >
                 {card.value}
@@ -189,7 +198,7 @@ const KpiCard: React.FC<{ card: AdminKpiCardModel }> = ({ card }) => {
               <span
                 className={`inline-flex h-[18px] w-[18px] items-center justify-center rounded-full ${
                   card.growthPositive
-                    ? "bg-[#5EEAD4]/40 text-[#0F766E]"
+                    ? "bg-[#5EEAD4]/50 text-[#0F766E]"
                     : "bg-[#FECACA]/70 text-[#DC2626]"
                 }`}
               >
@@ -239,25 +248,29 @@ const KpiCard: React.FC<{ card: AdminKpiCardModel }> = ({ card }) => {
 };
 
 const KpiCardSkeleton: React.FC = () => (
-  <div className="bg-[#E8F0F8] rounded-[20px] p-3.5 flex flex-col gap-3 min-h-[148px] animate-pulse">
-    <div className="flex items-start gap-2.5">
-      <span className="inline-flex h-9 w-9 rounded-[10px] bg-white/80 shrink-0" />
+  <div
+    className={`${V2_CARD_SHELL_PADDED} flex flex-col gap-3.5 min-h-[148px] animate-pulse`}
+  >
+    <div className="flex items-start gap-3">
+      <span
+        className={`inline-flex h-10 w-10 rounded-[12px] ${V2_KPI_ICON_CHIP} shrink-0`}
+      />
       <div className="flex-1 min-w-0 space-y-2 pt-0.5">
         <div className="flex items-center justify-between gap-2">
-          <div className="h-3 w-24 rounded bg-[#D7E3F0]" />
-          <div className="h-3 w-3 rounded bg-[#D7E3F0]" />
+          <div className="h-3 w-24 rounded bg-[#E8EEF4]" />
+          <div className="h-3 w-3 rounded bg-[#E8EEF4]" />
         </div>
         <div className="flex items-center justify-between gap-2">
-          <div className="h-5 w-28 rounded bg-[#D7E3F0]" />
-          <div className="h-4 w-12 rounded bg-[#D7E3F0]" />
+          <div className="h-5 w-28 rounded bg-[#E8EEF4]" />
+          <div className="h-4 w-12 rounded bg-[#E8EEF4]" />
         </div>
       </div>
     </div>
     <div className="space-y-2">
       {[0, 1, 2].map((row) => (
         <div key={row} className="flex items-center justify-between gap-3">
-          <div className="h-2.5 w-20 rounded bg-[#D7E3F0]" />
-          <div className="h-2.5 w-14 rounded bg-[#D7E3F0]" />
+          <div className="h-2.5 w-20 rounded bg-[#E8EEF4]" />
+          <div className="h-2.5 w-14 rounded bg-[#E8EEF4]" />
         </div>
       ))}
     </div>

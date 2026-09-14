@@ -12,6 +12,7 @@ import {
 import { useAdminDashboardFilters } from "../../AdminDashboardFiltersContext";
 import { useAdminDashboardV2KnowledgeGain } from "@/hooks/useAdminDashboardV2KnowledgeGain";
 import { ChartSkeleton, TableSkeleton } from "./AdminWidgetSkeleton";
+import { V2_CARD_SHELL_PADDED } from "./v2CardStyles";
 
 const formatGain = (gain: number): string => {
   const rounded = Math.round(gain * 10) / 10;
@@ -25,7 +26,7 @@ export const KnowledgeGainWidgetV2: React.FC = () => {
   const { rows, chart, isLoading } = useAdminDashboardV2KnowledgeGain(filters);
 
   return (
-    <div className="bg-white rounded-[20px] border border-[#C8D6E3] p-3.5 flex flex-col w-full h-full min-h-0 overflow-hidden">
+    <div className={`${V2_CARD_SHELL_PADDED} flex flex-col w-full h-full min-h-0 overflow-hidden`}>
       <div className="flex items-center justify-between gap-3 flex-wrap mb-3 shrink-0">
         <h3 className="text-[14px] font-bold text-[#1A2332] tracking-tight">
           Knowledge gain

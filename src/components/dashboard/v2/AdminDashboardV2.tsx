@@ -3,11 +3,8 @@ import { AdminKpiCardsV2 } from "./widgets/admin/AdminKpiCardsV2";
 import { EngagementChartWidgetV2 } from "./widgets/admin/EngagementChartWidgetV2";
 import { CertificatesDonutWidgetV2 } from "./widgets/admin/CertificatesDonutWidgetV2";
 import { AssessmentAttemptsWidgetV2 } from "./widgets/admin/AssessmentAttemptsWidgetV2";
-import { ProgramCoursesGridV2 } from "./widgets/admin/ProgramCoursesGridV2";
 import { AiRecommendationsWidgetV2 } from "./widgets/admin/AiRecommendationsWidgetV2";
-import { ScheduleCalendarWidgetV2 } from "./widgets/admin/ScheduleCalendarWidgetV2";
 import { ChwDataTableV2 } from "./widgets/admin/ChwDataTableV2";
-import { KnowledgeGainWidgetV2 } from "./widgets/admin/KnowledgeGainWidgetV2";
 import { RecentActivitiesWidgetV2 } from "./widgets/admin/RecentActivitiesWidgetV2";
 import { MapRegionalOverviewWidgetV2 } from "./widgets/admin/MapRegionalOverviewWidgetV2";
 import { EnrollmentTrendsWidgetV2 } from "./widgets/admin/EnrollmentTrendsWidgetV2";
@@ -53,56 +50,43 @@ const AdminDashboardV2Board: React.FC = () => {
 
       <AdminKpiCardsV2 cards={cards} isLoading={isLoading} />
 
-      {/*
-        Shared columns: left = Eng+Cert (+ Program/AI) width, right = Assessment / Schedule width.
-      */}
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_280px] 2xl:grid-cols-[minmax(0,1fr)_300px] gap-4 xl:items-stretch">
-        <div className="min-w-0 grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Engagement (2 KPIs wide) | Certificates | Assessment | AI Recommendation */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 xl:items-stretch h-[400px]">
+        <div className="min-w-0 min-h-0 h-full md:col-span-2 xl:col-span-2">
           <EngagementChartWidgetV2 />
+        </div>
+        <div className="min-w-0 min-h-0 h-full">
           <CertificatesDonutWidgetV2 />
         </div>
-
-        <div className="min-w-0 flex">
+        <div className="min-w-0 min-h-0 h-full flex">
           <AssessmentAttemptsWidgetV2 />
         </div>
-
-        {/* Same left column width as Engagement + Certificates — two separate cards */}
-        <div className="min-w-0 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_240px] 2xl:grid-cols-[minmax(0,1fr)_260px] gap-4 items-stretch min-h-[380px] h-[400px]">
-          <ProgramCoursesGridV2 />
+        <div className="min-w-0 min-h-0 h-full flex">
           <AiRecommendationsWidgetV2 />
         </div>
-
-        <div className="min-w-0 h-[400px] flex">
-          <ScheduleCalendarWidgetV2 />
-        </div>
       </div>
 
-      {/* Section 4: CHW Demographics + Recent activities — same columns as board above */}
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_280px] 2xl:grid-cols-[minmax(0,1fr)_300px] gap-4 xl:items-stretch h-[380px] overflow-hidden">
-        <div className="min-w-0 h-full min-h-0 overflow-hidden">
+      {/* Section 4: CHW Demographics */}
+<div className="min-h-[380px] h-[400px]">
           <ChwDataTableV2 />
-        </div>
-        <div className="min-w-0 h-full min-h-0 overflow-hidden flex">
-          <RecentActivitiesWidgetV2 />
-        </div>
       </div>
 
-      {/* Section 5: Knowledge Gain (3/5) + Enrollment trends (2/5) */}
+      {/* Section 5:Enrollment trends (2/5) +recent  activities */}
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-4 xl:items-stretch min-h-[340px] h-[360px]">
-        <div className="min-w-0 h-full min-h-0 overflow-hidden">
-          <KnowledgeGainWidgetV2 />
+        <div className="min-w-0 h-full min-h-0">
+        <EnrollmentTrendsWidgetV2 />
         </div>
-        <div className="min-w-0 h-full min-h-0 overflow-hidden">
-          <EnrollmentTrendsWidgetV2 />
+        <div className="min-w-0 h-full min-h-0">
+        <RecentActivitiesWidgetV2 />
         </div>
       </div>
 
-      {/* Section 5b: Map | Course ratings — same board columns */}
+      {/* Section 5b: Map | Course ratings */}
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_280px] 2xl:grid-cols-[minmax(0,1fr)_300px] gap-4 xl:items-stretch min-h-[480px] h-[520px]">
-        <div className="min-w-0 h-full min-h-0 overflow-hidden">
+        <div className="min-w-0 h-full min-h-0">
           <MapRegionalOverviewWidgetV2 />
         </div>
-        <div className="min-w-0 h-full min-h-0 overflow-hidden">
+        <div className="min-w-0 h-full min-h-0">
           <CourseRatingsWidgetV2 />
         </div>
       </div>
