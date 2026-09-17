@@ -171,6 +171,7 @@ export const ROLE_WORKSPACES: Record<string, RoleWorkspaceConfig> = {
     },
     actions: [
       { label: "Staff", href: "/staff", primary: true },
+      { label: "Courses", href: "/courses" },
       { label: "User lookup", href: "/user-lookup" },
       { label: "Access Grants", href: "/access-grants" },
       { label: "Platform health", href: "/platform-health" },

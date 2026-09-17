@@ -144,6 +144,14 @@ export const DEPARTMENT_NAV: DeptNavItem[] = [
     group: "WELTEL",
   },
   {
+    id: "weltel-courses",
+    label: "Courses",
+    path: "/courses",
+    kind: "existing",
+    roles: ["WELTEL_ADMIN"],
+    group: "WELTEL",
+  },
+  {
     id: "weltel-access",
     label: "Access Grants",
     path: "/access-grants",
@@ -372,6 +380,7 @@ export const ROLE_SIDEBAR_EXPECTATIONS: Record<UserRole, string[]> = {
   WELTEL_ADMIN: [
     "Staff",
     "User lookup",
+    "Courses",
     "Access Grants",
     "Support Desk",
     "Kanban Board",
