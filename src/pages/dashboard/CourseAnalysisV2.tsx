@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import {
-  ArrowLeft,
   BookOpen,
   CheckCircle2,
   Award,
@@ -54,7 +53,6 @@ const fmt = (n: number | null | undefined, suffix = "") =>
 
 const CourseAnalysisBoard: React.FC = () => {
   const { courseId = "" } = useParams<{ courseId: string }>();
-  const navigate = useNavigate();
   const { filters, setFilters } = useAdminDashboardFilters();
   const [tab, setTab] = useState<CourseAnalysisTab>("all");
   const [searchq, setSearchq] = useState("");
@@ -141,14 +139,6 @@ const CourseAnalysisBoard: React.FC = () => {
     <div className="relative bg-white -mx-4 -mt-4 -mb-12 px-3 sm:px-4 lg:px-5 pt-3 sm:pt-4 lg:pt-5 pb-10 min-h-[calc(100vh-4rem)] space-y-4 text-gray-800">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#5B6575] hover:text-[#3363AD]"
-          >
-            <ArrowLeft size={14} />
-            Back
-          </button>
           <h1 className="text-xl font-bold text-gray-900 truncate">
             {isLoading && !course ? "Loading course…" : course?.title ?? "Course"}
           </h1>
@@ -256,23 +246,7 @@ const CourseAnalysisBoard: React.FC = () => {
 
         <div className="grid grid-rows-2 gap-4 min-h-[280px]">
           <PieCard title="Gender" data={charts?.genderPie ?? []} />
-          <PieCard title="Status" data={charts?.statusPie ?? []} />
-        </div>
-      </div>
-
-      {/* Rating pie + structure note */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <PieCard title="Ratings" data={charts?.ratingPie ?? []} tall />
-        <div className={`${V2_CARD_SHELL_PADDED} md:col-span-2`}>
-          <h3 className="text-[14px] font-bold text-[#1A2332] mb-2">
-            Score snapshot
-          </h3>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-            <Stat label="Avg Pre" value={fmt(kpis?.avgPre)} />
-            <Stat label="Avg Mid" value={fmt(kpis?.avgMid)} />
-            <Stat label="Avg Post" value={fmt(kpis?.avgPost)} />
-            <Stat label="Knowledge gain" value={fmt(kpis?.knowledgeGain)} />
-          </div>
+          <PieCard title="Ratings" data={charts?.ratingPie ?? []} />
         </div>
       </div>
 
@@ -443,31 +417,16 @@ const CourseAnalysisBoard: React.FC = () => {
   );
 };
 
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl bg-[#F5F8FC] px-3 py-2">
-      <p className="text-[10px] font-semibold text-[#5B6575]">{label}</p>
-      <p className="text-lg font-bold text-[#1A2332] tabular-nums">{value}</p>
-    </div>
-  );
-}
-
 function PieCard({
   title,
   data,
-  tall,
 }: {
   title: string;
   data: Array<{ label: string; value: number }>;
-  tall?: boolean;
 }) {
   const filtered = data.filter((d) => d.value > 0);
   return (
-    <div
-      className={`${V2_CARD_SHELL_PADDED} flex flex-col ${
-        tall ? "min-h-[220px]" : "min-h-0"
-      }`}
-    >
+    <div className={`${V2_CARD_SHELL_PADDED} flex flex-col min-h-0`}>
       <h3 className="text-[13px] font-bold text-[#1A2332] mb-1">{title}</h3>
       <div className="flex-1 min-h-[120px]">
         {filtered.length === 0 ? (
