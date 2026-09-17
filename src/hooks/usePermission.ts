@@ -1,7 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useAuthUser, useIsAuthenticated } from "react-auth-kit";
 import { UserRole, UserIndustry, UserDepartment } from "@/types";
-import { expandRoles, isLearnerRole } from "@/utils/roles";
+import {
+  expandRoles,
+  isLearnerRole,
+  PLATFORM_ADMIN_ROLES,
+} from "@/utils/roles";
 
 interface PermissionConfig {
   allowedRoles?: UserRole[];
@@ -76,8 +80,15 @@ export const usePermission = (config: PermissionConfig = {}) => {
       )
     : true;
 
+  // Platform / legacy ADMIN may have no department set on the auth payload.
+  // Do not block them on industry/department gates (e.g. Courses).
+  const isPlatformAdmin = userRoles.some((role) =>
+    PLATFORM_ADMIN_ROLES.includes(role as UserRole),
+  );
+
   const hasDepartmentPermission = deptAllowList
-    ? !!userDepartment && deptAllowList.includes(userDepartment)
+    ? isPlatformAdmin ||
+      (!!userDepartment && deptAllowList.includes(userDepartment))
     : true;
 
   let hasPermission = false;

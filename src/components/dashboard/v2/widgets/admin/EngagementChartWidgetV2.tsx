@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { CalendarDays, ChevronDown } from "lucide-react";
 import {
   BarChart,
@@ -15,6 +16,7 @@ import { ChartSkeleton } from "./AdminWidgetSkeleton";
 import { V2_CARD_SHELL_PADDED } from "./v2CardStyles";
 
 export const EngagementChartWidgetV2: React.FC = () => {
+  const navigate = useNavigate();
   const { filters } = useAdminDashboardFilters();
   const [timeframe, setTimeframe] = useState("This Year");
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
@@ -42,6 +44,11 @@ export const EngagementChartWidgetV2: React.FC = () => {
     } else setSelectedKeys([...selectedKeys, key]);
   };
 
+  const openCourse = (courseId?: string) => {
+    if (!courseId) return;
+    navigate(`/courses/${courseId}/analysis`);
+  };
+
   const activeDomains = domains.filter((d) => isActive(d.key));
 
   return (
@@ -56,22 +63,31 @@ export const EngagementChartWidgetV2: React.FC = () => {
             {domains.map((d) => {
               const active = isActive(d.key);
               return (
-                <button
-                  type="button"
+                <span
                   key={d.key}
-                  onClick={() => toggle(d.key)}
-                  className={`inline-flex items-center gap-1 text-[10px] font-medium cursor-pointer transition-opacity ${
+                  className={`inline-flex items-center gap-1 text-[10px] font-medium transition-opacity ${
                     active
                       ? "opacity-100 text-[#5B6575]"
                       : "opacity-35 text-gray-400"
                   }`}
                 >
-                  <span
-                    className="w-2.5 h-2.5 rounded-[2px] shrink-0"
+                  <button
+                    type="button"
+                    onClick={() => toggle(d.key)}
+                    title="Toggle series"
+                    className="w-2.5 h-2.5 rounded-[2px] shrink-0 cursor-pointer"
                     style={{ backgroundColor: d.color }}
+                    aria-label={`Toggle ${d.name}`}
                   />
-                  <span className="max-w-[4.5rem] truncate">{d.name}</span>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => openCourse(d.courseId)}
+                    title="Open course analysis"
+                    className="max-w-[4.5rem] truncate hover:text-[#3363AD] hover:underline cursor-pointer text-left"
+                  >
+                    {d.name}
+                  </button>
+                </span>
               );
             })}
           </div>
@@ -150,6 +166,8 @@ export const EngagementChartWidgetV2: React.FC = () => {
                       : [0, 0, 0, 0]
                   }
                   maxBarSize={28}
+                  cursor="pointer"
+                  onClick={() => openCourse(d.courseId)}
                 />
               ))}
             </BarChart>

@@ -196,7 +196,12 @@ export const getDashboardV2Engagement = async (
 ): Promise<
   IResponse<{
     timeframe: "today" | "week" | "month" | "year";
-    domains: Array<{ key: string; name: string; color: string }>;
+    domains: Array<{
+      key: string;
+      name: string;
+      color: string;
+      courseId: string;
+    }>;
     series: Array<Record<string, string | number>>;
     yMax: number;
   }>
@@ -215,6 +220,7 @@ export const getDashboardV2Certificates = async (
       key: string;
       name: string;
       color: string;
+      courseId: string;
       avgAttempts: number;
       certificates: number;
       downloads: number;
@@ -436,6 +442,115 @@ export const getDashboardV2MapOverview = async (
 > => {
   return (
     await api.get(withQuery("/export/dashboard/v2/map-overview", qs))
+  ).data;
+};
+
+export type CourseAnalysisTab =
+  | "all"
+  | "in_progress"
+  | "completed"
+  | "certified"
+  | "not_started"
+  | "assessments"
+  | "at_risk"
+  | "reviews";
+
+export type CourseAnalysisLearner = {
+  id: string;
+  fullNames: string;
+  photo: string | null;
+  phoneNumber: string | null;
+  email: string | null;
+  gender: string;
+  age: number | null;
+  ageGroup: string;
+  educationLevel: string | null;
+  district: string;
+  healthCenterName: string | null;
+  status: string;
+  enrolledAt: string;
+  lastActivityAt: string | null;
+  lastLoginAt: string | null;
+  progress: number;
+  preScore: number | null;
+  midScore: number | null;
+  postScore: number | null;
+  knowledgeGain: number | null;
+  avgScore: number | null;
+  completed: boolean;
+  certified: boolean;
+  hasAttempts: boolean;
+  hasReview: boolean;
+  reviewRating: number | null;
+  examAttempts: number | null;
+};
+
+export type CourseAnalysisData = {
+  course: {
+    id: string;
+    title: string;
+    rawTitle: string;
+    shortName: string | null;
+    level: string | null;
+    coverIcon: string | null;
+    isPublished: boolean;
+    description: string | null;
+    createdAt: string;
+    sections: number;
+    chapters: number;
+    mediaFiles: number;
+    questions: number;
+  };
+  kpis: {
+    enrolled: number;
+    inProgress: number;
+    completed: number;
+    certified: number;
+    notStarted: number;
+    completionRate: number;
+    certificationRate: number;
+    avgProgress: number;
+    avgPre: number;
+    avgMid: number;
+    avgPost: number;
+    knowledgeGain: number;
+    avgRating: number;
+    reviewCount: number;
+    attempts: number;
+    avgExamAttempts: number;
+  };
+  charts: {
+    trends: {
+      timeframe: string;
+      series: Array<{
+        label: string;
+        enrollments: number;
+        completions: number;
+        certifications: number;
+      }>;
+    };
+    assessments: Array<{ label: string; value: number }>;
+    genderPie: Array<{ label: string; value: number }>;
+    statusPie: Array<{ label: string; value: number }>;
+    ratingPie: Array<{ label: string; value: number }>;
+  };
+  tab: CourseAnalysisTab;
+  tabCounts: Record<CourseAnalysisTab, number>;
+  learners: CourseAnalysisLearner[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+};
+
+/** Admin Dashboard V2 — single course analysis. */
+export const getDashboardV2CourseAnalysis = async (
+  qs: string = "",
+): Promise<IResponse<CourseAnalysisData | null>> => {
+  return (
+    await api.get(withQuery("/export/dashboard/v2/course-analysis", qs))
   ).data;
 };
 

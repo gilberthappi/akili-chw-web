@@ -8,7 +8,7 @@ import { getAllCourses, deleteCourse } from "@/services/course.service";
 import { courseKeys } from "@/utils/constants/queryKeys";
 import { useNavigate } from "react-router-dom";
 import {
-  Search, Users, Star, Edit, Trash2, BookOpen,
+  Search, Users, Star, Edit, Trash2, BookOpen, Eye,
   ChevronLeft, ChevronRight, LayoutGrid, List, FileText,
 } from "lucide-react";
 import ConfirmDelete from "@/components/common/ConfirmDelete";
@@ -67,6 +67,10 @@ const CourseList: FC<ListProps> = ({ filter }) => {
 
   const handleEdit = (course: ICourse) => {
     navigate("/courses/builder", { state: { editCourseId: course.id, course } });
+  };
+
+  const handleViewAnalysis = (courseId: string) => {
+    navigate(`/courses/${courseId}/analysis`);
   };
 
   return (
@@ -252,6 +256,13 @@ const CourseList: FC<ListProps> = ({ filter }) => {
                         <span className="text-gray-400 truncate">{formatDate(course.createdAt)}</span>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => handleViewAnalysis(course.id)}
+                          title="View analysis"
+                          className="w-7 h-7 flex items-center justify-center text-[#3363AD] bg-[#EEF4FF] hover:bg-[#DCE8F8] rounded-lg transition"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                        </button>
                         <button
                           onClick={() => handleEdit(course)}
                           title="Edit"

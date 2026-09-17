@@ -97,7 +97,7 @@ export const ProgramCoursesGridV2: React.FC<ProgramCoursesGridV2Props> = ({
                 <button
                   type="button"
                   key={item.id}
-                  onClick={() => navigate(`/courses/${item.id}`)}
+                  onClick={() => navigate(`/courses/${item.id}/analysis`)}
                   className="text-left bg-[#E8F0F8] hover:bg-[#DDE8F3] rounded-[10px] px-2.5 py-2 flex flex-col justify-between gap-1 transition-colors cursor-pointer group min-h-[108px] h-full"
                 >
                   <div className="flex items-start gap-2">

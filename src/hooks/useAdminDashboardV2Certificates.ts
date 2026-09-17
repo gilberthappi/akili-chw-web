@@ -19,6 +19,7 @@ export type CertificateRowModel = {
   key: string;
   name: string;
   color: string;
+  courseId: string;
   avgAttempts: number;
   certificates: number;
   downloads: number;

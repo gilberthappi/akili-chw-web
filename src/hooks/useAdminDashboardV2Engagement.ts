@@ -14,6 +14,7 @@ export type EngagementDomainModel = {
   key: string;
   name: string;
   color: string;
+  courseId: string;
 };
 
 export type EngagementChartModel = {

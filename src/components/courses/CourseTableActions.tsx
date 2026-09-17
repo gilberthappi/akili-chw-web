@@ -1,5 +1,5 @@
 import { ICourse } from "@/types";
-import { TrashIcon, PencilIcon } from "@heroicons/react/24/outline";
+import { TrashIcon, PencilIcon, EyeIcon } from "@heroicons/react/24/outline";
 import { FC, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ConfirmDelete from "@/components/common/ConfirmDelete";
@@ -25,11 +25,20 @@ const CourseTableActions: FC<ICourseTableActionsProps> = ({ item }) => {
     });
   };
 
-
+  const handleViewAnalysis = () => {
+    navigate(`/courses/${item.id}/analysis`);
+  };
 
   return (
     <>
         <div className='w-full'>
+
+          <div
+            className='flex gap-2 py-1 px-2 hover:bg-gray-100 cursor-pointer'
+            onClick={handleViewAnalysis}
+          >
+            <EyeIcon className='w-4 text-[#3363AD]' /> View analysis
+          </div>
 
           <div
             className='flex gap-2 py-1 px-2 hover:bg-gray-100 cursor-pointer'

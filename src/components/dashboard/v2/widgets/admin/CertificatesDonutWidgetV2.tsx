@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { CalendarDays, ChevronDown } from "lucide-react";
 import { useAdminDashboardFilters } from "../../AdminDashboardFiltersContext";
@@ -10,6 +11,7 @@ type CertPiePoint = {
   name: string;
   value: number;
   color: string;
+  courseId?: string;
   avgAttempts: number;
   downloads: number;
   sharePercent: number;
@@ -59,12 +61,16 @@ const CertificatesTooltip: React.FC<{
             {d.downloads}
           </span>
         </div>
+        <p className="pt-1 text-[9px] text-[#3363AD] font-semibold">
+          Click to open analysis
+        </p>
       </div>
     </div>
   );
 };
 
 export const CertificatesDonutWidgetV2: React.FC = () => {
+  const navigate = useNavigate();
   const { filters } = useAdminDashboardFilters();
   const [timeframe, setTimeframe] = useState("All Time");
   const { data, isLoading } = useAdminDashboardV2Certificates(
@@ -93,6 +99,7 @@ export const CertificatesDonutWidgetV2: React.FC = () => {
       name: r.name,
       value: r.certificates,
       color: r.color,
+      courseId: r.courseId,
       avgAttempts: r.avgAttempts,
       downloads: r.downloads,
       sharePercent:
@@ -101,6 +108,11 @@ export const CertificatesDonutWidgetV2: React.FC = () => {
           : 0,
     }));
   }, [rows, total]);
+
+  const openCourse = (courseId?: string) => {
+    if (!courseId) return;
+    navigate(`/courses/${courseId}/analysis`);
+  };
 
   return (
     <div
@@ -149,6 +161,12 @@ export const CertificatesDonutWidgetV2: React.FC = () => {
                   paddingAngle={1}
                   dataKey="value"
                   nameKey="name"
+                  onClick={(data) => {
+                    const point = data as CertPiePoint & {
+                      payload?: CertPiePoint;
+                    };
+                    openCourse(point?.courseId ?? point?.payload?.courseId);
+                  }}
                 >
                   {chartData.map((entry, index) => (
                     <Cell
@@ -156,7 +174,10 @@ export const CertificatesDonutWidgetV2: React.FC = () => {
                       fill={entry.color}
                       stroke="#FFFFFF"
                       strokeWidth={1}
-                      style={{ cursor: "pointer", outline: "none" }}
+                      style={{
+                        cursor: entry.courseId ? "pointer" : "default",
+                        outline: "none",
+                      }}
                     />
                   ))}
                 </Pie>

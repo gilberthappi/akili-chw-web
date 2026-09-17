@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowDown,
@@ -138,6 +139,7 @@ const FilterSelect: React.FC<{
 );
 
 export const ChwDataTableV2: React.FC = () => {
+  const navigate = useNavigate();
   const { filters } = useAdminDashboardFilters();
   const { availableGenders } = useFilterBarOptions(filters);
   const [local, setLocal] = useState<DemographicsLocalFilters>(EMPTY_LOCAL);
@@ -362,7 +364,8 @@ export const ChwDataTableV2: React.FC = () => {
               sortedRows.map((row) => (
                 <tr
                   key={row.id}
-                  className="border-t border-[#E8EEF4] hover:bg-[#F8FBFF] transition-colors"
+                  className="border-t border-[#E8EEF4] hover:bg-[#F8FBFF] transition-colors cursor-pointer"
+                  onClick={() => navigate(`/courses/${row.id}/analysis`)}
                 >
                   <td className="py-2.5 px-2.5">
                     <div className="flex items-center gap-2.5 min-w-[200px]">
@@ -380,7 +383,7 @@ export const ChwDataTableV2: React.FC = () => {
                         )}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-[11px] font-bold text-[#1A2332] uppercase leading-snug">
+                        <p className="text-[11px] font-bold text-[#1A2332] uppercase leading-snug hover:text-[#3363AD]">
                           {row.title}
                         </p>
                         <p className="text-[10px] font-medium text-[#5B6575] mt-0.5">

@@ -61,6 +61,8 @@ export const dashboardKeys = {
     [...dashboardKeys.all, "v2", "course-ratings", ...filters] as const,
   v2MapOverview: (filters: readonly string[]) =>
     [...dashboardKeys.all, "v2", "map-overview", ...filters] as const,
+  v2CourseAnalysis: (filters: readonly string[]) =>
+    [...dashboardKeys.all, "v2", "course-analysis", ...filters] as const,
   /** Deep adoption charts (course/student/test/demographics/cert breakdowns). */
   adoption: (filters: readonly string[]) =>
     [...dashboardKeys.all, "adoption", ...filters] as const,

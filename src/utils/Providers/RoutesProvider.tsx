@@ -24,6 +24,7 @@ import { ForgotPassword } from "@/pages/auth/ForgotPassword";
 import { ResetPassword } from "@/pages/auth/ResetPassword";
 import { Terms } from "@/pages/auth/Terms";
 import CoursesPage from "@/pages/dashboard/Courses";
+import CourseAnalysisV2 from "@/pages/dashboard/CourseAnalysisV2";
 import NewCoursePage from "@/components/courses/NewCoursePage";
 import NewCoursesBuilder from "@/pages/dashboard/NewCoursesBuilder";
 import StudentsPage from "@/pages/dashboard/Students";
@@ -135,11 +136,16 @@ const RoutesProvider = () => {
         {
           path: "courses",
           element: (
-            <ProtectedRoute
-              allowedRoles={[...COURSE_MGMT_ROLES]}
-              allowedIndustries={["SFH", "WELTEL", "RBC", "CIIC_HIN"]}
-            >
+            <ProtectedRoute allowedRoles={[...COURSE_MGMT_ROLES]}>
               <CoursesPage />
+            </ProtectedRoute>
+          ),
+        },
+        {
+          path: "courses/:courseId/analysis",
+          element: (
+            <ProtectedRoute allowedRoles={[...COURSE_MGMT_ROLES]}>
+              <CourseAnalysisV2 />
             </ProtectedRoute>
           ),
         },

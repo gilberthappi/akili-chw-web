@@ -519,8 +519,9 @@ const DashboardLayout = ({
     {
       label: "Courses",
       path: "/courses",
-      roles: [...LEARNER_MGMT_ROLES],
-      industries: ["SFH", "WELTEL", "RBC", "CIIC_HIN"],
+      // Role-only: legacy ADMIN (and other course managers) may lack department/industry
+      // on the auth payload — do not hide Courses behind an industry gate.
+      roles: [...COURSE_MGMT_ROLES],
       icon: <ClipboardDocumentListIcon className='w-5 h-5' />,
     },
     {
