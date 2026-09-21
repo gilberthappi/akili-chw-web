@@ -76,7 +76,6 @@ export const StudentDetailsV2: React.FC = () => {
 
   const studentInfo = rawData.studentInfo;
   const fullNames = studentInfo.fullName?.trim() || "—";
-  const email = studentInfo.email?.trim() || "—";
   const phone = studentInfo.phoneNumber?.trim() || "—";
   const photo = studentInfo.photo || null;
   const status = studentInfo.status || "ACTIVE";
@@ -169,23 +168,25 @@ export const StudentDetailsV2: React.FC = () => {
 
   return (
     <div className="space-y-6 pb-12">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-        <div className="lg:col-span-4 xl:col-span-3">
-          <StudentProfileCardV2
-            fullNames={fullNames}
-            email={email}
-            phone={phone}
-            photo={photo}
-            address={address}
-            status={status}
-            enrolledDate={enrolledDateStr}
-            studentCode={studentCode}
-            certificatesCount={certificatesCount}
-            completedCoursesCount={completedCoursesCount}
-          />
-        </div>
+      {/* Default grid stretch: left col matches right height so sticky can pin */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <aside className="lg:col-span-4 xl:col-span-3 relative">
+          <div className="lg:sticky lg:top-4 z-10">
+            <StudentProfileCardV2
+              fullNames={fullNames}
+              phone={phone}
+              photo={photo}
+              address={address}
+              status={status}
+              enrolledDate={enrolledDateStr}
+              studentCode={studentCode}
+              certificatesCount={certificatesCount}
+              completedCoursesCount={completedCoursesCount}
+            />
+          </div>
+        </aside>
 
-        <div className="lg:col-span-8 xl:col-span-9 space-y-6 flex flex-col justify-between">
+        <div className="lg:col-span-8 xl:col-span-9 space-y-6 min-w-0">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
             <div className="md:col-span-7">
               <LearningActivityV2 courses={coursesList} />

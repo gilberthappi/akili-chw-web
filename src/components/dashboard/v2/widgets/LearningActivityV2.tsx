@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { ICourseStatEntry } from "@/services/progress.service";
 import { RotateCcw } from "lucide-react";
 import {
@@ -14,7 +14,6 @@ interface LearningActivityV2Props {
   courses?: ICourseStatEntry[];
 }
 
-/* Custom Tooltip with wide width so long course names fit cleanly and follow mouse cursor corner */
 /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -48,36 +47,95 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
+/** Stable 0–1 hash from a string (course id / title). */
+const stableUnit = (seed: string): number => {
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i += 1) {
+    h ^= seed.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return ((h >>> 0) % 10000) / 10000;
+};
+
+/**
+ * Weekday-heavy study pattern. Each course gets a shifted/perturbed copy
+ * so Mon/Tue/… don’t look identical across stacked series.
+ */
+const buildWeeklyWeights = (seed: string): number[] => {
+  // Base: Mon–Sun (peak mid-week, light weekend)
+  const base = [0.14, 0.18, 0.22, 0.2, 0.16, 0.07, 0.03];
+  const shift = Math.floor(stableUnit(`${seed}-shift`) * 5); // 0–4
+  const rotated = base.map((_, i) => base[(i + shift) % 7]);
+  const weighted = rotated.map((w, i) => {
+    const jitter = 0.55 + stableUnit(`${seed}-d${i}`) * 0.9; // 0.55–1.45
+    return Math.max(0.01, w * jitter);
+  });
+  const sum = weighted.reduce((a, b) => a + b, 0);
+  return weighted.map((w) => w / sum);
+};
+
+const buildMonthlyWeights = (seed: string): number[] => {
+  const base = [0.08, 0.1, 0.09, 0.13, 0.16, 0.14, 0.15, 0.15];
+  const weighted = base.map((w, i) => {
+    const jitter = 0.5 + stableUnit(`${seed}-m${i}`) * 1.0;
+    return Math.max(0.02, w * jitter);
+  });
+  const sum = weighted.reduce((a, b) => a + b, 0);
+  return weighted.map((w) => w / sum);
+};
+
+const estimateCourseHours = (course: ICourseStatEntry): number => {
+  const progress = Math.min(100, Math.max(0, course.progress || 0));
+  const duration =
+    course.courseDuration ||
+    course.totalChapters ||
+    0;
+  if (duration > 0) {
+    return +((progress / 100) * duration).toFixed(2);
+  }
+  // Fallback when chapters/duration missing: ~6h full course
+  return +((progress / 100) * 6).toFixed(2);
+};
+
 export const LearningActivityV2: React.FC<LearningActivityV2Props> = ({
   courses = [],
 }) => {
   const [timeframe, setTimeframe] = useState<"Weekly" | "Monthly">("Weekly");
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
 
-  // Filter courses user has enrolled in or started
-  const enrolledCourses = courses.filter((c) => c.isEnrolled || c.isStarted || c.progress > 0);
+  const enrolledCourses = courses.filter(
+    (c) => c.isEnrolled || c.isStarted || c.progress > 0,
+  );
   const activeList = enrolledCourses.length > 0 ? enrolledCourses : courses;
 
-  // Map enrolled courses to health categories for stacked chart colors
   const categoryColors = [
-    { key: "c1", color: "#D97706" }, // Dark Amber
-    { key: "c2", color: "#DB2777" }, // Dark Pink
-    { key: "c3", color: "#64748B" }, // Slate
-    { key: "c4", color: "#059669" }, // Emerald
-    { key: "c5", color: "#9333EA" }, // Purple
-    { key: "c6", color: "#2563EB" }, // Blue
-    { key: "c7", color: "#4F46E5" }, // Indigo
-    { key: "c8", color: "#7C3AED" }, // Violet
+    { key: "c1", color: "#D97706" },
+    { key: "c2", color: "#DB2777" },
+    { key: "c3", color: "#64748B" },
+    { key: "c4", color: "#059669" },
+    { key: "c5", color: "#9333EA" },
+    { key: "c6", color: "#2563EB" },
+    { key: "c7", color: "#4F46E5" },
+    { key: "c8", color: "#7C3AED" },
   ];
 
-  const courseCategories = activeList.slice(0, 8).map((course, idx) => ({
-    key: `c${idx + 1}`,
-    name: course.title,
-    color: categoryColors[idx % categoryColors.length].color,
-    completedHours: +(((course.progress || 0) / 100) * (course.courseDuration || course.totalChapters || 1)).toFixed(1),
-  }));
+  const courseCategories = useMemo(
+    () =>
+      activeList.slice(0, 8).map((course, idx) => {
+        const seed = course.courseId || course.title || `c${idx}`;
+        return {
+          key: `c${idx + 1}`,
+          name: course.title,
+          color: categoryColors[idx % categoryColors.length].color,
+          completedHours: estimateCourseHours(course),
+          weeklyWeights: buildWeeklyWeights(seed),
+          monthlyWeights: buildMonthlyWeights(seed),
+        };
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activeList],
+  );
 
-  // Toggle single or multiple category selections
   const isCategoryActive = (key: string) =>
     selectedKeys.length === 0 || selectedKeys.includes(key);
 
@@ -92,44 +150,54 @@ export const LearningActivityV2: React.FC<LearningActivityV2Props> = ({
     }
   };
 
-  const resetCategoryFilters = () => {
-    setSelectedKeys([]);
-  };
+  const resetCategoryFilters = () => setSelectedKeys([]);
 
-  // Filter visible category bars based on selected legend indicators
-  const visibleCategories = courseCategories.filter((cat) => isCategoryActive(cat.key));
+  const visibleCategories = courseCategories.filter((cat) =>
+    isCategoryActive(cat.key),
+  );
 
-  // Calculate real total completed study hours across active/filtered courses
-  const totalCompletedHoursRaw = visibleCategories.reduce((acc, cat) => acc + cat.completedHours, 0);
+  const totalCompletedHoursRaw = visibleCategories.reduce(
+    (acc, cat) => acc + cat.completedHours,
+    0,
+  );
 
-  // Weekly hours vs Monthly cumulative hours
-  const displayHoursRaw = timeframe === "Weekly" ? totalCompletedHoursRaw : totalCompletedHoursRaw * 3.5;
+  // Weekly ≈ spread of completed hours; Monthly ≈ longer window estimate
+  const displayHoursRaw =
+    timeframe === "Weekly"
+      ? totalCompletedHoursRaw
+      : totalCompletedHoursRaw * 2.4;
   const displayHours = Math.floor(displayHoursRaw);
   const displayMinutes = Math.round((displayHoursRaw - displayHours) * 60);
 
-  // Weekly X-Axis (Days of Week) vs Monthly X-Axis (Months of Year)
   const weeklyLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  const weeklyRatios = [0.2, 0.15, 0.1, 0.2, 0.1, 0.2, 0.05];
-
   const monthlyLabels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug"];
-  const monthlyRatios = [0.1, 0.12, 0.08, 0.15, 0.18, 0.14, 0.13, 0.1];
-
   const xAxisLabels = timeframe === "Weekly" ? weeklyLabels : monthlyLabels;
-  const ratios = timeframe === "Weekly" ? weeklyRatios : monthlyRatios;
 
-  const stackedData = xAxisLabels.map((label, idx) => {
-    const ratio = ratios[idx % ratios.length];
-    const multiplier = timeframe === "Weekly" ? 1 : 3.2;
+  const stackedData = xAxisLabels.map((label, dayIdx) => {
     const row: Record<string, string | number> = { period: label };
     visibleCategories.forEach((cat) => {
-      row[cat.key] = +(cat.completedHours * ratio * multiplier).toFixed(1);
+      const weights =
+        timeframe === "Weekly" ? cat.weeklyWeights : cat.monthlyWeights;
+      const scale = timeframe === "Weekly" ? 1 : 2.4;
+      row[cat.key] = +(
+        cat.completedHours *
+        (weights[dayIdx] ?? 0) *
+        scale
+      ).toFixed(1);
     });
     return row;
   });
 
+  const peakDayHours = stackedData.reduce((max, row) => {
+    const dayTotal = visibleCategories.reduce(
+      (sum, cat) => sum + Number(row[cat.key] || 0),
+      0,
+    );
+    return Math.max(max, dayTotal);
+  }, 0);
+
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-xs flex flex-col justify-between h-full space-y-4">
-      {/* Header Row with Toggle Selector */}
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="flex items-baseline gap-1.5">
@@ -148,7 +216,6 @@ export const LearningActivityV2: React.FC<LearningActivityV2Props> = ({
           </p>
         </div>
 
-        {/* Dropdown Select: Weekly vs Monthly */}
         <select
           value={timeframe}
           onChange={(e) => setTimeframe(e.target.value as "Weekly" | "Monthly")}
@@ -159,7 +226,6 @@ export const LearningActivityV2: React.FC<LearningActivityV2Props> = ({
         </select>
       </div>
 
-      {/* Stacked Bar Chart */}
       <div className="h-44 w-full relative">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
@@ -192,7 +258,11 @@ export const LearningActivityV2: React.FC<LearningActivityV2Props> = ({
                 name={cat.name}
                 stackId="a"
                 fill={cat.color}
-                radius={idx === visibleCategories.length - 1 ? [3, 3, 0, 0] : [0, 0, 0, 0]}
+                radius={
+                  idx === visibleCategories.length - 1
+                    ? [3, 3, 0, 0]
+                    : [0, 0, 0, 0]
+                }
                 barSize={timeframe === "Weekly" ? 18 : 14}
               />
             ))}
@@ -200,7 +270,6 @@ export const LearningActivityV2: React.FC<LearningActivityV2Props> = ({
         </ResponsiveContainer>
       </div>
 
-      {/* Clean Category Legend (Clickable to Filter, matching clean original design without card borders) */}
       <div className="pt-3 border-t border-gray-100 space-y-2">
         {selectedKeys.length > 0 && (
           <div className="flex justify-end">
@@ -245,7 +314,6 @@ export const LearningActivityV2: React.FC<LearningActivityV2Props> = ({
         </div>
       </div>
 
-      {/* 3 Summary Pill Boxes */}
       <div className="grid grid-cols-3 gap-3">
         <div className="bg-[#EAF3FC] rounded-2xl p-3 text-center">
           <p className="text-xs font-extrabold text-gray-900">
@@ -257,15 +325,16 @@ export const LearningActivityV2: React.FC<LearningActivityV2Props> = ({
         </div>
         <div className="bg-[#EAF3FC] rounded-2xl p-3 text-center">
           <p className="text-xs font-extrabold text-gray-900">
-            {Math.round(displayHoursRaw * 0.25)}h
+            {peakDayHours.toFixed(1)}h
           </p>
           <p className="text-[10px] font-semibold text-gray-500 truncate mt-0.5">
-            Study Session
+            Peak day activity
           </p>
         </div>
         <div className="bg-[#EAF3FC] rounded-2xl p-3 text-center">
           <p className="text-xs font-extrabold text-gray-900">
-            {activeList.filter((c) => c.completedTests > 0).length} Tests
+            {activeList.filter((c) => c.isCompleted || c.completedTests > 0).length}{" "}
+            Tests
           </p>
           <p className="text-[10px] font-semibold text-gray-500 truncate mt-0.5">
             Assessments Passed

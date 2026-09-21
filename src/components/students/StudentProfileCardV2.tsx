@@ -1,6 +1,5 @@
 import React from "react";
 import {
-  Mail,
   Phone,
   MapPin,
   MessageSquare,
@@ -13,7 +12,6 @@ import { useNavigate } from "react-router-dom";
 
 interface StudentProfileCardV2Props {
   fullNames: string;
-  email: string;
   phone: string;
   photo?: string | null;
   address?: string;
@@ -26,7 +24,6 @@ interface StudentProfileCardV2Props {
 
 export const StudentProfileCardV2: React.FC<StudentProfileCardV2Props> = ({
   fullNames,
-  email,
   phone,
   photo,
   address = "—",
@@ -40,7 +37,7 @@ export const StudentProfileCardV2: React.FC<StudentProfileCardV2Props> = ({
   const isActive = String(status).toUpperCase() === "ACTIVE";
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden flex flex-col h-full">
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden flex flex-col">
       <div className="relative bg-gradient-to-r from-[#D8B4FE]/30 via-[#E9D5FF]/40 to-[#F3E8FF] pt-8 pb-5 px-6 flex flex-col items-center text-center">
         <div className="relative mb-3">
           <div className="w-24 h-24 rounded-full ring-4 ring-white shadow-md overflow-hidden bg-[#3363AD] flex items-center justify-center text-white text-2xl font-bold">
@@ -89,15 +86,6 @@ export const StudentProfileCardV2: React.FC<StudentProfileCardV2Props> = ({
               <PhoneCall size={14} />
             </a>
           )}
-          {email !== "—" && (
-            <a
-              href={`mailto:${email}`}
-              className="p-2 rounded-xl bg-white/80 hover:bg-white text-gray-600 shadow-2xs transition-colors border border-purple-100"
-              title="Email Student"
-            >
-              <Mail size={14} />
-            </a>
-          )}
           <button
             onClick={() => navigate("/messaging")}
             className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-[#F3E8FF] hover:bg-[#E9D5FF] text-[#7E22CE] text-xs font-bold transition-colors"
@@ -114,16 +102,6 @@ export const StudentProfileCardV2: React.FC<StudentProfileCardV2Props> = ({
         </h4>
 
         <div className="space-y-3 text-xs">
-          <div className="flex items-center gap-3 text-gray-600">
-            <div className="w-7 h-7 rounded-lg bg-purple-50 text-[#7E22CE] flex items-center justify-center shrink-0">
-              <Mail size={13} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[10px] text-gray-400 font-medium">Email</p>
-              <p className="font-semibold text-gray-800 truncate">{email}</p>
-            </div>
-          </div>
-
           <div className="flex items-center gap-3 text-gray-600">
             <div className="w-7 h-7 rounded-lg bg-purple-50 text-[#7E22CE] flex items-center justify-center shrink-0">
               <Phone size={13} />
