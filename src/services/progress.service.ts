@@ -49,6 +49,8 @@ export interface ICourseStatEntry {
   isEnrolled: boolean;
   isStarted: boolean;
   isCompleted: boolean;
+  /** Passed Final Exam (≥1) — distinct from isCompleted (Final Test) */
+  isCertified?: boolean;
   completedAt: string | null;
   enrollmentDate: string | null;
   progress: number;

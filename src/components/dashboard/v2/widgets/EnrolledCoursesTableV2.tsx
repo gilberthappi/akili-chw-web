@@ -1,16 +1,19 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ICourseStatEntry } from "@/services/progress.service";
-import { PlayCircle, ArrowUpDown, BookOpen } from "lucide-react";
+import { ArrowUpDown, BookOpen } from "lucide-react";
 
 interface EnrolledCoursesTableV2Props {
   courses: ICourseStatEntry[];
   isLoading?: boolean;
+  /** When viewing another student, hide learner catalog CTA */
+  readOnly?: boolean;
 }
 
 export const EnrolledCoursesTableV2: React.FC<EnrolledCoursesTableV2Props> = ({
   courses = [],
   isLoading,
+  readOnly = false,
 }) => {
   const navigate = useNavigate();
   const [selectedFilter, setSelectedFilter] = useState("ALL");
@@ -25,29 +28,45 @@ export const EnrolledCoursesTableV2: React.FC<EnrolledCoursesTableV2Props> = ({
 
   const filteredCourses = safeCourses.filter((c) => {
     if (selectedFilter === "COMPLETED") return c.isCompleted;
+    if (selectedFilter === "CERTIFIED") return Boolean(c.isCertified);
     if (selectedFilter === "ONGOING") return c.isStarted && !c.isCompleted;
     return true;
   });
 
   const totalEnrollmentsCount = safeCourses.length;
+  const ongoingCount = safeCourses.filter(
+    (c) => c.isStarted && !c.isCompleted,
+  ).length;
+  const completedCount = safeCourses.filter((c) => c.isCompleted).length;
+  const certifiedCount = safeCourses.filter((c) => c.isCertified).length;
+
+  const formatDate = (value?: string | null) => {
+    if (!value) return "—";
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-5 sm:p-6 shadow-xs space-y-4">
-      {/* Header Title */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h3 className="text-sm font-extrabold text-gray-900 tracking-tight">
             Enrolled courses
           </h3>
           <p className="text-xs text-gray-400 mt-0.5">
-            Real-time enrollment & assessment status
+            Progress from Final Test / Final Exam (backend)
           </p>
         </div>
       </div>
 
-      {/* Pill Filter Tabs Bar */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
         <button
+          type="button"
           onClick={() => setSelectedFilter("ALL")}
           className={`px-3.5 py-1 rounded-md text-xs font-bold whitespace-nowrap transition-colors ${
             selectedFilter === "ALL"
@@ -59,6 +78,7 @@ export const EnrolledCoursesTableV2: React.FC<EnrolledCoursesTableV2Props> = ({
         </button>
 
         <button
+          type="button"
           onClick={() => setSelectedFilter("ONGOING")}
           className={`px-3.5 py-1 rounded-md text-xs font-bold whitespace-nowrap transition-colors ${
             selectedFilter === "ONGOING"
@@ -66,10 +86,11 @@ export const EnrolledCoursesTableV2: React.FC<EnrolledCoursesTableV2Props> = ({
               : "bg-[#F1F5F9] text-gray-600 hover:bg-[#EBF0F9] hover:text-[#3363AD]"
           }`}
         >
-          Ongoing ({safeCourses.filter((c) => c.isStarted && !c.isCompleted).length})
+          Ongoing ({ongoingCount})
         </button>
 
         <button
+          type="button"
           onClick={() => setSelectedFilter("COMPLETED")}
           className={`px-3.5 py-1 rounded-md text-xs font-bold whitespace-nowrap transition-colors ${
             selectedFilter === "COMPLETED"
@@ -77,82 +98,56 @@ export const EnrolledCoursesTableV2: React.FC<EnrolledCoursesTableV2Props> = ({
               : "bg-[#F1F5F9] text-gray-600 hover:bg-[#EBF0F9] hover:text-[#3363AD]"
           }`}
         >
-          Completed ({safeCourses.filter((c) => c.isCompleted).length})
+          Completed ({completedCount})
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setSelectedFilter("CERTIFIED")}
+          className={`px-3.5 py-1 rounded-md text-xs font-bold whitespace-nowrap transition-colors ${
+            selectedFilter === "CERTIFIED"
+              ? "bg-[#3363AD] text-white shadow-2xs"
+              : "bg-[#F1F5F9] text-gray-600 hover:bg-[#EBF0F9] hover:text-[#3363AD]"
+          }`}
+        >
+          Certified ({certifiedCount})
         </button>
       </div>
 
-      {/* Table Container */}
       {filteredCourses.length === 0 ? (
         <div className="text-center py-12 px-4 border border-dashed border-gray-200 rounded-2xl space-y-3 bg-gray-50/50">
           <BookOpen size={36} className="mx-auto text-gray-300" />
           <div className="space-y-1">
-            <p className="text-sm font-bold text-gray-800">
-              No Enrolled Courses Found
-            </p>
+            <p className="text-sm font-bold text-gray-800">No courses found</p>
             <p className="text-xs text-gray-500 max-w-sm mx-auto">
-              You are currently not enrolled in any training modules matching this filter.
+              No enrollments match this filter.
             </p>
           </div>
-          <button
-            onClick={() => navigate("/course-catalog")}
-            className="px-4 py-2 bg-[#3363AD] hover:bg-[#284f8a] text-white text-xs font-bold rounded-xl transition-colors shadow-xs"
-          >
-            Browse Course Catalog
-          </button>
+          {!readOnly && (
+            <button
+              type="button"
+              onClick={() => navigate("/course-catalog")}
+              className="px-4 py-2 bg-[#3363AD] hover:bg-[#284f8a] text-white text-xs font-bold rounded-xl transition-colors shadow-xs"
+            >
+              Browse Course Catalog
+            </button>
+          )}
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[850px]">
+          <table className="w-full text-left border-collapse min-w-[640px]">
             <thead>
               <tr className="border-b border-gray-100 text-[11px] font-bold text-gray-500 uppercase tracking-wider">
                 <th className="py-3 px-3">
-                  <div className="flex items-center gap-1 cursor-pointer">
+                  <div className="flex items-center gap-1">
                     <span>Course Name</span>
                     <ArrowUpDown size={12} className="text-gray-400" />
                   </div>
                 </th>
-                <th className="py-3 px-3">
-                  <div className="flex items-center gap-1 cursor-pointer">
-                    <span>Time period</span>
-                    <ArrowUpDown size={12} className="text-gray-400" />
-                  </div>
-                </th>
-                <th className="py-3 px-3 text-center">
-                  <div className="flex items-center justify-center gap-1 cursor-pointer">
-                    <span>Completion</span>
-                    <ArrowUpDown size={12} className="text-gray-400" />
-                  </div>
-                </th>
-                <th className="py-3 px-3 text-center">
-                  <div className="flex items-center justify-center gap-1 cursor-pointer">
-                    <span>Progress status</span>
-                    <ArrowUpDown size={12} className="text-gray-400" />
-                  </div>
-                </th>
-                <th className="py-3 px-3 text-center">
-                  <div className="flex items-center justify-center gap-1 cursor-pointer">
-                    <span>Pre Test</span>
-                    <ArrowUpDown size={12} className="text-gray-400" />
-                  </div>
-                </th>
-                <th className="py-3 px-3 text-center">
-                  <div className="flex items-center justify-center gap-1 cursor-pointer">
-                    <span>Mid Test</span>
-                    <ArrowUpDown size={12} className="text-gray-400" />
-                  </div>
-                </th>
-                <th className="py-3 px-3 text-center">
-                  <div className="flex items-center justify-center gap-1 cursor-pointer">
-                    <span>Post Test</span>
-                    <ArrowUpDown size={12} className="text-gray-400" />
-                  </div>
-                </th>
-                <th className="py-3 px-3 text-right">
-                  <div className="flex items-center justify-end gap-1 cursor-pointer">
-                    <span>Certificate</span>
-                    <ArrowUpDown size={12} className="text-gray-400" />
-                  </div>
-                </th>
+                <th className="py-3 px-3 whitespace-nowrap">Enrolled</th>
+                <th className="py-3 px-3 text-center">Progress</th>
+                <th className="py-3 px-3 text-center">Status</th>
+                <th className="py-3 px-3 text-right">Certificate</th>
               </tr>
             </thead>
 
@@ -160,18 +155,15 @@ export const EnrolledCoursesTableV2: React.FC<EnrolledCoursesTableV2Props> = ({
               {filteredCourses.map((course) => {
                 const pct = Math.min(
                   100,
-                  Math.max(0, Math.round(course.progress ?? 0))
+                  Math.max(0, Math.round(course.progress ?? 0)),
                 );
-
                 const coverImg = course.coverIcon;
 
                 return (
                   <tr
                     key={course.courseId}
-                    onClick={() => navigate(`/learn/${course.courseId}`)}
-                    className="hover:bg-gray-50/70 transition-colors cursor-pointer group"
+                    className="hover:bg-gray-50/70 transition-colors group"
                   >
-                    {/* Course Name & Icon */}
                     <td className="py-3.5 px-3">
                       <div className="flex items-center gap-3">
                         {coverImg ? (
@@ -189,27 +181,17 @@ export const EnrolledCoursesTableV2: React.FC<EnrolledCoursesTableV2Props> = ({
                           </div>
                         )}
                         <div className="min-w-0">
-                          <p className="font-extrabold text-gray-900 group-hover:text-[#3363AD] transition-colors uppercase leading-tight truncate max-w-xs">
+                          <p className="font-extrabold text-gray-900 group-hover:text-[#3363AD] transition-colors leading-tight truncate max-w-xs">
                             {course.title}
-                          </p>
-                          <p className="text-[10px] font-semibold text-gray-400 mt-0.5">
-                            {course.totalChapters || 1} Modules
                           </p>
                         </div>
                       </div>
                     </td>
 
-                    {/* Time Period */}
                     <td className="py-3.5 px-3 font-semibold text-gray-600 whitespace-nowrap">
-                      <div className="flex items-center gap-1.5">
-                        <PlayCircle size={14} className="text-[#3363AD]" />
-                        <span>
-                          {course.totalChapters || 1} • {course.courseDuration || 1}h
-                        </span>
-                      </div>
+                      {formatDate(course.enrollmentDate)}
                     </td>
 
-                    {/* Completion Ring */}
                     <td className="py-3.5 px-3 text-center whitespace-nowrap">
                       <div
                         className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-white text-[10px] font-black shadow-2xs ${
@@ -220,60 +202,31 @@ export const EnrolledCoursesTableV2: React.FC<EnrolledCoursesTableV2Props> = ({
                       </div>
                     </td>
 
-                    {/* Progress Status Badge */}
                     <td className="py-3.5 px-3 text-center whitespace-nowrap">
                       <span
                         className={`inline-block px-3.5 py-0.5 rounded-full text-[11px] font-extrabold ${
                           course.isCompleted
                             ? "bg-emerald-50 text-emerald-600 border border-emerald-100"
                             : course.isStarted
-                            ? "bg-[#FFF4EC] text-[#E06D53] border border-[#FFE4D6]"
-                            : "bg-gray-100 text-gray-500"
+                              ? "bg-[#FFF4EC] text-[#E06D53] border border-[#FFE4D6]"
+                              : "bg-gray-100 text-gray-500"
                         }`}
                       >
                         {course.isCompleted
                           ? "Completed"
                           : course.isStarted
-                          ? "In-Progress"
-                          : "Not Started"}
+                            ? "In progress"
+                            : "Not started"}
                       </span>
                     </td>
 
-                    {/* Pre Test */}
-                    <td className="py-3.5 px-3 text-center font-bold text-gray-600 whitespace-nowrap">
-                      {course.completedTests > 0 ? (
-                        <span className="text-gray-900 font-extrabold">Passed</span>
-                      ) : (
-                        <span className="text-gray-400 font-normal italic">Not Attempted</span>
-                      )}
-                    </td>
-
-                    {/* Mid Test */}
-                    <td className="py-3.5 px-3 text-center font-bold text-gray-600 whitespace-nowrap">
-                      {course.completedTests > 1 ? (
-                        <span className="text-gray-900 font-extrabold">Passed</span>
-                      ) : (
-                        <span className="text-gray-400 font-normal italic">Not Attempted</span>
-                      )}
-                    </td>
-
-                    {/* Post Test */}
-                    <td className="py-3.5 px-3 text-center font-bold text-gray-600 whitespace-nowrap">
-                      {course.isCompleted ? (
-                        <span className="text-emerald-600 font-extrabold">Passed</span>
-                      ) : (
-                        <span className="text-gray-400 font-normal italic">Not Attempted</span>
-                      )}
-                    </td>
-
-                    {/* Certificate Status */}
-                    <td className="py-3.5 px-3 text-right font-semibold text-gray-500 whitespace-nowrap">
-                      {course.isCompleted ? (
+                    <td className="py-3.5 px-3 text-right font-semibold whitespace-nowrap">
+                      {course.isCertified ? (
                         <span className="text-[#3363AD] font-extrabold">
-                          Certificate: Earned
+                          Earned
                         </span>
                       ) : (
-                        <span className="text-gray-400">Certificate: Not Earned</span>
+                        <span className="text-gray-400">Not earned</span>
                       )}
                     </td>
                   </tr>

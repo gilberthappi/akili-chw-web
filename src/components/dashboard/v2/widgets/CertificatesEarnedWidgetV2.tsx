@@ -1,26 +1,31 @@
-import React from "react";
-import { Award, Download, ExternalLink, ChevronRight, CheckCircle2 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import React, { useState } from "react";
+import { Award, Download, ChevronRight, CheckCircle2, ChevronUp } from "lucide-react";
 import { IMyCertificate } from "@/services/certificates.service";
 import { uniqueCourseCertificateCount } from "@/utils/certificates";
 
 interface CertificatesEarnedWidgetV2Props {
   certificates: IMyCertificate[];
   isLoading?: boolean;
+  /**
+   * When true (student details), "View All" expands the list in place
+   * instead of navigating to /my-certificates.
+   */
+  expandInPlace?: boolean;
 }
 
-export const CertificatesEarnedWidgetV2: React.FC<CertificatesEarnedWidgetV2Props> = ({
-  certificates = [],
-  isLoading = false,
-}) => {
-  const navigate = useNavigate();
+export const CertificatesEarnedWidgetV2: React.FC<
+  CertificatesEarnedWidgetV2Props
+> = ({ certificates = [], isLoading = false, expandInPlace = false }) => {
+  const [showAll, setShowAll] = useState(false);
   const safeCertificates = Array.isArray(certificates) ? certificates : [];
   const certCount = uniqueCourseCertificateCount(safeCertificates);
-  const displayCertificates = safeCertificates.slice(0, 4);
+  const displayCertificates = showAll
+    ? safeCertificates
+    : safeCertificates.slice(0, 4);
+  const canExpand = safeCertificates.length > 4;
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-xs space-y-4">
-      {/* Header Row */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2.5">
           <div className="w-10 h-10 rounded-xl bg-[#EBF0F9] text-[#3363AD] flex items-center justify-center font-bold">
@@ -38,21 +43,40 @@ export const CertificatesEarnedWidgetV2: React.FC<CertificatesEarnedWidgetV2Prop
               )}
             </div>
             <p className="text-xs text-gray-500 mt-0.5">
-              Verified certificates issued by the Ministry & Partner Organizations
+              Certificates from passed Final Exam (backend)
             </p>
           </div>
         </div>
 
-        <button
-          onClick={() => navigate("/my-certificates")}
-          className="inline-flex items-center gap-1 text-xs font-bold text-[#3363AD] bg-[#EBF0F9] hover:bg-[#3363AD] hover:text-white px-3 py-1.5 rounded-xl transition-colors"
-        >
-          View All Certificates
-          <ChevronRight size={13} />
-        </button>
+        {canExpand && (
+          <button
+            type="button"
+            onClick={() => {
+              if (expandInPlace) {
+                setShowAll((v) => !v);
+                return;
+              }
+              // Learner dashboard: expand in place too (safer than wrong /my-certificates
+              // for contexts that share this widget on student details).
+              setShowAll((v) => !v);
+            }}
+            className="inline-flex items-center gap-1 text-xs font-bold text-[#3363AD] bg-[#EBF0F9] hover:bg-[#3363AD] hover:text-white px-3 py-1.5 rounded-xl transition-colors"
+          >
+            {showAll ? (
+              <>
+                Show less
+                <ChevronUp size={13} />
+              </>
+            ) : (
+              <>
+                View All Certificates
+                <ChevronRight size={13} />
+              </>
+            )}
+          </button>
+        )}
       </div>
 
-      {/* Content Grid */}
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 animate-pulse">
           <div className="h-20 bg-gray-50 rounded-xl" />
@@ -63,9 +87,12 @@ export const CertificatesEarnedWidgetV2: React.FC<CertificatesEarnedWidgetV2Prop
           <div className="w-12 h-12 rounded-xl bg-[#EBF0F9] text-[#3363AD] flex items-center justify-center mb-2">
             <Award size={24} />
           </div>
-          <p className="text-xs font-bold text-gray-700">No certificates earned yet</p>
+          <p className="text-xs font-bold text-gray-700">
+            No certificates earned yet
+          </p>
           <p className="text-[11px] text-gray-400 mt-0.5 max-w-xs">
-            Complete your active modules and pass chapter tests to issue your official certificates.
+            Certificates appear after the learner passes the Final Exam for a
+            course.
           </p>
         </div>
       ) : (
@@ -80,9 +107,12 @@ export const CertificatesEarnedWidgetV2: React.FC<CertificatesEarnedWidgetV2Prop
                     month: "short",
                     day: "numeric",
                   })
-                : "Jul 17, 2026";
+                : "—";
 
-            const pdfUrl = (cert as any).pdf || (cert as any).pdfUrl || "#";
+            const pdfUrl =
+              (cert as { pdf?: string }).pdf ||
+              (cert as { pdfUrl?: string }).pdfUrl ||
+              "";
 
             return (
               <div
@@ -107,16 +137,22 @@ export const CertificatesEarnedWidgetV2: React.FC<CertificatesEarnedWidgetV2Prop
                   </div>
                 </div>
 
-                <a
-                  href={pdfUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white border border-[#3363AD]/20 text-xs font-bold text-[#3363AD] hover:bg-[#3363AD] hover:text-white transition-colors shrink-0 shadow-2xs"
-                >
-                  <Download size={13} />
-                  PDF
-                </a>
+                {pdfUrl ? (
+                  <a
+                    href={pdfUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white border border-[#3363AD]/20 text-xs font-bold text-[#3363AD] hover:bg-[#3363AD] hover:text-white transition-colors shrink-0 shadow-2xs"
+                  >
+                    <Download size={13} />
+                    PDF
+                  </a>
+                ) : (
+                  <span className="text-[11px] text-gray-400 font-semibold shrink-0">
+                    No PDF
+                  </span>
+                )}
               </div>
             );
           })}

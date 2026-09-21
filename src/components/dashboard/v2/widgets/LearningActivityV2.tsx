@@ -109,24 +109,32 @@ export const LearningActivityV2: React.FC<LearningActivityV2Props> = ({
   const activeList = enrolledCourses.length > 0 ? enrolledCourses : courses;
 
   const categoryColors = [
-    { key: "c1", color: "#D97706" },
-    { key: "c2", color: "#DB2777" },
-    { key: "c3", color: "#64748B" },
-    { key: "c4", color: "#059669" },
-    { key: "c5", color: "#9333EA" },
-    { key: "c6", color: "#2563EB" },
-    { key: "c7", color: "#4F46E5" },
-    { key: "c8", color: "#7C3AED" },
+    "#D97706",
+    "#DB2777",
+    "#64748B",
+    "#059669",
+    "#9333EA",
+    "#2563EB",
+    "#4F46E5",
+    "#7C3AED",
+    "#0D9488",
+    "#DC2626",
+    "#CA8A04",
+    "#0891B2",
+    "#EA580C",
+    "#4B5563",
+    "#BE185D",
+    "#15803D",
   ];
 
   const courseCategories = useMemo(
     () =>
-      activeList.slice(0, 8).map((course, idx) => {
+      activeList.map((course, idx) => {
         const seed = course.courseId || course.title || `c${idx}`;
         return {
           key: `c${idx + 1}`,
           name: course.title,
-          color: categoryColors[idx % categoryColors.length].color,
+          color: categoryColors[idx % categoryColors.length],
           completedHours: estimateCourseHours(course),
           weeklyWeights: buildWeeklyWeights(seed),
           monthlyWeights: buildMonthlyWeights(seed),

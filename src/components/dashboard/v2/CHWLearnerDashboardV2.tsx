@@ -32,7 +32,7 @@ export const CHWLearnerDashboardV2: React.FC = () => {
   const avgScore =
     courses.length > 0
       ? Math.round(courses.reduce((acc, c) => acc + (c.progress || 0), 0) / courses.length)
-      : 86;
+      : 0;
 
   return (
     <div className="bg-[#E4EFF9] -mx-4 -mb-12 p-4 sm:p-6 min-h-screen space-y-6 text-gray-800 font-sans">

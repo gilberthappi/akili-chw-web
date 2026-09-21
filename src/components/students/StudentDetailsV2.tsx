@@ -22,6 +22,65 @@ const parseProgress = (value: unknown): number => {
   return 0;
 };
 
+const MONTH_LABELS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+] as const;
+
+/** Build monthly avg accuracy from graded test attempts (backend). */
+const buildTrendFromAttempts = (
+  detailedAttempts: Array<{
+    attemptDate?: string;
+    accuracyPercentage?: number;
+    totalMarks?: number;
+    testType?: string;
+  }> = [],
+): { month: string; score: number }[] => {
+  const graded = detailedAttempts.filter(
+    (a) => a.testType !== "Mid-Test" && a.attemptDate,
+  );
+  if (graded.length === 0) return [];
+
+  const byMonth = new Map<string, number[]>();
+  for (const a of graded) {
+    const d = new Date(a.attemptDate!);
+    if (isNaN(d.getTime())) continue;
+    const key = `${d.getFullYear()}-${String(d.getMonth()).padStart(2, "0")}`;
+    const score =
+      typeof a.accuracyPercentage === "number"
+        ? a.accuracyPercentage
+        : typeof a.totalMarks === "number"
+          ? a.totalMarks
+          : null;
+    if (score == null) continue;
+    const list = byMonth.get(key) ?? [];
+    list.push(score);
+    byMonth.set(key, list);
+  }
+
+  return Array.from(byMonth.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, scores]) => {
+      const monthIdx = Number(key.split("-")[1]);
+      return {
+        month: MONTH_LABELS[monthIdx] ?? key,
+        score: Math.round(
+          scores.reduce((sum, n) => sum + n, 0) / scores.length,
+        ),
+      };
+    });
+};
+
 export const StudentDetailsV2: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -81,7 +140,12 @@ export const StudentDetailsV2: React.FC = () => {
   const status = studentInfo.status || "ACTIVE";
 
   const address =
-    [studentInfo.village, studentInfo.cell, studentInfo.sector, studentInfo.district]
+    [
+      studentInfo.village,
+      studentInfo.cell,
+      studentInfo.sector,
+      studentInfo.district,
+    ]
       .map((p) => p?.trim())
       .filter(Boolean)
       .join(", ") || "—";
@@ -116,11 +180,12 @@ export const StudentDetailsV2: React.FC = () => {
       description: course.courseDescription || null,
       totalChapters: 0,
       totalTests: 0,
-      completedTests: course.isCompleted ? 1 : 0,
+      completedTests: 0,
       courseDuration: 0,
       isEnrolled: true,
       isStarted: progress > 0 || course.isCompleted,
       isCompleted: Boolean(course.isCompleted),
+      isCertified: Boolean(course.isCertified),
       completedAt: course.isCompleted ? course.lastUpdated || null : null,
       enrollmentDate: course.enrollmentDate || null,
       progress,
@@ -145,10 +210,10 @@ export const StudentDetailsV2: React.FC = () => {
     }),
   );
 
-  const enrolledCoursesCount = coursesList.length;
-  const completedCoursesCount =
-    rawData.courseProgress?.completedCourses ??
-    coursesList.filter((c) => c.isCompleted).length;
+  // Backend source of truth — do not derive certs from completed courses
+  const enrolledCoursesCount =
+    rawData.courseProgress?.totalCoursesEnrolled ?? coursesList.length;
+  const completedCoursesCount = rawData.courseProgress?.completedCourses ?? 0;
   const certificatesCount =
     rawData.courseProgress?.certifiedCourses ?? certificatesList.length;
 
@@ -158,17 +223,14 @@ export const StudentDetailsV2: React.FC = () => {
           coursesList.reduce((sum, c) => sum + c.progress, 0) /
             coursesList.length,
         )
-      : 0;
-
-  // Prefer real course progress; fall back to test success rate only when no enrollments
-  const performanceScore =
-    coursesList.length > 0
-      ? avgProgressScore
       : Math.round(rawData.testAttempts?.successRate ?? 0);
+
+  const trendPoints = buildTrendFromAttempts(
+    rawData.testAttempts?.detailedAttempts ?? [],
+  );
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Default grid stretch: left col matches right height so sticky can pin */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <aside className="lg:col-span-4 xl:col-span-3 relative">
           <div className="lg:sticky lg:top-4 z-10">
@@ -193,10 +255,11 @@ export const StudentDetailsV2: React.FC = () => {
             </div>
             <div className="md:col-span-5">
               <PerformanceMeterV2
-                score={performanceScore}
+                score={avgProgressScore}
                 enrolledCoursesCount={enrolledCoursesCount}
                 completedCoursesCount={completedCoursesCount}
                 certificatesCount={certificatesCount}
+                trendPoints={trendPoints.length > 0 ? trendPoints : undefined}
               />
             </div>
           </div>
@@ -204,9 +267,10 @@ export const StudentDetailsV2: React.FC = () => {
           <CertificatesEarnedWidgetV2
             certificates={certificatesList}
             isLoading={isLoading}
+            expandInPlace
           />
 
-          <EnrolledCoursesTableV2 courses={coursesList} />
+          <EnrolledCoursesTableV2 courses={coursesList} readOnly />
         </div>
       </div>
     </div>
