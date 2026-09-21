@@ -454,6 +454,7 @@ export interface ICEHOGroupInvitation {
 
 export interface ICEHOGroupMonitoringMember {
   studentId: string;
+  isLeader?: boolean;
   user: { id: string; fullNames: string; photo: string | null; phoneNumber: string | null; district?: string | null; sector?: string | null };
   status: string;
   activityStatus?: "TODAY" | "THIS_WEEK" | "INACTIVE" | string;
@@ -1085,6 +1086,7 @@ export interface StudentInfo {
   id: string;
   userId: string;
   fullName: string;
+  email?: string | null;
   phoneNumber: string;
   district: string;
   sector: string;
@@ -1248,6 +1250,7 @@ export interface StudentData {
     courseTitle: string;
     createdAt: string;
     pdfUrl?: string;
+    pdf?: string | null;
   }>;
 }
 

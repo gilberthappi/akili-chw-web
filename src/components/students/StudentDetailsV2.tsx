@@ -7,9 +7,20 @@ import { LearningActivityV2 } from "../dashboard/v2/widgets/LearningActivityV2";
 import { PerformanceMeterV2 } from "../dashboard/v2/widgets/PerformanceMeterV2";
 import { EnrolledCoursesTableV2 } from "../dashboard/v2/widgets/EnrolledCoursesTableV2";
 import { CertificatesEarnedWidgetV2 } from "../dashboard/v2/widgets/CertificatesEarnedWidgetV2";
-import { ArrowLeft, MessageSquare, Search, XCircle } from "lucide-react";
+import { XCircle } from "lucide-react";
 import { SectionSkeleton } from "../dashboard/shared/SectionSkeleton";
 import { ICourseStatEntry } from "@/services/progress.service";
+import { IMyCertificate } from "@/services/certificates.service";
+import { EnrolledCourse, StudentData } from "@/types";
+
+const parseProgress = (value: unknown): number => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const n = parseFloat(value.replace("%", "").trim());
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
+};
 
 export const StudentDetailsV2: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -29,9 +40,11 @@ export const StudentDetailsV2: React.FC = () => {
 
   if (isLoading) return <SectionSkeleton cards={4} rows={3} />;
 
-  const rawData = (studentResponse as any)?.data ?? studentResponse;
+  const rawData = (studentResponse?.data ?? studentResponse) as
+    | StudentData
+    | undefined;
 
-  if (error || !rawData) {
+  if (error || !rawData?.studentInfo) {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="bg-white border border-gray-200 rounded-2xl shadow-xs p-8 text-center max-w-sm w-full">
@@ -61,204 +74,135 @@ export const StudentDetailsV2: React.FC = () => {
     );
   }
 
-  // Extract studentInfo from API response
-  const studentInfo = rawData?.studentInfo ?? null;
-  const userObj = studentInfo?.user ?? rawData?.user ?? null;
+  const studentInfo = rawData.studentInfo;
+  const fullNames = studentInfo.fullName?.trim() || "—";
+  const email = studentInfo.email?.trim() || "—";
+  const phone = studentInfo.phoneNumber?.trim() || "—";
+  const photo = studentInfo.photo || null;
+  const status = studentInfo.status || "ACTIVE";
 
-  const fullNames =
-    studentInfo?.fullName ||
-    studentInfo?.fullNames ||
-    userObj?.fullNames ||
-    userObj?.fullName ||
-    "CHW Practitioner";
+  const address =
+    [studentInfo.village, studentInfo.cell, studentInfo.sector, studentInfo.district]
+      .map((p) => p?.trim())
+      .filter(Boolean)
+      .join(", ") || "—";
 
-  const email =
-    studentInfo?.email ||
-    userObj?.email ||
-    studentInfo?.user?.email ||
-    "chw@akili.org";
-
-  const phone =
-    studentInfo?.phoneNumber ||
-    userObj?.phoneNumber ||
-    studentInfo?.phone ||
-    "+250 788 000 000";
-
-  const photo = studentInfo?.photo || userObj?.photo || null;
-
-  const rawDate = studentInfo?.createdAt || rawData?.createdAt;
-  const dateObj = rawDate ? new Date(rawDate) : null;
+  const enrolledAt = studentInfo.createdAt
+    ? new Date(studentInfo.createdAt)
+    : null;
   const enrolledDateStr =
-    dateObj && !isNaN(dateObj.getTime())
-      ? dateObj.toLocaleDateString("en-US", {
+    enrolledAt && !isNaN(enrolledAt.getTime())
+      ? enrolledAt.toLocaleDateString("en-US", {
           year: "numeric",
           month: "short",
           day: "numeric",
         })
-      : "Jun 30, 2025";
+      : "—";
 
-  // Extract enrolled courses array (supports enrolledCourses, detailedProgress, courseEnrollments)
-  const enrolledCoursesArray =
-    rawData?.courseProgress?.enrolledCourses ??
-    rawData?.courseProgress?.detailedProgress ??
-    rawData?.courseEnrollments ??
-    rawData?.enrolledCourses ??
-    [];
+  const studentCode = studentInfo.NID
+    ? `CHW-${String(studentInfo.NID).substring(0, 5)}`
+    : id
+      ? `CHW-${id.substring(0, 5)}`
+      : "—";
 
-  const coursesList: ICourseStatEntry[] = (enrolledCoursesArray || []).map(
-    (item: any) => ({
-      courseId: item.courseId || item.id,
-      title: item.courseTitle || item.title || item.course?.title || "Health Training Module",
-      coverIcon: item.courseCoverIcon || item.coverIcon || item.course?.coverIcon || null,
-      description: item.courseDescription || item.description || item.course?.description || null,
-      totalChapters: item.totalChapters || item.course?.chaptersCount || 10,
-      totalTests: 5,
-      completedTests: item.isCompleted ? 5 : item.chaptersCompleted || 2,
-      courseDuration: 20,
+  const enrolledCourses: EnrolledCourse[] =
+    rawData.courseProgress?.enrolledCourses ?? [];
+
+  const coursesList: ICourseStatEntry[] = enrolledCourses.map((course) => {
+    const progress = parseProgress(course.progress);
+    return {
+      courseId: course.courseId,
+      title: course.courseTitle || "Untitled course",
+      coverIcon: course.courseCoverIcon || "",
+      description: course.courseDescription || null,
+      totalChapters: 0,
+      totalTests: 0,
+      completedTests: course.isCompleted ? 1 : 0,
+      courseDuration: 0,
       isEnrolled: true,
-      isStarted: parseFloat(item.overallProgress ?? item.progress ?? 0) > 0,
-      isCompleted: item.isCompleted ?? false,
-      completedAt: item.completedAt || item.lastUpdated || item.updatedAt || null,
-      enrollmentDate: item.enrollmentDate || item.createdAt || null,
-      progress: parseFloat(item.overallProgress ?? item.progress ?? 0),
-    })
+      isStarted: progress > 0 || course.isCompleted,
+      isCompleted: Boolean(course.isCompleted),
+      completedAt: course.isCompleted ? course.lastUpdated || null : null,
+      enrollmentDate: course.enrollmentDate || null,
+      progress,
+    };
+  });
+
+  const certificatesList: IMyCertificate[] = (rawData.certificates ?? []).map(
+    (cert) => ({
+      id: cert.id,
+      courseId: cert.courseId || cert.id,
+      title: cert.courseTitle || "Certificate",
+      image: "",
+      progress: 100,
+      enrollmentDate: "",
+      completedAt: cert.createdAt || "",
+      completedAtRaw: cert.createdAt,
+      slides: 0,
+      attempt: 1,
+      test: 0,
+      finalExamMarks: null,
+      pdf: cert.pdfUrl || cert.pdf || "",
+    }),
   );
 
-  // Extract certificates array
-  const certificatesSource =
-    rawData?.certificates && rawData.certificates.length > 0
-      ? rawData.certificates
-      : (enrolledCoursesArray || []).filter((c: any) => c.isCompleted || c.certificateUrl);
+  const enrolledCoursesCount = coursesList.length;
+  const completedCoursesCount = coursesList.filter((c) => c.isCompleted).length;
+  const certificatesCount = certificatesList.length;
 
-  const certificatesList = (certificatesSource || []).map((cert: any) => ({
-    id: cert.id || cert.courseId,
-    courseId: cert.courseId || cert.id,
-    title: cert.courseTitle || cert.title || cert.course?.title || "Accredited Health Certificate",
-    image: cert.courseCoverIcon || cert.image || cert.coverIcon || "",
-    progress: 100,
-    enrollmentDate: cert.enrollmentDate || "",
-    completedAt: cert.createdAt || cert.completedAt || cert.lastUpdated || new Date().toISOString(),
-    slides: cert.slides || cert.totalChapters || 10,
-    attempt: cert.attempt || 1,
-    pdf: cert.pdfUrl || cert.pdf || cert.certificateUrl || `/certificates/verify/${cert.courseId || cert.id}`,
-  }));
+  const avgProgressScore =
+    coursesList.length > 0
+      ? Math.round(
+          coursesList.reduce((sum, c) => sum + c.progress, 0) /
+            coursesList.length,
+        )
+      : 0;
 
-  // Real Test & Performance Analytics
-  const testAttempts = rawData?.testAttempts ?? {};
-  const averageScore = testAttempts.averageScore ?? testAttempts.successRate ?? 86;
-  const passedAttempts = testAttempts.passedAttempts ?? 30;
-  const totalAttempts = testAttempts.totalAttempts ?? 38;
-  const trendPct = testAttempts.knowledgeGainedPct ?? 4;
-  const preTestAvg = testAttempts.preTestAvg ?? 84;
-  const finalExamAvg = testAttempts.finalExamAvg ?? 94;
-
-  // Calculate real hours & minutes
-  const completedChaptersCount = coursesList.reduce(
-    (acc, c) => acc + (c.isCompleted ? c.totalChapters : Math.round(c.totalChapters * (c.progress / 100))),
-    0
-  );
-  const totalHours = Math.max(8, Math.round(completedChaptersCount * 1.5));
-  const totalMinutes = (completedChaptersCount * 25) % 60;
+  // Prefer real course progress; fall back to test success rate only when no enrollments
+  const performanceScore =
+    coursesList.length > 0
+      ? avgProgressScore
+      : Math.round(rawData.testAttempts?.successRate ?? 0);
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Top Header Navigation matching Reference Screenshot 2 */}
-      <div className="flex items-center justify-between gap-4 flex-wrap bg-white p-4 rounded-2xl border border-gray-100 shadow-xs">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate(-1)}
-            className="p-2 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-600 transition-colors"
-            title="Go back"
-          >
-            <ArrowLeft size={16} />
-          </button>
-          <div>
-            <h1 className="text-xl font-black text-gray-900 leading-tight">
-              Student Details
-            </h1>
-            <div className="flex items-center gap-1.5 text-xs text-gray-400 font-medium mt-0.5">
-              <span
-                className="cursor-pointer hover:text-[#3363AD]"
-                onClick={() => navigate("/students")}
-              >
-                Students List
-              </span>
-              <span>/</span>
-              <span className="text-gray-600 font-semibold">Student Details</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="relative hidden sm:block">
-            <Search
-              size={14}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-            />
-            <input
-              type="text"
-              placeholder="Search anything..."
-              className="pl-8 pr-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-xl w-48 focus:outline-none focus:ring-2 focus:ring-[#3363AD]/20"
-            />
-          </div>
-
-          <button
-            onClick={() => navigate("/messaging")}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#3363AD] text-white text-xs font-bold hover:bg-[#284f8a] transition-colors shadow-xs"
-          >
-            <MessageSquare size={14} />
-            Message Student
-          </button>
-        </div>
-      </div>
-
-      {/* Main Grid Layout MATCHING SCREENSHOT 2 EXACTLY */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-        {/* Left Column (Span 4 on lg, Span 3 on xl): Student Profile Sidebar Card */}
         <div className="lg:col-span-4 xl:col-span-3">
           <StudentProfileCardV2
             fullNames={fullNames}
             email={email}
             phone={phone}
             photo={photo}
+            address={address}
+            status={status}
             enrolledDate={enrolledDateStr}
-            studentCode={`CHW-${studentInfo?.NID?.substring(0, 5) || id?.substring(0, 5) || "11985"}`}
+            studentCode={studentCode}
+            certificatesCount={certificatesCount}
+            completedCoursesCount={completedCoursesCount}
           />
         </div>
 
-        {/* Right Main Column (Span 8 on lg, Span 9 on xl): Learning Activity + Performance + Enrolled Courses */}
         <div className="lg:col-span-8 xl:col-span-9 space-y-6 flex flex-col justify-between">
-          {/* Top Row: Activity Chart (Span 7) & Performance Gauge (Span 5) */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
             <div className="md:col-span-7">
-              <LearningActivityV2 hours={totalHours} minutes={totalMinutes} />
+              <LearningActivityV2 courses={coursesList} />
             </div>
             <div className="md:col-span-5">
               <PerformanceMeterV2
-                score={averageScore}
-                passedAttempts={passedAttempts}
-                totalAttempts={totalAttempts}
-                trendPct={trendPct}
-                preTestAvg={preTestAvg}
-                finalExamAvg={finalExamAvg}
+                score={performanceScore}
+                enrolledCoursesCount={enrolledCoursesCount}
+                completedCoursesCount={completedCoursesCount}
+                certificatesCount={certificatesCount}
               />
             </div>
           </div>
 
-          {/* Earned Certificates Widget */}
-          {certificatesList.length > 0 && (
-            <div>
-              <CertificatesEarnedWidgetV2
-                certificates={certificatesList as any}
-                isLoading={isLoading}
-              />
-            </div>
-          )}
+          <CertificatesEarnedWidgetV2
+            certificates={certificatesList}
+            isLoading={isLoading}
+          />
 
-          {/* Bottom Row: Enrolled Courses Table */}
-          <div>
-            <EnrolledCoursesTableV2 courses={coursesList} />
-          </div>
+          <EnrolledCoursesTableV2 courses={coursesList} />
         </div>
       </div>
     </div>

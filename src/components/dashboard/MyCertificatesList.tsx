@@ -1,6 +1,7 @@
 import React from "react";
 import { Award, Download } from "lucide-react";
 import { IMyCertificate } from "@/services/certificates.service";
+import { uniqueCourseCertificateCount } from "@/utils/certificates";
 
 interface MyCertificatesListProps {
   certificates: IMyCertificate[];
@@ -11,6 +12,7 @@ export const MyCertificatesList: React.FC<MyCertificatesListProps> = ({
   certificates,
   isLoading,
 }) => {
+  const certCount = uniqueCourseCertificateCount(certificates);
   const recent = certificates.slice(0, 4);
 
   return (
@@ -21,9 +23,9 @@ export const MyCertificatesList: React.FC<MyCertificatesListProps> = ({
           <Award size={15} className="text-[#3363AD]" />
         </div>
         <h3 className="text-sm font-semibold text-gray-800">My Certificates</h3>
-        {certificates.length > 0 && (
+        {certCount > 0 && (
           <span className="ml-auto text-xs bg-[#EBF0F9] text-[#3363AD] font-semibold px-2 py-0.5 rounded-full">
-            {certificates.length}
+            {certCount}
           </span>
         )}
       </div>
@@ -34,7 +36,7 @@ export const MyCertificatesList: React.FC<MyCertificatesListProps> = ({
             <div key={i} className="h-16 bg-gray-50 rounded-xl" />
           ))}
         </div>
-      ) : certificates.length === 0 ? (
+      ) : certCount === 0 ? (
         <div className="flex flex-col items-center justify-center py-8 text-center">
           <div className="w-14 h-14 rounded-2xl bg-[#EBF0F9] flex items-center justify-center mb-3">
             <Award size={24} className="text-[#3363AD]/40" />
@@ -93,9 +95,9 @@ export const MyCertificatesList: React.FC<MyCertificatesListProps> = ({
             );
           })}
 
-          {certificates.length > 4 && (
+          {certCount > 4 && (
             <p className="text-center text-xs text-gray-400 pt-1">
-              +{certificates.length - 4} more certificates
+              +{certCount - 4} more certificates
             </p>
           )}
         </div>

@@ -2,6 +2,7 @@ import React from "react";
 import { Award, Download, ExternalLink, ChevronRight, CheckCircle2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { IMyCertificate } from "@/services/certificates.service";
+import { uniqueCourseCertificateCount } from "@/utils/certificates";
 
 interface CertificatesEarnedWidgetV2Props {
   certificates: IMyCertificate[];
@@ -14,6 +15,7 @@ export const CertificatesEarnedWidgetV2: React.FC<CertificatesEarnedWidgetV2Prop
 }) => {
   const navigate = useNavigate();
   const safeCertificates = Array.isArray(certificates) ? certificates : [];
+  const certCount = uniqueCourseCertificateCount(safeCertificates);
   const displayCertificates = safeCertificates.slice(0, 4);
 
   return (
@@ -29,9 +31,9 @@ export const CertificatesEarnedWidgetV2: React.FC<CertificatesEarnedWidgetV2Prop
               <h3 className="text-base font-bold text-gray-900">
                 Earned Certificates & Accreditations
               </h3>
-              {safeCertificates.length > 0 && (
+              {certCount > 0 && (
                 <span className="text-xs bg-amber-50 text-amber-700 font-bold border border-amber-200 px-2.5 py-0.5 rounded-full">
-                  {safeCertificates.length} Official
+                  {certCount} Official
                 </span>
               )}
             </div>
@@ -56,7 +58,7 @@ export const CertificatesEarnedWidgetV2: React.FC<CertificatesEarnedWidgetV2Prop
           <div className="h-20 bg-gray-50 rounded-xl" />
           <div className="h-20 bg-gray-50 rounded-xl" />
         </div>
-      ) : certificates.length === 0 ? (
+      ) : certCount === 0 ? (
         <div className="flex flex-col items-center justify-center py-8 text-center border border-dashed border-gray-200 rounded-xl">
           <div className="w-12 h-12 rounded-xl bg-[#EBF0F9] text-[#3363AD] flex items-center justify-center mb-2">
             <Award size={24} />

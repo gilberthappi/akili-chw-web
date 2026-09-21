@@ -1,6 +1,6 @@
-import { useState, useCallback, useMemo, Fragment } from "react";
+import { useState, useCallback, useMemo, Fragment, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Users,
   Search,
@@ -21,6 +21,8 @@ import {
   Calendar,
   Megaphone,
   Plus,
+  LayoutGrid,
+  List,
 } from "lucide-react";
 import { getDistrictOptions, getSectorOptions, getCellOptions, getVillageOptions } from "@/hooks/locations";
 import { Dialog, Transition } from "@headlessui/react";
@@ -41,8 +43,59 @@ import {
 import { getOrCreateDirectChat } from "@/services/directChat.service";
 import api from "@/services/api";
 import { ICEHOGroupMember } from "@/types";
-import { MetricCard } from "@/components/common/MetricCard";
 import { Button } from "@/components/common/Button";
+import { uniqueCourseCertificateCount } from "@/utils/certificates";
+import {
+  V2_BTN_PRIMARY,
+  V2_BTN_SECONDARY,
+  V2_CARD_SHELL,
+  V2_CARD_SHELL_PADDED,
+  V2_EMPTY,
+  V2_INPUT,
+  V2_KPI_ICON_CHIP,
+  V2_MUTED,
+  V2_PAGE_CANVAS,
+  V2_PAGE_SUBTITLE,
+  V2_PAGE_TITLE,
+  V2_SECTION_TITLE,
+} from "@/components/dashboard/v2/widgets/admin/v2CardStyles";
+
+const bone = "rounded bg-[#D7E3F0] dark:bg-slate-700";
+
+const CehoGroupSkeleton = () => (
+  <div className={`${V2_PAGE_CANVAS} animate-pulse`}>
+    <div className="flex items-center justify-between gap-4 flex-wrap">
+      <div className="space-y-2">
+        <div className={`${bone} h-6 w-48`} />
+        <div className={`${bone} h-3 w-64`} />
+      </div>
+      <div className="flex gap-2">
+        <div className={`${bone} h-9 w-24 rounded-xl`} />
+        <div className={`${bone} h-9 w-28 rounded-xl`} />
+        <div className={`${bone} h-9 w-28 rounded-xl`} />
+      </div>
+    </div>
+    <div className="flex gap-2">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className={`${bone} h-10 w-36 rounded-xl`} />
+      ))}
+    </div>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {Array.from({ length: 6 }, (_, i) => (
+        <div key={i} className={`${V2_CARD_SHELL} p-4 min-h-[110px] space-y-3`}>
+          <div className="flex gap-3">
+            <div className={`${bone} w-10 h-10 rounded-full shrink-0`} />
+            <div className="flex-1 space-y-2">
+              <div className={`${bone} h-3.5 w-[75%]`} />
+              <div className={`${bone} h-2.5 w-1/2`} />
+            </div>
+          </div>
+          <div className={`${bone} h-8 w-full rounded-xl`} />
+        </div>
+      ))}
+    </div>
+  </div>
+);
 
 const MemberAvatar = ({ name, photo }: { name: string; photo: string | null }) => {
   const [failed, setFailed] = useState(false);
@@ -58,7 +111,7 @@ const MemberAvatar = ({ name, photo }: { name: string; photo: string | null }) =
     );
   }
   return (
-    <div className="w-10 h-10 rounded-full bg-[#EBF0F9] text-[#3363AD] flex items-center justify-center text-sm font-bold shrink-0">
+    <div className="w-10 h-10 rounded-full bg-[#EBF0F9] dark:bg-slate-700 text-[#3363AD] dark:text-blue-300 flex items-center justify-center text-sm font-bold shrink-0">
       {initials}
     </div>
   );
@@ -66,16 +119,124 @@ const MemberAvatar = ({ name, photo }: { name: string; photo: string | null }) =
 
 type TabType = "members" | "learning" | "meetings";
 type StatusFilterType = "ALL" | "TODAY" | "THIS_WEEK" | "INACTIVE";
+type ViewMode = "cards" | "table";
+
+const activityBadge = (actStatus: string) => {
+  if (actStatus === "TODAY") {
+    return {
+      actBg: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+      actDot: "bg-emerald-500 animate-pulse",
+      actLabel: "Active",
+    };
+  }
+  if (actStatus === "THIS_WEEK") {
+    return {
+      actBg: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
+      actDot: "bg-amber-500",
+      actLabel: "Moderately Active",
+    };
+  }
+  return {
+    actBg: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+    actDot: "bg-red-500",
+    actLabel: "Inactive (7d+)",
+  };
+};
+
+const ViewModeToggle = ({
+  value,
+  onChange,
+}: {
+  value: ViewMode;
+  onChange: (v: ViewMode) => void;
+}) => (
+  <div className="bg-white dark:bg-card-bg rounded-[20px] border border-[rgba(51,99,173,0.20)] dark:border-slate-600/60 p-1 inline-flex items-center gap-0.5 shrink-0">
+    <button
+      type="button"
+      onClick={() => onChange("cards")}
+      title="Card view"
+      aria-label="Card view"
+      className={`inline-flex items-center justify-center w-8 h-8 rounded-lg transition-colors ${
+        value === "cards"
+          ? "bg-[#3363AD] text-white"
+          : "text-[#5B6575] dark:text-slate-400 hover:bg-[#F1F5F9] dark:hover:bg-slate-700"
+      }`}
+    >
+      <LayoutGrid size={15} />
+    </button>
+    <button
+      type="button"
+      onClick={() => onChange("table")}
+      title="Table view"
+      aria-label="Table view"
+      className={`inline-flex items-center justify-center w-8 h-8 rounded-lg transition-colors ${
+        value === "table"
+          ? "bg-[#3363AD] text-white"
+          : "text-[#5B6575] dark:text-slate-400 hover:bg-[#F1F5F9] dark:hover:bg-slate-700"
+      }`}
+    >
+      <List size={15} />
+    </button>
+  </div>
+);
 
 const CEHOGroupPage = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState<TabType>("members");
+  const tabFromUrl = searchParams.get("tab");
+  const statusFromUrl = searchParams.get("status");
+  const certFromUrl = searchParams.get("cert");
+
+  const initialTab: TabType =
+    tabFromUrl === "learning" || tabFromUrl === "meetings" || tabFromUrl === "members"
+      ? tabFromUrl
+      : "members";
+  const initialStatus: StatusFilterType =
+    statusFromUrl === "TODAY" ||
+    statusFromUrl === "THIS_WEEK" ||
+    statusFromUrl === "INACTIVE" ||
+    statusFromUrl === "ALL"
+      ? statusFromUrl
+      : "ALL";
+  const initialCert: "all" | "has_cert" | "no_cert" =
+    certFromUrl === "has_cert" || certFromUrl === "no_cert" || certFromUrl === "all"
+      ? certFromUrl
+      : "all";
+
+  const [activeTab, setActiveTab] = useState<TabType>(initialTab);
+  const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilterType>("ALL");
+  const [statusFilter, setStatusFilter] = useState<StatusFilterType>(initialStatus);
   const [selectedCourseFilter, setSelectedCourseFilter] = useState<string>("all");
-  const [selectedCertFilter, setSelectedCertFilter] = useState<"all" | "has_cert" | "no_cert">("all");
+  const [selectedCertFilter, setSelectedCertFilter] = useState<"all" | "has_cert" | "no_cert">(initialCert);
+
+  useEffect(() => {
+    if (tabFromUrl === "learning" || tabFromUrl === "meetings" || tabFromUrl === "members") {
+      setActiveTab(tabFromUrl);
+    }
+    if (
+      statusFromUrl === "TODAY" ||
+      statusFromUrl === "THIS_WEEK" ||
+      statusFromUrl === "INACTIVE" ||
+      statusFromUrl === "ALL"
+    ) {
+      setStatusFilter(statusFromUrl);
+    }
+    if (certFromUrl === "has_cert" || certFromUrl === "no_cert" || certFromUrl === "all") {
+      setSelectedCertFilter(certFromUrl);
+    }
+  }, [tabFromUrl, statusFromUrl, certFromUrl]);
+
+  const selectTab = (tab: TabType) => {
+    setActiveTab(tab);
+    const next = new URLSearchParams(searchParams);
+    next.set("tab", tab);
+    if (tab !== "members") next.delete("status");
+    if (tab !== "learning") next.delete("cert");
+    setSearchParams(next, { replace: true });
+  };
 
   // Nudge individual modal
   const [nudgeModalTarget, setNudgeModalTarget] = useState<{
@@ -248,8 +409,8 @@ const CEHOGroupPage = () => {
   const topPerformers = useMemo(() => {
     if (!monitoringMembers || monitoringMembers.length === 0) return [];
     const sorted = [...monitoringMembers].sort((a: any, b: any) => {
-      const aCerts = a.certificates?.length || 0;
-      const bCerts = b.certificates?.length || 0;
+      const aCerts = uniqueCourseCertificateCount(a.certificates);
+      const bCerts = uniqueCourseCertificateCount(b.certificates);
       if (bCerts !== aCerts) return bCerts - aCerts;
 
       const aAttempts = (a.recentTestAttempts || []).filter((x: any) => x.preTestId == null);
@@ -294,7 +455,7 @@ const CEHOGroupPage = () => {
       if (selectedCourseFilter !== "all") {
         hasCert = (m.certificates || []).some((c: any) => c.courseId === selectedCourseFilter);
       } else {
-        hasCert = (m.certificates?.length || 0) > 0;
+        hasCert = uniqueCourseCertificateCount(m.certificates) > 0;
       }
 
       if (hasCert) {
@@ -311,51 +472,7 @@ const CEHOGroupPage = () => {
     };
   }, [monitoringMembers, selectedCourseFilter]);
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[300px]">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#3363AD]" />
-      </div>
-    );
-  }
-
-  if (isError || !group) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[300px] gap-3 text-center">
-        <Users className="w-12 h-12 text-gray-300" />
-        <p className="text-gray-600 font-semibold">No group assigned yet</p>
-        <p className="text-gray-400 text-sm max-w-xs">
-          You don't have a CEHO group yet. Contact an administrator to set one up.
-        </p>
-      </div>
-    );
-  }
-
-  const avgProgress =
-    monitoringMembers.length > 0
-      ? Math.round(
-          monitoringMembers.reduce((s, m) => {
-            const a = m.courseProgress.length
-              ? m.courseProgress.reduce((x, c) => x + c.progress, 0) / m.courseProgress.length
-              : 0;
-            return s + a;
-          }, 0) / monitoringMembers.length,
-        )
-      : 0;
-
-  const activeCount = monitoringMembers.filter((m) =>
-    m.courseProgress.some((c) => c.progress > 0 && !c.isCompleted),
-  ).length;
-
-  const allCourses = Array.from(
-    new Map(
-      monitoringMembers
-        .flatMap((m) => m.courseProgress || [])
-        .map((c) => [c.courseId, { id: c.courseId, title: c.courseTitle }]),
-    ).values(),
-  );
-
-  // Group academic performance metrics
+  // Group academic performance metrics — must run before any early return
   const overallPreTestAvg = useMemo(() => {
     let totalScore = 0;
     let count = 0;
@@ -399,6 +516,50 @@ const CEHOGroupPage = () => {
     if (overallPreTestAvg <= 0) return 0;
     return Math.round(((overallFinalTestAvg - overallPreTestAvg) / overallPreTestAvg) * 100);
   }, [overallPreTestAvg, overallFinalTestAvg]);
+
+  if (isLoading) {
+    return <CehoGroupSkeleton />;
+  }
+
+  if (isError || !group) {
+    return (
+      <div className={V2_PAGE_CANVAS}>
+        <div className={`${V2_EMPTY} flex flex-col items-center justify-center py-16 gap-3`}>
+          <Users className="w-12 h-12 text-[#C5D3E0]" />
+          <p className="text-[#1A2332] dark:text-slate-100 font-semibold">
+            No group assigned yet
+          </p>
+          <p className={`text-sm max-w-xs ${V2_MUTED}`}>
+            You don't have a CEHO group yet. Contact an administrator to set one up.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const avgProgress =
+    monitoringMembers.length > 0
+      ? Math.round(
+          monitoringMembers.reduce((s, m) => {
+            const a = m.courseProgress.length
+              ? m.courseProgress.reduce((x, c) => x + c.progress, 0) / m.courseProgress.length
+              : 0;
+            return s + a;
+          }, 0) / monitoringMembers.length,
+        )
+      : 0;
+
+  const activeCount = monitoringMembers.filter((m) =>
+    m.courseProgress.some((c) => c.progress > 0 && !c.isCompleted),
+  ).length;
+
+  const allCourses = Array.from(
+    new Map(
+      monitoringMembers
+        .flatMap((m) => m.courseProgress || [])
+        .map((c) => [c.courseId, { id: c.courseId, title: c.courseTitle }]),
+    ).values(),
+  );
 
   // Filter CHW regular members list for Bose tab (EXCLUDING CEHO to prevent duplicate leader card display!)
   const filteredCHWs = members.filter((m: ICEHOGroupMember) => {
@@ -557,65 +718,140 @@ const CEHOGroupPage = () => {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header Bar */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="space-y-1">
+    <div className={V2_PAGE_CANVAS}>
+      {/* Header Bar — title left, tabs + actions right */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="space-y-1 min-w-0">
           <div className="flex items-center gap-2">
-            <h2 className="text-3xl font-bold text-[#333333]">{group.name}</h2>
+            <h2 className={V2_PAGE_TITLE}>{group.name}</h2>
             <button
               onClick={openEdit}
-              className="p-1.5 rounded-lg text-gray-400 hover:text-[#3363AD] hover:bg-[#EBF0F9] transition-colors"
+              className="p-1.5 rounded-lg text-[#9AA3B2] hover:text-[#3363AD] hover:bg-[#EBF0F9] dark:hover:bg-slate-700 transition-colors"
               title="Edit group"
             >
               <Pencil className="w-4 h-4" />
             </button>
           </div>
           {(group.district || (group.sectors && group.sectors.length > 0)) && (
-            <div className="flex items-center gap-1.5 text-gray-500 text-sm">
+            <div className={`flex items-center gap-1.5 text-sm ${V2_MUTED}`}>
               <MapPin className="w-3.5 h-3.5" />
               <span>
                 {[group.district, ...(group.sectors ?? [])].filter(Boolean).join(", ")}
               </span>
             </div>
           )}
+          <p className={V2_PAGE_SUBTITLE}>Supervise CHWs, learning, and meetings</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => { refetch(); if (activeTab === "meetings") refetchMeetings(); }}
-            disabled={isRefetching}
-          >
-            {isRefetching ? "Refreshing…" : "Refresh"}
-          </Button>
-          <button
-            type="button"
-            onClick={handleExportExcel}
-            disabled={isExportingExcel}
-            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-emerald-700 bg-white border border-emerald-200 rounded-lg hover:bg-emerald-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
-          >
-            <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-            {isExportingExcel ? "Exporting…" : "Export Excel"}
-          </button>
-          <Button size="sm" onClick={openAddModal}>
-            <UserPlus className="w-4 h-4 mr-2" />
-            Add CHW
-          </Button>
+
+        <div className="flex items-center gap-2 flex-wrap shrink-0">
+          <div className="bg-white dark:bg-card-bg rounded-[20px] border border-[rgba(51,99,173,0.20)] dark:border-slate-600/60 p-1 inline-flex items-center gap-0.5 flex-wrap">
+            <button
+              type="button"
+              onClick={() => selectTab("members")}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-extrabold transition-all ${
+                activeTab === "members"
+                  ? "bg-[#3363AD] text-white"
+                  : "text-[#5B6575] dark:text-slate-300 hover:bg-[#F1F5F9] dark:hover:bg-slate-700"
+              }`}
+            >
+              <Users className="w-3.5 h-3.5" />
+              All Members ({memberCount})
+            </button>
+
+            <button
+              type="button"
+              onClick={() => selectTab("learning")}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-extrabold transition-all ${
+                activeTab === "learning"
+                  ? "bg-[#3363AD] text-white"
+                  : "text-[#5B6575] dark:text-slate-300 hover:bg-[#F1F5F9] dark:hover:bg-slate-700"
+              }`}
+            >
+              <TrendingUp className="w-3.5 h-3.5" />
+              Learning & Progress
+            </button>
+
+            <button
+              type="button"
+              onClick={() => selectTab("meetings")}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-extrabold transition-all ${
+                activeTab === "meetings"
+                  ? "bg-[#3363AD] text-white"
+                  : "text-[#5B6575] dark:text-slate-300 hover:bg-[#F1F5F9] dark:hover:bg-slate-700"
+              }`}
+            >
+              <Calendar className="w-3.5 h-3.5" />
+              Meetings
+            </button>
+          </div>
+
+          {activeTab === "meetings" ? (
+            <button
+              type="button"
+              onClick={() => setShowScheduleMeetingModal(true)}
+              className={V2_BTN_PRIMARY}
+            >
+              <Plus className="w-4 h-4" />
+              Add Schedule
+            </button>
+          ) : activeTab === "learning" ? (
+            <>
+              <button
+                type="button"
+                onClick={handleNudgeAll}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-extrabold text-white bg-amber-500 hover:bg-amber-600 transition-colors"
+              >
+                <Bell className="w-4 h-4" />
+                Nudge All Members
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowAnnouncementModal(true)}
+                className={V2_BTN_PRIMARY}
+              >
+                <Send className="w-4 h-4" />
+                Post Announcement
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => { refetch(); }}
+                disabled={isRefetching}
+                className={V2_BTN_SECONDARY}
+              >
+                {isRefetching ? "Refreshing…" : "Refresh"}
+              </button>
+              <button
+                type="button"
+                onClick={handleExportExcel}
+                disabled={isExportingExcel}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                {isExportingExcel ? "Exporting…" : "Export Excel"}
+              </button>
+              <button type="button" onClick={openAddModal} className={V2_BTN_PRIMARY}>
+                <UserPlus className="w-4 h-4" />
+                Add CHW
+              </button>
+            </>
+          )}
         </div>
       </div>
 
       {/* Inline edit form */}
       {isEditing && (
-        <div className="bg-white rounded-xl border border-[#3363AD]/20 shadow-sm p-4 space-y-4">
-          <p className="text-sm font-semibold text-gray-700">Edit Group</p>
+        <div className={`${V2_CARD_SHELL_PADDED} space-y-4`}>
+          <p className={V2_SECTION_TITLE}>Edit Group</p>
           <div className="space-y-1">
             <label className="text-xs font-semibold text-gray-500">Group Name *</label>
             <input
               type="text"
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD]"
+              className={`w-full px-3 py-2 text-sm ${V2_INPUT}`}
             />
           </div>
 
@@ -627,7 +863,7 @@ const CEHOGroupPage = () => {
                 setEditDistrict(e.target.value);
                 setEditLocations([{ sector: "", cell: "", village: "" }]);
               }}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD] bg-white"
+              className={`w-full px-3 py-2 text-sm ${V2_INPUT}`}
             >
               <option value="">Select District</option>
               {getDistrictOptions().map((d) => (
@@ -645,7 +881,7 @@ const CEHOGroupPage = () => {
                     value={loc.sector}
                     onChange={(e) => updateLocation(idx, "sector", e.target.value)}
                     disabled={!editDistrict}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD] bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    className={`w-full px-3 py-2 text-sm ${V2_INPUT} disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
                     <option value="">Select Sector</option>
                     {getSectorOptions(editDistrict).map((s) => (
@@ -659,7 +895,7 @@ const CEHOGroupPage = () => {
                     value={loc.cell}
                     onChange={(e) => updateLocation(idx, "cell", e.target.value)}
                     disabled={!loc.sector}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD] bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    className={`w-full px-3 py-2 text-sm ${V2_INPUT} disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
                     <option value="">Select Cell</option>
                     {loc.sector && getCellOptions(loc.sector).map((c) => (
@@ -673,7 +909,7 @@ const CEHOGroupPage = () => {
                     value={loc.village}
                     onChange={(e) => updateLocation(idx, "village", e.target.value)}
                     disabled={!loc.cell}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD] bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    className={`w-full px-3 py-2 text-sm ${V2_INPUT} disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
                     <option value="">Select Village</option>
                     {loc.cell && getVillageOptions(loc.cell).map((v) => (
@@ -724,58 +960,19 @@ const CEHOGroupPage = () => {
         </div>
       )}
 
-      {/* Segmented Top Navigation Tab Bar */}
-      <div className="flex items-center gap-2 border-b border-gray-200 pb-1">
-        <button
-          onClick={() => setActiveTab("members")}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-            activeTab === "members"
-              ? "bg-[#3363AD] text-white shadow-sm"
-              : "text-gray-600 hover:bg-gray-100"
-          }`}
-        >
-          <Users className="w-4 h-4" />
-          All Members ({memberCount})
-        </button>
-
-        <button
-          onClick={() => setActiveTab("learning")}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-            activeTab === "learning"
-              ? "bg-[#3363AD] text-white shadow-sm"
-              : "text-gray-600 hover:bg-gray-100"
-          }`}
-        >
-          <TrendingUp className="w-4 h-4" />
-          Learning & Progress
-        </button>
-
-        <button
-          onClick={() => setActiveTab("meetings")}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-            activeTab === "meetings"
-              ? "bg-[#3363AD] text-white shadow-sm"
-              : "text-gray-600 hover:bg-gray-100"
-          }`}
-        >
-          <Calendar className="w-4 h-4" />
-          Meetings
-        </button>
-      </div>
-
       {/* ── TAB 1: ALL MEMBERS ── */}
       {activeTab === "members" && (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Single Row: Search Input Box + Status Filter Button Pills Side-by-Side */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <div className="relative max-w-xs w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9AA3B2]" />
               <input
                 type="text"
                 placeholder="Search members by name…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD] bg-white shadow-sm"
+                className={`w-full pl-9 pr-4 py-2 text-sm ${V2_INPUT}`}
               />
             </div>
 
@@ -784,10 +981,10 @@ const CEHOGroupPage = () => {
               <button
                 type="button"
                 onClick={() => setStatusFilter("ALL")}
-                className={`px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all ${
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all ${
                   statusFilter === "ALL"
                     ? "bg-[#3363AD] text-white border-[#3363AD]"
-                    : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                    : "bg-white dark:bg-slate-800 text-[#5B6575] dark:text-slate-300 border-[#B8CDE0] dark:border-slate-600 hover:bg-[#F1F5F9] dark:hover:bg-slate-700"
                 }`}
               >
                 All ({statusCounts.all})
@@ -796,10 +993,10 @@ const CEHOGroupPage = () => {
               <button
                 type="button"
                 onClick={() => setStatusFilter("TODAY")}
-                className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all ${
+                className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold border transition-all ${
                   statusFilter === "TODAY"
                     ? "bg-emerald-600 text-white border-emerald-600"
-                    : "bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+                    : "bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
                 }`}
               >
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -809,10 +1006,10 @@ const CEHOGroupPage = () => {
               <button
                 type="button"
                 onClick={() => setStatusFilter("THIS_WEEK")}
-                className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all ${
+                className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold border transition-all ${
                   statusFilter === "THIS_WEEK"
                     ? "bg-amber-600 text-white border-amber-600"
-                    : "bg-white text-amber-700 border-amber-200 hover:bg-amber-50"
+                    : "bg-white dark:bg-slate-800 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800 hover:bg-amber-50 dark:hover:bg-amber-950/30"
                 }`}
               >
                 <span className="w-2 h-2 rounded-full bg-amber-400" />
@@ -822,15 +1019,19 @@ const CEHOGroupPage = () => {
               <button
                 type="button"
                 onClick={() => setStatusFilter("INACTIVE")}
-                className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all ${
+                className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold border transition-all ${
                   statusFilter === "INACTIVE"
                     ? "bg-red-600 text-white border-red-600"
-                    : "bg-white text-red-600 border-red-200 hover:bg-red-50"
+                    : "bg-white dark:bg-slate-800 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-950/30"
                 }`}
               >
                 <span className="w-2 h-2 rounded-full bg-red-400" />
                 Inactive ({statusCounts.inactive})
               </button>
+
+              <div className="sm:ml-auto">
+                <ViewModeToggle value={viewMode} onChange={setViewMode} />
+              </div>
             </div>
           </div>
 
@@ -838,18 +1039,140 @@ const CEHOGroupPage = () => {
           {membersLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 animate-pulse">
               {[...Array(6)].map((_, i) => (
-                <div key={i} className="h-28 bg-gray-100 rounded-xl" />
+                <div key={i} className={`${V2_CARD_SHELL} h-28 p-4`}>
+                  <div className={`${bone} h-full w-full rounded-xl`} />
+                </div>
               ))}
             </div>
           ) : isCHWListEmpty ? (
-            <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
-              <Users className="w-12 h-12 text-gray-300" />
-              <p className="text-gray-500 font-medium">
+            <div className={`${V2_EMPTY} flex flex-col items-center justify-center py-16 gap-3`}>
+              <Users className="w-12 h-12 text-[#C5D3E0]" />
+              <p className={`font-medium ${V2_MUTED}`}>
                 {search ? "No members match your search" : "No members yet"}
               </p>
               {!search && (
-                <Button size="sm" onClick={openAddModal}>Add your first CHW</Button>
+                <button type="button" onClick={openAddModal} className={V2_BTN_PRIMARY}>
+                  Add your first CHW
+                </button>
               )}
+            </div>
+          ) : viewMode === "table" ? (
+            <div className={`${V2_CARD_SHELL} overflow-hidden`}>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-[#F8FAFC] dark:bg-slate-800/60 border-b border-[rgba(51,99,173,0.12)] dark:border-slate-700 text-[11px] font-bold text-[#5B6575] dark:text-slate-400 uppercase tracking-wider">
+                    <tr>
+                      <th className="px-4 py-3">Member</th>
+                      <th className="px-4 py-3">Role</th>
+                      <th className="px-4 py-3">Location</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[rgba(51,99,173,0.08)] dark:divide-slate-700">
+                    {cehoMatchesSearch && ceho && (() => {
+                      const { actBg, actDot, actLabel } = activityBadge(cehoActStatus);
+                      return (
+                        <tr
+                          key={`ceho-${ceho.id}`}
+                          onClick={() => navigate(`/students/${ceho.id}`)}
+                          className="hover:bg-[#F8FAFC] dark:hover:bg-slate-800/40 transition-colors cursor-pointer"
+                        >
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <MemberAvatar name={ceho.user.fullNames} photo={ceho.user.photo} />
+                              <span className="font-semibold text-[#1A2332] dark:text-slate-100 truncate">
+                                {ceho.user.fullNames}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="inline-flex text-xs font-bold text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-900/40 rounded-full px-2.5 py-0.5">
+                              Leader (CEHO)
+                            </span>
+                          </td>
+                          <td className={`px-4 py-3 ${V2_MUTED}`}>
+                            {[ceho.user.district, ceho.user.sector].filter(Boolean).join(", ") || "—"}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${actBg}`}>
+                              <span className={`w-2 h-2 rounded-full ${actDot}`} />
+                              {actLabel}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-right text-xs font-semibold text-[#3363AD] dark:text-blue-300">
+                            View
+                          </td>
+                        </tr>
+                      );
+                    })()}
+                    {filteredCHWs.map((member: ICEHOGroupMember) => {
+                      const u = member.student.user;
+                      const mon = monitoringMembers.find(
+                        (m: any) => m.studentId === member.student.id || m.user?.id === u.id,
+                      );
+                      const actStatus = mon?.activityStatus || "INACTIVE";
+                      const { actBg, actDot, actLabel } = activityBadge(actStatus);
+                      return (
+                        <tr
+                          key={member.id}
+                          onClick={() => navigate(`/students/${member.student.id}`)}
+                          className="hover:bg-[#F8FAFC] dark:hover:bg-slate-800/40 transition-colors cursor-pointer"
+                        >
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <MemberAvatar name={u.fullNames} photo={u.photo} />
+                              <span className="font-semibold text-[#1A2332] dark:text-slate-100 truncate">
+                                {u.fullNames}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="inline-flex text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/40 rounded-full px-2.5 py-0.5">
+                              CHW
+                            </span>
+                          </td>
+                          <td className={`px-4 py-3 ${V2_MUTED}`}>
+                            {[u.district, u.sector].filter(Boolean).join(", ") || "—"}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${actBg}`}>
+                              <span className={`w-2 h-2 rounded-full ${actDot}`} />
+                              {actLabel}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleStartChat(u.id);
+                                }}
+                                className="p-1.5 rounded-lg text-[#3363AD] bg-[#EBF0F9] dark:bg-slate-700 hover:bg-[#3363AD] hover:text-white transition-colors"
+                                title="Direct Chat"
+                              >
+                                <MessageSquare className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setPendingRemove(member);
+                                }}
+                                className="p-1.5 rounded-lg text-red-600 bg-red-50 dark:bg-red-900/30 hover:bg-red-600 hover:text-white transition-colors"
+                                title="Remove Member"
+                              >
+                                <UserMinus className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -857,13 +1180,13 @@ const CEHOGroupPage = () => {
               {cehoMatchesSearch && ceho && (
                 <div
                   onClick={() => navigate(`/students/${ceho.id}`)}
-                  className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 hover:shadow-md transition-shadow cursor-pointer border-l-4 border-l-[#3363AD] flex flex-col justify-between min-h-[110px]"
+                  className="bg-white dark:bg-card-bg rounded-[20px] border border-[rgba(51,99,173,0.20)] dark:border-slate-600/60 [box-shadow:3px_4px_0_0_rgba(51,99,173,0.16),6px_9px_18px_rgba(51,99,173,0.12)] p-4 hover:shadow-md transition-shadow cursor-pointer border-l-4 border-l-[#3363AD] flex flex-col justify-between min-h-[110px]"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3.5 min-w-0">
                       <MemberAvatar name={ceho.user.fullNames} photo={ceho.user.photo} />
                       <div className="min-w-0 flex-1 space-y-1">
-                        <p className="font-bold text-gray-900 text-base truncate leading-tight">{ceho.user.fullNames}</p>
+                        <p className="font-bold text-[#1A2332] dark:text-slate-100 text-base truncate leading-tight">{ceho.user.fullNames}</p>
                         <span className="inline-flex items-center text-xs font-bold text-purple-700 bg-purple-100 rounded-full px-2.5 py-0.5">
                           Leader (CEHO)
                         </span>
@@ -879,27 +1202,13 @@ const CEHOGroupPage = () => {
                     {/* Top Right Activity Status Badge */}
                     <span
                       className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold shrink-0 ${
-                        cehoActStatus === "TODAY"
-                          ? "bg-emerald-100 text-emerald-700"
-                          : cehoActStatus === "THIS_WEEK"
-                          ? "bg-amber-100 text-amber-800"
-                          : "bg-red-100 text-red-700"
+                        activityBadge(cehoActStatus).actBg
                       }`}
                     >
                       <span
-                        className={`w-2 h-2 rounded-full ${
-                          cehoActStatus === "TODAY"
-                            ? "bg-emerald-500 animate-pulse"
-                            : cehoActStatus === "THIS_WEEK"
-                            ? "bg-amber-500"
-                            : "bg-red-500"
-                        }`}
+                        className={`w-2 h-2 rounded-full ${activityBadge(cehoActStatus).actDot}`}
                       />
-                      {cehoActStatus === "TODAY"
-                        ? "Active"
-                        : cehoActStatus === "THIS_WEEK"
-                        ? "Moderately Active"
-                        : "Inactive (7d+)"}
+                      {activityBadge(cehoActStatus).actLabel}
                     </span>
                   </div>
                 </div>
@@ -912,31 +1221,19 @@ const CEHOGroupPage = () => {
                   (m: any) => m.studentId === member.student.id || m.user?.id === u.id,
                 );
                 const actStatus = mon?.activityStatus || "INACTIVE";
-
-                let actBg = "bg-red-100 text-red-700";
-                let actDot = "bg-red-500";
-                let actLabel = "Inactive (7d+)";
-                if (actStatus === "TODAY") {
-                  actBg = "bg-emerald-100 text-emerald-700";
-                  actDot = "bg-emerald-500 animate-pulse";
-                  actLabel = "Active";
-                } else if (actStatus === "THIS_WEEK") {
-                  actBg = "bg-amber-100 text-amber-800";
-                  actDot = "bg-amber-500";
-                  actLabel = "Moderately Active";
-                }
+                const { actBg, actDot, actLabel } = activityBadge(actStatus);
 
                 return (
                   <div
                     key={member.id}
                     onClick={() => navigate(`/students/${member.student.id}`)}
-                    className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 hover:shadow-md transition-shadow cursor-pointer flex flex-col justify-between min-h-[110px]"
+                    className="bg-white dark:bg-card-bg rounded-[20px] border border-[rgba(51,99,173,0.20)] dark:border-slate-600/60 [box-shadow:3px_4px_0_0_rgba(51,99,173,0.16),6px_9px_18px_rgba(51,99,173,0.12)] p-4 hover:shadow-md transition-shadow cursor-pointer flex flex-col justify-between min-h-[110px]"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3.5 min-w-0">
                         <MemberAvatar name={u.fullNames} photo={u.photo} />
                         <div className="min-w-0 flex-1 space-y-1">
-                          <p className="font-bold text-gray-900 text-base truncate leading-tight">{u.fullNames}</p>
+                          <p className="font-bold text-[#1A2332] dark:text-slate-100 text-base truncate leading-tight">{u.fullNames}</p>
                           <span className="inline-flex items-center text-xs font-bold text-emerald-700 bg-emerald-100 rounded-full px-2.5 py-0.5">
                             CHW
                           </span>
@@ -949,15 +1246,13 @@ const CEHOGroupPage = () => {
                         </div>
                       </div>
 
-                      {/* Top Right Activity Status Badge */}
                       <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold shrink-0 ${actBg}`}>
                         <span className={`w-2 h-2 rounded-full ${actDot}`} />
                         {actLabel}
                       </span>
                     </div>
 
-                    {/* Card Actions Footer */}
-                    <div className="flex items-center justify-end gap-1.5 border-t border-gray-100 pt-2.5 mt-2">
+                    <div className="flex items-center justify-end gap-1.5 border-t border-gray-100 dark:border-slate-700 pt-2.5 mt-2">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -989,80 +1284,71 @@ const CEHOGroupPage = () => {
 
       {/* ── TAB 2: LEARNING & PROGRESS ── */}
       {activeTab === "learning" && (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Metric Cards Row (4 Academic Overview Cards) */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <MetricCard
-              title="Avg Pre-Test"
-              value={`${overallPreTestAvg}%`}
-              icon={<Award size={18} />}
-              iconBg="bg-blue-50"
-              iconColor="text-blue-600"
-            />
-            <MetricCard
-              title="Avg Final Test"
-              value={`${overallFinalTestAvg}%`}
-              icon={<TrendingUp size={18} />}
-              iconBg="bg-emerald-50"
-              iconColor="text-emerald-600"
-            />
-            <MetricCard
-              title="Avg Final Exam"
-              value={`${overallFinalExamAvg}%`}
-              icon={<Crown size={18} />}
-              iconBg="bg-purple-50"
-              iconColor="text-purple-600"
-            />
-            <MetricCard
-              title="Knowledge Gained"
-              value={`${overallKnowledgeGained >= 0 ? "+" : ""}${overallKnowledgeGained}%`}
-              icon={<Activity size={18} />}
-              iconBg="bg-amber-50"
-              iconColor="text-amber-600"
-            />
+            {[
+              {
+                title: "Avg Pre-Test",
+                value: `${overallPreTestAvg}%`,
+                Icon: Award,
+                accent: "text-[#3363AD] dark:text-blue-300",
+              },
+              {
+                title: "Avg Final Test",
+                value: `${overallFinalTestAvg}%`,
+                Icon: TrendingUp,
+                accent: "text-emerald-600 dark:text-emerald-400",
+              },
+              {
+                title: "Avg Final Exam",
+                value: `${overallFinalExamAvg}%`,
+                Icon: Crown,
+                accent: "text-purple-600 dark:text-purple-400",
+              },
+              {
+                title: "Knowledge Gained",
+                value: `${overallKnowledgeGained >= 0 ? "+" : ""}${overallKnowledgeGained}%`,
+                Icon: Activity,
+                accent: "text-amber-600 dark:text-amber-400",
+              },
+            ].map(({ title, value, Icon, accent }) => (
+              <div
+                key={title}
+                className={`${V2_CARD_SHELL_PADDED} flex items-center gap-3 min-h-[88px]`}
+              >
+                <div
+                  className={`w-10 h-10 rounded-[12px] ${V2_KPI_ICON_CHIP} flex items-center justify-center shrink-0`}
+                >
+                  <Icon size={18} className={accent} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-[#5B6575] dark:text-slate-400">
+                    {title}
+                  </p>
+                  <p className="text-[22px] font-bold tabular-nums text-[#5B6575] dark:text-slate-100 mt-0.5">
+                    {value}
+                  </p>
+                </div>
+              </div>
+            ))}
           </div>
 
-          {/* CEHO Quick Action Bar */}
-          <div className="flex items-center gap-3 flex-wrap">
-            <button
-              type="button"
-              onClick={handleNudgeAll}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-amber-500 hover:bg-amber-600 transition-colors shadow-sm"
-            >
-              <Bell className="w-4 h-4" />
-              Nudge All Members
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setShowAnnouncementModal(true)}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-[#3363AD] hover:bg-[#264d88] transition-colors shadow-sm"
-            >
-              <Send className="w-4 h-4" />
-              Post Announcement
-            </button>
-          </div>
-
-          {/* Top 3 Performers Leaderboard (Redesigned with Premium Cards) */}
+          {/* Top 3 Performers Leaderboard */}
           {topPerformers.length > 0 && (
-            <div className="bg-white rounded-2xl border border-amber-200/80 p-5 shadow-sm space-y-4">
+            <div className={`${V2_CARD_SHELL_PADDED} space-y-4 border-amber-200/80 dark:border-amber-700/40`}>
               <div className="flex items-center gap-2">
                 <Crown className="w-5 h-5 text-amber-500 fill-amber-400" />
-                <h3 className="font-bold text-lg text-gray-900">Top 3 Performers</h3>
+                <h3 className={V2_SECTION_TITLE}>Top 3 Performers</h3>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {topPerformers.map((tp: any, idx: number) => {
-                  const rankBadges = ["🥇 1st", "🥈 2nd", "🥉 3rd"];
-                  const rankCardStyles = [
-                    "bg-gradient-to-br from-amber-50/80 to-amber-100/30 border-amber-200/90",
-                    "bg-gradient-to-br from-slate-50/90 to-slate-100/40 border-slate-200/90",
-                    "bg-gradient-to-br from-orange-50/80 to-orange-100/30 border-orange-200/90",
-                  ];
+                  const rankBadges = ["1st", "2nd", "3rd"];
                   const rankBadgeStyles = [
-                    "text-amber-800 bg-amber-200/80 border-amber-300",
-                    "text-slate-700 bg-slate-200/80 border-slate-300",
-                    "text-orange-800 bg-orange-200/80 border-orange-300",
+                    "text-amber-800 bg-amber-200/80 border-amber-300 dark:text-amber-100 dark:bg-amber-800/50 dark:border-amber-700",
+                    "text-slate-700 bg-slate-200/80 border-slate-300 dark:text-slate-100 dark:bg-slate-700 dark:border-slate-600",
+                    "text-orange-800 bg-orange-200/80 border-orange-300 dark:text-orange-100 dark:bg-orange-900/40 dark:border-orange-700",
                   ];
 
                   const gradedAttempts = (tp.recentTestAttempts || []).filter((x: any) => x.midTestId == null);
@@ -1071,39 +1357,39 @@ const CEHOGroupPage = () => {
                     : 0;
 
                   return (
-                    <div
+                    <button
                       key={tp.studentId}
+                      type="button"
                       onClick={() => navigate(`/students/${tp.studentId}`)}
-                      className={`p-4 rounded-xl border ${rankCardStyles[idx] || "bg-gray-50 border-gray-100"} shadow-sm hover:shadow-md transition-shadow cursor-pointer flex items-center gap-3`}
+                      className="p-4 rounded-xl border border-[rgba(51,99,173,0.12)] dark:border-slate-600 bg-[#F8FAFC] dark:bg-slate-800/60 hover:bg-[#EBF0F9] dark:hover:bg-slate-700 transition-colors cursor-pointer flex items-center gap-3 text-left w-full"
                     >
                       <span className={`px-2.5 py-1 text-xs font-bold rounded-lg border shrink-0 ${rankBadgeStyles[idx]}`}>
                         {rankBadges[idx]}
                       </span>
                       <MemberAvatar name={tp.user?.fullNames} photo={tp.user?.photo} />
                       <div className="flex-1 min-w-0">
-                        <p className="font-bold text-sm text-gray-900 truncate">{tp.user?.fullNames}</p>
-                        <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                        <p className="font-bold text-sm text-[#1A2332] dark:text-slate-100 truncate">{tp.user?.fullNames}</p>
+                        <p className={`text-xs flex items-center gap-1 mt-0.5 ${V2_MUTED}`}>
                           <Award className="w-3 h-3 text-amber-600" />
-                          {tp.certificates?.length || 0} Certificates
+                          {uniqueCourseCertificateCount(tp.certificates)} Certificates
                         </p>
                       </div>
-                      <span className="px-2.5 py-1 text-xs font-bold text-[#3363AD] bg-[#EBF0F9] border border-[#3363AD]/20 rounded-lg shrink-0">
+                      <span className="px-2.5 py-1 text-xs font-bold text-[#3363AD] dark:text-blue-300 bg-[#EBF0F9] dark:bg-slate-700 border border-[rgba(51,99,173,0.20)] rounded-lg shrink-0 tabular-nums">
                         {avgScore}%
                       </span>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
             </div>
           )}
 
-          {/* Academic Filters Row (Course & Certificate Dropdowns Side-by-Side) */}
+          {/* Academic Filters Row */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-            {/* 1. Course Dropdown */}
             <select
               value={selectedCourseFilter}
               onChange={(e) => setSelectedCourseFilter(e.target.value)}
-              className="px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 shadow-sm min-w-[200px]"
+              className={`px-4 py-2.5 text-sm font-semibold min-w-[200px] ${V2_INPUT}`}
             >
               <option value="all">All Courses</option>
               {allCourses.map((c: any) => (
@@ -1111,137 +1397,200 @@ const CEHOGroupPage = () => {
               ))}
             </select>
 
-            {/* 2. Certificate Dropdown (Matches Mobile Dropdown Structure) */}
             <select
               value={selectedCertFilter}
               onChange={(e) => setSelectedCertFilter(e.target.value as any)}
-              className="px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 shadow-sm min-w-[200px]"
+              className={`px-4 py-2.5 text-sm font-semibold min-w-[200px] ${V2_INPUT}`}
             >
               <option value="all">All Certificates ({certCounts.all})</option>
-              <option value="has_cert">🏆 Has Certificate ({certCounts.hasCert})</option>
-              <option value="no_cert">⏳ No Certificate ({certCounts.noCert})</option>
+              <option value="has_cert">Has Certificate ({certCounts.hasCert})</option>
+              <option value="no_cert">No Certificate ({certCounts.noCert})</option>
             </select>
+
+            <div className="sm:ml-auto">
+              <ViewModeToggle value={viewMode} onChange={setViewMode} />
+            </div>
           </div>
 
-          {/* Member Progress Cards Grid (Matching Bose tab 3-column grid) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {monitoringMembers
-              .filter((m: any) => {
-                if (selectedCertFilter === "has_cert") {
-                  if (selectedCourseFilter !== "all") {
-                    return (m.certificates || []).some((c: any) => c.courseId === selectedCourseFilter);
-                  }
-                  return (m.certificates?.length || 0) > 0;
-                }
-                if (selectedCertFilter === "no_cert") {
-                  if (selectedCourseFilter !== "all") {
-                    return !(m.certificates || []).some((c: any) => c.courseId === selectedCourseFilter);
-                  }
-                  return (m.certificates?.length || 0) === 0;
-                }
+          {/* Member Progress — table or cards */}
+          {(() => {
+            const learningRows = monitoringMembers.filter((m: any) => {
+              if (selectedCertFilter === "has_cert") {
                 if (selectedCourseFilter !== "all") {
-                  return (m.courseProgress || []).some((c: any) => c.courseId === selectedCourseFilter);
+                  return (m.certificates || []).some((c: any) => c.courseId === selectedCourseFilter);
                 }
-                return true;
-              })
-              .map((m: any) => {
-                const totalC = m.courseProgress.length;
-                const completedC = m.courseProgress.filter((cp: any) => cp.isCompleted).length;
-                const avgP = totalC > 0 ? Math.round(m.courseProgress.reduce((sum: number, c: any) => sum + (c.progress || 0), 0) / totalC) : 0;
-                const gradedAttempts = (m.recentTestAttempts || []).filter((a: any) => a.midTestId == null);
-                const passing = gradedAttempts.filter((a: any) => a.marks >= 70).length;
+                return uniqueCourseCertificateCount(m.certificates) > 0;
+              }
+              if (selectedCertFilter === "no_cert") {
+                if (selectedCourseFilter !== "all") {
+                  return !(m.certificates || []).some((c: any) => c.courseId === selectedCourseFilter);
+                }
+                return uniqueCourseCertificateCount(m.certificates) === 0;
+              }
+              if (selectedCourseFilter !== "all") {
+                return (m.courseProgress || []).some((c: any) => c.courseId === selectedCourseFilter);
+              }
+              return true;
+            });
 
-                return (
-                  <div
-                    key={m.studentId}
-                    onClick={() => navigate(`/students/${m.studentId}`)}
-                    className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 hover:shadow-md transition-shadow cursor-pointer space-y-3 flex flex-col justify-between"
-                  >
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-3">
-                        <MemberAvatar name={m.user.fullNames} photo={m.user.photo} />
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-gray-900 truncate">{m.user.fullNames}</p>
-                          <p className="text-xs text-gray-500">{completedC}/{totalC} courses completed</p>
-                        </div>
-                        <span className="text-sm font-bold text-[#3363AD] shrink-0">{avgP}%</span>
-                      </div>
-
-                      <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
-                        <div className="bg-[#3363AD] h-full rounded-full transition-all duration-500" style={{ width: `${avgP}%` }} />
-                      </div>
-                    </div>
-
-                    {gradedAttempts.length > 0 && (
-                      <div className="border-t border-gray-50 pt-2 flex items-center justify-between text-xs">
-                        <span className="text-gray-500 font-medium">Tests Passed</span>
-                        <span className="font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
-                          🏆 {passing}/{gradedAttempts.length} passed
-                        </span>
-                      </div>
-                    )}
+            if (viewMode === "table") {
+              return (
+                <div className={`${V2_CARD_SHELL} overflow-hidden`}>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead className="bg-[#F8FAFC] dark:bg-slate-800/60 border-b border-[rgba(51,99,173,0.12)] dark:border-slate-700 text-[11px] font-bold text-[#5B6575] dark:text-slate-400 uppercase tracking-wider">
+                        <tr>
+                          <th className="px-4 py-3">Member</th>
+                          <th className="px-4 py-3">Courses</th>
+                          <th className="px-4 py-3">Progress</th>
+                          <th className="px-4 py-3">Tests passed</th>
+                          <th className="px-4 py-3">Certificates</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[rgba(51,99,173,0.08)] dark:divide-slate-700">
+                        {learningRows.map((m: any) => {
+                          const totalC = m.courseProgress.length;
+                          const completedC = m.courseProgress.filter((cp: any) => cp.isCompleted).length;
+                          const avgP = totalC > 0 ? Math.round(m.courseProgress.reduce((sum: number, c: any) => sum + (c.progress || 0), 0) / totalC) : 0;
+                          const gradedAttempts = (m.recentTestAttempts || []).filter((a: any) => a.midTestId == null);
+                          const passing = gradedAttempts.filter((a: any) => a.marks >= 70).length;
+                          return (
+                            <tr
+                              key={m.studentId}
+                              onClick={() => navigate(`/students/${m.studentId}`)}
+                              className="hover:bg-[#F8FAFC] dark:hover:bg-slate-800/40 transition-colors cursor-pointer"
+                            >
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <MemberAvatar name={m.user.fullNames} photo={m.user.photo} />
+                                  <span className="font-semibold text-[#1A2332] dark:text-slate-100 truncate">
+                                    {m.user.fullNames}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className={`px-4 py-3 tabular-nums ${V2_MUTED}`}>
+                                {completedC}/{totalC}
+                              </td>
+                              <td className="px-4 py-3 min-w-[140px]">
+                                <div className="flex items-center gap-2">
+                                  <div className="flex-1 h-2 bg-[#E8EEF4] dark:bg-slate-700 rounded-full overflow-hidden">
+                                    <div
+                                      className="bg-[#3363AD] h-full rounded-full"
+                                      style={{ width: `${avgP}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-xs font-bold text-[#3363AD] dark:text-blue-300 tabular-nums w-8">
+                                    {avgP}%
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className="text-xs font-semibold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/30 px-2 py-0.5 rounded-full">
+                                  {passing}/{gradedAttempts.length}
+                                </span>
+                              </td>
+                              <td className={`px-4 py-3 tabular-nums font-semibold ${V2_MUTED}`}>
+                                {uniqueCourseCertificateCount(m.certificates)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
-                );
-              })}
-          </div>
+                </div>
+              );
+            }
+
+            return (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {learningRows.map((m: any) => {
+                  const totalC = m.courseProgress.length;
+                  const completedC = m.courseProgress.filter((cp: any) => cp.isCompleted).length;
+                  const avgP = totalC > 0 ? Math.round(m.courseProgress.reduce((sum: number, c: any) => sum + (c.progress || 0), 0) / totalC) : 0;
+                  const gradedAttempts = (m.recentTestAttempts || []).filter((a: any) => a.midTestId == null);
+                  const passing = gradedAttempts.filter((a: any) => a.marks >= 70).length;
+
+                  return (
+                    <div
+                      key={m.studentId}
+                      onClick={() => navigate(`/students/${m.studentId}`)}
+                      className="bg-white dark:bg-card-bg rounded-[20px] border border-[rgba(51,99,173,0.20)] dark:border-slate-600/60 [box-shadow:3px_4px_0_0_rgba(51,99,173,0.16),6px_9px_18px_rgba(51,99,173,0.12)] p-4 hover:shadow-md transition-shadow cursor-pointer space-y-3 flex flex-col justify-between"
+                    >
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-3">
+                          <MemberAvatar name={m.user.fullNames} photo={m.user.photo} />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-[#1A2332] dark:text-slate-100 truncate">{m.user.fullNames}</p>
+                            <p className={`text-xs ${V2_MUTED}`}>{completedC}/{totalC} courses completed</p>
+                          </div>
+                          <span className="text-sm font-bold text-[#3363AD] shrink-0">{avgP}%</span>
+                        </div>
+
+                        <div className="w-full bg-[#E8EEF4] dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                          <div className="bg-[#3363AD] h-full rounded-full transition-all duration-500" style={{ width: `${avgP}%` }} />
+                        </div>
+                      </div>
+
+                      {gradedAttempts.length > 0 && (
+                        <div className="border-t border-gray-50 dark:border-slate-700 pt-2 flex items-center justify-between text-xs">
+                          <span className={`font-medium ${V2_MUTED}`}>Tests Passed</span>
+                          <span className="font-semibold text-amber-600 bg-amber-50 dark:bg-amber-900/30 px-2 py-0.5 rounded-full">
+                            {passing}/{gradedAttempts.length} passed
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
       )}
 
       {/* ── TAB 3: MEETINGS ── */}
       {activeTab === "meetings" && (
-        <div className="space-y-6">
-          {/* Header & Quick Action */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div>
-              <h3 className="text-xl font-bold text-gray-900">Group Meetings & Schedule</h3>
-              <p className="text-sm text-gray-500">Schedule virtual meetings and view team attendance</p>
-            </div>
-            <Button size="sm" onClick={() => navigate("/calender")}>
-              <Plus className="w-4 h-4 mr-1.5" />
-              Schedule New Meeting
-            </Button>
-          </div>
-
+        <div className="space-y-4">
           {/* Meeting Attendance Stat Cards */}
           {meetingsData?.stats && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-                <p className="text-xs text-gray-500 font-semibold uppercase">Total Meetings</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{meetingsData.stats.total ?? 0}</p>
-              </div>
-              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-                <p className="text-xs text-sky-600 font-semibold uppercase">Upcoming</p>
-                <p className="text-2xl font-bold text-sky-700 mt-1">{meetingsData.stats.upcoming ?? 0}</p>
-              </div>
-              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-                <p className="text-xs text-emerald-600 font-semibold uppercase">Completed</p>
-                <p className="text-2xl font-bold text-emerald-700 mt-1">{meetingsData.stats.completed ?? 0}</p>
-              </div>
-              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-                <p className="text-xs text-purple-600 font-semibold uppercase">Attendance Rate (%)</p>
-                <p className="text-2xl font-bold text-purple-700 mt-1">
-                  {meetingsData.stats.overallAttendancePct !== null ? `${meetingsData.stats.overallAttendancePct}%` : "—"}
-                </p>
-              </div>
+              {[
+                { label: "Total Meetings", value: meetingsData.stats.total ?? 0, color: "text-[#5B6575] dark:text-slate-100" },
+                { label: "Upcoming", value: meetingsData.stats.upcoming ?? 0, color: "text-sky-700 dark:text-sky-400" },
+                { label: "Completed", value: meetingsData.stats.completed ?? 0, color: "text-emerald-700 dark:text-emerald-400" },
+                {
+                  label: "Attendance Rate",
+                  value: meetingsData.stats.overallAttendancePct !== null ? `${meetingsData.stats.overallAttendancePct}%` : "—",
+                  color: "text-purple-700 dark:text-purple-400",
+                },
+              ].map((s) => (
+                <div key={s.label} className={V2_CARD_SHELL_PADDED}>
+                  <p className="text-[11px] text-[#5B6575] dark:text-slate-400 font-bold uppercase tracking-wider">{s.label}</p>
+                  <p className={`text-[22px] font-bold mt-1 tabular-nums ${s.color}`}>{s.value}</p>
+                </div>
+              ))}
             </div>
           )}
 
           {/* Meetings List Table */}
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className={`${V2_CARD_SHELL} overflow-hidden`}>
             {meetingsLoading ? (
-              <div className="flex items-center justify-center py-16">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3363AD]" />
+              <div className="p-6 space-y-3 animate-pulse">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className={`${bone} h-10 w-full`} />
+                ))}
               </div>
             ) : !meetingsData?.meetings || meetingsData.meetings.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-center text-gray-400 gap-2">
-                <Calendar className="w-10 h-10 text-gray-300" />
-                <p className="font-semibold text-gray-600">No meetings scheduled</p>
-                <p className="text-xs text-gray-400">Click 'Schedule New Meeting' to invite your group members.</p>
+              <div className={`${V2_EMPTY} m-4 flex flex-col items-center justify-center py-12 gap-2`}>
+                <Calendar className="w-10 h-10 text-[#C5D3E0]" />
+                <p className="font-semibold text-[#1A2332] dark:text-slate-100">No meetings scheduled</p>
+                <p className={`text-xs ${V2_MUTED}`}>Use Add Schedule to invite your group members.</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
-                  <thead className="bg-gray-50 border-b border-gray-100 text-xs font-semibold text-gray-500 uppercase">
+                  <thead className="bg-[#F8FAFC] dark:bg-slate-800/60 border-b border-[rgba(51,99,173,0.12)] dark:border-slate-700 text-[11px] font-bold text-[#5B6575] dark:text-slate-400 uppercase tracking-wider">
                     <tr>
                       <th className="px-5 py-3">Meeting Title</th>
                       <th className="px-5 py-3">Host</th>
@@ -1250,16 +1599,16 @@ const CEHOGroupPage = () => {
                       <th className="px-5 py-3">Participants</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-50">
+                  <tbody className="divide-y divide-[rgba(51,99,173,0.08)] dark:divide-slate-700">
                     {meetingsData.meetings.map((m: any) => (
-                      <tr key={m.id} className="hover:bg-gray-50/80 transition-colors">
-                        <td className="px-5 py-4 font-semibold text-gray-900">{m.title}</td>
-                        <td className="px-5 py-4 text-gray-600">{m.host?.fullNames || "—"}</td>
-                        <td className="px-5 py-4 text-gray-600">{new Date(m.startAt).toLocaleDateString("en-RW")}</td>
+                      <tr key={m.id} className="hover:bg-[#F8FAFC] dark:hover:bg-slate-800/40 transition-colors">
+                        <td className="px-5 py-4 font-semibold text-[#1A2332] dark:text-slate-100">{m.title}</td>
+                        <td className={`px-5 py-4 ${V2_MUTED}`}>{m.host?.fullNames || "—"}</td>
+                        <td className={`px-5 py-4 ${V2_MUTED}`}>{new Date(m.startAt).toLocaleDateString("en-RW")}</td>
                         <td className="px-5 py-4">
                           <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                            m.status === "UPCOMING" ? "bg-blue-50 text-blue-700" :
-                            m.status === "COMPLETED" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"
+                            m.status === "UPCOMING" ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" :
+                            m.status === "COMPLETED" ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300" : "bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-300"
                           }`}>
                             {m.status}
                           </span>
@@ -1267,7 +1616,7 @@ const CEHOGroupPage = () => {
                         <td className="px-5 py-4">
                           <button
                             onClick={() => navigate(`/attendance/${m.id}`)}
-                            className="inline-flex items-center gap-1 px-3 py-1 bg-[#EBF0F9] text-[#3363AD] hover:bg-[#3363AD] hover:text-white rounded-lg font-bold text-xs transition-colors"
+                            className="inline-flex items-center gap-1 px-3 py-1 bg-[#EBF0F9] dark:bg-slate-700 text-[#3363AD] dark:text-blue-300 hover:bg-[#3363AD] hover:text-white rounded-lg font-bold text-xs transition-colors"
                           >
                             <Users className="w-3.5 h-3.5" />
                             {m.participantCount} Members

@@ -16,15 +16,15 @@ interface PerformanceMeterV2Props {
 }
 
 export const PerformanceMeterV2: React.FC<PerformanceMeterV2Props> = ({
-  score = 86,
-  enrolledCoursesCount = 9,
-  completedCoursesCount = 5,
-  certificatesCount = 5,
+  score = 0,
+  enrolledCoursesCount = 0,
+  completedCoursesCount = 0,
+  certificatesCount = 0,
 }) => {
   const [timeframe, setTimeframe] = useState<"Last 6 Months" | "This Year">("Last 6 Months");
   const displayScore = Math.min(100, Math.max(0, Math.round(score)));
 
-  const s = displayScore > 0 ? displayScore : 86;
+  const s = displayScore;
 
   // Last 6 Months Trend (Feb - Jul)
   const sixMonthsTrend = [

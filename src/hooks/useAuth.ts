@@ -8,9 +8,22 @@ import { expandRoles, isLearnerRole } from "../utils/roles";
 const asRoleArray = (roles: UserRole | UserRole[]): UserRole[] =>
   Array.isArray(roles) ? roles : [roles];
 
+/** Read cached session synchronously so first paint already knows the role. */
+function readStoredUser(): User | null {
+  try {
+    const storedUser = localStorage.getItem("chw");
+    if (storedUser) {
+      return JSON.parse(storedUser) as User;
+    }
+  } catch {
+    localStorage.removeItem("chw");
+  }
+  return null;
+}
+
 export const useAuth = () => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(() => readStoredUser());
+  const [loading, setLoading] = useState(() => !readStoredUser());
 
   useEffect(() => {
     let storedToken = localStorage.getItem("accessToken");
@@ -45,14 +58,11 @@ export const useAuth = () => {
       }
     }
 
-    const storedUser = localStorage.getItem("chw");
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (error) {
-        console.error("Failed to parse stored user:", error);
-        localStorage.removeItem("chw");
-      }
+    const stored = readStoredUser();
+    if (stored) {
+      setUser(stored);
+    } else if (!storedToken) {
+      setUser(null);
     }
 
     setLoading(false);

@@ -14,6 +14,12 @@ import { useAdoptionStats } from "@/hooks/useAdoptionStats";
 import { useIdleReady } from "@/hooks/useIdleReady";
 import { DEFAULT_DASHBOARD_FILTERS } from "@/utils/constants/dashboardFilters";
 import { expandRoles, usesRoleWorkspaceHome } from "@/utils/roles";
+import {
+  V2_MUTED,
+  V2_PAGE_CANVAS,
+  V2_PAGE_SUBTITLE,
+  V2_PAGE_TITLE,
+} from "@/components/dashboard/v2/widgets/admin/v2CardStyles";
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
@@ -95,27 +101,27 @@ export const Dashboard: React.FC = () => {
         : "A great time to review what you've learned.";
 
   return (
-    <div className='space-y-8 p-1'>
+    <div className={isCEHO || isLearner ? V2_PAGE_CANVAS : "space-y-8 p-1"}>
       <div className='flex items-center justify-between gap-4 flex-wrap'>
         <div>
-          <h1 className='text-xl font-bold text-gray-900'>
+          <h1 className={isCEHO || isLearner ? V2_PAGE_TITLE : "text-xl font-bold text-gray-900"}>
             {isLearner || isCEHO
               ? `${greeting}, ${user.fullNames}!`
               : `Welcome, ${user.fullNames}!`}
           </h1>
-          <p className='text-xs text-gray-500 mt-0.5'>
+          <p className={isCEHO || isLearner ? V2_PAGE_SUBTITLE : "text-xs text-gray-500 mt-0.5"}>
             {isLearner ? learnerSubtitle : "Here's what's happening on the platform"}
           </p>
         </div>
 
         <div className="flex items-center gap-3">
-          <DashboardVersionSwitcher />
+          <DashboardVersionSwitcher onCanvas={isCEHO || isLearner} />
 
           {showAnalyticsFilters && (
             <div className='flex items-center gap-3'>
               <DashboardGlobalFilters filters={filters} onChange={setFilters} />
               {isRefetching && (
-                <span className='flex items-center gap-1.5 text-xs text-gray-400'>
+                <span className={`flex items-center gap-1.5 text-xs ${V2_MUTED}`}>
                   <span className='h-3 w-3 rounded-full border-2 border-gray-300 border-t-[#3363AD] animate-spin' />
                   Updating…
                 </span>

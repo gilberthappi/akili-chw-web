@@ -581,7 +581,7 @@ export default function IssuedCertificatesPage() {
                     <p className="text-xs mt-1">
                       {activeFilterCount > 0 || search
                         ? "Try adjusting your filters"
-                        : "No certificates have been issued yet"}
+                        : "No Final Exam certifications yet"}
                     </p>
                     {(activeFilterCount > 0 || search) && (
                       <button

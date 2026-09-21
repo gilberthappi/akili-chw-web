@@ -104,14 +104,13 @@ export const LEARNER_MGMT_ROLES: UserRole[] = [
   ...STAFF_ROLES,
 ];
 
-/** Health Centers — platform ADMIN + RBC/SFH/CEHO (no STAFF/WelTel aliases). */
+/** Health Centers — platform ADMIN + RBC/SFH (not CEHO). */
 export const HEALTH_CENTER_ROLES: UserRole[] = [
   "ADMIN",
   "RBC_COORDINATOR",
   "RBC_ANALYST",
   "SFH_COORDINATOR",
   "SFH_ENROLLMENT",
-  "CEHO",
 ];
 
 /** Meetings / attendance (staff + CEHO). */

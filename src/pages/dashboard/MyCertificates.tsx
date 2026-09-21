@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
 import { getMyCertificates, regenerateMyCertificate, IMyCertificate } from "@/services/certificates.service";
+import { uniqueCourseCertificateCount } from "@/utils/certificates";
 
 const MyCertificates: React.FC = () => {
   const navigate = useNavigate();
@@ -51,11 +52,12 @@ const MyCertificates: React.FC = () => {
     load();
   }, [load]);
 
+  const certCount = uniqueCourseCertificateCount(certificates);
   const avgScore =
-    certificates.length > 0
+    certCount > 0
       ? Math.round(
           certificates.reduce((sum, c) => sum + (c.finalExamMarks ?? 0), 0) /
-            certificates.length
+            certCount
         )
       : 0;
 
@@ -96,7 +98,7 @@ const MyCertificates: React.FC = () => {
             </div>
             <div>
               <p className="text-xs text-gray-500">Total Earned</p>
-              <p className="text-xl font-bold text-gray-900">{certificates.length}</p>
+              <p className="text-xl font-bold text-gray-900">{certCount}</p>
             </div>
           </div>
         </Card>
@@ -108,7 +110,7 @@ const MyCertificates: React.FC = () => {
             <div>
               <p className="text-xs text-gray-500">Avg. Exam Score</p>
               <p className="text-xl font-bold text-gray-900">
-                {certificates.length > 0 ? `${avgScore}%` : "—"}
+                {certCount > 0 ? `${avgScore}%` : "—"}
               </p>
             </div>
           </div>
@@ -116,7 +118,7 @@ const MyCertificates: React.FC = () => {
       </div>
 
       {/* Empty state */}
-      {certificates.length === 0 ? (
+      {certCount === 0 ? (
         <div className="text-center py-20 text-gray-400">
           <Award size={48} className="mx-auto mb-3 opacity-30" />
           <p className="text-sm font-medium">No certificates yet</p>
@@ -132,7 +134,7 @@ const MyCertificates: React.FC = () => {
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
           {certificates.map((cert) => (
             <Card key={cert.id} padding={false} hover className="flex flex-col">
               {/* Cover */}

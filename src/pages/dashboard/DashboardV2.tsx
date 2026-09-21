@@ -6,9 +6,20 @@ import { AdminDashboardV2 } from "@/components/dashboard/v2/AdminDashboardV2";
 import { RoleWorkspaceHome } from "@/components/dashboard/RoleWorkspaceHome";
 import { DashboardVersionSwitcher } from "@/components/dashboard/DashboardVersionSwitcher";
 import { usesRoleWorkspaceHome } from "@/utils/roles";
+import { V2_PAGE_CANVAS } from "@/components/dashboard/v2/widgets/admin/v2CardStyles";
+import { SectionSkeleton } from "@/components/dashboard/shared/SectionSkeleton";
 
 export const DashboardV2: React.FC = () => {
-  const { user, hasRole } = useAuth();
+  const { user, loading, hasRole } = useAuth();
+
+  // Before roles resolve, never fall through to Admin — that caused a CEHO flash of admin widgets.
+  if (loading || !user) {
+    return (
+      <div className={V2_PAGE_CANVAS}>
+        <SectionSkeleton cards={4} rows={3} />
+      </div>
+    );
+  }
 
   const roleWorkspaceHome = usesRoleWorkspaceHome(
     user?.roles as string[] | string | undefined,
@@ -28,17 +39,21 @@ export const DashboardV2: React.FC = () => {
     );
   }
 
-  // Admin / staff V2 — switcher lives inside AdminDashboardV2 (canvas-safe)
-  if (!isCEHO && !isLearner) {
-    return <AdminDashboardV2 />;
+  if (isCEHO) {
+    return <CEHODashboardV2 />;
   }
 
-  return (
-    <div className="space-y-6 pb-12">
-      <div className="flex justify-end px-1">
-        <DashboardVersionSwitcher />
+  if (isLearner) {
+    return (
+      <div className="space-y-6 pb-12">
+        <div className="flex justify-end px-1">
+          <DashboardVersionSwitcher />
+        </div>
+        <CHWLearnerDashboardV2 />
       </div>
-      {isCEHO ? <CEHODashboardV2 /> : <CHWLearnerDashboardV2 />}
-    </div>
-  );
+    );
+  }
+
+  // Admin / staff V2 — only after we know the user is not CEHO/learner
+  return <AdminDashboardV2 />;
 };

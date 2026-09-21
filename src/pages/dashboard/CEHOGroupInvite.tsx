@@ -16,6 +16,14 @@ import toast from "react-hot-toast";
 import { searchCHWCandidates, cehoDirectlyAddMember } from "@/services/cehoGroup.service";
 import { IStudentSearchResult } from "@/types";
 import { Button } from "@/components/common/Button";
+import {
+  V2_CARD_SHELL_PADDED,
+  V2_INPUT,
+  V2_MUTED,
+  V2_PAGE_CANVAS,
+  V2_PAGE_SUBTITLE,
+  V2_PAGE_TITLE,
+} from "@/components/dashboard/v2/widgets/admin/v2CardStyles";
 
 const StudentAvatar = ({ name, photo }: { name: string; photo: string | null }) => {
   const [failed, setFailed] = useState(false);
@@ -84,19 +92,19 @@ const CEHOGroupInvitePage = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className={V2_PAGE_CANVAS}>
       {/* Header */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <Link
             to="/ceho-group"
-            className="p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-500"
+            className="p-2 rounded-xl hover:bg-[#EBF0F9] dark:hover:bg-slate-700 transition-colors text-[#5B6575] dark:text-slate-400"
           >
             <ChevronLeft className="w-5 h-5" />
           </Link>
           <div className="space-y-1">
-            <h2 className="text-3xl font-bold text-[#333333]">Add CHW</h2>
-            <p className="text-sm text-gray-500">
+            <h2 className={V2_PAGE_TITLE}>Add CHW</h2>
+            <p className={V2_PAGE_SUBTITLE}>
               Suggestions from your area — or search by name/phone to find anyone.
             </p>
           </div>
@@ -105,13 +113,13 @@ const CEHOGroupInvitePage = () => {
 
       {/* Search */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9AA3B2]" />
         <input
           type="text"
           placeholder="Filter by name or phone number…"
           value={searchTerm}
           onChange={(e) => handleSearchChange(e.target.value)}
-          className="w-full pl-10 pr-10 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD]"
+          className={`w-full pl-10 pr-10 py-2.5 text-sm ${V2_INPUT}`}
         />
         {isFetching && (
           <div className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-[#3363AD]/30 border-t-[#3363AD] rounded-full animate-spin" />
@@ -122,14 +130,14 @@ const CEHOGroupInvitePage = () => {
       {isLoading ? (
         <div className="space-y-3 animate-pulse">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-20 bg-gray-100 rounded-xl" />
+            <div key={i} className="h-20 bg-[#E8EEF4] dark:bg-slate-700 rounded-[20px]" />
           ))}
         </div>
       ) : students.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
-          <Users className="w-12 h-12 text-gray-300" />
-          <p className="text-gray-500 font-medium">No available CHWs found</p>
-          <p className="text-gray-400 text-sm">
+        <div className={`${V2_CARD_SHELL_PADDED} flex flex-col items-center justify-center py-16 gap-3 text-center`}>
+          <Users className="w-12 h-12 text-[#C5D3E0]" />
+          <p className={`font-medium ${V2_MUTED}`}>No available CHWs found</p>
+          <p className="text-[#9AA3B2] text-sm">
             {debouncedSearch
               ? "No match — try a different name or phone number"
               : "No unassigned CHWs in your area yet"}
@@ -143,21 +151,21 @@ const CEHOGroupInvitePage = () => {
             return (
               <div
                 key={student.id}
-                className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center gap-4 hover:shadow-md transition-shadow"
+                className={`${V2_CARD_SHELL_PADDED} flex items-center gap-4`}
               >
                 <StudentAvatar name={student.user.fullNames} photo={student.user.photo} />
 
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-gray-900 truncate">{student.user.fullNames}</p>
+                  <p className="font-semibold text-[#1A2332] dark:text-slate-100 truncate">{student.user.fullNames}</p>
                   <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1">
                     {student.user.phoneNumber && (
-                      <div className="flex items-center gap-1.5 text-gray-500 text-xs">
+                      <div className={`flex items-center gap-1.5 text-xs ${V2_MUTED}`}>
                         <Phone className="w-3 h-3" />
                         <span>{student.user.phoneNumber}</span>
                       </div>
                     )}
                     {(student.user.district || student.user.sector) && (
-                      <div className="flex items-center gap-1.5 text-gray-500 text-xs">
+                      <div className={`flex items-center gap-1.5 text-xs ${V2_MUTED}`}>
                         <MapPin className="w-3 h-3" />
                         <span className="truncate">
                           {[student.user.district, student.user.sector].filter(Boolean).join(", ")}

@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getMyCertificates, IMyCertificate } from "@/services/certificates.service";
 import { getStudentStatistics, IStudentStatistics } from "@/services/progress.service";
 import { dashboardKeys } from "@/utils/constants/queryKeys";
+import { uniqueCourseCertificateCount } from "@/utils/certificates";
 
 const DASHBOARD_CACHE_MS = 0;
 
@@ -35,7 +36,7 @@ export const useLearnerDashboard = (): LearnerDashboardData => {
   return {
     studentStats: data?.studentStats ?? null,
     certificates,
-    totalCertificates: certificates.length,
+    totalCertificates: uniqueCourseCertificateCount(certificates),
     isLoading,
     error: error ? "Failed to fetch data. Please try again." : null,
     refetch: () => {

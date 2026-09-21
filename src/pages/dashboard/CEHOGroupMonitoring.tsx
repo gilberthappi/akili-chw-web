@@ -20,6 +20,7 @@ import { getGroupMonitoring, exportGroupProgressExcel } from "@/services/cehoGro
 import { ICEHOGroupMonitoringMember } from "@/types";
 import { MetricCard } from "@/components/common/MetricCard";
 import { Button } from "@/components/common/Button";
+import { uniqueCourseCertificateCount } from "@/utils/certificates";
 
 const MemberAvatar = ({ name, photo }: { name: string; photo: string | null }) => {
   const [failed, setFailed] = useState(false);
@@ -176,7 +177,7 @@ function MemberCard({ member }: { member: ICEHOGroupMonitoringMember }) {
           <div className="border-t border-gray-100 pt-3">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
               <Award className="w-3.5 h-3.5 text-amber-500" />
-              Earned Certificates ({certificates.length})
+              Earned Certificates ({uniqueCourseCertificateCount(certificates)})
             </p>
 
             {certificates.length === 0 ? (
@@ -275,7 +276,7 @@ const CEHOGroupMonitoringPage = () => {
       if (selectedCourseFilter !== "all") {
         hasCert = (m.certificates || []).some((c: any) => c.courseId === selectedCourseFilter);
       } else {
-        hasCert = (m.certificates?.length || 0) > 0;
+        hasCert = uniqueCourseCertificateCount(m.certificates) > 0;
       }
 
       if (hasCert) {
@@ -317,7 +318,7 @@ const CEHOGroupMonitoringPage = () => {
         );
         if (!hasCertForCourse) return false;
       } else {
-        if ((m.certificates?.length || 0) === 0) return false;
+        if (uniqueCourseCertificateCount(m.certificates) === 0) return false;
       }
     } else if (selectedCertFilter === "no_cert") {
       if (selectedCourseFilter !== "all") {
@@ -326,7 +327,7 @@ const CEHOGroupMonitoringPage = () => {
         );
         if (hasCertForCourse) return false;
       } else {
-        if ((m.certificates?.length || 0) > 0) return false;
+        if (uniqueCourseCertificateCount(m.certificates) > 0) return false;
       }
     } else if (selectedCourseFilter !== "all") {
       const hasCourse = m.courseProgress.some((c) => c.courseId === selectedCourseFilter);
