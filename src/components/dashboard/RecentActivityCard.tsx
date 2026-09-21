@@ -60,16 +60,29 @@ const getInitials = (name: string): string => {
   return name.slice(0, 2).toUpperCase();
 };
 
-// Relative time formatter
-const relativeTime = (iso: string): string => {
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60000);
+// Relative time: compact on mobile (2s, 4m, 3h, 2d, 3w), longer label on sm+
+const relativeTime = (iso: string, compact = false): string => {
+  const diff = Math.max(0, Date.now() - new Date(iso).getTime());
+  const secs = Math.floor(diff / 1000);
+  const mins = Math.floor(secs / 60);
+  const hrs = Math.floor(mins / 60);
+  const days = Math.floor(hrs / 24);
+  const weeks = Math.floor(days / 7);
+
+  if (compact) {
+    if (secs < 60) return `${Math.max(secs, 1)}s`;
+    if (mins < 60) return `${mins}m`;
+    if (hrs < 24) return `${hrs}h`;
+    if (days < 7) return `${days}d`;
+    if (weeks < 5) return `${weeks}w`;
+    return `${Math.max(Math.floor(days / 30), 1)}mo`;
+  }
+
   if (mins < 1) return "Just now";
   if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
   if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  return `${days}d ago`;
+  if (days < 7) return `${days}d ago`;
+  return `${weeks}w ago`;
 };
 
 const ActivityRow: React.FC<{ item: IActivityItem }> = ({ item }) => (
@@ -125,7 +138,8 @@ const ActivityRow: React.FC<{ item: IActivityItem }> = ({ item }) => (
           )}
         </div>
         <span className='text-xs text-gray-400 shrink-0 mt-0.5'>
-          {relativeTime(item.timestamp)}
+          <span className="sm:hidden">{relativeTime(item.timestamp, true)}</span>
+          <span className="hidden sm:inline">{relativeTime(item.timestamp)}</span>
         </span>
       </div>
     </div>

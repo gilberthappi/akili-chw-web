@@ -105,7 +105,12 @@ export const ConversationListItem: React.FC<ConversationListItemProps> = ({
               <span className={`text-[11px] whitespace-nowrap flex-shrink-0 ${
                 unreadCount > 0 ? "text-primary font-semibold" : "text-gray-400"
               }`}>
-                {formatRelativeTime(conversation.lastMessage.timestamp)}
+                <span className="sm:hidden">
+                  {formatRelativeTime(conversation.lastMessage.timestamp, { compact: true })}
+                </span>
+                <span className="hidden sm:inline">
+                  {formatRelativeTime(conversation.lastMessage.timestamp)}
+                </span>
               </span>
             )}
           </div>

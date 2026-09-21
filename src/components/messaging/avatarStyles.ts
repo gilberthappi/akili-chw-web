@@ -20,15 +20,36 @@ export const conversationBadgeColor: Record<ConversationType, string> = {
   community: "bg-purple-100 text-purple-800",
 };
 
-// Minutes are unprefixed ("3 minutes ago"), hours are prefixed with "about"
-// ("about 2 hours ago") — matches the reference design's exact wording per scale.
-export const formatRelativeTime = (iso: string): string => {
-  const diffMs = Date.now() - new Date(iso).getTime();
-  const minutes = Math.floor(diffMs / 60000);
+// Desktop: "3 minutes ago" / "about 2 hours ago"
+// Mobile compact: 2s, 4m, 3h, 2d, 3w, 2mo, 1y
+export const formatRelativeTime = (
+  iso: string,
+  options?: { compact?: boolean },
+): string => {
+  const diffMs = Math.max(0, Date.now() - new Date(iso).getTime());
+  const seconds = Math.floor(diffMs / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+  const weeks = Math.floor(days / 7);
+  const months = Math.floor(days / 30);
+  const years = Math.floor(days / 365);
+
+  if (options?.compact) {
+    if (seconds < 60) return `${Math.max(seconds, 1)}s`;
+    if (minutes < 60) return `${minutes}m`;
+    if (hours < 24) return `${hours}h`;
+    if (days < 7) return `${days}d`;
+    if (weeks < 5) return `${weeks}w`;
+    if (months < 12) return `${Math.max(months, 1)}mo`;
+    return `${Math.max(years, 1)}y`;
+  }
+
   if (minutes < 1) return "just now";
   if (minutes < 60) return `${minutes} minute${minutes === 1 ? "" : "s"} ago`;
-  const hours = Math.floor(minutes / 60);
   if (hours < 24) return `about ${hours} hour${hours === 1 ? "" : "s"} ago`;
-  const days = Math.floor(hours / 24);
-  return `${days} day${days === 1 ? "" : "s"} ago`;
+  if (days < 7) return `${days} day${days === 1 ? "" : "s"} ago`;
+  if (weeks < 5) return `${weeks} week${weeks === 1 ? "" : "s"} ago`;
+  if (months < 12) return `${Math.max(months, 1)} month${months === 1 ? "" : "s"} ago`;
+  return `${Math.max(years, 1)} year${years === 1 ? "" : "s"} ago`;
 };

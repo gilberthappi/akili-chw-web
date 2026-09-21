@@ -196,7 +196,20 @@ export const ContactInfoPanel: React.FC<ContactInfoPanelProps> = ({
               <div>
                 <p className="text-xs text-gray-500">Last seen</p>
                 <p className="text-sm text-gray-900">
-                  {isOnline ? "Online now" : lastSeen ? formatRelativeTime(lastSeen) : "Offline"}
+                  {isOnline
+                    ? "Online now"
+                    : lastSeen
+                      ? (
+                        <>
+                          <span className="sm:hidden">
+                            {formatRelativeTime(lastSeen, { compact: true })}
+                          </span>
+                          <span className="hidden sm:inline">
+                            {formatRelativeTime(lastSeen)}
+                          </span>
+                        </>
+                      )
+                      : "Offline"}
                 </p>
               </div>
             </div>
