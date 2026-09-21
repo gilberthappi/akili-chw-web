@@ -147,8 +147,11 @@ export const StudentDetailsV2: React.FC = () => {
   );
 
   const enrolledCoursesCount = coursesList.length;
-  const completedCoursesCount = coursesList.filter((c) => c.isCompleted).length;
-  const certificatesCount = certificatesList.length;
+  const completedCoursesCount =
+    rawData.courseProgress?.completedCourses ??
+    coursesList.filter((c) => c.isCompleted).length;
+  const certificatesCount =
+    rawData.courseProgress?.certifiedCourses ?? certificatesList.length;
 
   const avgProgressScore =
     coursesList.length > 0

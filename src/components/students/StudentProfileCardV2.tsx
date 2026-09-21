@@ -153,17 +153,17 @@ export const StudentProfileCardV2: React.FC<StudentProfileCardV2Props> = ({
 
         <div className="space-y-2 text-xs">
           <div className="flex items-center gap-2.5 text-gray-600 font-medium">
-            <Award size={14} className="text-[#3363AD] shrink-0" />
-            <span>
-              {certificatesCount} certificate{certificatesCount === 1 ? "" : "s"}{" "}
-              earned
-            </span>
-          </div>
-          <div className="flex items-center gap-2.5 text-gray-600 font-medium">
             <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
             <span>
               {completedCoursesCount} course
               {completedCoursesCount === 1 ? "" : "s"} completed
+            </span>
+          </div>
+          <div className="flex items-center gap-2.5 text-gray-600 font-medium">
+            <Award size={14} className="text-[#3363AD] shrink-0" />
+            <span>
+              {certificatesCount} certificate{certificatesCount === 1 ? "" : "s"}{" "}
+              earned
             </span>
           </div>
         </div>

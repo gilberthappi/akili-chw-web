@@ -1110,13 +1110,20 @@ export interface EnrolledCourse {
   courseRating: number;
   isPublished: boolean;
   progress: string;
+  /** Passed Final Test ≥1 */
   isCompleted: boolean;
+  /** Passed Final Exam ≥1 (and Final Test) */
+  isCertified?: boolean;
   enrollmentDate: string;
   lastUpdated: string;
 }
 
 export interface CourseProgress {
   totalCoursesEnrolled: number;
+  /** Distinct courses with ≥1 passed Final Test */
+  completedCourses?: number;
+  /** Distinct courses with ≥1 passed Final Exam (∩ Final Test) */
+  certifiedCourses?: number;
   overallProgress: string;
   enrolledCourses: EnrolledCourse[];
   detailedProgress?: Array<{
