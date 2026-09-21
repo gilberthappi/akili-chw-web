@@ -167,39 +167,61 @@ export const PerformanceMeterV2: React.FC<PerformanceMeterV2Props> = ({
           </div>
         </div>
 
-        {/* Legend Explaining Gauge Color Zones */}
+        {/* Legend: show score only on the matching zone */}
         <div className="sm:col-span-6 space-y-2 text-xs font-semibold">
-          <div className="flex items-center justify-between">
-            <span className="flex items-center gap-1.5 text-gray-700">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#10B981]" />
-              High Mastery (85–100%)
-            </span>
-            <span className="font-extrabold text-emerald-600">{displayScore}%</span>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <span className="flex items-center gap-1.5 text-gray-700">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#EAB308]" />
-              Good Standing (70–85%)
-            </span>
-            <span className="font-extrabold text-gray-700">75%</span>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <span className="flex items-center gap-1.5 text-gray-700">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#F97316]" />
-              Below Target (50–70%)
-            </span>
-            <span className="font-extrabold text-gray-700">60%</span>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <span className="flex items-center gap-1.5 text-gray-700">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#EF4444]" />
-              Needs Work (0–50%)
-            </span>
-            <span className="font-extrabold text-gray-700">&lt; 50%</span>
-          </div>
+          {(
+            [
+              {
+                min: 85,
+                max: 100,
+                label: "High Mastery (85–100%)",
+                dot: "bg-[#10B981]",
+                activeClass: "text-emerald-600",
+              },
+              {
+                min: 70,
+                max: 84,
+                label: "Good Standing (70–85%)",
+                dot: "bg-[#EAB308]",
+                activeClass: "text-amber-600",
+              },
+              {
+                min: 50,
+                max: 69,
+                label: "Below Target (50–70%)",
+                dot: "bg-[#F97316]",
+                activeClass: "text-orange-600",
+              },
+              {
+                min: 0,
+                max: 49,
+                label: "Needs Work (0–50%)",
+                dot: "bg-[#EF4444]",
+                activeClass: "text-red-600",
+              },
+            ] as const
+          ).map((zone) => {
+            const isActive =
+              displayScore >= zone.min && displayScore <= zone.max;
+            return (
+              <div
+                key={zone.label}
+                className={`flex items-center justify-between ${
+                  isActive ? "opacity-100" : "opacity-55"
+                }`}
+              >
+                <span className="flex items-center gap-1.5 text-gray-700">
+                  <span className={`w-2.5 h-2.5 rounded-full ${zone.dot}`} />
+                  {zone.label}
+                </span>
+                {isActive ? (
+                  <span className={`font-extrabold ${zone.activeClass}`}>
+                    {displayScore}%
+                  </span>
+                ) : null}
+              </div>
+            );
+          })}
         </div>
       </div>
 
