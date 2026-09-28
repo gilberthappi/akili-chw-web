@@ -14,6 +14,8 @@ import StudentTableActions from "./StudentTableActions";
 import TableActions from "../table/TableActions";
 import { BulkStudentRoleActions } from "./BulkStudentRoleActions";
 import { useAuth } from "@/hooks/useAuth";
+import { TESTER_WRITE_ROLES } from "@/utils/roles";
+import { V2_STRONG } from "@/components/dashboard/v2/widgets/admin/v2CardStyles";
 import type { ICourse } from "@/types";
 import { Download, FileSpreadsheet } from "lucide-react";
 import toast from "react-hot-toast";
@@ -33,7 +35,7 @@ const StudentsList: FC<StudentsListProps> = ({
   const { hasRole } = useAuth();
   const queryClient = useQueryClient();
   const isAdmin = hasRole(["ADMIN"]);
-  const canChangeLearnerRole = hasRole(["ADMIN", "STAFF", "TRAINER"]);
+  const canChangeLearnerRole = hasRole(TESTER_WRITE_ROLES);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchKeyword, setSearchKeyword] = useState<string>("");
   const [limit, setLimit] = useState(15);
@@ -251,14 +253,14 @@ const StudentsList: FC<StudentsListProps> = ({
             type="button"
             onClick={handleExportExcel}
             disabled={isExporting}
-            className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-[#3363AD] bg-white border border-[#3363AD]/30 rounded-lg hover:bg-[#3363AD]/10 focus:outline-none transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
           >
             {isExporting ? (
-              <span className="w-3.5 h-3.5 border-2 border-[#3363AD] border-t-transparent rounded-full animate-spin" />
+              <span className="w-3.5 h-3.5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
             ) : (
-              <FileSpreadsheet className="w-4 h-4 text-[#3363AD]" />
+              <FileSpreadsheet className="w-4 h-4" />
             )}
-            <span>{isExporting ? "Exporting..." : "Export to Excel"}</span>
+            <span>{isExporting ? "Exporting…" : "Export Excel"}</span>
           </button>
         }
         // New features
@@ -348,17 +350,17 @@ const StudentsList: FC<StudentsListProps> = ({
         onResetFilters={resetFilters}
         columns={[
           {
-            title: "CHW Name",
+            title: roleFilter === "TESTER" ? "Tester" : roleFilter === "CEHO" ? "CEHO" : "CHW",
             key: "fullName",
             sortable: true,
             render: (row: IStudent) => {
               const initials = row.fullName?.substring(0, 2).toUpperCase() || "??";
               return (
                 <div className='flex items-center gap-3'>
-                  <div className='w-8 h-8 rounded-full bg-[#3363AD]/10 text-[#3363AD] flex items-center justify-center text-xs font-bold shrink-0'>
+                  <div className='w-8 h-8 rounded-full bg-[#EBF0F9] dark:bg-slate-700 text-[#3363AD] dark:text-blue-300 flex items-center justify-center text-xs font-bold shrink-0'>
                     {initials}
                   </div>
-                  <span className='font-medium text-gray-900'>{row.fullName}</span>
+                  <span className={`font-semibold ${V2_STRONG}`}>{row.fullName}</span>
                 </div>
               );
             },
@@ -373,7 +375,7 @@ const StudentsList: FC<StudentsListProps> = ({
             key: "location",
             sortable: true,
             render: (row: IStudent) => (
-              <div className='text-gray-600'>
+              <div>
                 {row.district} / {row.sector}
               </div>
             ),
@@ -383,7 +385,7 @@ const StudentsList: FC<StudentsListProps> = ({
             key: "courses",
             sortable: true,
             render: (row: IStudent) => (
-              <div className='font-medium text-gray-700'>
+              <div className={`font-semibold ${V2_STRONG}`}>
                 {row.courses.length > 1
                   ? `${row.courses.length} courses`
                   : row.courses[0] || "No courses"}
@@ -396,11 +398,11 @@ const StudentsList: FC<StudentsListProps> = ({
             sortable: true,
             render: (row: IStudent) => (
               <div className='w-32'>
-                <div className='flex justify-between text-xs mb-1'>
-                  <span className='text-gray-500 font-medium'>Completion</span>
-                  <span className='text-gray-700 font-bold'>{row.progress}</span>
+                <div className='flex justify-between text-[11px] mb-1'>
+                  <span className='font-semibold text-[#9AA3B2]'>Completion</span>
+                  <span className={`font-bold tabular-nums ${V2_STRONG}`}>{row.progress}</span>
                 </div>
-                <div className='h-1.5 w-full bg-gray-100 rounded-full overflow-hidden'>
+                <div className='h-2 w-full bg-[#E8EEF4] dark:bg-slate-700 rounded-full overflow-hidden'>
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${
                       row.progress === "100%" ? "bg-emerald-500" : "bg-[#3363AD]"
@@ -416,7 +418,7 @@ const StudentsList: FC<StudentsListProps> = ({
             key: "createdAt",
             sortable: true,
             render: (row: IStudent) => (
-              <div className='text-sm text-gray-500 whitespace-nowrap'>
+              <div className='text-xs whitespace-nowrap'>
                 {formatDate(row.createdAt)}
               </div>
             ),
@@ -427,7 +429,12 @@ const StudentsList: FC<StudentsListProps> = ({
             render: (row: IStudent) => {
               return (
                 <TableActions>
-                  <StudentTableActions item={row} showPromote={roleFilter === "TRAINEE"} showDemote={roleFilter === "CEHO"} />
+                  <StudentTableActions
+                    item={row}
+                    learnerRole={roleFilter}
+                    showPromote={roleFilter === "TRAINEE"}
+                    showDemote={roleFilter === "CEHO"}
+                  />
                 </TableActions>
               );
             },

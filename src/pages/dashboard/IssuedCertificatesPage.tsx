@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import {
-  Search,
   Award,
   X,
   Download,
@@ -11,7 +10,12 @@ import {
   ChevronRight,
   Eye,
   Filter,
+  Users,
+  UserSearch,
+  UserCheck,
+  GraduationCap,
 } from "lucide-react";
+import { getDashboardV2Certificates } from "@/services/analytics.service";
 import toast from "react-hot-toast";
 import ExcelJS from "exceljs";
 import autoTable from "jspdf-autotable";
@@ -27,6 +31,25 @@ import {
 import { getAllCoursesNoPagination } from "@/services/course.service";
 import { ICourse } from "@/types";
 import { formatDate } from "@/utils/formats/formats";
+import {
+  V2_BONE,
+  V2_BTN_PRIMARY,
+  V2_BTN_SECONDARY,
+  V2_CARD_SHELL,
+  V2_CARD_SHELL_PADDED,
+  V2_EMPTY,
+  V2_INPUT,
+  V2_MUTED,
+  V2_PAGE_CANVAS,
+  V2_PILL,
+  V2_PILL_BLUE,
+  V2_SECTION_TITLE,
+  V2_STRONG,
+  V2_TABLE_BODY,
+  V2_TABLE_HEAD,
+  V2_TABLE_ROW,
+} from "@/components/dashboard/v2/widgets/admin/v2CardStyles";
+import { V2KpiCard, V2PageHeader, V2SearchInput } from "@/components/v2/V2Page";
 
 const PAGE_SIZE = 15;
 
@@ -166,6 +189,37 @@ export default function IssuedCertificatesPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // ── Earned certificates by role (same source as the dashboard) ───────
+  const [earned, setEarned] = useState<{ all: number; TRAINEE: number; TESTER: number; CEHO: number } | null>(null);
+  const { district, province, gender, year, month, healthCenterId } = carriedFilters;
+  useEffect(() => {
+    let cancelled = false;
+    const base = new URLSearchParams();
+    Object.entries({ district, province, gender, year, month, healthCenterId }).forEach(([k, v]) => {
+      if (v) base.set(k, v);
+    });
+    const totalFor = (role?: string) => {
+      const qs = new URLSearchParams(base);
+      if (role) qs.set("role", role);
+      return getDashboardV2Certificates(qs.toString())
+        .then((r) => r.data?.total ?? 0)
+        .catch(() => 0);
+    };
+    Promise.all([totalFor(), totalFor("TRAINEE"), totalFor("TESTER"), totalFor("CEHO")]).then(
+      ([all, TRAINEE, TESTER, CEHO]) => {
+        if (!cancelled) setEarned({ all, TRAINEE, TESTER, CEHO });
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [district, province, gender, year, month, healthCenterId]);
+
+  const selectRole = (role?: string) =>
+    setCarriedFilters((prev) => ({ ...prev, role: prev.role === role ? undefined : role }));
+  const roleCardClass = (role?: string) =>
+    (carriedFilters.role ?? undefined) === role ? "ring-2 ring-[#3363AD] rounded-2xl" : "";
 
   const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
 
@@ -386,53 +440,63 @@ export default function IssuedCertificatesPage() {
   };
 
   return (
-    <div className="w-full min-h-full bg-gray-50 p-6">
-      {/* Header */}
-      <div className="mb-6 flex items-start justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <Award className="w-6 h-6 text-blue-600" />
-              Issued Certificates
-            </h1>
-            <p className="text-sm text-gray-500 mt-0.5">
-              All certificates issued across all templates and courses
-            </p>
-          </div>
-        </div>
+    <div className={V2_PAGE_CANVAS}>
+      <V2PageHeader
+        title="Issued Certificates"
+        subtitle="All certificates issued across all templates and courses"
+        actions={
+          <>
+            <button type="button" onClick={exportExcel} className={V2_BTN_SECONDARY}>
+              <FileSpreadsheet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              Export Excel
+            </button>
+            <button type="button" onClick={exportPdf} className={V2_BTN_SECONDARY}>
+              <FileText className="w-4 h-4 text-red-500 dark:text-red-400" />
+              Export PDF
+            </button>
+          </>
+        }
+      />
 
-        <div className="flex gap-2 shrink-0">
-          <button
-            onClick={exportExcel}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition"
-          >
-            <FileSpreadsheet className="w-4 h-4 text-green-600" />
-            Export Excel
-          </button>
-          <button
-            onClick={exportPdf}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition"
-          >
-            <FileText className="w-4 h-4 text-red-500" />
-            Export PDF
-          </button>
-        </div>
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        {(
+          [
+            { role: undefined, label: "All Learners", Icon: GraduationCap, sub: "Certificates earned" },
+            { role: "TRAINEE", label: "CHWs", Icon: Users, sub: "Same as dashboard" },
+            { role: "TESTER", label: "Testers", Icon: UserSearch, sub: "Certificates earned" },
+            { role: "CEHO", label: "CEHOs", Icon: UserCheck, sub: "Certificates earned" },
+          ] as const
+        ).map(({ role, label, Icon, sub }) => (
+          <div key={label} className={roleCardClass(role)}>
+            <V2KpiCard
+              label={label}
+              value={earned ? earned[role ?? "all"].toLocaleString() : "—"}
+              Icon={Icon}
+              sub={sub}
+              onClick={() => selectRole(role)}
+            />
+          </div>
+        ))}
+        <V2KpiCard
+          label="Records Shown"
+          value={totalItems.toLocaleString()}
+          Icon={Award}
+          sub="Issued, matching filters"
+        />
       </div>
 
       {/* Filter bar */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4 mb-5 space-y-3">
+      <div className={`${V2_CARD_SHELL_PADDED} space-y-3`}>
         <div className="flex items-center gap-2 mb-1">
-          <Filter className="w-4 h-4 text-gray-400" />
-          <span className="text-sm font-medium text-gray-700">Filters</span>
+          <Filter className="w-4 h-4 text-[#9AA3B2]" />
+          <span className={V2_SECTION_TITLE}>Filters</span>
           {activeFilterCount > 0 && (
-            <span className="px-2 py-0.5 text-xs font-semibold bg-blue-100 text-blue-700 rounded-full">
-              {activeFilterCount} active
-            </span>
+            <span className={`${V2_PILL} ${V2_PILL_BLUE}`}>{activeFilterCount} active</span>
           )}
           {activeFilterCount > 0 && (
             <button
               onClick={clearFilters}
-              className="ml-auto text-xs text-gray-400 hover:text-red-500 transition flex items-center gap-1"
+              className={`ml-auto text-xs font-bold ${V2_MUTED} hover:text-red-500 dark:hover:text-red-400 transition flex items-center gap-1`}
             >
               <X className="w-3.5 h-3.5" />
               Clear all
@@ -442,19 +506,19 @@ export default function IssuedCertificatesPage() {
 
         {activeCarriedCount > 0 && (
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-xs text-gray-400">From dashboard:</span>
+            <span className={`text-xs ${V2_MUTED}`}>From dashboard:</span>
             {(Object.entries(carriedFilters) as [keyof CarriedFilters, string | undefined][])
               .filter(([, value]) => Boolean(value))
               .map(([key, value]) => (
                 <span
                   key={key}
-                  className="flex items-center gap-1 bg-[#3363AD]/10 text-[#3363AD] text-xs px-2 py-1 rounded-full"
+                  className={`${V2_PILL} ${V2_PILL_BLUE} py-1`}
                 >
                   {CARRIED_FILTER_LABELS[key]}:{" "}
                   {key === "role" ? (CARRIED_ROLE_LABELS[value as string] ?? value) : value}
                   <button
                     onClick={() => clearCarriedFilter(key)}
-                    className="hover:text-red-500 transition-colors"
+                    className="hover:text-red-500 dark:hover:text-red-400 transition-colors"
                   >
                     <X className="w-3 h-3" />
                   </button>
@@ -465,16 +529,12 @@ export default function IssuedCertificatesPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search by student or course..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-            />
-          </div>
+          <V2SearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="Search by student or course..."
+            className="w-full"
+          />
 
           {/* Template filter */}
           <div className="relative">
@@ -482,7 +542,7 @@ export default function IssuedCertificatesPage() {
               value={filterTemplateId}
               onChange={(e) => setFilterTemplateId(e.target.value)}
               disabled={loadingTemplates}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white appearance-none pr-8 text-gray-700 disabled:opacity-50"
+              className={`w-full px-3 py-2 pr-8 text-sm appearance-none disabled:opacity-50 ${V2_INPUT}`}
             >
               <option value="">All templates</option>
               {templates.map((t) => (
@@ -491,7 +551,7 @@ export default function IssuedCertificatesPage() {
                 </option>
               ))}
             </select>
-            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">▼</span>
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#9AA3B2] text-xs">▼</span>
           </div>
 
           {/* Course filter */}
@@ -500,7 +560,7 @@ export default function IssuedCertificatesPage() {
               value={filterCourseId}
               onChange={(e) => setFilterCourseId(e.target.value)}
               disabled={loadingCourses}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white appearance-none pr-8 text-gray-700 disabled:opacity-50"
+              className={`w-full px-3 py-2 pr-8 text-sm appearance-none disabled:opacity-50 ${V2_INPUT}`}
             >
               <option value="">
                 {loadingCourses ? "Loading courses..." : "All courses"}
@@ -511,7 +571,7 @@ export default function IssuedCertificatesPage() {
                 </option>
               ))}
             </select>
-            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">▼</span>
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#9AA3B2] text-xs">▼</span>
           </div>
 
           {/* Date range */}
@@ -521,7 +581,7 @@ export default function IssuedCertificatesPage() {
                 type="date"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-700"
+                className={`w-full px-3 py-2 text-sm ${V2_INPUT}`}
                 title="From date"
               />
             </div>
@@ -531,7 +591,7 @@ export default function IssuedCertificatesPage() {
                 value={dateTo}
                 min={dateFrom || undefined}
                 onChange={(e) => setDateTo(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-700"
+                className={`w-full px-3 py-2 text-sm ${V2_INPUT}`}
                 title="To date"
               />
             </div>
@@ -540,72 +600,68 @@ export default function IssuedCertificatesPage() {
       </div>
 
       {/* Total count */}
-      <div className="mb-4">
-        <div className="inline-flex items-center px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm gap-2">
-          <span className="text-gray-500">Total results:</span>
-          <span className="font-bold text-blue-600">{totalItems}</span>
-        </div>
-      </div>
-
       {/* Table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className={`${V2_CARD_SHELL} overflow-hidden`}>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="px-4 py-3 text-left font-semibold text-gray-600 w-10">#</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-600">Student Name</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-600">Course</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-600">Template</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-600">Issue Date</th>
-                <th className="px-4 py-3 text-center font-semibold text-gray-600 w-20">View</th>
+            <thead className={V2_TABLE_HEAD}>
+              <tr>
+                <th className="px-4 py-3 text-left w-10">#</th>
+                <th className="px-4 py-3 text-left">Student Name</th>
+                <th className="px-4 py-3 text-left">Course</th>
+                <th className="px-4 py-3 text-left">Template</th>
+                <th className="px-4 py-3 text-left">Issue Date</th>
+                <th className="px-4 py-3 text-center w-20">View</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className={V2_TABLE_BODY}>
               {loading ? (
                 Array.from({ length: 8 }).map((_, i) => (
-                  <tr key={i} className="border-b border-gray-100 animate-pulse">
-                    <td className="px-4 py-3"><div className="h-3 w-5 bg-gray-200 rounded" /></td>
-                    <td className="px-4 py-3"><div className="h-3 w-36 bg-gray-200 rounded" /></td>
-                    <td className="px-4 py-3"><div className="h-3 w-44 bg-gray-200 rounded" /></td>
-                    <td className="px-4 py-3"><div className="h-5 w-20 bg-gray-100 rounded-full" /></td>
-                    <td className="px-4 py-3"><div className="h-3 w-24 bg-gray-200 rounded" /></td>
-                    <td className="px-4 py-3 text-center"><div className="h-7 w-8 bg-gray-100 rounded-lg mx-auto" /></td>
+                  <tr key={i} className="animate-pulse">
+                    <td className="px-4 py-3"><div className={`${V2_BONE} h-3 w-5`} /></td>
+                    <td className="px-4 py-3"><div className={`${V2_BONE} h-3 w-36`} /></td>
+                    <td className="px-4 py-3"><div className={`${V2_BONE} h-3 w-44`} /></td>
+                    <td className="px-4 py-3"><div className={`${V2_BONE} h-5 w-20 rounded-full`} /></td>
+                    <td className="px-4 py-3"><div className={`${V2_BONE} h-3 w-24`} /></td>
+                    <td className="px-4 py-3 text-center"><div className={`${V2_BONE} h-7 w-8 rounded-lg mx-auto`} /></td>
                   </tr>
                 ))
               ) : certificates.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-20 text-center text-gray-400">
-                    <Award className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                    <p className="font-medium text-gray-500">No certificates found</p>
-                    <p className="text-xs mt-1">
-                      {activeFilterCount > 0 || search
-                        ? "Try adjusting your filters"
-                        : "No Final Exam certifications yet"}
-                    </p>
-                    {(activeFilterCount > 0 || search) && (
-                      <button
-                        onClick={clearFilters}
-                        className="mt-3 text-xs text-blue-500 hover:text-blue-700 underline underline-offset-2"
-                      >
-                        Clear all filters
-                      </button>
-                    )}
+                  <td colSpan={6} className="p-4">
+                    <div className={V2_EMPTY}>
+                      <Award size={40} className="mx-auto mb-3 text-[#C5D3E0]" />
+                      <p className={`text-sm font-bold ${V2_STRONG}`}>No certificates found</p>
+                      <p className={`text-xs mt-1 ${V2_MUTED}`}>
+                        {activeFilterCount > 0 || search
+                          ? "Try adjusting your filters"
+                          : "No Final Exam certifications yet"}
+                      </p>
+                      {(activeFilterCount > 0 || search) && (
+                        <button
+                          onClick={clearFilters}
+                          className={`${V2_BTN_SECONDARY} mt-4`}
+                        >
+                          <X className="w-3.5 h-3.5" />
+                          Clear all filters
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ) : (
                 certificates.map((cert, idx) => (
                   <tr
                     key={cert.id}
-                    className="border-b border-gray-100 hover:bg-blue-50/40 transition-colors"
+                    className={V2_TABLE_ROW}
                   >
-                    <td className="px-4 py-3 text-gray-400 text-xs">
+                    <td className="px-4 py-3 text-[#9AA3B2] dark:text-slate-500 text-xs tabular-nums">
                       {(currentPage - 1) * PAGE_SIZE + idx + 1}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="font-medium text-gray-900">{cert.student.user.fullNames}</div>
+                      <div className={`font-bold ${V2_STRONG}`}>{cert.student.user.fullNames}</div>
                       {cert.student.user.district && (
-                        <div className="text-xs text-gray-400">{cert.student.user.district}</div>
+                        <div className={`text-xs ${V2_MUTED}`}>{cert.student.user.district}</div>
                       )}
                     </td>
                     <td className="px-4 py-3">
@@ -617,34 +673,34 @@ export default function IssuedCertificatesPage() {
                             className="w-6 h-6 rounded object-cover shrink-0"
                           />
                         )}
-                        <span className="text-gray-800 line-clamp-2 leading-snug">
+                        <span className={`${V2_STRONG} line-clamp-2 leading-snug`}>
                           {cert.course.title}
                         </span>
                       </div>
                     </td>
                     <td className="px-4 py-3">
                       {cert.course.certificateTemplate ? (
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
+                        <span className={`${V2_PILL} ${V2_PILL_BLUE}`}>
                           {cert.course.certificateTemplate.name}
                         </span>
                       ) : (
-                        <span className="text-gray-300 text-xs">—</span>
+                        <span className="text-[#C5D3E0] dark:text-slate-600 text-xs">—</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-gray-600 text-xs whitespace-nowrap">
+                    <td className={`px-4 py-3 text-xs whitespace-nowrap ${V2_MUTED}`}>
                       {formatDate(cert.createdAt)}
                     </td>
                     <td className="px-4 py-3 text-center">
                       {cert.pdf ? (
                         <button
                           onClick={() => setPreviewUrl(cert.pdf!)}
-                          className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-blue-600 bg-blue-50 hover:bg-blue-100 transition"
+                          className="inline-flex items-center justify-center w-8 h-8 rounded-xl text-[#3363AD] dark:text-blue-300 bg-[#EBF0F9] dark:bg-slate-700 hover:bg-[#D7E3F0] dark:hover:bg-slate-600 transition-colors"
                           title="View certificate"
                         >
                           <Eye className="w-4 h-4" />
                         </button>
                       ) : (
-                        <span className="text-gray-300 text-xs">—</span>
+                        <span className="text-[#C5D3E0] dark:text-slate-600 text-xs">—</span>
                       )}
                     </td>
                   </tr>
@@ -656,19 +712,19 @@ export default function IssuedCertificatesPage() {
 
         {/* Pagination */}
         {!loading && totalItems > 0 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 bg-gray-50">
-            <p className="text-xs text-gray-500">
+          <div className="flex items-center justify-between px-4 py-3 border-t border-[rgba(51,99,173,0.12)] dark:border-slate-700 bg-[#F8FAFC] dark:bg-slate-800/60">
+            <p className={`text-xs ${V2_MUTED}`}>
               Showing{" "}
-              <span className="font-medium text-gray-700">
+              <span className={`font-bold ${V2_STRONG}`}>
                 {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, totalItems)}
               </span>{" "}
-              of <span className="font-medium text-gray-700">{totalItems}</span>
+              of <span className={`font-bold ${V2_STRONG}`}>{totalItems}</span>
             </p>
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                className="p-1.5 rounded-xl text-[#5B6575] dark:text-slate-300 hover:bg-[#F1F5F9] dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
@@ -681,13 +737,15 @@ export default function IssuedCertificatesPage() {
                 }, [])
                 .map((p, i) =>
                   p === "..." ? (
-                    <span key={`el-${i}`} className="px-1 text-gray-400 text-xs">…</span>
+                    <span key={`el-${i}`} className="px-1 text-[#9AA3B2] text-xs">…</span>
                   ) : (
                     <button
                       key={p}
                       onClick={() => setCurrentPage(p as number)}
-                      className={`w-7 h-7 text-xs rounded-lg font-medium transition ${
-                        currentPage === p ? "bg-primary text-white" : "text-gray-600 hover:bg-gray-200"
+                      className={`w-7 h-7 text-xs rounded-xl font-bold transition-colors ${
+                        currentPage === p
+                          ? "bg-[#3363AD] text-white"
+                          : "text-[#5B6575] dark:text-slate-300 hover:bg-[#F1F5F9] dark:hover:bg-slate-700"
                       }`}
                     >
                       {p}
@@ -697,7 +755,7 @@ export default function IssuedCertificatesPage() {
               <button
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                className="p-1.5 rounded-xl text-[#5B6575] dark:text-slate-300 hover:bg-[#F1F5F9] dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -713,24 +771,24 @@ export default function IssuedCertificatesPage() {
           onClick={() => setPreviewUrl(null)}
         >
           <div
-            className="relative bg-white rounded-xl shadow-2xl overflow-hidden"
+            className={`relative ${V2_CARD_SHELL} overflow-hidden`}
             style={{ width: "min(90vw, 1000px)", height: "80vh" }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-200 bg-gray-50">
-              <span className="text-sm font-medium text-gray-700">Certificate Preview</span>
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-[rgba(51,99,173,0.12)] dark:border-slate-700 bg-[#F8FAFC] dark:bg-slate-800/60">
+              <span className={V2_SECTION_TITLE}>Certificate Preview</span>
               <div className="flex items-center gap-2">
                 <a
                   href={previewUrl}
                   download="certificate.pdf"
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition"
+                  className={`${V2_BTN_PRIMARY} px-3 py-1.5`}
                 >
                   <Download className="w-3.5 h-3.5" />
                   Download
                 </a>
                 <button
                   onClick={() => setPreviewUrl(null)}
-                  className="flex items-center justify-center w-7 h-7 rounded-lg text-red-500 bg-red-50 hover:bg-red-100 transition"
+                  className="flex items-center justify-center w-7 h-7 rounded-xl text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>

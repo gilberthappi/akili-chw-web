@@ -112,6 +112,24 @@ const VIDEO_CHUNK_SIZE = 1024 * 1024;
 const VIDEO_CHUNK_THRESHOLD = VIDEO_CHUNK_SIZE;
 
 async function uploadVideoInChunks(file: File): Promise<string> {
+  return uploadInChunks(file, "video");
+}
+
+/**
+ * Upload a course document (PDF, Word, …) to the server's UPLOAD_PATH/documents
+ * in 1MB chunks, so large files bypass Cloudinary and proxy body limits.
+ * Resolves to the server-relative path (/uploads/documents/<file>).
+ */
+export const uploadDocumentFile = async (
+  file: File,
+  onProgress?: (percent: number) => void,
+): Promise<string> => uploadInChunks(file, "document", onProgress);
+
+async function uploadInChunks(
+  file: File,
+  kind: "video" | "document",
+  onProgress?: (percent: number) => void,
+): Promise<string> {
   const uploadId = crypto.randomUUID();
   const totalChunks = Math.ceil(file.size / VIDEO_CHUNK_SIZE);
   const uploadBase = getUploadApiBaseURL();
@@ -129,7 +147,7 @@ async function uploadVideoInChunks(file: File): Promise<string> {
     form.append("fileName", file.name);
     form.append("chunk", blob, `part-${i}`);
 
-    const res = await postWithRetry(`${uploadBase}/upload/video/chunk`, {
+    const res = await postWithRetry(`${uploadBase}/upload/${kind}/chunk`, {
       method: "POST",
       headers: {
         Authorization: token,
@@ -144,6 +162,11 @@ async function uploadVideoInChunks(file: File): Promise<string> {
       const body = await res.text();
       throw new Error(`Chunk ${i}/${totalChunks - 1} failed (HTTP ${res.status}): ${body}`);
     }
+    const chunkBody = await res.json().catch(() => null);
+    if (chunkBody?.statusCode && chunkBody.statusCode >= 400) {
+      throw new Error(chunkBody.message || `Chunk ${i} failed`);
+    }
+    onProgress?.(Math.round(((i + 1) / totalChunks) * 100));
 
     // Brief pause so Traefik/socat can reset between chunks
     if (i < totalChunks - 1) {
@@ -151,7 +174,7 @@ async function uploadVideoInChunks(file: File): Promise<string> {
     }
   }
 
-  const completeRes = await postWithRetry(`${uploadBase}/upload/video/complete`, {
+  const completeRes = await postWithRetry(`${uploadBase}/upload/${kind}/complete`, {
     method: "POST",
     headers: {
       Authorization: token,
@@ -168,13 +191,21 @@ async function uploadVideoInChunks(file: File): Promise<string> {
   }
 
   const response = await completeRes.json();
+  if (response?.statusCode && response.statusCode >= 400) {
+    throw new Error(response.message || "Upload failed");
+  }
   let url: string = response?.data?.url;
   if (!url) throw new Error("Upload succeeded but no URL was returned");
-  if (url.startsWith("/")) {
+  // Documents keep the server-relative path so each client/host resolves it
+  if (kind === "video" && url.startsWith("/")) {
     url = `${getBackendURL()}${url}`;
   }
   return url;
 }
+
+/** Turns a stored server-relative path (e.g. /uploads/documents/x.pdf) into a browser URL. */
+export const resolveFileUrl = (url: string): string =>
+  url.startsWith("/") ? `${getBackendURL()}${url}` : url;
 
 export const uploadSlideFile = async (file: File): Promise<string> => {
   const kind = detectSlideFileKind(file);

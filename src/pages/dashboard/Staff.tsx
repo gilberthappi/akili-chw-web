@@ -1,26 +1,63 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-import { useState, useCallback, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useCallback, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { debounce } from "lodash";
+import toast from "react-hot-toast";
+import { Activity, Plus, UserPlus, UserX, UsersRound } from "lucide-react";
 import Table from "@/components/table/Table";
 import TableActions from "@/components/table/TableActions";
 import StaffTableActions from "@/components/staff/StaffTableActions";
+import EditUserModal, { EditUserFormData } from "@/components/common/EditUserModal";
+import { V2KpiCard, V2KpiSkeleton, V2PageHeader } from "@/components/v2/V2Page";
+import {
+  V2_BTN_PRIMARY,
+  V2_MUTED,
+  V2_PAGE_CANVAS,
+  V2_PILL,
+  V2_PILL_AMBER,
+  V2_PILL_BLUE,
+  V2_PILL_GRAY,
+  V2_PILL_GREEN,
+  V2_STRONG,
+} from "@/components/dashboard/v2/widgets/admin/v2CardStyles";
 import { IStaff } from "@/types";
-import { getAllStaff } from "@/services/staff.service";
+import {
+  createStaff,
+  getAllStaff,
+  getStaffStats,
+  StaffDepartment,
+} from "@/services/staff.service";
 import { formatDate } from "@/utils/formats/formats";
 import { formatRoleLabel, STAFF_ROLE_OPTIONS } from "@/utils/roles";
+import { useAuth } from "@/hooks/useAuth";
 
-const ROLE_OPTIONS = STAFF_ROLE_OPTIONS;
+const DEPARTMENT_LABEL: Record<StaffDepartment, string> = {
+  WELTEL: "WelTel",
+  RBC: "RBC",
+  SFH: "SFH",
+  CIIC_HIN: "CIIC-HIN",
+};
+
+const rolePillClass = (role?: string) => {
+  if (!role) return V2_PILL_GRAY;
+  if (role.startsWith("RBC_")) return "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300";
+  if (role.startsWith("WELTEL_") || role === "ADMIN" || role === "DEVELOPER") return V2_PILL_BLUE;
+  if (role.startsWith("CIIC_") || role === "TRAINER") return V2_PILL_GREEN;
+  if (role.startsWith("SFH_")) return V2_PILL_AMBER;
+  return V2_PILL_GRAY;
+};
 
 export const Staff = () => {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [currentPage, setCurrentPage] = useState(1);
   const [searchKeyword, setSearchKeyword] = useState("");
   const [limit, setLimit] = useState(15);
   const [sortBy, setSortBy] = useState("createdAt");
   const [order, setOrder] = useState<"asc" | "desc">("desc");
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [roleFilter, setRoleFilter] = useState("");
   const [genderFilter, setGenderFilter] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
 
   const buildQueryParams = (page: number, keyword?: string) => {
     const params = new URLSearchParams();
@@ -36,18 +73,26 @@ export const Staff = () => {
   };
 
   const { data, isLoading } = useQuery({
-    queryKey: [
-      "staff",
-      currentPage,
-      searchKeyword,
-      limit,
-      sortBy,
-      order,
-      roleFilter,
-      genderFilter,
-    ],
+    queryKey: ["staff", "list", currentPage, searchKeyword, limit, sortBy, order, roleFilter, genderFilter],
     queryFn: () => getAllStaff(buildQueryParams(currentPage, searchKeyword)),
   });
+
+  const { data: statsRes, isLoading: statsLoading } = useQuery({
+    queryKey: ["staff", "stats"],
+    queryFn: () => getStaffStats(),
+  });
+  const stats = statsRes?.data;
+
+  const department = data?.department ?? stats?.department ?? null;
+  const canWrite = data?.canWrite ?? false;
+  const roleOptions = useMemo(
+    () =>
+      data?.assignableRoles
+        ? STAFF_ROLE_OPTIONS.filter((o) => data.assignableRoles.includes(o.value))
+        : STAFF_ROLE_OPTIONS,
+    [data?.assignableRoles],
+  );
+  const departmentLabel = department ? DEPARTMENT_LABEL[department] : null;
 
   const handleSearch = useCallback(
     debounce((term: string) => {
@@ -72,31 +117,72 @@ export const Staff = () => {
     setGenderFilter("");
   };
 
-  useEffect(() => {
-    resetFilters();
-  }, []);
+  const handleCreate = async (form: EditUserFormData) => {
+    try {
+      await createStaff({ ...form });
+      queryClient.invalidateQueries({ queryKey: ["staff"] });
+      toast.success(`${form.fullNames} added. Default password: Password123!`);
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message ?? "Failed to create staff");
+      throw error;
+    }
+  };
+
+  const createInitialData = useMemo(
+    () => ({ role: roleOptions.length === 1 ? roleOptions[0].value : "" }),
+    [roleOptions],
+  );
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <h2 className="text-3xl font-bold text-[#333333]">
-            Staff Management
-          </h2>
-          <p className="text-gray-600">Manage all staff members</p>
-        </div>
-      </div>
-
-      {selectedIds.length > 0 && (
-        <div className="bg-[#3363AD]/5 border border-[#3363AD]/20 rounded-lg p-3 flex justify-between items-center text-[#3363AD]">
-          <span className="text-sm font-medium">
-            {selectedIds.length} staff selected
-          </span>
-          <div className="flex gap-2">
-            <button className="text-xs font-semibold bg-white border border-[#3363AD]/20 px-3 py-1.5 rounded shadow-sm hover:bg-gray-50">
-              Message Selected
+    <div className={V2_PAGE_CANVAS}>
+      <V2PageHeader
+        title={departmentLabel ? `${departmentLabel} Staff` : "Staff Management"}
+        subtitle={
+          departmentLabel
+            ? `Manage staff members of the ${departmentLabel} department`
+            : "Manage staff members across all departments"
+        }
+        actions={
+          canWrite && (
+            <button type="button" className={V2_BTN_PRIMARY} onClick={() => setCreateOpen(true)}>
+              <Plus className="w-4 h-4" />
+              Add Staff
             </button>
-          </div>
+          )
+        }
+      />
+
+      {statsLoading ? (
+        <V2KpiSkeleton count={4} />
+      ) : (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <V2KpiCard
+            label="Total Staff"
+            value={stats?.total ?? 0}
+            Icon={UsersRound}
+            sub={departmentLabel ? `${departmentLabel} department` : "All departments"}
+          />
+          <V2KpiCard
+            label="Active (30 days)"
+            value={stats?.activeLast30Days ?? 0}
+            Icon={Activity}
+            accent="text-emerald-600 dark:text-emerald-400"
+            sub="Logged in recently"
+          />
+          <V2KpiCard
+            label="Never Logged In"
+            value={stats?.neverLoggedIn ?? 0}
+            Icon={UserX}
+            accent="text-amber-500 dark:text-amber-400"
+            sub="Pending first login"
+          />
+          <V2KpiCard
+            label="Added This Month"
+            value={stats?.addedThisMonth ?? 0}
+            Icon={UserPlus}
+            accent="text-purple-600 dark:text-purple-400"
+            sub="New accounts"
+          />
         </div>
       )}
 
@@ -106,8 +192,6 @@ export const Staff = () => {
         totalItems={data?.totalItems || 0}
         itemsPerPage={limit}
         onChangePage={(page) => setCurrentPage(page)}
-        selectable={true}
-        onSelectionChange={(ids) => setSelectedIds(ids)}
         onSort={handleSort}
         currentSortKey={sortBy}
         currentSortOrder={order}
@@ -124,7 +208,7 @@ export const Staff = () => {
               setRoleFilter(val);
               setCurrentPage(1);
             },
-            options: ROLE_OPTIONS,
+            options: roleOptions,
           },
           {
             key: "gender",
@@ -147,8 +231,7 @@ export const Staff = () => {
             key: "name",
             sortable: true,
             render: (row: IStaff) => {
-              const initials =
-                row.user.fullNames?.substring(0, 2).toUpperCase() || "??";
+              const initials = row.user.fullNames?.substring(0, 2).toUpperCase() || "??";
               return (
                 <div className="flex items-center gap-3">
                   {row.user.photo ? (
@@ -158,15 +241,18 @@ export const Staff = () => {
                       className="w-8 h-8 rounded-full object-cover shrink-0"
                     />
                   ) : (
-                    <div className="w-8 h-8 rounded-full bg-[#3363AD]/10 text-[#3363AD] flex items-center justify-center text-xs font-bold shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-[#EBF0F9] dark:bg-slate-700 text-[#3363AD] flex items-center justify-center text-xs font-bold shrink-0">
                       {initials}
                     </div>
                   )}
                   <div>
-                    <div className="font-medium text-gray-900">
+                    <div className={`font-bold ${V2_STRONG}`}>
                       {row.user.fullNames}
+                      {row.userId === user?.id && (
+                        <span className={`ml-2 ${V2_PILL} ${V2_PILL_BLUE}`}>You</span>
+                      )}
                     </div>
-                    <div className="text-xs text-gray-500">{row.user.email}</div>
+                    <div className={`text-xs ${V2_MUTED}`}>{row.user.email}</div>
                   </div>
                 </div>
               );
@@ -176,30 +262,14 @@ export const Staff = () => {
             title: "Phone Number",
             key: "phone",
             sortable: true,
-            render: (row: IStaff) => (
-              <div className="text-gray-700">{row.user.phoneNumber}</div>
-            ),
+            render: (row: IStaff) => <div className="text-sm">{row.user.phoneNumber}</div>,
           },
           {
             title: "Role",
             key: "role",
             sortable: true,
             render: (row: IStaff) => (
-              <span
-                className={`px-2.5 py-1 text-xs font-semibold rounded-full ${
-                  row.role?.startsWith("WELTEL_") || row.role === "ADMIN" || row.role === "DEVELOPER"
-                    ? "bg-blue-100 text-blue-800"
-                    : row.role?.startsWith("RBC_")
-                      ? "bg-purple-100 text-purple-800"
-                      : row.role?.startsWith("CIIC_") || row.role === "TRAINER"
-                        ? "bg-green-100 text-green-800"
-                        : row.role?.startsWith("SFH_")
-                          ? "bg-amber-100 text-amber-800"
-                          : row.role === "CEHO"
-                            ? "bg-orange-100 text-orange-800"
-                            : "bg-gray-100 text-gray-800"
-                }`}
-              >
+              <span className={`${V2_PILL} ${rolePillClass(row.role)}`}>
                 {formatRoleLabel(row.role)}
               </span>
             ),
@@ -209,7 +279,7 @@ export const Staff = () => {
             key: "location",
             sortable: true,
             render: (row: IStaff) => (
-              <div className="text-gray-600">
+              <div className="text-sm">
                 {row.user.district} / {row.user.sector}
               </div>
             ),
@@ -219,9 +289,7 @@ export const Staff = () => {
             key: "createdAt",
             sortable: true,
             render: (row: IStaff) => (
-              <div className="text-sm text-gray-500 whitespace-nowrap">
-                {formatDate(row.user.createdAt)}
-              </div>
+              <div className="text-xs whitespace-nowrap">{formatDate(row.user.createdAt)}</div>
             ),
           },
           {
@@ -229,13 +297,28 @@ export const Staff = () => {
             key: "actions",
             render: (row: IStaff) => (
               <TableActions>
-                <StaffTableActions item={row} />
+                <StaffTableActions
+                  item={row}
+                  canWrite={canWrite}
+                  roleOptions={roleOptions}
+                  isSelf={row.userId === user?.id}
+                />
               </TableActions>
             ),
           },
         ]}
         data={data?.data || []}
         searchFun={handleSearch}
+      />
+
+      <EditUserModal
+        isOpen={createOpen}
+        onClose={() => setCreateOpen(false)}
+        title={departmentLabel ? `Add ${departmentLabel} Staff` : "Add Staff"}
+        initialData={createInitialData}
+        roleOptions={roleOptions}
+        onSubmit={handleCreate}
+        submitLabel="Create Staff"
       />
     </div>
   );

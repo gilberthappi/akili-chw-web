@@ -2,15 +2,29 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
-  UserGroupIcon,
-  ClockIcon,
-  CheckCircleIcon,
-  XCircleIcon,
-  CalendarDaysIcon,
-  MagnifyingGlassIcon,
-  ChartPieIcon,
-} from '@heroicons/react/24/outline';
+  CalendarDays,
+  CalendarClock,
+  CheckCircle2,
+  XCircle,
+  Users,
+  Clock,
+  PieChart,
+} from 'lucide-react';
 import api from '@/services/api';
+import { V2KpiCard, V2KpiSkeleton, V2PageHeader, V2SearchInput } from '@/components/v2/V2Page';
+import {
+  V2_CARD_SHELL,
+  V2_MUTED,
+  V2_PAGE_CANVAS,
+  V2_PILL,
+  V2_PILL_BLUE,
+  V2_PILL_GREEN,
+  V2_PILL_RED,
+  V2_STRONG,
+  V2_TABLE_BODY,
+  V2_TABLE_HEAD,
+  V2_TABLE_ROW,
+} from '@/components/dashboard/v2/widgets/admin/v2CardStyles';
 
 interface Meeting {
   id: string;
@@ -48,10 +62,15 @@ const formatDuration = (sec: number): string => {
 };
 
 const STATUS_STYLE: Record<string, string> = {
-  UPCOMING:  'bg-blue-100 text-blue-700',
-  COMPLETED: 'bg-green-100 text-green-700',
-  CANCELLED: 'bg-red-100 text-red-700',
+  UPCOMING:  V2_PILL_BLUE,
+  COMPLETED: V2_PILL_GREEN,
+  CANCELLED: V2_PILL_RED,
 };
+
+const PAGE_BTN =
+  'rounded-lg border text-xs font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed';
+const PAGE_BTN_IDLE =
+  'border-[#B8CDE0] dark:border-slate-600 text-[#5B6575] dark:text-slate-300 hover:bg-[#EBF0F9] dark:hover:bg-slate-700';
 
 const PAGE_SIZE = 15;
 
@@ -82,102 +101,90 @@ const MeetingsList: React.FC = () => {
 
   const statCards = stats
     ? [
-        { label: 'Total',              value: stats.total,            icon: CalendarDaysIcon, color: 'bg-blue-50 text-primary' },
-        { label: 'Upcoming',           value: stats.upcoming,         icon: CalendarDaysIcon, color: 'bg-sky-50 text-sky-600' },
-        { label: 'Completed',          value: stats.completed,        icon: CheckCircleIcon,  color: 'bg-green-50 text-green-600' },
-        { label: 'Cancelled',          value: stats.cancelled,        icon: XCircleIcon,      color: 'bg-red-50 text-red-500' },
-        { label: 'Total Participants', value: stats.totalParticipants, icon: UserGroupIcon,   color: 'bg-purple-50 text-purple-600' },
-        { label: 'Avg Duration',       value: formatDuration(stats.avgDurationSec), icon: ClockIcon, color: 'bg-orange-50 text-orange-600' },
-        { label: 'Attendance Rate',    value: stats.overallAttendancePct !== null ? `${stats.overallAttendancePct}%` : '—', icon: ChartPieIcon, color: 'bg-teal-50 text-teal-600' },
+        { label: 'Total',              value: stats.total,            Icon: CalendarDays,  accent: undefined },
+        { label: 'Upcoming',           value: stats.upcoming,         Icon: CalendarClock, accent: 'text-sky-600 dark:text-sky-400' },
+        { label: 'Completed',          value: stats.completed,        Icon: CheckCircle2,  accent: 'text-emerald-600 dark:text-emerald-400' },
+        { label: 'Cancelled',          value: stats.cancelled,        Icon: XCircle,       accent: 'text-red-500 dark:text-red-400' },
+        { label: 'Participants',       value: stats.totalParticipants, Icon: Users,        accent: 'text-purple-600 dark:text-purple-400' },
+        { label: 'Avg Duration',       value: formatDuration(stats.avgDurationSec), Icon: Clock, accent: 'text-orange-500 dark:text-orange-400' },
+        { label: 'Attendance',         value: stats.overallAttendancePct !== null ? `${stats.overallAttendancePct}%` : '—', Icon: PieChart, accent: 'text-teal-600 dark:text-teal-400' },
       ]
     : [];
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Meetings</h1>
-        <p className="text-sm text-gray-500 mt-0.5">All my virtual meetings</p>
-      </div>
+    <div className={V2_PAGE_CANVAS}>
+      <V2PageHeader title="Meetings" subtitle="All my virtual meetings" />
 
       {/* Stat Cards */}
-      {!isLoading && stats && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-4">
-          {statCards.map(({ label, value, icon: Icon, color }) => (
-            <div key={label} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-              <div className={`w-9 h-9 rounded-lg flex items-center justify-center mb-2 ${color.split(' ')[0]}`}>
-                <Icon className={`w-5 h-5 ${color.split(' ')[1]}`} />
-              </div>
-              <p className="text-2xl font-bold text-gray-900">{value}</p>
-              <p className="text-xs text-gray-500 mt-0.5">{label}</p>
-            </div>
+      {isLoading ? (
+        <V2KpiSkeleton count={7} className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4" />
+      ) : stats && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4">
+          {statCards.map(({ label, value, Icon, accent }) => (
+            <V2KpiCard key={label} label={label} value={value} Icon={Icon} accent={accent} />
           ))}
         </div>
       )}
 
-      {/* Search */}
-      <div className="relative max-w-md">
-        <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-        <input
-          type="text"
-          placeholder="Search by title or host..."
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-        />
-      </div>
+      <V2SearchInput
+        className="max-w-md w-full"
+        placeholder="Search by title or host..."
+        value={search}
+        onChange={(v) => { setSearch(v); setPage(1); }}
+      />
 
       {/* Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className={`${V2_CARD_SHELL} overflow-hidden`}>
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
-            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+            <div className="w-8 h-8 border-4 border-[#3363AD] border-t-transparent rounded-full animate-spin" />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-gray-400">
-            <CalendarDaysIcon className="w-12 h-12 mb-3 opacity-30" />
-            <p className="text-lg font-medium">No meetings found</p>
+          <div className={`flex flex-col items-center justify-center py-20 ${V2_MUTED}`}>
+            <CalendarDays className="w-12 h-12 mb-3 text-[#3363AD]/40" />
+            <p className={`font-bold ${V2_STRONG}`}>No meetings found</p>
           </div>
         ) : (
           <>
             {/* Desktop */}
             <table className="hidden sm:table w-full">
               <thead>
-                <tr className="border-b border-gray-100 bg-gray-50 text-left">
+                <tr className={`${V2_TABLE_HEAD} text-left`}>
                   {['Title', 'Host', 'Date', 'Start Time', 'End Time', 'Status', 'Participants'].map((h) => (
-                    <th key={h} className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
+                    <th key={h} className="px-6 py-3">{h}</th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody className={`${V2_TABLE_BODY} text-sm ${V2_MUTED}`}>
                 {paginated.map((m) => (
-                  <tr key={m.id} className="hover:bg-gray-50 transition-colors">
+                  <tr key={m.id} className={V2_TABLE_ROW}>
                     <td className="px-6 py-4">
-                      <p className="text-sm font-medium text-gray-900">{m.title}</p>
+                      <p className={`text-sm font-bold ${V2_STRONG}`}>{m.title}</p>
                     </td>
                     <td className="px-6 py-4">
-                      <p className="text-sm text-gray-700">{m.host?.fullNames ?? '—'}</p>
-                      {m.host?.email && <p className="text-xs text-gray-400">{m.host.email}</p>}
+                      <p className={`text-sm ${V2_STRONG}`}>{m.host?.fullNames ?? '—'}</p>
+                      {m.host?.email && <p className="text-xs text-[#9AA3B2]">{m.host.email}</p>}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">{formatDate(m.startAt)}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{formatTime(m.startAt)}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{m.endAt ? formatTime(m.endAt) : '—'}</td>
+                    <td className="px-6 py-4 text-xs whitespace-nowrap">{formatDate(m.startAt)}</td>
+                    <td className="px-6 py-4 text-xs tabular-nums">{formatTime(m.startAt)}</td>
+                    <td className="px-6 py-4 text-xs tabular-nums">{m.endAt ? formatTime(m.endAt) : '—'}</td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_STYLE[m.status]}`}>
+                      <span className={`${V2_PILL} ${STATUS_STYLE[m.status]}`}>
                         {m.status.charAt(0) + m.status.slice(1).toLowerCase()}
                       </span>
                     </td>
                     <td className="px-6 py-4">
                       <button
+                        type="button"
                         onClick={() => navigate(`/attendance/${m.id}`)}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-colors ${
                           m.participantCount > 0
-                            ? 'bg-primary text-white hover:bg-[#4d81d2]'
-                            : 'bg-gray-100 text-gray-500 cursor-default'
+                            ? 'bg-[#3363AD] text-white hover:bg-[#2B5493]'
+                            : 'bg-slate-100 dark:bg-slate-700 text-[#9AA3B2] cursor-default'
                         }`}
                         disabled={m.participantCount === 0}
                       >
-                        <UserGroupIcon className="w-3.5 h-3.5" />
+                        <Users className="w-3.5 h-3.5" />
                         {m.participantCount}
                       </button>
                     </td>
@@ -187,25 +194,26 @@ const MeetingsList: React.FC = () => {
             </table>
 
             {/* Mobile cards */}
-            <div className="sm:hidden divide-y divide-gray-100">
+            <div className={`sm:hidden ${V2_TABLE_BODY}`}>
               {paginated.map((m) => (
                 <div key={m.id} className="p-4 space-y-2">
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <p className="text-sm font-semibold text-gray-900">{m.title}</p>
-                      <p className="text-xs text-gray-500">{m.host?.fullNames ?? '—'}</p>
+                      <p className={`text-sm font-bold ${V2_STRONG}`}>{m.title}</p>
+                      <p className={`text-xs ${V2_MUTED}`}>{m.host?.fullNames ?? '—'}</p>
                     </div>
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ${STATUS_STYLE[m.status]}`}>
+                    <span className={`${V2_PILL} flex-shrink-0 ${STATUS_STYLE[m.status]}`}>
                       {m.status.charAt(0) + m.status.slice(1).toLowerCase()}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-xs text-gray-500">
+                  <div className={`flex items-center justify-between text-xs ${V2_MUTED}`}>
                     <span>{formatDate(m.startAt)} · {formatTime(m.startAt)}{m.endAt ? ` – ${formatTime(m.endAt)}` : ''}</span>
                     <button
+                      type="button"
                       onClick={() => navigate(`/attendance/${m.id}`)}
-                      className="flex items-center gap-1 text-primary font-medium"
+                      className="flex items-center gap-1 text-[#3363AD] dark:text-blue-300 font-bold"
                     >
-                      <UserGroupIcon className="w-3.5 h-3.5" />
+                      <Users className="w-3.5 h-3.5" />
                       {m.participantCount} participants
                     </button>
                   </div>
@@ -219,14 +227,15 @@ const MeetingsList: React.FC = () => {
       {/* Pagination */}
       {!isLoading && filtered.length > PAGE_SIZE && (
         <div className="flex items-center justify-between gap-4 text-sm">
-          <p className="text-gray-500">
+          <p className={`text-xs ${V2_MUTED}`}>
             Showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, filtered.length)} of {filtered.length}
           </p>
           <div className="flex items-center gap-1">
             <button
+              type="button"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={safePage === 1}
-              className="px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className={`px-3 py-1.5 ${PAGE_BTN} ${PAGE_BTN_IDLE}`}
             >
               Previous
             </button>
@@ -239,15 +248,14 @@ const MeetingsList: React.FC = () => {
               }, [])
               .map((p, i) =>
                 p === '…' ? (
-                  <span key={`ellipsis-${i}`} className="px-2 text-gray-400">…</span>
+                  <span key={`ellipsis-${i}`} className="px-2 text-[#9AA3B2]">…</span>
                 ) : (
                   <button
+                    type="button"
                     key={p}
                     onClick={() => setPage(p as number)}
-                    className={`w-9 h-9 rounded-lg border text-sm font-medium transition-colors ${
-                      safePage === p
-                        ? 'bg-primary text-white border-primary'
-                        : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                    className={`w-9 h-9 ${PAGE_BTN} ${
+                      safePage === p ? 'bg-[#3363AD] text-white border-[#3363AD]' : PAGE_BTN_IDLE
                     }`}
                   >
                     {p}
@@ -255,9 +263,10 @@ const MeetingsList: React.FC = () => {
                 )
               )}
             <button
+              type="button"
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={safePage === totalPages}
-              className="px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className={`px-3 py-1.5 ${PAGE_BTN} ${PAGE_BTN_IDLE}`}
             >
               Next
             </button>

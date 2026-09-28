@@ -1,7 +1,32 @@
-import { FC, useState, useEffect } from "react";
+import { FC, useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Modal from "./Modal";
 import { getPublicHospitals } from "@/services/healthCenters.service";
+import { getAllDistricts, getSectorsByDistrict } from "@/hooks/locations";
+
+const LOCATION_CHILDREN: Record<string, (keyof EditUserFormData)[]> = {
+  district: ["sector", "cell", "village"],
+  sector: ["cell", "village"],
+  cell: ["village"],
+};
+
+const normalizeGender = (value: string) => {
+  const v = value.trim().toLowerCase();
+  if (v === "male" || v === "m") return "Male";
+  if (v === "female" || v === "f") return "Female";
+  return value;
+};
+
+const toDateInputValue = (value: string) => {
+  if (!value) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? "" : d.toISOString().slice(0, 10);
+};
+
+/** Keeps a legacy value selectable when it isn't in the official location list. */
+const withCurrent = (names: string[], current: string) =>
+  current && !names.includes(current) ? [current, ...names] : names;
 
 export interface EditUserFormData {
   fullNames: string;
@@ -30,6 +55,7 @@ interface EditUserModalProps {
   initialData: Partial<EditUserFormData>;
   onSubmit: (data: EditUserFormData) => Promise<void>;
   roleOptions?: RoleOption[];
+  submitLabel?: string;
 }
 
 const EMPTY_FORM: EditUserFormData = {
@@ -54,6 +80,7 @@ const EditUserModal: FC<EditUserModalProps> = ({
   initialData,
   onSubmit,
   roleOptions,
+  submitLabel = "Save Changes",
 }) => {
   const [form, setForm] = useState<EditUserFormData>(EMPTY_FORM);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -66,17 +93,59 @@ const EditUserModal: FC<EditUserModalProps> = ({
   });
 
   useEffect(() => {
-    if (isOpen) {
-      setForm({ ...EMPTY_FORM, ...initialData });
-    }
-  }, [isOpen, initialData]);
+    if (!isOpen) return;
+    const merged: EditUserFormData = { ...EMPTY_FORM };
+    (Object.keys(initialData) as (keyof EditUserFormData)[]).forEach((key) => {
+      const val = initialData[key];
+      if (val !== null && val !== undefined) merged[key] = String(val);
+    });
+    merged.gender = normalizeGender(merged.gender);
+    merged.birthdate = toDateInputValue(merged.birthdate);
+    setForm(merged);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    setForm((prev) => {
+      const next = { ...prev, [name]: value };
+      if (prev[name as keyof EditUserFormData] !== value) {
+        LOCATION_CHILDREN[name]?.forEach((child) => {
+          next[child] = "";
+        });
+      }
+      return next;
+    });
   };
+
+  const districtNames = useMemo(() => getAllDistricts().map((d) => d.name).sort(), []);
+  const sectors = useMemo(
+    () => (form.district ? getSectorsByDistrict(form.district) : []),
+    [form.district],
+  );
+  const cells = useMemo(
+    () => sectors.find((s) => s.name === form.sector)?.cells ?? [],
+    [sectors, form.sector],
+  );
+  const villages = useMemo(
+    () => cells.find((c) => c.name === form.cell)?.villages ?? [],
+    [cells, form.cell],
+  );
+
+  const locationFields: {
+    name: "district" | "sector" | "cell" | "village";
+    label: string;
+    options: string[];
+    parentLabel?: string;
+    parentValue?: string;
+  }[] = [
+    { name: "district", label: "District", options: districtNames },
+    { name: "sector", label: "Sector", options: sectors.map((s) => s.name), parentLabel: "district", parentValue: form.district },
+    { name: "cell", label: "Cell", options: cells.map((c) => c.name), parentLabel: "sector", parentValue: form.sector },
+    { name: "village", label: "Village", options: villages.map((v) => v.name), parentLabel: "cell", parentValue: form.cell },
+  ];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -155,8 +224,9 @@ const EditUserModal: FC<EditUserModalProps> = ({
               className={inputClass}
             >
               <option value="">Select gender</option>
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
+              {withCurrent(["Male", "Female"], form.gender).map((g) => (
+                <option key={g} value={g}>{g}</option>
+              ))}
             </select>
           </div>
 
@@ -200,50 +270,29 @@ const EditUserModal: FC<EditUserModalProps> = ({
               className={inputClass}
             />
           </div>
-          <div>
-            <label className={labelClass}>District *</label>
-            <input
-              name="district"
-              value={form.district}
-              onChange={handleChange}
-              required
-              placeholder="District"
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label className={labelClass}>Sector *</label>
-            <input
-              name="sector"
-              value={form.sector}
-              onChange={handleChange}
-              required
-              placeholder="Sector"
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label className={labelClass}>Cell *</label>
-            <input
-              name="cell"
-              value={form.cell}
-              onChange={handleChange}
-              required
-              placeholder="Cell"
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label className={labelClass}>Village *</label>
-            <input
-              name="village"
-              value={form.village}
-              onChange={handleChange}
-              required
-              placeholder="Village"
-              className={inputClass}
-            />
-          </div>
+          {locationFields.map(({ name, label, options, parentLabel, parentValue }) => {
+            const locked = parentLabel !== undefined && !parentValue;
+            return (
+              <div key={name}>
+                <label className={labelClass}>{label} *</label>
+                <select
+                  name={name}
+                  value={form[name]}
+                  onChange={handleChange}
+                  required
+                  disabled={locked}
+                  className={`${inputClass} disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed`}
+                >
+                  <option value="">
+                    {locked ? `Select ${parentLabel} first` : `Select ${label.toLowerCase()}`}
+                  </option>
+                  {withCurrent(options, form[name]).map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+            );
+          })}
           <div>
             <label className={labelClass}>HealthCenter / Health Center</label>
             <select
@@ -273,7 +322,7 @@ const EditUserModal: FC<EditUserModalProps> = ({
             disabled={isSubmitting}
             className="px-4 py-2 text-sm font-medium text-white bg-[#3363AD] rounded-lg hover:bg-[#2a529a] disabled:opacity-60"
           >
-            {isSubmitting ? "Saving..." : "Save Changes"}
+            {isSubmitting ? "Saving..." : submitLabel}
           </button>
         </div>
       </form>

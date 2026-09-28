@@ -49,3 +49,41 @@ export const V2_BTN_SECONDARY =
 
 export const V2_EMPTY =
   "text-center py-12 border border-dashed border-[#B8CDE0] dark:border-slate-600 rounded-xl";
+
+export const V2_BTN_DANGER =
+  "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-extrabold transition-colors disabled:opacity-60";
+
+/** Segmented pill tab bar container + items (CEHO group header tabs). */
+export const V2_TAB_BAR =
+  "bg-white dark:bg-card-bg rounded-[20px] border border-[rgba(51,99,173,0.20)] dark:border-slate-600/60 p-1 inline-flex items-center gap-0.5 flex-wrap";
+
+export const V2_TAB_ITEM =
+  "flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-extrabold transition-all";
+
+export const V2_TAB_ACTIVE = "bg-[#3363AD] text-white";
+
+export const V2_TAB_IDLE =
+  "text-[#5B6575] dark:text-slate-300 hover:bg-[#F1F5F9] dark:hover:bg-slate-700";
+
+/** Data table parts (CEHO group members table). */
+export const V2_TABLE_HEAD =
+  "bg-[#F8FAFC] dark:bg-slate-800/60 border-b border-[rgba(51,99,173,0.12)] dark:border-slate-700 text-[11px] font-bold text-[#5B6575] dark:text-slate-400 uppercase tracking-wider";
+
+export const V2_TABLE_BODY =
+  "divide-y divide-[rgba(51,99,173,0.08)] dark:divide-slate-700";
+
+export const V2_TABLE_ROW =
+  "hover:bg-[#F8FAFC] dark:hover:bg-slate-800/40 transition-colors";
+
+export const V2_STRONG = "text-[#1A2332] dark:text-slate-100";
+
+/** Status pills. */
+export const V2_PILL = "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold";
+export const V2_PILL_BLUE = "bg-[#EBF0F9] text-[#3363AD] dark:bg-slate-700 dark:text-blue-300";
+export const V2_PILL_GREEN = "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300";
+export const V2_PILL_AMBER = "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300";
+export const V2_PILL_RED = "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300";
+export const V2_PILL_GRAY = "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300";
+
+/** Skeleton bone. */
+export const V2_BONE = "rounded bg-[#D7E3F0] dark:bg-slate-700";

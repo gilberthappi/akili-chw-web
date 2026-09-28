@@ -186,7 +186,7 @@ export const RecommendationReviewCard: React.FC<RecommendationReviewCardProps> =
                 </p>
                 <StudentTable
                   rows={students}
-                  onOpenStudent={(id) => navigate(`/students/${id}`)}
+                  onOpenStudent={(id) => navigate(`/chw/${id}`)}
                 />
               </div>
             </div>

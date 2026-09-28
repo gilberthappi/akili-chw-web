@@ -39,6 +39,7 @@ import {
   History,
   LayoutTemplate,
   ListTodo,
+  UserSearch,
 } from "lucide-react";
 import ProfileAvatar from "@/components/profile/ProfileAvatar";
 import { useProfilePhoto } from "@/hooks/useProfilePhoto";
@@ -84,7 +85,8 @@ const NAV_ICONS: Record<string, JSX.Element> = {
   "/demographics/learners": <LineChart className="w-5 h-5" />,
   "/analytics": <BarChart3 className="w-5 h-5" />,
   "/announcement": <Megaphone className="w-5 h-5" />,
-  "/students": <Users className="w-4 h-4" />,
+  "/chw": <Users className="w-4 h-4" />,
+  "/testers": <UserSearch className="w-4 h-4" />,
   "/certificates": <Award className="w-4 h-4" />,
   "/certificates/issued": <Award className="w-4 h-4" />,
   "/calender": <Calendar className="w-5 h-5" />,
@@ -207,12 +209,11 @@ const AdminSidebar = ({
 
   return (
     <aside
-      className={`min-h-screen flex flex-col shadow-lg transition-all ${
+      className={`h-screen overflow-hidden flex flex-col shadow-lg transition-all ${
         isExpanded ? "w-52 md:w-52" : "w-20"
       }`}
-      style={{ minHeight: "100vh" }}
     >
-      <div className='p-6 bg-gradient-to-r from-primary to-primary/90 flex items-center justify-between'>
+      <div className='shrink-0 p-6 bg-gradient-to-r from-primary to-primary/90 flex items-center justify-between'>
         <div className={`${isExpanded ? "w-80" : "w-6"} transition-all`}>
           <Link to='/' className='flex items-center gap-3'>
             <div
@@ -244,7 +245,7 @@ const AdminSidebar = ({
         </button>
       </div>
 
-      <nav className='flex-1 overflow-y-auto py-4 px-1 no-scrollbar'>
+      <nav className='flex-1 min-h-0 overflow-y-auto overscroll-contain py-4 px-1 [scrollbar-width:thin] [scrollbar-color:rgba(51,99,173,0.35)_transparent]'>
         <ul className='flex flex-col space-y-1'>
           {links.map((link) => {
             const hasSub = Array.isArray(link.submenus) && link.submenus.length > 0;
@@ -418,7 +419,7 @@ const AdminSidebar = ({
         </ul>
       </nav>
 
-      <div className='border-t border-gray-200 p-4 bg-gray-50'>
+      <div className='shrink-0 border-t border-gray-200 p-4 bg-gray-50'>
         {isExpanded ? (
           <div className='flex items-center space-x-3'>
             <div className='flex-shrink-0'>
@@ -539,7 +540,7 @@ const DashboardLayout = ({
     {
       label: "CHW & CEHO",
       icon: <Users className='w-4 h-4' />,
-      path: "/students",
+      path: "/chw",
       roles: [...LEARNER_MGMT_ROLES],
     },
     {

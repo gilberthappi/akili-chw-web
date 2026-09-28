@@ -208,7 +208,7 @@ const StudentActivityPage: React.FC = () => {
               Try Again
             </button>
             <button
-              onClick={() => navigate('/students')}
+              onClick={() => navigate('/chw')}
               className="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50 transition-all"
             >
               Back to CHWs

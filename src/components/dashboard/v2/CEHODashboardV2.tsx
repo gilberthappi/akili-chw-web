@@ -394,7 +394,7 @@ export const CEHODashboardV2: React.FC = () => {
                   <button
                     key={member.studentId}
                     type="button"
-                    onClick={() => navigate(`/students/${member.studentId}`)}
+                    onClick={() => navigate(`/chw/${member.studentId}`)}
                     className="w-full flex items-center justify-between gap-3 p-3.5 rounded-xl border border-[rgba(51,99,173,0.10)] dark:border-slate-700 hover:border-[rgba(51,99,173,0.35)] hover:bg-[#F8FAFC] dark:hover:bg-slate-800/60 transition-all text-left group"
                   >
                     <div className="flex items-center gap-3 min-w-0 w-[200px] sm:w-[220px]">
@@ -567,7 +567,7 @@ export const CEHODashboardV2: React.FC = () => {
                     <button
                       key={m.studentId}
                       type="button"
-                      onClick={() => navigate(`/students/${m.studentId}`)}
+                      onClick={() => navigate(`/chw/${m.studentId}`)}
                       className="w-full flex items-center justify-between p-2.5 rounded-xl bg-[#F8FAFC] dark:bg-slate-800/60 hover:bg-[#EBF0F9] dark:hover:bg-slate-700 transition-colors text-left"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
@@ -620,7 +620,7 @@ export const CEHODashboardV2: React.FC = () => {
                     <button
                       key={m.studentId}
                       type="button"
-                      onClick={() => navigate(`/students/${m.studentId}`)}
+                      onClick={() => navigate(`/chw/${m.studentId}`)}
                       className="w-full flex items-center justify-between p-2.5 rounded-xl bg-amber-50/80 dark:bg-amber-950/30 hover:bg-amber-50 dark:hover:bg-amber-900/40 border border-amber-100/80 dark:border-amber-800/40 transition-colors text-left"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">

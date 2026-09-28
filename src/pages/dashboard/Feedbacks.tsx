@@ -1,6 +1,5 @@
 import React, { useState, useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import FilterTabs, { TabItem } from "@/components/ui/FilterTabs";
 import Table, { TableFilterDef } from "@/components/table/Table";
 import { formatDate } from "@/utils/formats/formats";
 import { debounce } from "lodash";
@@ -14,7 +13,33 @@ import {
   getReviewsSummary,
 } from "@/services/feedback.service";
 import { StarIcon } from "@heroicons/react/24/solid";
-import { Button } from "@/components/common/Button";
+import {
+  BookOpen,
+  Database,
+  Download,
+  FileText,
+  Layers,
+  ListOrdered,
+  MessageSquare,
+  Monitor,
+} from "lucide-react";
+import {
+  V2KpiCard,
+  V2KpiSkeleton,
+  V2PageHeader,
+  V2Tabs,
+  V2TabItem,
+} from "@/components/v2/V2Page";
+import {
+  V2_BTN_SECONDARY,
+  V2_MUTED,
+  V2_PAGE_CANVAS,
+  V2_PILL,
+  V2_PILL_GRAY,
+  V2_PILL_GREEN,
+  V2_PILL_RED,
+  V2_STRONG,
+} from "@/components/dashboard/v2/widgets/admin/v2CardStyles";
 import ComboboxField from "@/components/common/form/ComboboxField";
 import {
   ISlideFeedback,
@@ -569,12 +594,12 @@ export const Feedbacks: React.FC = () => {
     }
   };
 
-  const tabItems: TabItem[] = [
-    { key: "slide", label: "Slide Review" },
-    { key: "chapter", label: "Chapter Review" },
-    { key: "section", label: "Section Review" },
-    { key: "course", label: "Course Review" },
-    { key: "system", label: "System Review" },
+  const tabItems: V2TabItem<string>[] = [
+    { key: "slide", label: "Slide Review", Icon: FileText },
+    { key: "chapter", label: "Chapter Review", Icon: ListOrdered },
+    { key: "section", label: "Section Review", Icon: Layers },
+    { key: "course", label: "Course Review", Icon: BookOpen },
+    { key: "system", label: "System Review", Icon: Monitor },
   ];
 
   // Queries for each review type with backend pagination
@@ -622,14 +647,7 @@ export const Feedbacks: React.FC = () => {
   const renderStatsCards = () => {
     if (summaryLoading || !summaryData?.data?.summary) {
       return (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="bg-white p-4 rounded-lg shadow border animate-pulse">
-              <div className="h-4 bg-gray-200 rounded mb-2"></div>
-              <div className="h-8 bg-gray-200 rounded"></div>
-            </div>
-          ))}
-        </div>
+        <V2KpiSkeleton count={6} className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4" />
       );
     }
 
@@ -638,63 +656,51 @@ export const Feedbacks: React.FC = () => {
       {
         title: "Total Records",
         value: totalRecords.toLocaleString(),
-        color: "bg-blue-500",
-        textColor: "text-blue-600",
-        bgColor: "bg-blue-50",
+        Icon: Database,
+        accent: "text-[#3363AD] dark:text-blue-300",
       },
       {
         title: "Slide Feedbacks",
         value: summary.feedbacks.toLocaleString(),
-        color: "bg-green-500",
-        textColor: "text-green-600",
-        bgColor: "bg-green-50",
+        Icon: MessageSquare,
+        accent: "text-emerald-600 dark:text-emerald-400",
       },
       {
         title: "Chapter Reviews",
         value: summary.chapterReviews.toLocaleString(),
-        color: "bg-purple-500",
-        textColor: "text-purple-600",
-        bgColor: "bg-purple-50",
+        Icon: ListOrdered,
+        accent: "text-purple-600 dark:text-purple-400",
       },
       {
         title: "Section Reviews",
         value: summary.sectionReviews.toLocaleString(),
-        color: "bg-orange-500",
-        textColor: "text-orange-600",
-        bgColor: "bg-orange-50",
+        Icon: Layers,
+        accent: "text-orange-600 dark:text-orange-400",
       },
       {
         title: "Course Reviews",
         value: summary.courseReviews.toLocaleString(),
-        color: "bg-indigo-500",
-        textColor: "text-indigo-600",
-        bgColor: "bg-indigo-50",
+        Icon: BookOpen,
+        accent: "text-indigo-600 dark:text-indigo-400",
       },
       {
         title: "System Reviews",
         value: summary.systemReviews.toLocaleString(),
-        color: "bg-red-500",
-        textColor: "text-red-600",
-        bgColor: "bg-red-50",
+        Icon: Monitor,
+        accent: "text-red-500 dark:text-red-400",
       },
     ];
 
     return (
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-        {statsCards.map((card, index) => (
-          <div key={index} className={`${card.bgColor} p-4 rounded-lg shadow-sm border border-gray-200`}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">
-                  {card.title}
-                </p>
-                <p className={`text-2xl font-bold ${card.textColor} mt-1`}>
-                  {card.value}
-                </p>
-              </div>
-              <div className={`w-3 h-3 ${card.color} rounded-full`}></div>
-            </div>
-          </div>
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+        {statsCards.map((card) => (
+          <V2KpiCard
+            key={card.title}
+            label={card.title}
+            value={card.value}
+            Icon={card.Icon}
+            accent={card.accent}
+          />
         ))}
       </div>
     );
@@ -799,10 +805,10 @@ export const Feedbacks: React.FC = () => {
       ] as { key: keyof typeof filters; label: string }[]).map(({ key, label }) => (
         <label
           key={key}
-          className={`flex items-center px-2 py-1 rounded-full text-xs cursor-pointer transition-all ${
+          className={`flex items-center px-3 py-1 rounded-full text-xs font-bold cursor-pointer transition-all border ${
             filters[key]
-              ? "bg-blue-100 text-blue-700 border border-blue-200"
-              : "bg-gray-100 text-gray-500 border border-gray-200"
+              ? "bg-[#3363AD] text-white border-[#3363AD]"
+              : "bg-white dark:bg-slate-800 text-[#5B6575] dark:text-slate-300 border-[#B8CDE0] dark:border-slate-600 hover:bg-[#F1F5F9] dark:hover:bg-slate-700"
           }`}
         >
           <input
@@ -811,16 +817,22 @@ export const Feedbacks: React.FC = () => {
             onChange={(e) => handleFilterChange(key, e.target.checked)}
             className="sr-only"
           />
-          <span className="font-medium">{label}</span>
+          <span>{label}</span>
         </label>
       ))}
     </div>
   ), [filters, handleFilterChange]);
 
   const exportBtn = (
-    <Button variant="outline" size="sm" onClick={() => exportData()} disabled={isExporting}>
+    <button
+      type="button"
+      className={`${V2_BTN_SECONDARY} disabled:opacity-60`}
+      onClick={() => exportData()}
+      disabled={isExporting}
+    >
+      <Download className="w-4 h-4" />
       {isExporting ? "Exporting..." : "Export"}
-    </Button>
+    </button>
   );
 
   // Search handlers with debounce
@@ -871,9 +883,9 @@ export const Feedbacks: React.FC = () => {
 
   const renderStars = (rating: number) => {
     return (
-      <div className="flex text-yellow-500">
+      <div className="flex text-amber-400">
         {[...Array(5)].map((_, i) => (
-          <StarIcon key={i} className={`w-4 h-4 ${i < rating ? "text-yellow-500" : "text-gray-300"}`} />
+          <StarIcon key={i} className={`w-4 h-4 ${i < rating ? "text-amber-400" : "text-[#D7E3F0] dark:text-slate-600"}`} />
         ))}
       </div>
     );
@@ -903,7 +915,7 @@ export const Feedbacks: React.FC = () => {
                 alt={row.user.fullNames}
                 className="w-8 h-8 rounded-full object-cover"
               />
-              <span className="font-medium">{row.user.fullNames}</span>
+              <span className={`font-semibold ${V2_STRONG}`}>{row.user.fullNames}</span>
             </div>
           ),
         },
@@ -954,13 +966,7 @@ export const Feedbacks: React.FC = () => {
           title: "Status",
           key: "status",
           render: (row: ISlideFeedback) => (
-            <span
-              className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                row.isPublished
-                  ? "bg-green-100 text-green-800"
-                  : "bg-gray-100 text-gray-800"
-              }`}
-            >
+            <span className={`${V2_PILL} ${row.isPublished ? V2_PILL_GREEN : V2_PILL_GRAY}`}>
               {row.isPublished ? "Published" : "Draft"}
             </span>
           ),
@@ -969,7 +975,7 @@ export const Feedbacks: React.FC = () => {
           title: "Date",
           key: "date",
           render: (row: ISlideFeedback) => (
-            <div className="text-sm text-gray-600">{formatDate(row.createdAt)}</div>
+            <div className={`text-sm ${V2_MUTED}`}>{formatDate(row.createdAt)}</div>
           ),
         },
       ]}
@@ -1002,7 +1008,7 @@ export const Feedbacks: React.FC = () => {
                 alt={row.student.user.fullNames}
                 className="w-8 h-8 rounded-full object-cover"
               />
-              <span className="font-medium">{row.student.user.fullNames}</span>
+              <span className={`font-semibold ${V2_STRONG}`}>{row.student.user.fullNames}</span>
             </div>
           ),
         },
@@ -1033,7 +1039,7 @@ export const Feedbacks: React.FC = () => {
           title: "Categories",
           key: "categories",
           render: (row: IChapterReview) => (
-            <span className="text-sm text-gray-600">
+            <span className={`text-sm ${V2_MUTED}`}>
               {row.categoryRatings.length} ratings
             </span>
           ),
@@ -1042,7 +1048,7 @@ export const Feedbacks: React.FC = () => {
           title: "Date",
           key: "date",
           render: (row: IChapterReview) => (
-            <div className="text-sm text-gray-600">{formatDate(row.createdAt)}</div>
+            <div className={`text-sm ${V2_MUTED}`}>{formatDate(row.createdAt)}</div>
           ),
         },
       ]}
@@ -1075,7 +1081,7 @@ export const Feedbacks: React.FC = () => {
                 alt={row.student.user.fullNames}
                 className="w-8 h-8 rounded-full object-cover"
               />
-              <span className="font-medium">{row.student.user.fullNames}</span>
+              <span className={`font-semibold ${V2_STRONG}`}>{row.student.user.fullNames}</span>
             </div>
           ),
         },
@@ -1106,7 +1112,7 @@ export const Feedbacks: React.FC = () => {
           title: "Categories",
           key: "categories",
           render: (row: ISectionReview) => (
-            <span className="text-sm text-gray-600">
+            <span className={`text-sm ${V2_MUTED}`}>
               {row.categoryRatings.length} ratings
             </span>
           ),
@@ -1115,7 +1121,7 @@ export const Feedbacks: React.FC = () => {
           title: "Date",
           key: "date",
           render: (row: ISectionReview) => (
-            <div className="text-sm text-gray-600">{formatDate(row.createdAt)}</div>
+            <div className={`text-sm ${V2_MUTED}`}>{formatDate(row.createdAt)}</div>
           ),
         },
       ]}
@@ -1148,7 +1154,7 @@ export const Feedbacks: React.FC = () => {
                 alt={row.student.user.fullNames}
                 className="w-8 h-8 rounded-full object-cover"
               />
-              <span className="font-medium">{row.student.user.fullNames}</span>
+              <span className={`font-semibold ${V2_STRONG}`}>{row.student.user.fullNames}</span>
             </div>
           ),
         },
@@ -1186,7 +1192,7 @@ export const Feedbacks: React.FC = () => {
           title: "Categories",
           key: "categories",
           render: (row: ICourseReview) => (
-            <span className="text-sm text-gray-600">
+            <span className={`text-sm ${V2_MUTED}`}>
               {row.categoryRatings.length} ratings
             </span>
           ),
@@ -1197,7 +1203,7 @@ export const Feedbacks: React.FC = () => {
           render: (row: ICourseReview
             
           ) => (
-            <div className="text-sm text-gray-600">{formatDate(row.createdAt)}</div>
+            <div className={`text-sm ${V2_MUTED}`}>{formatDate(row.createdAt)}</div>
           ),
         },
       ]}
@@ -1230,7 +1236,7 @@ export const Feedbacks: React.FC = () => {
                 alt={row.user.fullNames}
                 className="w-8 h-8 rounded-full object-cover"
               />
-              <span className="font-medium">{row.user.fullNames}</span>
+              <span className={`font-semibold ${V2_STRONG}`}>{row.user.fullNames}</span>
             </div>
           ),
         },
@@ -1252,13 +1258,7 @@ export const Feedbacks: React.FC = () => {
           title: "Recommendation",
           key: "recommendation",
           render: (row: ISystemReview) => (
-            <span
-              className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                row.recommendation === "yes"
-                  ? "bg-green-100 text-green-800"
-                  : "bg-red-100 text-red-800"
-              }`}
-            >
+            <span className={`${V2_PILL} ${row.recommendation === "yes" ? V2_PILL_GREEN : V2_PILL_RED}`}>
               {row.recommendation === "yes" ? "Yes" : "No"}
             </span>
           ),
@@ -1267,7 +1267,7 @@ export const Feedbacks: React.FC = () => {
           title: "Categories",
           key: "categories",
           render: (row: ISystemReview) => (
-            <span className="text-sm text-gray-600">
+            <span className={`text-sm ${V2_MUTED}`}>
               {row.categoryRatings.length} ratings
             </span>
           ),
@@ -1276,7 +1276,7 @@ export const Feedbacks: React.FC = () => {
           title: "Date",
           key: "date",
           render: (row: ISystemReview) => (
-            <div className="text-sm text-gray-600">{formatDate(row.createdAt)}</div>
+            <div className={`text-sm ${V2_MUTED}`}>{formatDate(row.createdAt)}</div>
           ),
         },
       ]}
@@ -1303,27 +1303,18 @@ export const Feedbacks: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <h2 className="text-3xl font-bold text-[#333333]">Feedbacks & Reviews</h2>
-          <p className="text-base text-gray-500">
-            Manage and review feedback from chw
-          </p>
-        </div>
-      </div>
+    <div className={V2_PAGE_CANVAS}>
+      <V2PageHeader
+        title="Feedbacks & Reviews"
+        subtitle="Manage and review feedback from CHWs"
+      />
 
       {/* Stats Cards */}
       {renderStatsCards()}
 
-      <FilterTabs
-        items={tabItems}
-        activeTab={selectedTab}
-        onTabChange={handleTabChange}
-        variant="default"
-      />
+      <V2Tabs items={tabItems} active={selectedTab} onChange={handleTabChange} />
 
-      <div className="bg-white rounded-lg shadow">{renderContent()}</div>
+      <div>{renderContent()}</div>
     </div>
   );
 };

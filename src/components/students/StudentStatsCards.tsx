@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Users, UserCheck, UserMinus, BarChart2 } from "lucide-react";
-import { MetricCard } from "@/components/common/MetricCard";
+import { V2KpiCard, V2KpiSkeleton } from "@/components/v2/V2Page";
 import { studentKeys } from "@/utils/constants/queryKeys";
 import type { IStudentRoleStats } from "@/types";
 
@@ -39,13 +39,7 @@ const StudentStatsCards = ({ roleFilter }: StudentStatsCardsProps) => {
   const roleLabelPlural = `${roleLabel}s`;
 
   if (!analytics) {
-    return (
-      <div className='grid grid-cols-2 lg:grid-cols-4 gap-4 animate-pulse'>
-        {[...Array(4)].map((_, i) => (
-          <div key={i} className='h-32 bg-gray-100 rounded-xl' />
-        ))}
-      </div>
-    );
+    return <V2KpiSkeleton count={4} />;
   }
 
   const { totalStudents, activeStudents, onLeaveStudents, completionRate } =
@@ -53,45 +47,36 @@ const StudentStatsCards = ({ roleFilter }: StudentStatsCardsProps) => {
 
   return (
     <div className='grid grid-cols-2 lg:grid-cols-4 gap-4'>
-      <MetricCard
-        title={`Total ${roleLabelPlural}`}
+      <V2KpiCard
+        label={`Total ${roleLabelPlural}`}
         value={totalStudents.value.toLocaleString()}
-        icon={<Users size={18} />}
-        iconBg='bg-[#EBF0F9]'
-        iconColor='text-[#3363AD]'
+        Icon={Users}
         trend={totalStudents.trend}
-        description='vs last 30 days'
+        sub='vs last 30 days'
       />
-      <MetricCard
-        title={`Active ${roleLabelPlural}`}
+      <V2KpiCard
+        label={`Active ${roleLabelPlural}`}
         value={activeStudents.value.toLocaleString()}
-        icon={<UserCheck size={18} />}
-        iconBg='bg-emerald-50'
-        iconColor='text-emerald-600'
+        Icon={UserCheck}
+        accent='text-emerald-600 dark:text-emerald-400'
         trend={activeStudents.trend}
-        description={
-          roleFilter === "CEHO"
-            ? "Status active"
-            : "Active in last 30 days"
-        }
+        sub={roleFilter === "CEHO" ? "Status active" : "Active in last 30 days"}
       />
-      <MetricCard
-        title={`On Leave ${roleLabelPlural}`}
+      <V2KpiCard
+        label={`On Leave ${roleLabelPlural}`}
         value={onLeaveStudents.value.toLocaleString()}
-        icon={<UserMinus size={18} />}
-        iconBg='bg-amber-50'
-        iconColor='text-amber-500'
+        Icon={UserMinus}
+        accent='text-amber-600 dark:text-amber-400'
         trend={onLeaveStudents.trend}
-        description='Inactive or suspended'
+        sub='Inactive or suspended'
       />
-      <MetricCard
-        title={`Avg ${roleLabel} Progress`}
+      <V2KpiCard
+        label={`Avg ${roleLabel} Progress`}
         value={`${completionRate.value}%`}
-        icon={<BarChart2 size={18} />}
-        iconBg='bg-purple-50'
-        iconColor='text-purple-500'
+        Icon={BarChart2}
+        accent='text-indigo-600 dark:text-indigo-400'
         trend={completionRate.trend}
-        description='Course completion rate'
+        sub='Course completion rate'
       />
     </div>
   );

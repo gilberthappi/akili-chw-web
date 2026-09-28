@@ -1,10 +1,10 @@
 import { useState, useMemo } from "react";
-import { LuCirclePlus } from "react-icons/lu";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { BookOpen, Users, Star, FileText } from "lucide-react";
-import FilterTabs, { TabItem } from "@/components/ui/FilterTabs";
+import { BookOpen, Users, Star, FileText, Plus, CheckCircle2 } from "lucide-react";
+import { V2KpiCard, V2PageHeader, V2Tabs, type V2TabItem } from "@/components/v2/V2Page";
+import { V2_BTN_PRIMARY, V2_PAGE_CANVAS } from "@/components/dashboard/v2/widgets/admin/v2CardStyles";
 import CourseList from "@/components/courses/CourseList";
 import CreateCourseModal from "@/components/courseBuilder/CreateCourseModal";
 import { CourseCreationForm } from "@/types/courseBuilder.d";
@@ -35,7 +35,7 @@ const CoursesPage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const tabItems: TabItem[] = [
+  const tabItems: V2TabItem<string>[] = [
     { key: "all", label: "All" },
     { key: "published", label: "Published" },
     { key: "draft", label: "Draft" },
@@ -123,68 +123,50 @@ const CoursesPage = () => {
 
   return (
     <>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Courses</h2>
-            <p className="text-sm text-gray-500 mt-0.5">Manage and distribute your learning content</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowCourseBuilderModal(true)}
-            className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 font-medium text-white hover:bg-[#2B5493] transition"
-          >
-            <LuCirclePlus className="text-xl" />
-            New Course
-          </button>
-        </div>
+      <div className={V2_PAGE_CANVAS}>
+        <V2PageHeader
+          title="Courses"
+          subtitle="Manage and distribute your learning content"
+          actions={
+            <>
+              <V2Tabs items={tabItems} active={selectedTab} onChange={setSelectedTab} />
+              <button
+                type="button"
+                onClick={() => setShowCourseBuilderModal(true)}
+                className={V2_BTN_PRIMARY}
+              >
+                <Plus className="w-4 h-4" />
+                New Course
+              </button>
+            </>
+          }
+        />
 
-        {/* Stat Cards */}
-        <div className="grid grid-cols-5 gap-4">
-          <StatCard
-            label="Total Courses"
-            value={stats.total}
-            color="text-gray-900"
-            icon={<BookOpen className="w-5 h-5 text-gray-400" />}
-          />
-          <StatCard
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
+          <V2KpiCard label="Total Courses" value={stats.total} Icon={BookOpen} />
+          <V2KpiCard
             label="Published"
             value={stats.published}
-            color="text-green-600"
-            icon={<FileText className="w-5 h-5 text-green-400" />}
+            Icon={CheckCircle2}
+            accent="text-emerald-600 dark:text-emerald-400"
             sub="Live courses"
           />
-          <StatCard
+          <V2KpiCard
             label="Draft"
             value={stats.draft}
-            color="text-yellow-600"
-            icon={<FileText className="w-5 h-5 text-yellow-400" />}
+            Icon={FileText}
+            accent="text-amber-500 dark:text-amber-400"
             sub="Not published"
           />
-          <StatCard
-            label="Total Enrolled"
-            value={stats.enrolled}
-            color="text-primary"
-            icon={<Users className="w-5 h-5 text-blue-400" />}
-            sub="Across all courses"
-          />
-          <StatCard
+          <V2KpiCard label="Total Enrolled" value={stats.enrolled} Icon={Users} sub="Across all courses" />
+          <V2KpiCard
             label="Avg. Rating"
             value={stats.total > 0 ? stats.avgRating.toFixed(1) : "—"}
-            color="text-yellow-500"
-            icon={<Star className="w-5 h-5 text-yellow-400 fill-yellow-400" />}
+            Icon={Star}
+            accent="text-amber-500 dark:text-amber-400"
             sub="Out of 5"
           />
         </div>
-
-        {/* Filters */}
-        <FilterTabs
-          items={tabItems}
-          activeTab={selectedTab}
-          onTabChange={setSelectedTab}
-          variant="default"
-        />
 
         <CourseList hideHeader={true} filter={getFilterString(selectedTab)} />
       </div>
@@ -197,30 +179,4 @@ const CoursesPage = () => {
     </>
   );
 };
-
-function StatCard({
-  label,
-  value,
-  color,
-  icon,
-  sub,
-}: {
-  label: string;
-  value: number | string;
-  color: string;
-  icon?: React.ReactNode;
-  sub?: string;
-}) {
-  return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4 flex flex-col gap-1">
-      <div className="flex items-center justify-between mb-1">
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</p>
-        {icon}
-      </div>
-      <p className={`text-3xl font-bold ${color}`}>{value}</p>
-      {sub && <p className="text-xs text-gray-400">{sub}</p>}
-    </div>
-  );
-}
-
 export default CoursesPage;

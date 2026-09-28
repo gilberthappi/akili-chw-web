@@ -104,6 +104,19 @@ export const LEARNER_MGMT_ROLES: UserRole[] = [
   ...STAFF_ROLES,
 ];
 
+/** Testers list — RBC department only (all RBC roles). */
+export const TESTER_MGMT_ROLES: UserRole[] = [
+  "RBC_COORDINATOR",
+  "RBC_ANALYST",
+  "RBC_VIEWER",
+];
+
+/** Create / edit / delete testers (RBC_VIEWER is read-only). Mirrors API TESTER_WRITE_ROLES. */
+export const TESTER_WRITE_ROLES: UserRole[] = ["RBC_COORDINATOR", "RBC_ANALYST"];
+
+/** Create / delete CHWs. Mirrors API checkRole(ADMIN, STAFF) on /students. */
+export const CHW_WRITE_ROLES: UserRole[] = ["ADMIN", "STAFF"];
+
 /** Health Centers — platform ADMIN + RBC/SFH (not CEHO). */
 export const HEALTH_CENTER_ROLES: UserRole[] = [
   "ADMIN",

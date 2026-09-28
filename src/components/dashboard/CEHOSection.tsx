@@ -74,7 +74,7 @@ const MemberRow: React.FC<{ member: ICEHOGroupMonitoringMember }> = ({
   return (
     <button
       type="button"
-      onClick={() => navigate(`/students/${member.studentId}`)}
+      onClick={() => navigate(`/chw/${member.studentId}`)}
       className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-[#F8FAFC] dark:hover:bg-slate-800/60 transition-colors group text-left"
     >
       <Avatar name={member.user.fullNames} photo={member.user.photo} />

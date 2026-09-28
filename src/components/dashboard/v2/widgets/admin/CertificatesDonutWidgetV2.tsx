@@ -17,6 +17,12 @@ type CertPiePoint = {
   sharePercent: number;
 };
 
+const CERT_SCOPE_LABEL: Record<string, string> = {
+  TRAINEE: "CHW Certificates",
+  TESTER: "Tester Certificates",
+  CEHO: "CEHO Certificates",
+};
+
 const CertificatesTooltip: React.FC<{
   active?: boolean;
   payload?: Array<{ payload: CertPiePoint }>;
@@ -192,7 +198,7 @@ export const CertificatesDonutWidgetV2: React.FC = () => {
                 {total}
               </span>
               <p className="text-[10px] font-medium text-[#9AA3B2] mt-1 leading-tight">
-                Total Certificates
+                {CERT_SCOPE_LABEL[filters.role] ?? "All Learners' Certificates"}
               </p>
             </div>
           </div>

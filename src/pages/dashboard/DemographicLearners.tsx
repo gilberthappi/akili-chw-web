@@ -156,7 +156,7 @@ const DemographicLearnersPage: FC = () => {
     learners.some((l) => l.avgScore != null);
 
   const openStudent = (row: IDemographicLearner) => {
-    navigate(`/students/${row.id}`);
+    navigate(`/chw/${row.id}`);
   };
 
   const handleExport = async () => {

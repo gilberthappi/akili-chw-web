@@ -1075,7 +1075,7 @@ const CEHOGroupPage = () => {
                       return (
                         <tr
                           key={`ceho-${ceho.id}`}
-                          onClick={() => navigate(`/students/${ceho.id}`)}
+                          onClick={() => navigate(`/chw/${ceho.id}`)}
                           className="hover:bg-[#F8FAFC] dark:hover:bg-slate-800/40 transition-colors cursor-pointer"
                         >
                           <td className="px-4 py-3">
@@ -1116,7 +1116,7 @@ const CEHOGroupPage = () => {
                       return (
                         <tr
                           key={member.id}
-                          onClick={() => navigate(`/students/${member.student.id}`)}
+                          onClick={() => navigate(`/chw/${member.student.id}`)}
                           className="hover:bg-[#F8FAFC] dark:hover:bg-slate-800/40 transition-colors cursor-pointer"
                         >
                           <td className="px-4 py-3">
@@ -1179,7 +1179,7 @@ const CEHOGroupPage = () => {
               {/* Dedicated CEHO leader card (Displayed ONLY once) */}
               {cehoMatchesSearch && ceho && (
                 <div
-                  onClick={() => navigate(`/students/${ceho.id}`)}
+                  onClick={() => navigate(`/chw/${ceho.id}`)}
                   className="bg-white dark:bg-card-bg rounded-[20px] border border-[rgba(51,99,173,0.20)] dark:border-slate-600/60 [box-shadow:3px_4px_0_0_rgba(51,99,173,0.16),6px_9px_18px_rgba(51,99,173,0.12)] p-4 hover:shadow-md transition-shadow cursor-pointer border-l-4 border-l-[#3363AD] flex flex-col justify-between min-h-[110px]"
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -1226,7 +1226,7 @@ const CEHOGroupPage = () => {
                 return (
                   <div
                     key={member.id}
-                    onClick={() => navigate(`/students/${member.student.id}`)}
+                    onClick={() => navigate(`/chw/${member.student.id}`)}
                     className="bg-white dark:bg-card-bg rounded-[20px] border border-[rgba(51,99,173,0.20)] dark:border-slate-600/60 [box-shadow:3px_4px_0_0_rgba(51,99,173,0.16),6px_9px_18px_rgba(51,99,173,0.12)] p-4 hover:shadow-md transition-shadow cursor-pointer flex flex-col justify-between min-h-[110px]"
                   >
                     <div className="flex items-start justify-between gap-3">
@@ -1360,7 +1360,7 @@ const CEHOGroupPage = () => {
                     <button
                       key={tp.studentId}
                       type="button"
-                      onClick={() => navigate(`/students/${tp.studentId}`)}
+                      onClick={() => navigate(`/chw/${tp.studentId}`)}
                       className="p-4 rounded-xl border border-[rgba(51,99,173,0.12)] dark:border-slate-600 bg-[#F8FAFC] dark:bg-slate-800/60 hover:bg-[#EBF0F9] dark:hover:bg-slate-700 transition-colors cursor-pointer flex items-center gap-3 text-left w-full"
                     >
                       <span className={`px-2.5 py-1 text-xs font-bold rounded-lg border shrink-0 ${rankBadgeStyles[idx]}`}>
@@ -1457,7 +1457,7 @@ const CEHOGroupPage = () => {
                           return (
                             <tr
                               key={m.studentId}
-                              onClick={() => navigate(`/students/${m.studentId}`)}
+                              onClick={() => navigate(`/chw/${m.studentId}`)}
                               className="hover:bg-[#F8FAFC] dark:hover:bg-slate-800/40 transition-colors cursor-pointer"
                             >
                               <td className="px-4 py-3">
@@ -1514,7 +1514,7 @@ const CEHOGroupPage = () => {
                   return (
                     <div
                       key={m.studentId}
-                      onClick={() => navigate(`/students/${m.studentId}`)}
+                      onClick={() => navigate(`/chw/${m.studentId}`)}
                       className="bg-white dark:bg-card-bg rounded-[20px] border border-[rgba(51,99,173,0.20)] dark:border-slate-600/60 [box-shadow:3px_4px_0_0_rgba(51,99,173,0.16),6px_9px_18px_rgba(51,99,173,0.12)] p-4 hover:shadow-md transition-shadow cursor-pointer space-y-3 flex flex-col justify-between"
                     >
                       <div className="space-y-3">

@@ -15,7 +15,23 @@ import {
   AlertTriangle,
   ArrowUpDown,
   Calendar,
+  UserCheck,
+  Network,
+  type LucideIcon,
 } from "lucide-react";
+import { V2PageHeader, V2Tabs, V2SearchInput } from "@/components/v2/V2Page";
+import {
+  V2_BONE,
+  V2_BTN_DANGER,
+  V2_BTN_PRIMARY,
+  V2_BTN_SECONDARY,
+  V2_CARD_SHELL,
+  V2_EMPTY,
+  V2_INPUT,
+  V2_MUTED,
+  V2_PAGE_CANVAS,
+  V2_STRONG,
+} from "@/components/dashboard/v2/widgets/admin/v2CardStyles";
 import { Dialog, Transition } from "@headlessui/react";
 import { debounce } from "lodash";
 import toast from "react-hot-toast";
@@ -39,9 +55,17 @@ import { ICEHOGroup } from "@/types";
 import { Button } from "@/components/common/Button";
 import StudentsList from "@/components/students/StudentList";
 import StudentStatsCards from "@/components/students/StudentStatsCards";
+import CreateLearnerButton from "@/components/students/CreateLearnerButton";
 import { useAuth } from "@/hooks/useAuth";
+import { CHW_WRITE_ROLES } from "@/utils/roles";
 
-type TabId = "students" | "testers" | "ceho" | "ceho-group";
+type TabId = "students" | "ceho" | "ceho-group";
+
+const TAB_ICONS: Record<TabId, LucideIcon> = {
+  students: Users,
+  ceho: UserCheck,
+  "ceho-group": Network,
+};
 
 /* ─── Avatar ─────────────────────────────────────────────────────────────── */
 const Avatar = ({ name, photo, size = "w-9 h-9" }: { name: string; photo: string | null; size?: string }) => {
@@ -374,12 +398,12 @@ const StudentsPage = () => {
   const { hasRole } = useAuth();
 
   const isAdminOrStaff = hasRole(["ADMIN", "STAFF"]);
+  const canManageCHWs = hasRole(CHW_WRITE_ROLES);
 
   const allTabs: { id: TabId; label: string; adminOnly: boolean }[] = [
     { id: "students", label: "CHW", adminOnly: false },
-    { id: "testers", label: "Testers", adminOnly: false },
     { id: "ceho", label: "CEHO", adminOnly: true },
-    { id: "ceho-group", label: "CEHO GROUP", adminOnly: true },
+    { id: "ceho-group", label: "CEHO Groups", adminOnly: true },
   ];
 
   const visibleTabs = allTabs.filter((t) => !t.adminOnly || isAdminOrStaff);
@@ -461,64 +485,48 @@ const StudentsPage = () => {
 
   const skeletons = (
     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 animate-pulse">
-      {[...Array(6)].map((_, i) => <div key={i} className="h-40 bg-gray-100 rounded-2xl" />)}
+      {[...Array(6)].map((_, i) => (
+        <div key={i} className={`${V2_CARD_SHELL} h-40 p-4`}>
+          <div className={`${V2_BONE} h-full w-full rounded-xl`} />
+        </div>
+      ))}
     </div>
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <h2 className="text-3xl font-bold text-[#333333]">CHW & CEHO</h2>
-          <p className="text-sm text-gray-500">
-            Manage Community Health Workers, Testers, Officers, and their groups.
-          </p>
-        </div>
-        {activeTab === "ceho-group" && isAdminOrStaff && (
-          <Button size="sm" onClick={() => setShowCreate(true)}>
-            <Plus className="w-4 h-4 mr-1.5" />
-            New Group
-          </Button>
-        )}
-      </div>
-
-      {/* Tab switcher */}
-      <div className="inline-flex rounded-2xl bg-white p-1 shadow-sm border border-gray-100">
-        {visibleTabs.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => setActiveTab(tab.id)}
-            className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
-              activeTab === tab.id
-                ? "bg-[#3363AD] text-white shadow-sm"
-                : "text-gray-600 hover:text-[#3363AD]"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+    <div className={V2_PAGE_CANVAS}>
+      <V2PageHeader
+        title="CHW & CEHO"
+        subtitle="Manage Community Health Workers, Officers, and their groups"
+        actions={
+          <>
+            <V2Tabs
+              items={visibleTabs.map((t) => ({ key: t.id, label: t.label, Icon: TAB_ICONS[t.id] }))}
+              active={activeTab}
+              onChange={setActiveTab}
+            />
+            {activeTab === "students" && canManageCHWs && <CreateLearnerButton role="TRAINEE" />}
+            {activeTab === "ceho-group" && isAdminOrStaff && (
+              <button type="button" className={V2_BTN_PRIMARY} onClick={() => setShowCreate(true)}>
+                <Plus className="w-4 h-4" />
+                New Group
+              </button>
+            )}
+          </>
+        }
+      />
 
       {/* CHW tab */}
       {activeTab === "students" && (
-        <div className="space-y-6">
+        <div className="space-y-4">
           <StudentStatsCards roleFilter="TRAINEE" />
           <StudentsList hideHeader={true} roleFilter="TRAINEE" />
         </div>
       )}
 
-      {/* Testers tab */}
-      {activeTab === "testers" && (
-        <div className="space-y-6">
-          <StudentStatsCards roleFilter="TESTER" />
-          <StudentsList hideHeader={true} roleFilter="TESTER" />
-        </div>
-      )}
-
       {/* CEHO tab */}
       {activeTab === "ceho" && isAdminOrStaff && (
-        <div className="space-y-6">
+        <div className="space-y-4">
           <StudentStatsCards roleFilter="CEHO" />
           <StudentsList hideHeader={true} roleFilter="CEHO" />
         </div>
@@ -530,35 +538,30 @@ const StudentsPage = () => {
           {isLoading ? (
             skeletons
           ) : groups.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-24 gap-3 text-center">
-              <div className="w-16 h-16 rounded-2xl bg-[#EBF0F9] flex items-center justify-center">
+            <div className={`${V2_CARD_SHELL} flex flex-col items-center justify-center py-20 gap-3 text-center`}>
+              <div className="w-16 h-16 rounded-2xl bg-[#EBF0F9] dark:bg-slate-700 flex items-center justify-center">
                 <Users className="w-8 h-8 text-[#3363AD]/40" />
               </div>
-              <p className="text-gray-600 font-semibold">No CEHO groups yet</p>
-              <p className="text-gray-400 text-sm">Click "New Group" to create the first one, or promote a CHW to CEHO.</p>
+              <p className={`font-bold ${V2_STRONG}`}>No CEHO groups yet</p>
+              <p className={`text-sm ${V2_MUTED}`}>Click "New Group" to create the first one, or promote a CHW to CEHO.</p>
             </div>
           ) : (
             <div className="space-y-5">
               {/* ── Toolbar ─────────────────────────────────────────────── */}
               <div className="flex flex-col sm:flex-row gap-3">
-                {/* Search */}
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                  <input
-                    type="text"
-                    value={groupSearch}
-                    onChange={(e) => { setGroupSearch(e.target.value); setGroupPage(1); }}
-                    placeholder="Search groups, CEHO name, or location…"
-                    className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD] bg-white"
-                  />
-                </div>
+                <V2SearchInput
+                  className="flex-1"
+                  value={groupSearch}
+                  onChange={(v) => { setGroupSearch(v); setGroupPage(1); }}
+                  placeholder="Search groups, CEHO name, or location…"
+                />
                 {/* Sort */}
                 <div className="flex items-center gap-2 shrink-0 flex-wrap">
-                  <ArrowUpDown className="w-4 h-4 text-gray-400 shrink-0" />
+                  <ArrowUpDown className="w-4 h-4 text-[#9AA3B2] shrink-0" />
                   <select
                     value={groupSort}
                     onChange={(e) => { setGroupSort(e.target.value as typeof groupSort); setGroupPage(1); }}
-                    className="border border-gray-200 rounded-xl text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD] bg-white"
+                    className={`text-sm px-3 py-2 ${V2_INPUT}`}
                   >
                     <option value="newest">Newest first</option>
                     <option value="oldest">Oldest first</option>
@@ -572,14 +575,14 @@ const StudentsPage = () => {
                         type="date"
                         value={groupDateFrom}
                         onChange={(e) => { setGroupDateFrom(e.target.value); setGroupPage(1); }}
-                        className="border border-gray-200 rounded-xl text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD] bg-white"
+                        className={`text-sm px-3 py-2 ${V2_INPUT}`}
                       />
-                      <span className="text-gray-400 text-sm">to</span>
+                      <span className={`text-sm ${V2_MUTED}`}>to</span>
                       <input
                         type="date"
                         value={groupDateTo}
                         onChange={(e) => { setGroupDateTo(e.target.value); setGroupPage(1); }}
-                        className="border border-gray-200 rounded-xl text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#3363AD]/30 focus:border-[#3363AD] bg-white"
+                        className={`text-sm px-3 py-2 ${V2_INPUT}`}
                       />
                     </>
                   )}
@@ -587,16 +590,16 @@ const StudentsPage = () => {
               </div>
 
               {/* Result count */}
-              <p className="text-xs text-gray-400">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-[#9AA3B2]">
                 {filteredGroups.length} group{filteredGroups.length !== 1 ? "s" : ""}{groupSearch.trim() ? " found" : " total"}
               </p>
 
               {filteredGroups.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
-                  <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center">
-                    <Search className="w-5 h-5 text-gray-300" />
+                <div className={`${V2_EMPTY} flex flex-col items-center gap-3`}>
+                  <div className="w-12 h-12 rounded-xl bg-[#EBF0F9] dark:bg-slate-700 flex items-center justify-center">
+                    <Search className="w-5 h-5 text-[#3363AD]/50" />
                   </div>
-                  <p className="text-gray-500 font-medium text-sm">No groups match your search</p>
+                  <p className={`font-medium text-sm ${V2_MUTED}`}>No groups match your search</p>
                 </div>
               ) : (
                 <>
@@ -611,41 +614,41 @@ const StudentsPage = () => {
                           tabIndex={0}
                           onClick={() => navigate(`/admin/ceho-groups/${group.id}`)}
                           onKeyDown={(e) => e.key === "Enter" && navigate(`/admin/ceho-groups/${group.id}`)}
-                          className="group bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col gap-4 hover:shadow-lg hover:border-[#3363AD]/30 transition-all cursor-pointer"
+                          className={`group ${V2_CARD_SHELL} p-5 flex flex-col gap-4 hover:border-[#3363AD]/50 transition-colors cursor-pointer`}
                         >
                           {/* Icon + name */}
                           <div className="flex items-start gap-3">
-                            <div className="w-11 h-11 rounded-xl bg-[#EBF0F9] flex items-center justify-center shrink-0">
-                              <Users className="w-5 h-5 text-[#3363AD]" />
+                            <div className="w-11 h-11 rounded-[12px] bg-[#EBF0F9] dark:bg-slate-700 flex items-center justify-center shrink-0">
+                              <Users className="w-5 h-5 text-[#3363AD] dark:text-blue-300" />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="font-bold text-gray-900 truncate group-hover:text-[#3363AD] transition-colors">{group.name}</p>
+                              <p className={`font-bold truncate group-hover:text-[#3363AD] transition-colors ${V2_STRONG}`}>{group.name}</p>
                               {group.ceho?.user && (
-                                <p className="text-xs text-gray-500 mt-0.5 truncate">CEHO: {group.ceho.user.fullNames}</p>
+                                <p className={`text-xs mt-0.5 truncate ${V2_MUTED}`}>CEHO: {group.ceho.user.fullNames}</p>
                               )}
                             </div>
                           </div>
 
                           {/* Meta */}
-                          <div className="flex flex-col gap-1.5">
+                          <div className={`flex flex-col gap-1.5 text-xs ${V2_MUTED}`}>
                             {(group.sectors?.length ?? 0) > 0 && (
-                              <p className="text-xs text-gray-500 flex items-center gap-1.5">
-                                <MapPin className="w-3.5 h-3.5 shrink-0 text-gray-400" />
+                              <p className="flex items-center gap-1.5">
+                                <MapPin className="w-3.5 h-3.5 shrink-0 text-[#9AA3B2]" />
                                 {group.sectors!.join(", ")}
                               </p>
                             )}
-                            <p className="text-xs text-gray-500 flex items-center gap-1.5">
-                              <Users className="w-3.5 h-3.5 shrink-0 text-gray-400" />
+                            <p className="flex items-center gap-1.5">
+                              <Users className="w-3.5 h-3.5 shrink-0 text-[#9AA3B2]" />
                               {memberCount} member{memberCount !== 1 ? "s" : ""}
                             </p>
-                            <p className="text-xs text-gray-400 flex items-center gap-1.5">
+                            <p className="flex items-center gap-1.5 text-[#9AA3B2]">
                               <Calendar className="w-3.5 h-3.5 shrink-0" />
                               {new Date(group.createdAt).toLocaleDateString()}
                             </p>
                           </div>
 
                           {/* Footer */}
-                          <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                          <div className="flex items-center justify-between pt-3 border-t border-[#E8EEF4] dark:border-slate-700">
                             <span className="text-xs font-semibold text-[#3363AD] flex items-center gap-1">
                               Manage <ChevronRight className="w-3.5 h-3.5" />
                             </span>
@@ -670,7 +673,7 @@ const StudentsPage = () => {
                         type="button"
                         onClick={() => setGroupPage((p) => Math.max(1, p - 1))}
                         disabled={groupPage === 1}
-                        className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        className="p-2 rounded-lg border border-[#B8CDE0] dark:border-slate-600 text-[#5B6575] dark:text-slate-300 hover:bg-[#EBF0F9] dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                       >
                         <ChevronLeft className="w-4 h-4" />
                       </button>
@@ -682,10 +685,10 @@ const StudentsPage = () => {
                             key={p}
                             type="button"
                             onClick={() => setGroupPage(p as number)}
-                            className={`w-8 h-8 rounded-lg text-sm font-semibold transition-colors ${
+                            className={`w-8 h-8 rounded-lg text-xs font-bold transition-colors ${
                               groupPage === p
                                 ? "bg-[#3363AD] text-white"
-                                : "border border-gray-200 text-gray-600 hover:bg-gray-50"
+                                : "border border-[#B8CDE0] dark:border-slate-600 text-[#5B6575] dark:text-slate-300 hover:bg-[#EBF0F9] dark:hover:bg-slate-700"
                             }`}
                           >
                             {p}
@@ -696,7 +699,7 @@ const StudentsPage = () => {
                         type="button"
                         onClick={() => setGroupPage((p) => Math.min(groupTotalPages, p + 1))}
                         disabled={groupPage === groupTotalPages}
-                        className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        className="p-2 rounded-lg border border-[#B8CDE0] dark:border-slate-600 text-[#5B6575] dark:text-slate-300 hover:bg-[#EBF0F9] dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                       >
                         <ChevronRight className="w-4 h-4" />
                       </button>
@@ -719,25 +722,25 @@ const StudentsPage = () => {
           </Transition.Child>
           <div className="fixed inset-0 flex items-center justify-center p-4">
             <Transition.Child as={Fragment} enter="ease-out duration-200" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="ease-in duration-150" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
-              <Dialog.Panel className="w-full max-w-sm bg-white rounded-2xl shadow-xl p-6">
+              <Dialog.Panel className={`w-full max-w-sm ${V2_CARD_SHELL} p-6`}>
                 <div className="flex flex-col items-center text-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-full bg-red-50 dark:bg-red-900/30 flex items-center justify-center">
                     <AlertTriangle className="w-5 h-5 text-red-500" />
                   </div>
                   <div>
-                    <Dialog.Title className="text-lg font-bold text-gray-900">Delete Group</Dialog.Title>
-                    <Dialog.Description className="text-sm text-gray-500 mt-1">
-                      Delete <span className="font-semibold text-gray-800">{pendingDelete?.name}</span>?
+                    <Dialog.Title className={`text-lg font-bold ${V2_STRONG}`}>Delete Group</Dialog.Title>
+                    <Dialog.Description className={`text-sm mt-1 ${V2_MUTED}`}>
+                      Delete <span className={`font-semibold ${V2_STRONG}`}>{pendingDelete?.name}</span>?
                       This removes all members and revokes the CEHO role. Cannot be undone.
                     </Dialog.Description>
                   </div>
                 </div>
                 <div className="flex gap-3 mt-6">
-                  <Button variant="ghost" size="sm" className="flex-1" onClick={() => setPendingDelete(null)} disabled={isDeleting}>Cancel</Button>
-                  <Button size="sm" className="flex-1 !bg-red-500 hover:!bg-red-600" onClick={() => pendingDelete && deleteGroup(pendingDelete.id)} isLoading={isDeleting}>
-                    {!isDeleting && <Trash2 className="w-3.5 h-3.5 mr-1.5" />}
-                    Delete
-                  </Button>
+                  <button type="button" className={`${V2_BTN_SECONDARY} flex-1`} onClick={() => setPendingDelete(null)} disabled={isDeleting}>Cancel</button>
+                  <button type="button" className={`${V2_BTN_DANGER} flex-1`} onClick={() => pendingDelete && deleteGroup(pendingDelete.id)} disabled={isDeleting}>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    {isDeleting ? "Deleting…" : "Delete"}
+                  </button>
                 </div>
               </Dialog.Panel>
             </Transition.Child>

@@ -4,19 +4,36 @@ import {
   Award,
   Edit,
   Trash2,
-  Search,
   Plus,
   BookOpen,
   Users,
   FileText,
+  CheckCircle2,
+  Send,
 } from "lucide-react";
+import { V2KpiCard, V2PageHeader, V2SearchInput, V2Tabs } from "@/components/v2/V2Page";
+import {
+  V2_BONE,
+  V2_BTN_DANGER,
+  V2_BTN_PRIMARY,
+  V2_BTN_SECONDARY,
+  V2_CARD_SHELL,
+  V2_MUTED,
+  V2_PAGE_CANVAS,
+  V2_PILL,
+  V2_PILL_AMBER,
+  V2_PILL_BLUE,
+  V2_PILL_GRAY,
+  V2_PILL_GREEN,
+  V2_STRONG,
+} from "@/components/dashboard/v2/widgets/admin/v2CardStyles";
 import toast from "react-hot-toast";
 import {
   listCertificateTemplates,
   getLinkedCourses,
   deleteCertificateTemplate,
 } from "@/services/certificateTemplate.service";
-import { getAllCertificates } from "@/services/certificates.service";
+import { getDashboardV2Certificates } from "@/services/analytics.service";
 import type {
   CertificateTemplateSummary,
   LinkedCourse,
@@ -36,16 +53,23 @@ export default function CertificatesManagement() {
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "draft">("all");
   const [deleteTarget, setDeleteTarget] = useState<TemplateWithCourses | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [totalIssued, setTotalIssued] = useState(0);
+  const [earned, setEarned] = useState({ total: 0, chw: 0, tester: 0, ceho: 0 });
   const cancelledRef = useRef(false);
 
   useEffect(() => {
     cancelledRef.current = false;
     (async () => {
       try {
-        const [list, issuedRes] = await Promise.all([
+        const earnedTotal = (role = "") =>
+          getDashboardV2Certificates(role ? `role=${role}` : "")
+            .then((r) => r.data?.total ?? 0)
+            .catch(() => 0);
+        const [list, total, chw, tester, ceho] = await Promise.all([
           listCertificateTemplates(),
-          getAllCertificates({ limit: 1, page: 1 }),
+          earnedTotal(),
+          earnedTotal("TRAINEE"),
+          earnedTotal("TESTER"),
+          earnedTotal("CEHO"),
         ]);
         const withCourses = await Promise.all(
           list.map(async (t) => {
@@ -59,7 +83,7 @@ export default function CertificatesManagement() {
         );
         if (!cancelledRef.current) {
           setTemplates(withCourses);
-          setTotalIssued(issuedRes.totalItems);
+          setEarned({ total, chw, tester, ceho });
         }
       } catch {
         if (!cancelledRef.current) toast.error("Failed to load certificate templates");
@@ -90,8 +114,7 @@ export default function CertificatesManagement() {
     total: templates.length,
     active: templates.filter((t) => t.linkedCourses.length > 0).length,
     draft: templates.filter((t) => t.linkedCourses.length === 0).length,
-    issued: totalIssued,
-  }), [templates, totalIssued]);
+  }), [templates]);
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -109,104 +132,96 @@ export default function CertificatesManagement() {
   };
 
   return (
-    <div className="w-full min-h-full bg-gray-50 p-6">
-      {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Award className="w-6 h-6 text-blue-600" />
-            Certificate Management
-          </h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            Create, manage, and distribute certificates for your workshops
-          </p>
-        </div>
-        <button
-          onClick={() => navigate("/certificates/design")}
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-[#2B5493] transition"
-        >
-          <Plus className="w-4 h-4" />
-          Create New Certificate
-        </button>
-      </div>
+    <div className={V2_PAGE_CANVAS}>
+      <V2PageHeader
+        title="Certificate Management"
+        subtitle="Create, manage, and distribute certificates for your workshops"
+        actions={
+          <button type="button" onClick={() => navigate("/certificates/design")} className={V2_BTN_PRIMARY}>
+            <Plus className="w-4 h-4" />
+            Create New Certificate
+          </button>
+        }
+      />
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
-        <StatCard label="Total Certificates" value={stats.total} color="text-gray-900" />
-        <StatCard label="Active" value={stats.active} color="text-green-600" sub="Linked to a course" />
-        <StatCard label="Draft" value={stats.draft} color="text-yellow-600" sub="Not linked yet" />
-        <StatCard
-          label="Issued"
-          value={stats.issued}
-          color="text-primary"
-          sub="Certificates given"
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <V2KpiCard
+          label="Certificates Earned"
+          value={earned.total.toLocaleString()}
+          Icon={Send}
+          sub={`CHWs ${earned.chw.toLocaleString()} · Testers ${earned.tester.toLocaleString()} · CEHO ${earned.ceho.toLocaleString()}`}
           onClick={() => navigate("/certificates/issued")}
-          actionLabel="View all →"
+        />
+        <V2KpiCard label="Templates" value={stats.total} Icon={Award} sub="Certificate designs" />
+        <V2KpiCard
+          label="Active Templates"
+          value={stats.active}
+          Icon={CheckCircle2}
+          accent="text-emerald-600 dark:text-emerald-400"
+          sub="Linked to a course"
+        />
+        <V2KpiCard
+          label="Draft Templates"
+          value={stats.draft}
+          Icon={FileText}
+          accent="text-amber-500 dark:text-amber-400"
+          sub="Not linked yet"
         />
       </div>
 
       {/* Filters */}
-      <div className="flex gap-3 mb-6">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search by certificate or linked course..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-          />
-        </div>
-        <div className="flex gap-1 p-1 bg-white border border-gray-200 rounded-lg">
-          {(["all", "active", "draft"] as const).map((s) => (
-            <button
-              key={s}
-              onClick={() => setStatusFilter(s)}
-              className={`px-3 py-1 text-sm rounded-md font-medium transition ${
-                statusFilter === s
-                  ? "bg-primary text-white"
-                  : "text-gray-600 hover:bg-gray-100"
-              }`}
-            >
-              {s === "all" ? "All" : s.charAt(0).toUpperCase() + s.slice(1)}
-            </button>
-          ))}
-        </div>
+      <div className="flex flex-col sm:flex-row gap-3">
+        <V2SearchInput
+          className="flex-1 max-w-md"
+          placeholder="Search by certificate or linked course..."
+          value={searchQuery}
+          onChange={setSearchQuery}
+        />
+        <V2Tabs
+          items={[
+            { key: "all", label: "All" },
+            { key: "active", label: "Active" },
+            { key: "draft", label: "Draft" },
+          ]}
+          active={statusFilter}
+          onChange={setStatusFilter}
+        />
       </div>
 
       {/* Cards Grid */}
       {loading ? (
-        <div className="grid grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-white rounded-xl border border-gray-200 overflow-hidden animate-pulse">
-              <div className="h-36 bg-gray-200" />
+            <div key={i} className={`${V2_CARD_SHELL} overflow-hidden animate-pulse`}>
+              <div className={`${V2_BONE} h-36 !rounded-none`} />
               <div className="p-4 space-y-3">
-                <div className="h-4 bg-gray-200 rounded w-2/3" />
-                <div className="h-3 bg-gray-100 rounded w-1/3" />
-                <div className="h-3 bg-gray-100 rounded w-1/2" />
+                <div className={`${V2_BONE} h-4 w-2/3`} />
+                <div className={`${V2_BONE} h-3 w-1/3`} />
+                <div className={`${V2_BONE} h-3 w-1/2`} />
               </div>
             </div>
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-gray-400">
-          <Award className="w-12 h-12 mb-3 opacity-40" />
-          <p className="font-medium text-gray-500">No certificates found</p>
+        <div className={`${V2_CARD_SHELL} flex flex-col items-center justify-center py-20 ${V2_MUTED}`}>
+          <Award className="w-12 h-12 mb-3 text-[#3363AD]/40" />
+          <p className={`font-bold ${V2_STRONG}`}>No certificates found</p>
           <p className="text-sm mt-1">
             {searchQuery ? "Try a different search term" : "Create your first certificate template"}
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {filtered.map((t) => {
             const status = getStatus(t);
             return (
               <div
                 key={t.id}
-                className="bg-white rounded-xl border border-gray-200 overflow-hidden flex flex-col hover:shadow-md transition-shadow"
+                className={`${V2_CARD_SHELL} overflow-hidden flex flex-col hover:border-[#3363AD]/50 transition-colors`}
               >
                 {/* Thumbnail — taller for better preview */}
-                <div className="relative h-52 bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center overflow-hidden">
+                <div className="relative h-52 bg-[#EBF0F9] dark:bg-slate-700 flex items-center justify-center overflow-hidden">
                   {t.thumbnail ? (
                     <img
                       src={t.thumbnail}
@@ -214,44 +229,40 @@ export default function CertificatesManagement() {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div className="flex flex-col items-center gap-1 text-blue-200">
+                    <div className="flex flex-col items-center gap-1 text-[#3363AD]/30">
                       <FileText className="w-10 h-10" />
                     </div>
                   )}
                   <span
-                    className={`absolute top-2 right-2 px-2 py-0.5 text-xs font-semibold rounded-full ${
-                      status === "active"
-                        ? "bg-green-100 text-green-700"
-                        : "bg-yellow-100 text-yellow-700"
-                    }`}
+                    className={`absolute top-2 right-2 ${V2_PILL} ${status === "active" ? V2_PILL_GREEN : V2_PILL_AMBER}`}
                   >
                     {status === "active" ? "Active" : "Draft"}
                   </span>
                 </div>
 
                 {/* Body — 2 rows */}
-                <div className="px-3 py-2.5 flex flex-col gap-2">
+                <div className="px-4 py-3 flex flex-col gap-2">
                   {/* Row 1: Name + date */}
                   <div className="flex items-center justify-between gap-2">
-                    <h3 className="font-semibold text-gray-900 text-sm leading-tight line-clamp-1">
+                    <h3 className={`font-bold text-sm leading-tight line-clamp-1 ${V2_STRONG}`}>
                       {t.name}
                     </h3>
-                    <span className="text-xs text-gray-400 shrink-0">{formatDate(t.createdAt)}</span>
+                    <span className="text-xs text-[#9AA3B2] shrink-0">{formatDate(t.createdAt)}</span>
                   </div>
 
                   {/* Row 2: courses + issued + Edit + Delete */}
-                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-100">
+                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-[#E8EEF4] dark:border-slate-700">
                     {/* Left: course chips only */}
                     <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
-                      <BookOpen className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                      <BookOpen className="w-3.5 h-3.5 text-[#9AA3B2] shrink-0" />
                       {t.linkedCourses.length === 0 ? (
-                        <span className="text-xs text-gray-400">No course linked</span>
+                        <span className="text-xs text-[#9AA3B2]">No course linked</span>
                       ) : (
                         <>
                           {t.linkedCourses.slice(0, 1).map((c) => (
                             <span
                               key={c.id}
-                              className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-full min-w-0"
+                              className={`${V2_PILL} ${V2_PILL_BLUE} min-w-0`}
                             >
                               {c.coverIcon && (
                                 <img src={c.coverIcon} alt="" className="w-3 h-3 rounded-full object-cover shrink-0" />
@@ -260,7 +271,7 @@ export default function CertificatesManagement() {
                             </span>
                           ))}
                           {t.linkedCourses.length > 1 && (
-                            <span className="px-1.5 py-0.5 bg-gray-100 text-gray-500 text-xs rounded-full shrink-0">
+                            <span className={`${V2_PILL} ${V2_PILL_GRAY} shrink-0`}>
                               +{t.linkedCourses.length - 1}
                             </span>
                           )}
@@ -270,7 +281,7 @@ export default function CertificatesManagement() {
 
                     {/* Right: issued + Edit + Delete */}
                     <div className="flex items-center gap-1 shrink-0">
-                      <div className="flex items-center gap-1 text-xs text-gray-500 mr-1">
+                      <div className={`flex items-center gap-1 text-xs mr-1 ${V2_MUTED}`}>
                         <Users className="w-3.5 h-3.5" />
                         <span>{t.issuedCount}</span>
                         {t.issuedCount > 0 && (
@@ -280,7 +291,7 @@ export default function CertificatesManagement() {
                                 state: { templateId: t.id, templateName: t.name },
                               })
                             }
-                            className="text-xs font-medium text-blue-600 hover:text-blue-800 underline underline-offset-2 transition"
+                            className="text-xs font-bold text-[#3363AD] hover:text-[#2B5493] dark:text-blue-300 underline underline-offset-2 transition"
                           >
                             View
                           </button>
@@ -288,7 +299,7 @@ export default function CertificatesManagement() {
                       </div>
                       <button
                         onClick={() => navigate(`/certificates/design/${t.id}`)}
-                        className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition"
+                        className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-[#3363AD] bg-[#EBF0F9] hover:bg-[#DCE8F8] dark:bg-slate-700 dark:text-blue-300 rounded-lg transition"
                       >
                         <Edit className="w-3.5 h-3.5" />
                         Edit
@@ -317,23 +328,25 @@ export default function CertificatesManagement() {
         centered
       >
         <div className="space-y-5">
-          <p className="text-sm text-gray-600">
+          <p className={`text-sm ${V2_MUTED}`}>
             Are you sure you want to delete{" "}
-            <span className="font-semibold text-gray-900">"{deleteTarget?.name}"</span>?
+            <span className={`font-semibold ${V2_STRONG}`}>"{deleteTarget?.name}"</span>?
             This action cannot be undone.
           </p>
           <div className="flex gap-3 justify-end">
             <button
+              type="button"
               onClick={() => setDeleteTarget(null)}
               disabled={deleting}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
+              className={`${V2_BTN_SECONDARY} disabled:opacity-50`}
             >
               Cancel
             </button>
             <button
+              type="button"
               onClick={handleDelete}
               disabled={deleting}
-              className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition disabled:opacity-50 flex items-center gap-2"
+              className={V2_BTN_DANGER}
             >
               {deleting && (
                 <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -343,36 +356,6 @@ export default function CertificatesManagement() {
           </div>
         </div>
       </Modal>
-    </div>
-  );
-}
-
-function StatCard({
-  label,
-  value,
-  color,
-  sub,
-  onClick,
-  actionLabel,
-}: {
-  label: string;
-  value: number;
-  color: string;
-  sub?: string;
-  onClick?: () => void;
-  actionLabel?: string;
-}) {
-  return (
-    <div
-      className={`bg-white rounded-xl border border-gray-200 p-4 flex flex-col gap-0.5 ${onClick ? "cursor-pointer hover:border-blue-300 hover:shadow-sm transition" : ""}`}
-      onClick={onClick}
-    >
-      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</p>
-      <p className={`text-3xl font-bold ${color}`}>{value}</p>
-      {sub && <p className="text-xs text-gray-400">{sub}</p>}
-      {actionLabel && onClick && (
-        <p className="text-xs text-blue-500 mt-1 font-medium">{actionLabel}</p>
-      )}
     </div>
   );
 }

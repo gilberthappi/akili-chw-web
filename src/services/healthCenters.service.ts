@@ -6,6 +6,20 @@ export const getAllHospitals = async (params?: string): Promise<IPaged<IHealthCe
   return (await api.get(`/healthCenters${queryParams}`)).data;
 };
 
+export interface IHealthCenterStats {
+  totalCenters: number;
+  totalChws: number;
+  withCeho: number;
+  withoutChws: number;
+}
+
+export const getHealthCenterStats = async (
+  province?: string,
+): Promise<IResponse<IHealthCenterStats>> => {
+  const qs = province ? `?province=${encodeURIComponent(province)}` : "";
+  return (await api.get(`/healthCenters/statistics/summary${qs}`)).data;
+};
+
 /** Unpaginated list — use for map/analytics, not the healthCenters table. */
 export const listAllHospitals = async (searchq?: string): Promise<IResponse<IHealthCenter[]>> => {
   const qs = searchq ? `?searchq=${encodeURIComponent(searchq)}` : "";

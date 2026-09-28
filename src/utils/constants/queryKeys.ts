@@ -17,6 +17,7 @@ export const hospitalKeys = {
   all: ["healthCenters"] as const,
   lists: () => [...hospitalKeys.all, "list"] as const,
   list: (filter?: string) => [...hospitalKeys.lists(), filter] as const,
+  stats: (province?: string) => [...hospitalKeys.all, "stats", province ?? ""] as const,
 };
 
 // Query key factory for students with filters

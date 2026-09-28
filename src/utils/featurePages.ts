@@ -42,7 +42,7 @@ export const FEATURE_PAGES: Record<string, FeaturePageConfig> = {
     },
     actions: [
       { label: "Analytics", href: "/analytics", primary: true },
-      { label: "CHW & CEHO", href: "/students" },
+      { label: "CHW & CEHO", href: "/chw" },
     ],
   },
 
@@ -133,7 +133,7 @@ export const FEATURE_PAGES: Record<string, FeaturePageConfig> = {
       ],
     },
     actions: [
-      { label: "Find learners", href: "/students", primary: true },
+      { label: "Find learners", href: "/chw", primary: true },
       { label: "Messaging", href: "/messaging" },
     ],
   },
@@ -419,7 +419,7 @@ export const FEATURE_PAGES: Record<string, FeaturePageConfig> = {
       ],
     },
     actions: [
-      { label: "CHW & CEHO", href: "/students", primary: true },
+      { label: "CHW & CEHO", href: "/chw", primary: true },
       { label: "CEHO network", href: "/ceho-network" },
     ],
   },
@@ -451,7 +451,7 @@ export const FEATURE_PAGES: Record<string, FeaturePageConfig> = {
       ],
     },
     actions: [
-      { label: "CHW & CEHO", href: "/students", primary: true },
+      { label: "CHW & CEHO", href: "/chw", primary: true },
       { label: "Meetings", href: "/meetings" },
     ],
   },

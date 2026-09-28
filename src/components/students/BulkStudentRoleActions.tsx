@@ -150,8 +150,8 @@ export const BulkStudentRoleActions: FC<BulkStudentRoleActionsProps> = ({
 
   return (
     <>
-      <div className="mb-4 bg-[#3363AD]/5 border border-[#3363AD]/20 rounded-xl p-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 text-[#3363AD]">
-        <span className="text-sm font-medium">
+      <div className="mb-4 bg-[#EBF0F9] dark:bg-slate-800 border border-[rgba(51,99,173,0.25)] dark:border-slate-600 rounded-[16px] p-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 text-[#3363AD] dark:text-blue-300">
+        <span className="text-xs font-extrabold uppercase tracking-wider">
           {count} {roleLabel[roleFilter]}{count !== 1 ? "s" : ""} selected
         </span>
         <div className="flex flex-wrap gap-2">
@@ -159,7 +159,7 @@ export const BulkStudentRoleActions: FC<BulkStudentRoleActionsProps> = ({
             type="button"
             onClick={onClear}
             disabled={isBusy}
-            className="text-xs font-semibold bg-white border border-[#3363AD]/20 px-3 py-1.5 rounded-lg shadow-sm hover:bg-gray-50 disabled:opacity-50"
+            className="text-xs font-bold bg-white dark:bg-slate-700 border border-[#3363AD]/20 dark:border-slate-600 px-3 py-1.5 rounded-lg hover:bg-[#F1F5F9] dark:hover:bg-slate-600 disabled:opacity-50"
           >
             Clear
           </button>

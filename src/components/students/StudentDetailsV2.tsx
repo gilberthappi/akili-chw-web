@@ -122,7 +122,7 @@ export const StudentDetailsV2: React.FC = () => {
               Try Again
             </button>
             <button
-              onClick={() => navigate("/students")}
+              onClick={() => navigate("/chw")}
               className="px-4 py-2 rounded-xl border border-gray-200 text-gray-600 text-xs font-bold"
             >
               Back to List

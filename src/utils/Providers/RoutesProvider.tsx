@@ -1,6 +1,6 @@
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { ProtectedRoute } from "@/components/common/ProtectedRoute";
-import { Navigate } from "react-router-dom";
+import { Navigate, useParams } from "react-router-dom";
 import ErrorPage from "@/pages/ErrorPage";
 import AdminLayout from "@/pages/Layout";
 import LearningLayout from "@/components/layouts/LearningLayout";
@@ -28,6 +28,7 @@ import CourseAnalysisV2 from "@/pages/dashboard/CourseAnalysisV2";
 import NewCoursePage from "@/components/courses/NewCoursePage";
 import NewCoursesBuilder from "@/pages/dashboard/NewCoursesBuilder";
 import StudentsPage from "@/pages/dashboard/Students";
+import TestersPage from "@/pages/dashboard/Testers";
 import DemographicLearnersPage from "@/pages/dashboard/DemographicLearners";
 import StudentActivityPage from "@/components/students/StudentActivityPage";
 import { StudentDetailsV2 } from "@/components/students/StudentDetailsV2";
@@ -53,6 +54,7 @@ import AdminCEHOGroupDetailPage from "@/pages/dashboard/AdminCEHOGroupDetail";
 import VerifyCertificate from "@/pages/VerifyCertificate";
 import IssuedCertificatesPage from "@/pages/dashboard/IssuedCertificatesPage";
 import DepartmentFeaturePage from "@/pages/dashboard/DepartmentFeaturePage";
+import DocumentsLibrary from "@/pages/dashboard/DocumentsLibrary";
 import UserLookupPage from "@/pages/dashboard/UserLookupPage";
 import BoardsPage from "@/pages/dashboard/BoardsPage";
 import {
@@ -67,6 +69,7 @@ import {
   PLATFORM_ADMIN_ROLES,
   STAFF_MGMT_ROLES,
   STAFF_ROLES,
+  TESTER_MGMT_ROLES,
 } from "@/utils/roles";
 import { DEPARTMENT_NAV } from "@/utils/departmentNav";
 
@@ -84,6 +87,11 @@ const WELTEL_BOARDS_ROLES = [
   "CIIC_EDITOR",
   "CIIC_REVIEWER",
 ] as const;
+
+const LegacyStudentDetailRedirect = () => {
+  const { id } = useParams();
+  return <Navigate to={`/chw/${id}`} replace />;
+};
 
 const RoutesProvider = () => {
   const router = createBrowserRouter([
@@ -190,10 +198,26 @@ const RoutesProvider = () => {
           ),
         },
         {
-          path: "students",
+          path: "chw",
           element: (
             <ProtectedRoute allowedRoles={[...LEARNER_MGMT_ROLES]}>
               <StudentsPage />
+            </ProtectedRoute>
+          ),
+        },
+        {
+          path: "students",
+          element: <Navigate to="/chw" replace />,
+        },
+        {
+          path: "students/:id",
+          element: <LegacyStudentDetailRedirect />,
+        },
+        {
+          path: "testers",
+          element: (
+            <ProtectedRoute allowedRoles={[...TESTER_MGMT_ROLES]}>
+              <TestersPage />
             </ProtectedRoute>
           ),
         },
@@ -206,7 +230,7 @@ const RoutesProvider = () => {
           ),
         },
         {
-          path: "students/:id",
+          path: "chw/:id",
           element: (
             <ProtectedRoute allowedRoles={[...MEETING_ROLES]}>
               <StudentDetailsV2 />
@@ -335,7 +359,7 @@ const RoutesProvider = () => {
           path: item.path.replace(/^\//, ""),
           element: (
             <ProtectedRoute allowedRoles={[...item.roles]}>
-              <DepartmentFeaturePage />
+              {item.path === "/documents" ? <DocumentsLibrary /> : <DepartmentFeaturePage />}
             </ProtectedRoute>
           ),
         })),
@@ -373,7 +397,7 @@ const RoutesProvider = () => {
         },
         {
           path: "admin/ceho-groups",
-          element: <Navigate to="/students" replace />,
+          element: <Navigate to="/chw" replace />,
         },
         {
           path: "admin/ceho-groups/:id",

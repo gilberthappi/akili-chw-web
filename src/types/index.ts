@@ -1094,6 +1094,7 @@ export interface StudentInfo {
   village: string;
   NID: string;
   gender: string;
+  birthdate?: string | null;
   photo: string;
   status: string;
   role: string;

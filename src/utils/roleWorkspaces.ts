@@ -63,7 +63,7 @@ export const ROLE_WORKSPACES: Record<string, RoleWorkspaceConfig> = {
     actions: [
       // TEMP hidden: Interventions / Analytics
       // { label: "Interventions", href: "/interventions", primary: true },
-      { label: "CHW & CEHO", href: "/students", primary: true },
+      { label: "CHW & CEHO", href: "/chw", primary: true },
       // { label: "Analytics", href: "/analytics" },
     ],
     roadmap: [
@@ -100,7 +100,7 @@ export const ROLE_WORKSPACES: Record<string, RoleWorkspaceConfig> = {
       ],
     },
     actions: [
-      { label: "CHW & CEHO", href: "/students", primary: true },
+      { label: "CHW & CEHO", href: "/chw", primary: true },
       // TEMP hidden: Analytics
       // { label: "Analytics", href: "/analytics" },
       { label: "Certificates issued", href: "/certificates/issued" },
@@ -384,7 +384,7 @@ export const ROLE_WORKSPACES: Record<string, RoleWorkspaceConfig> = {
       { label: "Staff", href: "/staff", primary: true },
       { label: "Coverage planner", href: "/coverage" },
       { label: "Campaigns", href: "/campaigns" },
-      { label: "CHW & CEHO", href: "/students" },
+      { label: "CHW & CEHO", href: "/chw" },
     ],
     roadmap: ["Coverage planner", "Campaign deadlines", "Partner scorecard for RBC"],
   },
@@ -450,7 +450,7 @@ export const ROLE_WORKSPACES: Record<string, RoleWorkspaceConfig> = {
       ],
     },
     actions: [
-      { label: "CHW & CEHO", href: "/students", primary: true },
+      { label: "CHW & CEHO", href: "/chw", primary: true },
       { label: "Health Centers", href: "/healthCenters" },
       { label: "Certificates", href: "/certificates/issued" },
     ],
