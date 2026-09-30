@@ -29,6 +29,7 @@ import NewCoursePage from "@/components/courses/NewCoursePage";
 import NewCoursesBuilder from "@/pages/dashboard/NewCoursesBuilder";
 import StudentsPage from "@/pages/dashboard/Students";
 import TestersPage from "@/pages/dashboard/Testers";
+import ChwRegistryPage from "@/pages/dashboard/ChwRegistry";
 import DemographicLearnersPage from "@/pages/dashboard/DemographicLearners";
 import StudentActivityPage from "@/components/students/StudentActivityPage";
 import { StudentDetailsV2 } from "@/components/students/StudentDetailsV2";
@@ -60,6 +61,7 @@ import BoardsPage from "@/pages/dashboard/BoardsPage";
 import {
   APP_SHELL_ROLES,
   CEHO_ONLY,
+  CHW_REGISTRY_ROLES,
   COLLAB_ROLES,
   COURSE_MGMT_ROLES,
   FIELD_LEARNER_ROLES,
@@ -218,6 +220,14 @@ const RoutesProvider = () => {
           element: (
             <ProtectedRoute allowedRoles={[...TESTER_MGMT_ROLES]}>
               <TestersPage />
+            </ProtectedRoute>
+          ),
+        },
+        {
+          path: "chw-registry",
+          element: (
+            <ProtectedRoute allowedRoles={[...CHW_REGISTRY_ROLES]}>
+              <ChwRegistryPage />
             </ProtectedRoute>
           ),
         },

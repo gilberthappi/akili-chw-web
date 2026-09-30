@@ -117,6 +117,15 @@ export const TESTER_WRITE_ROLES: UserRole[] = ["RBC_COORDINATOR", "RBC_ANALYST"]
 /** Create / delete CHWs. Mirrors API checkRole(ADMIN, STAFF) on /students. */
 export const CHW_WRITE_ROLES: UserRole[] = ["ADMIN", "STAFF"];
 
+/** Pre-registered CHW list (import / CRUD). Mirrors API REGISTRY_ROLES on /chw-registry. */
+export const CHW_REGISTRY_ROLES: UserRole[] = [
+  "ADMIN",
+  "RBC_COORDINATOR",
+  "RBC_ANALYST",
+  "SFH_COORDINATOR",
+  "SFH_ENROLLMENT",
+];
+
 /** Health Centers — platform ADMIN + RBC/SFH (not CEHO). */
 export const HEALTH_CENTER_ROLES: UserRole[] = [
   "ADMIN",

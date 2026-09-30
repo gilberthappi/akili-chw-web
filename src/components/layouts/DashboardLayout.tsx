@@ -87,6 +87,7 @@ const NAV_ICONS: Record<string, JSX.Element> = {
   "/announcement": <Megaphone className="w-5 h-5" />,
   "/chw": <Users className="w-4 h-4" />,
   "/testers": <UserSearch className="w-4 h-4" />,
+  "/chw-registry": <ClipboardList className="w-4 h-4" />,
   "/certificates": <Award className="w-4 h-4" />,
   "/certificates/issued": <Award className="w-4 h-4" />,
   "/calender": <Calendar className="w-5 h-5" />,
@@ -542,6 +543,12 @@ const DashboardLayout = ({
       icon: <Users className='w-4 h-4' />,
       path: "/chw",
       roles: [...LEARNER_MGMT_ROLES],
+    },
+    {
+      label: "CHW Registry",
+      icon: <ClipboardList className='w-4 h-4' />,
+      path: "/chw-registry",
+      roles: ["ADMIN"],
     },
     {
       label: "My Certificates",

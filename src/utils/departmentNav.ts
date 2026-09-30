@@ -59,6 +59,14 @@ export const DEPARTMENT_NAV: DeptNavItem[] = [
     group: "RBC",
   },
   {
+    id: "rbc-chw-registry",
+    label: "CHW Registry",
+    path: "/chw-registry",
+    kind: "existing",
+    roles: ["RBC_COORDINATOR", "RBC_ANALYST"],
+    group: "RBC",
+  },
+  {
     id: "rbc-testers",
     label: "Testers",
     path: "/testers",
@@ -354,6 +362,14 @@ export const DEPARTMENT_NAV: DeptNavItem[] = [
     group: "SFH",
   },
   {
+    id: "sfh-chw-registry",
+    label: "CHW Registry",
+    path: "/chw-registry",
+    kind: "existing",
+    roles: ["SFH_COORDINATOR", "SFH_ENROLLMENT"],
+    group: "SFH",
+  },
+  {
     id: "sfh-hc",
     label: "Health Centers",
     path: "/healthCenters",
@@ -417,6 +433,7 @@ export const ROLE_SIDEBAR_EXPECTATIONS: Record<UserRole, string[]> = {
   RBC_VIEWER: ["Testers", "Feedbacks", "Messaging"],
   RBC_ANALYST: [
     "CHW & CEHO",
+    "CHW Registry",
     "Testers",
     "Health Centers",
     "Courses",
@@ -429,6 +446,7 @@ export const ROLE_SIDEBAR_EXPECTATIONS: Record<UserRole, string[]> = {
   RBC_COORDINATOR: [
     // "Interventions",
     "CHW & CEHO",
+    "CHW Registry",
     "Testers",
     "Health Centers",
     "Courses",
@@ -480,6 +498,7 @@ export const ROLE_SIDEBAR_EXPECTATIONS: Record<UserRole, string[]> = {
   ],
   SFH_ENROLLMENT: [
     "CHW & CEHO",
+    "CHW Registry",
     "Health Centers",
     "Certificates",
     "Messaging",
@@ -498,6 +517,7 @@ export const ROLE_SIDEBAR_EXPECTATIONS: Record<UserRole, string[]> = {
     "CEHO Network",
     "Campaigns",
     "CHW & CEHO",
+    "CHW Registry",
     "Health Centers",
     "Meetings",
     "Calender",
