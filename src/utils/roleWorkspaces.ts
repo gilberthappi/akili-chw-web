@@ -348,7 +348,7 @@ export const ROLE_WORKSPACES: Record<string, RoleWorkspaceConfig> = {
     actions: [
       { label: "Kanban Board", href: "/kanban-board", primary: true },
       { label: "Feedbacks", href: "/feedbacks" },
-      { label: "Glossary", href: "/glossary" },
+      { label: "Dictionary", href: "/dictionary" },
       { label: "Version History", href: "/version-history" },
     ],
     roadmap: ["Side-by-side versions", "Teach-back TESTER flow", "Guideline evidence links"],

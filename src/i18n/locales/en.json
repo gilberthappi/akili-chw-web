@@ -110,5 +110,17 @@
     "MASTERS_DEGREE": "Master's Degree",
     "PHD": "PhD",
     "PROFESSOR": "Professor"
+  },
+  "chat": {
+    "label": "Viki",
+    "title": "Assistant",
+    "welcome": "Hello! Welcome. I’m your AI assistant. How can I help you today?",
+    "placeholder": "Ask something...",
+    "error": "Could not get a response. Try again.",
+    "expand": "Expand chat",
+    "shrink": "Shrink chat",
+    "close": "Close chat",
+    "open": "Open chat",
+    "send": "Send"
   }
 }

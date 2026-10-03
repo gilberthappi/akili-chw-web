@@ -1,382 +1,265 @@
-import React, { useState, useEffect } from "react";
-import { Users, TrendingUp, Award, Clock, BookOpen, CheckCircle } from "lucide-react";
+import React from "react";
+import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { Award, BookOpen, CheckCircle, Clock, TrendingUp, Users } from "lucide-react";
 import { getStudentAnalytics } from "@/services/analytics.service";
-import { IStudentAnalytics } from "@/types";
+import { TrendLineChart } from "./TrendLineChart";
+import { V2KpiCard, V2KpiSkeleton } from "@/components/v2/V2Page";
+import {
+  V2_CARD_SHELL,
+  V2_CARD_SHELL_PADDED,
+  V2_EMPTY,
+  V2_MUTED,
+  V2_PILL,
+  V2_PILL_BLUE,
+  V2_SECTION_TITLE,
+  V2_STRONG,
+  V2_TABLE_BODY,
+  V2_TABLE_HEAD,
+  V2_TABLE_ROW,
+} from "@/components/dashboard/v2/widgets/admin/v2CardStyles";
+
+const BAND_COLORS: Record<string, string> = {
+  excellent: "bg-[#3363AD]",
+  good: "bg-[#3363AD]/80",
+  average: "bg-[#3363AD]/60",
+  poor: "bg-amber-500",
+  failing: "bg-red-500",
+};
+
+const formatLastActive = (value: string) => {
+  const hours = Math.floor((Date.now() - new Date(value).getTime()) / 3_600_000);
+  if (hours < 1) return "Just now";
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days} day${days === 1 ? "" : "s"} ago`;
+};
+
+const Empty: React.FC<{ Icon: typeof Users; text: string }> = ({ Icon, text }) => (
+  <div className={`${V2_EMPTY} py-8 flex flex-col items-center justify-center`}>
+    <Icon className='w-9 h-9 mb-2 text-[#C5D3E0]' />
+    <p className='text-xs'>{text}</p>
+  </div>
+);
 
 export const StudentAnalytics: React.FC = () => {
-  const [analytics, setAnalytics] = useState<IStudentAnalytics | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchAnalytics = async () => {
-      try {
-        const response = await getStudentAnalytics();
-        if (response.data) {
-          setAnalytics(response.data);
-        }
-      } catch (error) {
-        console.error('Failed to fetch student analytics:', error);
-        // Use fallback data in case of error
-        setAnalytics({
-          totalStudents: { value: 0, trend: { value: 0, direction: 'stable' } },
-          activeStudents: { value: 0, trend: { value: 0, direction: 'stable' } },
-          onLeaveStudents: { value: 0, trend: { value: 0, direction: 'stable' } },
-          avgStudyTime: { value: 0, trend: { value: 0, direction: 'stable' }, unit: 'hours' },
-          completionRate: { value: 0, trend: { value: 0, direction: 'stable' }, unit: 'percent' },
-          performanceDistribution: {
-            excellent: { range: '90-100%', count: 0, percentage: 0 },
-            good: { range: '80-89%', count: 0, percentage: 0 },
-            average: { range: '70-79%', count: 0, percentage: 0 },
-            poor: { range: '60-69%', count: 0, percentage: 0 },
-            failing: { range: 'Below 60%', count: 0, percentage: 0 }
-          },
-          topPerformers: [],
-          mostActiveLearners: [],
-          recentActivity: [],
-          engagementTrends: [],
-          activeStudentPercentage: 0,
-          averageCoursesPerStudent: 0
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchAnalytics();
-  }, []);
-
-  const getTrendDisplay = (trend: { value: number; direction: "up" | "down" | "stable" }) => {
-    const isPositive = trend.direction === 'up';
-    const isNegative = trend.direction === 'down';
-    const sign = isPositive ? '+' : isNegative ? '-' : '';
-    const color = isPositive ? 'text-[#3363AD]' : isNegative ? 'text-red-500' : 'text-gray-500';
-    
-    return (
-      <div className={`text-[10px] mt-1 ${color} font-medium`}>
-        {sign}{trend.value}% from last month
-      </div>
-    );
-  };
-
-  const formatLastActive = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
-    
-    if (diffInHours < 1) return 'Just now';
-    if (diffInHours < 24) return `${diffInHours} hours ago`;
-    const diffInDays = Math.floor(diffInHours / 24);
-    return `${diffInDays} day${diffInDays === 1 ? '' : 's'} ago`;
-  };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#3363AD] mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading CHW analytics...</p>
-        </div>
-      </div>
-    );
-  }
+  const navigate = useNavigate();
+  const { data, isLoading } = useQuery({
+    queryKey: ["analytics", "chws"],
+    queryFn: () => getStudentAnalytics(),
+  });
+  const analytics = data?.data;
+  const trends = analytics?.engagementTrends ?? [];
+  const openChw = (id?: string) => id && navigate(`/chw/${id}`);
 
   return (
-    <div className="space-y-6">
-      <div className="mb-6">
-        <h1 className="text-xl font-bold text-gray-900 mb-1">CHW Analytics</h1>
-        <p className="text-xs text-gray-600">Track CHW progress, performance, and engagement metrics</p>
-      </div>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium text-gray-600">Total CHWs</span>
-            <div className="w-9 h-9 rounded-lg bg-[#3363AD]/10 flex items-center justify-center">
-              <Users className="w-4 h-4 text-[#3363AD]" />
-            </div>
-          </div>
-          <div className="text-xl font-bold text-gray-900">{analytics?.totalStudents?.value?.toLocaleString() || 0}</div>
-          {analytics?.totalStudents && getTrendDisplay(analytics.totalStudents.trend)}
+    <>
+      {isLoading ? (
+        <V2KpiSkeleton count={4} />
+      ) : (
+        <div className='grid grid-cols-2 lg:grid-cols-4 gap-4'>
+          <V2KpiCard
+            label='Total CHWs'
+            value={(analytics?.totalStudents?.value ?? 0).toLocaleString()}
+            Icon={Users}
+            trend={analytics?.totalStudents?.trend}
+            sub='vs last month'
+          />
+          <V2KpiCard
+            label='Active CHWs'
+            value={(analytics?.activeStudents?.value ?? 0).toLocaleString()}
+            Icon={TrendingUp}
+            accent='text-emerald-600 dark:text-emerald-400'
+            sub={`${analytics?.activeStudentPercentage ?? 0}% of total`}
+          />
+          <V2KpiCard
+            label='Avg study time'
+            value={`${(analytics?.avgStudyTime?.value ?? 0).toFixed(1)}h`}
+            Icon={Clock}
+            accent='text-purple-600 dark:text-purple-400'
+            trend={analytics?.avgStudyTime?.trend}
+            sub='vs last month'
+          />
+          <V2KpiCard
+            label='Completion rate'
+            value={`${(analytics?.completionRate?.value ?? 0).toFixed(1)}%`}
+            Icon={CheckCircle}
+            accent='text-amber-500 dark:text-amber-400'
+            trend={analytics?.completionRate?.trend}
+            sub='vs last month'
+          />
         </div>
+      )}
 
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium text-gray-600">Active CHWs</span>
-            <div className="w-9 h-9 rounded-lg bg-[#3363AD]/10 flex items-center justify-center">
-              <TrendingUp className="w-4 h-4 text-[#3363AD]" />
-            </div>
-          </div>
-          <div className="text-xl font-bold text-gray-900">{analytics?.activeStudents?.value?.toLocaleString() || 0}</div>
-          {analytics?.activeStudents && (
-            <div className="text-[10px] text-[#3363AD] mt-1 font-medium">
-              {analytics?.activeStudentPercentage || 0}% of total
-            </div>
-          )}
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium text-gray-600">Avg Study Time</span>
-            <div className="w-9 h-9 rounded-lg bg-[#3363AD]/10 flex items-center justify-center">
-              <Clock className="w-4 h-4 text-[#3363AD]" />
-            </div>
-          </div>
-          <div className="text-xl font-bold text-gray-900">
-            {analytics?.avgStudyTime?.value?.toFixed(1) || 0}{analytics?.avgStudyTime?.unit === 'hours' ? 'h' : ''}
-          </div>
-          {analytics?.avgStudyTime && getTrendDisplay(analytics.avgStudyTime.trend)}
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium text-gray-600">Completion Rate</span>
-            <div className="w-9 h-9 rounded-lg bg-[#3363AD]/10 flex items-center justify-center">
-              <CheckCircle className="w-4 h-4 text-[#3363AD]" />
-            </div>
-          </div>
-          <div className="text-xl font-bold text-gray-900">
-            {analytics?.completionRate?.value?.toFixed(1) || 0}%
-          </div>
-          {analytics?.completionRate && getTrendDisplay(analytics.completionRate.trend)}
-        </div>
-      </div>
-
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow p-4">
-          <h3 className="text-sm font-semibold text-gray-900 mb-3">CHW Engagement Trends</h3>
-          {analytics?.engagementTrends && analytics.engagementTrends.length > 0 ? (
-            <div className="h-56">
-              {(() => {
-                const maxActivity = Math.max(...analytics.engagementTrends.map(t => t.activity));
-                return (
-                  <div className="h-full flex items-end justify-between gap-2 px-2">
-                    {analytics.engagementTrends.map((trend, index) => {
-                      const barHeight = maxActivity > 0 ? (trend.activity / maxActivity) * 180 : 0;
-                      return (
-                        <div key={index} className="flex-1 flex flex-col items-center">
-                          <div className="w-full flex flex-col items-center mb-2">
-                            <span className="text-[10px] font-medium text-gray-900 mb-1">
-                              {trend.activity}
-                            </span>
-                            <div
-                              className="w-full bg-gradient-to-t from-[#3363AD] to-[#3363AD]/70 rounded-t-lg transition-all duration-700 ease-out hover:from-[#3363AD] hover:to-[#3363AD]/90 cursor-pointer shadow-sm"
-                              style={{ 
-                                height: `${barHeight}px`,
-                                minHeight: trend.activity > 0 ? '8px' : '0px'
-                              }}
-                            />
-                          </div>
-                          <span className="text-[10px] text-gray-600 text-center leading-tight">
-                            {trend.date}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })()}
-            </div>
+      <div className='grid grid-cols-1 lg:grid-cols-2 gap-4'>
+        <div className={V2_CARD_SHELL_PADDED}>
+          <h3 className={`${V2_SECTION_TITLE} mb-3`}>Engagement trend</h3>
+          {trends.length === 0 ? (
+            <Empty Icon={TrendingUp} text='No engagement data yet' />
           ) : (
-            <div className="flex items-center justify-center h-56 bg-gray-50 rounded">
-              <div className="text-center text-gray-500">
-                <TrendingUp className="w-10 h-10 mx-auto mb-2 text-gray-400" />
-                <p className="text-xs">No engagement trend data available</p>
-              </div>
-            </div>
+            <TrendLineChart data={trends} xKey='date' yKey='activity' label='Activity' />
           )}
         </div>
 
-        <div className="bg-white rounded-lg shadow p-4">
-          <h3 className="text-sm font-semibold text-gray-900 mb-3">Performance Distribution</h3>
-          {analytics?.performanceDistribution ? (
-            <div className="space-y-3">
-              {Object.entries(analytics.performanceDistribution).map(([key, item]) => {
-                const colorMap: { [key: string]: string } = {
-                  excellent: "bg-[#3363AD]",
-                  good: "bg-[#3363AD]/80",
-                  average: "bg-[#3363AD]/60",
-                  poor: "bg-[#3363AD]/40",
-                  failing: "bg-red-500"
-                };
-                return (
-                  <div key={key}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-medium text-gray-700">{item.range}</span>
-                      <span className="text-xs text-gray-500">
-                        {item.count} ({item.percentage}%)
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-1.5">
-                      <div
-                        className={`${colorMap[key]} h-1.5 rounded-full transition-all duration-500`}
-                        style={{ width: `${item.percentage}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+        <div className={V2_CARD_SHELL_PADDED}>
+          <h3 className={`${V2_SECTION_TITLE} mb-3`}>Score distribution</h3>
+          {!analytics?.performanceDistribution ? (
+            <Empty Icon={CheckCircle} text='No score data yet' />
           ) : (
-            <div className="flex items-center justify-center h-56 bg-gray-50 rounded">
-              <div className="text-center text-gray-500">
-                <CheckCircle className="w-10 h-10 mx-auto mb-2 text-gray-400" />
-                <p className="text-xs">No performance data available</p>
-              </div>
+            <div className='space-y-3'>
+              {Object.entries(analytics.performanceDistribution).map(([key, item]) => (
+                <div key={key}>
+                  <div className='flex items-center justify-between mb-1'>
+                    <span className={`text-xs font-semibold capitalize ${V2_STRONG}`}>
+                      {key} <span className={`font-normal ${V2_MUTED}`}>({item.range})</span>
+                    </span>
+                    <span className={`text-xs tabular-nums ${V2_MUTED}`}>
+                      {item.count.toLocaleString()} · {item.percentage}%
+                    </span>
+                  </div>
+                  <div className='w-full bg-[#E8EEF6] dark:bg-slate-700 rounded-full h-1.5'>
+                    <div
+                      className={`${BAND_COLORS[key] ?? "bg-[#3363AD]"} h-1.5 rounded-full`}
+                      style={{ width: `${item.percentage}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
       </div>
 
-      {/* Top Performers */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow p-4">
-          <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-[#3363AD]/10 flex items-center justify-center">
-              <Award className="w-4 h-4 text-[#3363AD]" />
-            </div>
-            Top Performers
+      <div className='grid grid-cols-1 lg:grid-cols-2 gap-4'>
+        <div className={V2_CARD_SHELL_PADDED}>
+          <h3 className={`${V2_SECTION_TITLE} mb-3 flex items-center gap-2`}>
+            <Award className='w-4 h-4 text-[#3363AD] dark:text-blue-300' />
+            Top performers
           </h3>
-          <div className="space-y-2">
-            {analytics?.topPerformers && analytics.topPerformers.length > 0 ? (
-              analytics.topPerformers.slice(0, 5).map((student, index) => (
-                <div key={student.id} className="flex items-center gap-3 p-2.5 bg-gray-50 rounded-lg">
-                  <div className="flex-shrink-0 w-7 h-7 bg-[#3363AD] text-white rounded-full flex items-center justify-center font-semibold text-xs">
+          {(analytics?.topPerformers ?? []).length === 0 ? (
+            <Empty Icon={Award} text='No top performers yet' />
+          ) : (
+            <div className='space-y-1'>
+              {analytics!.topPerformers.slice(0, 5).map((chw, index) => (
+                <button
+                  key={chw.id}
+                  type='button'
+                  onClick={() => openChw(chw.id)}
+                  className='w-full text-left flex items-center gap-3 p-2 rounded-xl hover:bg-[#F8FAFC] dark:hover:bg-slate-800/60 transition-colors'
+                >
+                  <span className='w-7 h-7 shrink-0 rounded-full bg-[#3363AD] text-white text-xs font-bold flex items-center justify-center'>
                     {index + 1}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-gray-900 text-xs truncate">{student.name}</div>
-                    <div className="text-[10px] text-gray-500">
-                      {student.completedCourses} completed • Avg: {student.avgScore.toFixed(1)}% • {student.certificates} certs
-                    </div>
-                    <div className="text-[10px] text-[#3363AD]">
-                      {student.district}, {student.sector}
-                    </div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="text-center py-6 text-gray-500">
-                <Award className="w-10 h-10 mx-auto mb-2 text-gray-400" />
-                <p className="text-xs">No top performers data available</p>
-              </div>
-            )}
-          </div>
+                  </span>
+                  <span className='min-w-0 flex-1'>
+                    <span className={`block text-xs font-bold truncate ${V2_STRONG}`}>{chw.name}</span>
+                    <span className={`block text-[11px] ${V2_MUTED}`}>
+                      {chw.completedCourses} completed · avg {chw.avgScore.toFixed(1)}% · {chw.certificates} certificates
+                    </span>
+                    <span className='block text-[11px] text-[#3363AD] dark:text-blue-300'>
+                      {[chw.district, chw.sector].filter(Boolean).join(", ")}
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
-        <div className="bg-white rounded-lg shadow p-4">
-          <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-[#3363AD]/10 flex items-center justify-center">
-              <BookOpen className="w-4 h-4 text-[#3363AD]" />
-            </div>
-            Most Active Learners
+        <div className={V2_CARD_SHELL_PADDED}>
+          <h3 className={`${V2_SECTION_TITLE} mb-3 flex items-center gap-2`}>
+            <BookOpen className='w-4 h-4 text-[#3363AD] dark:text-blue-300' />
+            Most active (last 30 days)
           </h3>
-          <div className="space-y-2">
-            {analytics?.mostActiveLearners && analytics.mostActiveLearners.length > 0 ? (
-              analytics.mostActiveLearners.slice(0, 5).map((student) => (
-                <div key={student.id} className="flex items-center gap-3 p-2.5 bg-gray-50 rounded-lg">
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-gray-900 text-xs truncate">{student.name}</div>
-                    <div className="text-[10px] text-gray-500">
-                      {student.studyHours.toFixed(1)}h study • {student.activeCourses} active courses
-                    </div>
-                    <div className="text-[10px] text-[#3363AD]">
-                      {student.district}, {student.sector}
-                    </div>
-                  </div>
-                  <div className="text-[10px] text-gray-400 shrink-0">{formatLastActive(student.lastActive)}</div>
-                </div>
-              ))
-            ) : (
-              <div className="text-center py-6 text-gray-500">
-                <BookOpen className="w-10 h-10 mx-auto mb-2 text-gray-400" />
-                <p className="text-xs">No active learners data available</p>
-              </div>
-            )}
-          </div>
+          {(analytics?.mostActiveLearners ?? []).length === 0 ? (
+            <Empty Icon={BookOpen} text='No recent learner activity' />
+          ) : (
+            <div className='space-y-1'>
+              {analytics!.mostActiveLearners.slice(0, 5).map((chw) => (
+                <button
+                  key={chw.id}
+                  type='button'
+                  onClick={() => openChw(chw.id)}
+                  className='w-full text-left flex items-center gap-3 p-2 rounded-xl hover:bg-[#F8FAFC] dark:hover:bg-slate-800/60 transition-colors'
+                >
+                  <span className='min-w-0 flex-1'>
+                    <span className={`block text-xs font-bold truncate ${V2_STRONG}`}>{chw.name}</span>
+                    <span className={`block text-[11px] ${V2_MUTED}`}>
+                      {chw.studyHours.toFixed(1)}h study · {chw.activeCourses} active courses
+                    </span>
+                    <span className='block text-[11px] text-[#3363AD] dark:text-blue-300'>
+                      {[chw.district, chw.sector].filter(Boolean).join(", ")}
+                    </span>
+                  </span>
+                  <span className={`text-[11px] shrink-0 ${V2_MUTED}`}>{formatLastActive(chw.lastActive)}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Recent Activity */}
-      <div className="bg-white rounded-lg shadow p-4">
-        <h3 className="text-sm font-semibold text-gray-900 mb-3">Recent CHW Activity</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left py-2 px-3 text-[10px] font-semibold text-gray-700 uppercase tracking-wide">CHW Name</th>
-                <th className="text-left py-2 px-3 text-[10px] font-semibold text-gray-700 uppercase tracking-wide">Course</th>
-                <th className="text-left py-2 px-3 text-[10px] font-semibold text-gray-700 uppercase tracking-wide">Progress</th>
-                <th className="text-left py-2 px-3 text-[10px] font-semibold text-gray-700 uppercase tracking-wide">Last Activity</th>
-                <th className="text-left py-2 px-3 text-[10px] font-semibold text-gray-700 uppercase tracking-wide">Status</th>
-                <th className="text-left py-2 px-3 text-[10px] font-semibold text-gray-700 uppercase tracking-wide">Location</th>
+      <div className={`${V2_CARD_SHELL} overflow-hidden`}>
+        <div className='px-4 py-3 flex items-center justify-between gap-3'>
+          <h3 className={V2_SECTION_TITLE}>Recent activity (last 24 hours)</h3>
+          {analytics && (
+            <span className={`text-[11px] ${V2_MUTED}`}>
+              {analytics.averageCoursesPerStudent} courses per CHW on average · {analytics.activeStudentPercentage}% active
+            </span>
+          )}
+        </div>
+        <div className='overflow-x-auto'>
+          <table className='w-full text-sm'>
+            <thead className={V2_TABLE_HEAD}>
+              <tr>
+                <th className='text-left px-4 py-2.5'>CHW</th>
+                <th className='text-left px-3 py-2.5'>Course</th>
+                <th className='text-left px-3 py-2.5'>Progress</th>
+                <th className='text-left px-3 py-2.5'>Last activity</th>
+                <th className='text-left px-3 py-2.5'>Status</th>
+                <th className='text-left px-4 py-2.5'>Location</th>
               </tr>
             </thead>
-            <tbody>
-              {analytics?.recentActivity && analytics.recentActivity.length > 0 ? (
-                analytics.recentActivity.slice(0, 10).map((item) => (
-                  <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-2 px-3 text-xs font-medium text-gray-900">{item.studentName}</td>
-                    <td className="py-2 px-3 text-xs text-gray-600" title={item.courseName}>
-                      <div className="max-w-xs truncate">{item.courseName}</div>
+            <tbody className={V2_TABLE_BODY}>
+              {(analytics?.recentActivity ?? []).length === 0 ? (
+                <tr>
+                  <td colSpan={6} className={`px-4 py-8 text-center text-xs ${V2_MUTED}`}>
+                    {isLoading ? "Loading…" : "No activity in the last 24 hours"}
+                  </td>
+                </tr>
+              ) : (
+                analytics!.recentActivity.slice(0, 10).map((item) => (
+                  <tr
+                    key={item.id}
+                    onClick={() => openChw(item.studentId)}
+                    className={`${V2_TABLE_ROW} ${item.studentId ? "cursor-pointer" : ""}`}
+                  >
+                    <td className={`px-4 py-2.5 font-semibold ${V2_STRONG}`}>{item.studentName}</td>
+                    <td className={`px-3 py-2.5 max-w-xs truncate ${V2_MUTED}`} title={item.courseName}>
+                      {item.courseName}
                     </td>
-                    <td className="py-2 px-3 text-xs text-gray-600">
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-20 bg-gray-200 rounded-full h-1">
-                          <div
-                            className="bg-[#3363AD] h-1 rounded-full transition-all duration-300"
-                            style={{ width: `${item.progress}%` }}
-                          ></div>
+                    <td className='px-3 py-2.5'>
+                      <div className='flex items-center gap-2'>
+                        <div className='w-20 bg-[#E8EEF6] dark:bg-slate-700 rounded-full h-1.5'>
+                          <div className='bg-[#3363AD] h-1.5 rounded-full' style={{ width: `${item.progress}%` }} />
                         </div>
-                        <span className="text-[10px]">{item.progress}%</span>
+                        <span className={`text-[11px] tabular-nums ${V2_MUTED}`}>{item.progress}%</span>
                       </div>
                     </td>
-                    <td className="py-2 px-3 text-xs text-gray-600">{formatLastActive(item.lastActivity)}</td>
-                    <td className="py-2 px-3">
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${
-                          item.status === "Completed"
-                            ? "bg-[#3363AD]/10 text-[#3363AD]"
-                            : "bg-[#3363AD]/10 text-[#3363AD]"
-                        }`}
-                      >
-                        {item.status}
-                      </span>
+                    <td className={`px-3 py-2.5 text-xs ${V2_MUTED}`}>{formatLastActive(item.lastActivity)}</td>
+                    <td className='px-3 py-2.5'>
+                      <span className={`${V2_PILL} ${V2_PILL_BLUE}`}>{item.status}</span>
                     </td>
-                    <td className="py-2 px-3 text-[10px] text-gray-500">
-                      {item.district}, {item.sector}
+                    <td className={`px-4 py-2.5 text-xs ${V2_MUTED}`}>
+                      {[item.district, item.sector].filter(Boolean).join(", ")}
                     </td>
                   </tr>
                 ))
-              ) : (
-                <tr>
-                  <td colSpan={6} className="py-6 text-center text-gray-500 text-xs">
-                    No recent activity data available
-                  </td>
-                </tr>
               )}
             </tbody>
           </table>
         </div>
-
-        {/* Additional Summary */}
-        {analytics && (
-          <div className="mt-4 pt-4 border-t border-gray-200">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="text-center">
-                <div className="text-xl font-bold text-gray-900">{analytics.averageCoursesPerStudent}</div>
-                <div className="text-xs text-gray-600">Average Courses per CHW</div>
-              </div>
-              <div className="text-center">
-                <div className="text-xl font-bold text-gray-900">{analytics.activeStudentPercentage}%</div>
-                <div className="text-xs text-gray-600">CHW Activity Rate</div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
-    </div>
+    </>
   );
 };
 

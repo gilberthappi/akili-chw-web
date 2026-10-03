@@ -110,5 +110,17 @@
     "MASTERS_DEGREE": "Master's Degree",
     "PHD": "PhD",
     "PROFESSOR": "Professor"
+  },
+  "chat": {
+    "label": "Viki",
+    "title": "Viki",
+    "welcome": "Muraho! Murakaza neza. Ndi umufasha wanyu ukoresha ubwenge bw’ubukorano. Nabafasha iki uyu munsi?",
+    "placeholder": "Baza ikibazo cyawe...",
+    "error": "Ntibyashobotse kubona igisubizo. Mwongere mugerageze.",
+    "expand": "Kwagura ikiganiro",
+    "shrink": "Kugabanya ikiganiro",
+    "close": "Gufunga ikiganiro",
+    "open": "Gufungura ikiganiro",
+    "send": "Ohereza"
   }
 }

@@ -984,6 +984,7 @@ export interface ICoursePerformance {
   completed: number;
   rate: number; // completion rate
   certified: number; // certificates issued for this course
+  hasFinalTest?: boolean;
 }
 
 export interface IStudentAnalyticsResponse {
@@ -1066,6 +1067,7 @@ export interface IActiveLearner {
 
 export interface IRecentStudentActivity {
   id: string;
+  studentId?: string;
   studentName: string;
   studentPhoto: string;
   courseName: string;

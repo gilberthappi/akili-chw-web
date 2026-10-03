@@ -2,13 +2,13 @@ import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { BookOpen, Users, Star, FileText, Plus, CheckCircle2 } from "lucide-react";
+import { BookOpen, Users, Star, FileText, Plus, CheckCircle2, Download, Loader2 } from "lucide-react";
 import { V2KpiCard, V2PageHeader, V2Tabs, type V2TabItem } from "@/components/v2/V2Page";
-import { V2_BTN_PRIMARY, V2_PAGE_CANVAS } from "@/components/dashboard/v2/widgets/admin/v2CardStyles";
+import { V2_BTN_PRIMARY, V2_BTN_SECONDARY, V2_PAGE_CANVAS } from "@/components/dashboard/v2/widgets/admin/v2CardStyles";
 import CourseList from "@/components/courses/CourseList";
 import CreateCourseModal from "@/components/courseBuilder/CreateCourseModal";
 import { CourseCreationForm } from "@/types/courseBuilder.d";
-import { createCourse, getAllCoursesNoPagination, getAllCoursesStats, uploadImage as uploadCourseImage } from "@/services/course.service";
+import { createCourse, exportCoursesToExcel, getAllCoursesNoPagination, getAllCoursesStats } from "@/services/course.service";
 import { uploadImage } from "@/services/uploader.api";
 import { courseKeys } from "@/utils/constants/queryKeys";
 import type { ICourse } from "@/types";
@@ -32,6 +32,8 @@ type SuperCourseCreateResponse = {
 const CoursesPage = () => {
   const [selectedTab, setSelectedTab] = useState("all");
   const [showCourseBuilderModal, setShowCourseBuilderModal] = useState(false);
+  const [searchKeyword, setSearchKeyword] = useState("");
+  const [isExporting, setIsExporting] = useState(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -73,6 +75,32 @@ const CoursesPage = () => {
   }, [courseStatsRes, allCoursesRes]);
 
   const createCourseMutation = useMutation({ mutationFn: createCourse });
+
+  const handleExport = async () => {
+    const params = new URLSearchParams();
+    if (selectedTab === "published") params.append("isPublished", "true");
+    else if (selectedTab === "draft") params.append("isPublished", "false");
+    if (searchKeyword) params.append("searchq", searchKeyword);
+    const qs = params.toString();
+
+    setIsExporting(true);
+    try {
+      const blob = await exportCoursesToExcel(qs ? `?${qs}` : "");
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `courses_${new Date().toISOString().split("T")[0]}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success("Courses exported");
+    } catch {
+      toast.error("Failed to export courses");
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const uploadCoverIconIfNeeded = async (coverIcon: string): Promise<string> => {
     if (!coverIcon.startsWith("data:image/")) return coverIcon;
@@ -132,6 +160,16 @@ const CoursesPage = () => {
               <V2Tabs items={tabItems} active={selectedTab} onChange={setSelectedTab} />
               <button
                 type="button"
+                onClick={handleExport}
+                disabled={isExporting}
+                className={V2_BTN_SECONDARY}
+                title="Export the courses shown (current tab and search) to Excel"
+              >
+                {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                Export
+              </button>
+              <button
+                type="button"
                 onClick={() => setShowCourseBuilderModal(true)}
                 className={V2_BTN_PRIMARY}
               >
@@ -168,7 +206,11 @@ const CoursesPage = () => {
           />
         </div>
 
-        <CourseList hideHeader={true} filter={getFilterString(selectedTab)} />
+        <CourseList
+          hideHeader={true}
+          filter={getFilterString(selectedTab)}
+          onSearchChange={setSearchKeyword}
+        />
       </div>
 
       <CreateCourseModal

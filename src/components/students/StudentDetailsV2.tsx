@@ -8,6 +8,7 @@ import { PerformanceMeterV2 } from "../dashboard/v2/widgets/PerformanceMeterV2";
 import { EnrolledCoursesTableV2 } from "../dashboard/v2/widgets/EnrolledCoursesTableV2";
 import { CertificatesEarnedWidgetV2 } from "../dashboard/v2/widgets/CertificatesEarnedWidgetV2";
 import { XCircle } from "lucide-react";
+import { LearningPlansWidget } from "./LearningPlansWidget";
 import { SectionSkeleton } from "../dashboard/shared/SectionSkeleton";
 import { ICourseStatEntry } from "@/services/progress.service";
 import { IMyCertificate } from "@/services/certificates.service";
@@ -271,6 +272,8 @@ export const StudentDetailsV2: React.FC = () => {
           />
 
           <EnrolledCoursesTableV2 courses={coursesList} readOnly />
+
+          {id && <LearningPlansWidget studentId={id} />}
         </div>
       </div>
     </div>

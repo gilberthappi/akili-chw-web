@@ -1,6 +1,6 @@
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { ProtectedRoute } from "@/components/common/ProtectedRoute";
-import { Navigate, useParams } from "react-router-dom";
+import { Navigate, useLocation, useParams } from "react-router-dom";
 import ErrorPage from "@/pages/ErrorPage";
 import AdminLayout from "@/pages/Layout";
 import LearningLayout from "@/components/layouts/LearningLayout";
@@ -30,6 +30,7 @@ import NewCoursesBuilder from "@/pages/dashboard/NewCoursesBuilder";
 import StudentsPage from "@/pages/dashboard/Students";
 import TestersPage from "@/pages/dashboard/Testers";
 import ChwRegistryPage from "@/pages/dashboard/ChwRegistry";
+import DictionaryPage from "@/pages/dashboard/Dictionary";
 import DemographicLearnersPage from "@/pages/dashboard/DemographicLearners";
 import StudentActivityPage from "@/components/students/StudentActivityPage";
 import { StudentDetailsV2 } from "@/components/students/StudentDetailsV2";
@@ -75,7 +76,22 @@ import {
 } from "@/utils/roles";
 import { DEPARTMENT_NAV } from "@/utils/departmentNav";
 
-const NEW_DEPT_FEATURE_ROUTES = DEPARTMENT_NAV.filter((n) => n.kind === "new");
+// Several departments can share one path (e.g. /documents); the router only
+// matches the first route, so merge their roles into a single entry.
+const NEW_DEPT_FEATURE_ROUTES = Array.from(
+  DEPARTMENT_NAV.filter((n) => n.kind === "new")
+    .reduce((byPath, item) => {
+      const existing = byPath.get(item.path);
+      byPath.set(
+        item.path,
+        existing
+          ? { ...existing, roles: Array.from(new Set([...existing.roles, ...item.roles])) }
+          : { ...item, roles: [...item.roles] },
+      );
+      return byPath;
+    }, new Map<string, (typeof DEPARTMENT_NAV)[number]>())
+    .values(),
+);
 const WELTEL_USER_LOOKUP_ROLES = [
   "WELTEL_SUPPORT",
   "WELTEL_ADMIN",
@@ -89,6 +105,11 @@ const WELTEL_BOARDS_ROLES = [
   "CIIC_EDITOR",
   "CIIC_REVIEWER",
 ] as const;
+
+const LegacyLearnersRedirect = () => {
+  const { search } = useLocation();
+  return <Navigate to={`/demographics/learners${search}`} replace />;
+};
 
 const LegacyStudentDetailRedirect = () => {
   const { id } = useParams();
@@ -125,21 +146,36 @@ const RoutesProvider = () => {
         {
           path: "analytics",
           element: (
-            <ProtectedRoute
-              allowedRoles={[...COURSE_MGMT_ROLES]}
-              allowedIndustries={["SFH", "WELTEL", "RBC", "CIIC_HIN"]}
-            >
+            <ProtectedRoute allowedRoles={[...COURSE_MGMT_ROLES]}>
               <Analytics />
             </ProtectedRoute>
           ),
           children: [
             {
               path: "courses",
-              element: <CourseAnalytics />,
+              element: (
+                <ProtectedRoute
+                  allowedRoles={[...COURSE_MGMT_ROLES]}
+                  allowedIndustries={["SFH", "WELTEL", "RBC", "CIIC_HIN"]}
+                >
+                  <CourseAnalytics />
+                </ProtectedRoute>
+              ),
             },
             {
               path: "student",
-              element: <StudentAnalytics />,
+              element: (
+                <ProtectedRoute
+                  allowedRoles={[...COURSE_MGMT_ROLES]}
+                  allowedIndustries={["SFH", "WELTEL", "RBC", "CIIC_HIN"]}
+                >
+                  <StudentAnalytics />
+                </ProtectedRoute>
+              ),
+            },
+            {
+              path: "learners",
+              element: <LegacyLearnersRedirect />,
             },
           ],
         },
@@ -230,6 +266,18 @@ const RoutesProvider = () => {
               <ChwRegistryPage />
             </ProtectedRoute>
           ),
+        },
+        {
+          path: "dictionary",
+          element: (
+            <ProtectedRoute allowedRoles={["ADMIN", "STAFF"]}>
+              <DictionaryPage />
+            </ProtectedRoute>
+          ),
+        },
+        {
+          path: "glossary",
+          element: <Navigate to="/dictionary" replace />,
         },
         {
           path: "demographics/learners",

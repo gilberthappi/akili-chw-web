@@ -1,61 +1,69 @@
 import React from "react";
-import { Outlet, useLocation, Link } from "react-router-dom";
-import { BookOpen, Users } from "lucide-react";
+import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { BookOpen, GraduationCap } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { V2PageHeader, V2Tabs, type V2TabItem } from "@/components/v2/V2Page";
+import { V2_PAGE_CANVAS } from "@/components/dashboard/v2/widgets/admin/v2CardStyles";
+import { COURSE_MGMT_ROLES, expandRoles, resolveDepartmentStaffRole } from "@/utils/roles";
+
+export type AnalyticsTab = "courses" | "student";
+
+const TAB_META: Record<AnalyticsTab, { label: string; subtitle: string; Icon: typeof BookOpen }> = {
+  courses: {
+    label: "Courses",
+    subtitle: "Enrolment, completion and performance for every course",
+    Icon: BookOpen,
+  },
+  student: {
+    label: "CHWs",
+    subtitle: "CHW engagement, scores and recent learning activity",
+    Icon: GraduationCap,
+  },
+};
+
+export const useAnalyticsTabs = (): AnalyticsTab[] => {
+  const { user } = useAuth();
+  const roles = (Array.isArray(user?.roles) ? user.roles : user?.roles ? [user.roles] : []) as string[];
+  const effective = expandRoles(roles);
+  const tabs: AnalyticsTab[] = [];
+  if (COURSE_MGMT_ROLES.some((r) => effective.has(r))) tabs.push("courses", "student");
+  return tabs;
+};
 
 export const Analytics: React.FC = () => {
   const location = useLocation();
-  const isRootAnalytics = location.pathname === "/analytics";
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const tabs = useAnalyticsTabs();
+  const segment = location.pathname.replace(/^\/analytics\/?/, "").split("/")[0] as AnalyticsTab | "";
 
-  if (isRootAnalytics) {
-    return (
-      <div className="p-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Analytics Overview</h1>
-          <p className="text-gray-600">Select an analytics category to view detailed insights</p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Course Analytics Card */}
-          <Link
-            to="/analytics/courses"
-            className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow border-l-4 border-blue-500"
-          >
-            <div className="flex items-start gap-4">
-              <div className="p-3 bg-blue-100 rounded-lg">
-                <BookOpen className="w-6 h-6 text-blue-600" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Course Analytics</h3>
-                <p className="text-sm text-gray-600">
-                  View detailed statistics and insights about course performance, completion rates, and engagement metrics.
-                </p>
-              </div>
-            </div>
-          </Link>
-
-          {/* Student Analytics Card */}
-          <Link
-            to="/analytics/student"
-            className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow border-l-4 border-green-500"
-          >
-            <div className="flex items-start gap-4">
-              <div className="p-3 bg-green-100 rounded-lg">
-                <Users className="w-6 h-6 text-green-600" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">CHW Analytics</h3>
-                <p className="text-sm text-gray-600">
-                  Track CHW progress, performance metrics, and engagement levels across all courses.
-                </p>
-              </div>
-            </div>
-          </Link>
-        </div>
-      </div>
-    );
+  if (resolveDepartmentStaffRole(user?.roles as string[] | string | undefined)?.startsWith("CIIC_")) {
+    return <Navigate to={segment === "student" ? "/?tab=chws" : "/"} replace />;
   }
 
-  return <Outlet />;
-};
+  if (!segment || !tabs.includes(segment)) {
+    if (tabs.length === 0) return <Navigate to='/' replace />;
+    return <Navigate to={`/analytics/${tabs[0]}${location.search}`} replace />;
+  }
 
-export default Analytics;
+  const items: V2TabItem<AnalyticsTab>[] = tabs.map((key) => ({
+    key,
+    label: TAB_META[key].label,
+    Icon: TAB_META[key].Icon,
+  }));
+
+  return (
+    <div className={V2_PAGE_CANVAS}>
+      <V2PageHeader
+        title='Analytics'
+        subtitle={TAB_META[segment].subtitle}
+        actions={
+          tabs.length > 1 ? (
+            <V2Tabs items={items} active={segment} onChange={(key) => navigate(`/analytics/${key}`)} />
+          ) : undefined
+        }
+      />
+      <Outlet />
+    </div>
+  );
+};

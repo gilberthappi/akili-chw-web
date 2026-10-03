@@ -41,6 +41,11 @@ export const getAllCoursesStats = async (): Promise<IDashboardStatsResponse> => 
   return (await api.get('/courses/dashboard/statistics')).data;
 };
 
+export const exportCoursesToExcel = async (params?: string): Promise<Blob> => {
+  const response = await api.get(`/courses/export${params ?? ""}`, { responseType: "blob" });
+  return response.data;
+};
+
 export const getAllCoursesNoPagination = async (params?: string): Promise<IResponse<ICourse[]>> => {
   const queryParams = params ? params : "";
   return (await api.get(`/courses/all${queryParams}`)).data;

@@ -34,9 +34,10 @@ import DocumentModal from "./DocumentModal";
 interface ListProps {
   hideHeader?: boolean;
   filter?: string;
+  onSearchChange?: (keyword: string) => void;
 }
 
-const CourseList: FC<ListProps> = ({ filter }) => {
+const CourseList: FC<ListProps> = ({ filter, onSearchChange }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchKeyword, setSearchKeyword] = useState("");
   const [localSearch, setLocalSearch] = useState("");
@@ -73,6 +74,10 @@ const CourseList: FC<ListProps> = ({ filter }) => {
     setSearchKeyword("");
     setLocalSearch("");
   }, [filter]);
+
+  useEffect(() => {
+    onSearchChange?.(searchKeyword);
+  }, [searchKeyword, onSearchChange]);
 
   const courses = data?.data || [];
   const totalItems = data?.totalItems || 0;

@@ -5,7 +5,8 @@ import { CEHODashboardV2 } from "@/components/dashboard/v2/CEHODashboardV2";
 import { AdminDashboardV2 } from "@/components/dashboard/v2/AdminDashboardV2";
 import { RoleWorkspaceHome } from "@/components/dashboard/RoleWorkspaceHome";
 import { DashboardVersionSwitcher } from "@/components/dashboard/DashboardVersionSwitcher";
-import { usesRoleWorkspaceHome } from "@/utils/roles";
+import { resolveDepartmentStaffRole, usesRoleWorkspaceHome } from "@/utils/roles";
+import { CiicAnalyticsDashboard } from "@/pages/dashboard/analytics/CiicAnalyticsDashboard";
 import { V2_PAGE_CANVAS } from "@/components/dashboard/v2/widgets/admin/v2CardStyles";
 import { SectionSkeleton } from "@/components/dashboard/shared/SectionSkeleton";
 
@@ -27,6 +28,11 @@ export const DashboardV2: React.FC = () => {
   const isStaffLike = hasRole(["ADMIN", "STAFF", "DEVELOPER"]);
   const isCEHO = hasRole(["CEHO"]) && !isStaffLike;
   const isLearner = hasRole(["TRAINEE", "TESTER"]) && !isStaffLike;
+
+  const deptRole = resolveDepartmentStaffRole(user?.roles as string[] | string | undefined);
+  if (deptRole?.startsWith("CIIC_")) {
+    return <CiicAnalyticsDashboard />;
+  }
 
   if (roleWorkspaceHome) {
     return (

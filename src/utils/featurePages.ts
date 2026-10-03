@@ -222,7 +222,7 @@ export const FEATURE_PAGES: Record<string, FeaturePageConfig> = {
       ],
     },
     actions: [
-      { label: "Glossary", href: "/glossary", primary: true },
+      { label: "Dictionary", href: "/dictionary", primary: true },
       { label: "Resources", href: "/resources" },
       { label: "Courses", href: "/courses" },
     ],

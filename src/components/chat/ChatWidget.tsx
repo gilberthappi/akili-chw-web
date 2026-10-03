@@ -2,13 +2,36 @@ import React, { useState, useRef, useEffect } from "react";
 import { Bot, X, Send, Maximize2, Minimize2 } from "lucide-react";
 import { sendChatMessage, type ChatMessage } from "@/services/chat.service";
 import toast from "react-hot-toast";
+import { useTranslation } from "react-i18next";
 
 const PANEL_H = 420;
 const PANEL_W = 380;
 const PANEL_H_EXPANDED = "85vh";
 const PANEL_W_EXPANDED = "min(480px, 95vw)";
 
+const URL_RE = /(https?:\/\/[^\s)]+)/g;
+
+function renderWithLinks(text: string): React.ReactNode[] {
+  return text.split(URL_RE).map((part, i) =>
+    i % 2 === 1 ? (
+      <a
+        key={i}
+        href={part}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="break-all text-primary underline hover:opacity-80"
+      >
+        {part}
+      </a>
+    ) : (
+      part
+    ),
+  );
+}
+
 export const ChatWidget: React.FC = () => {
+  // Drop the `lng` option to make them follow the language chosen in Settings instead.
+  const { t } = useTranslation(undefined, { lng: "rw" });
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -33,7 +56,7 @@ export const ChatWidget: React.FC = () => {
       const { reply } = await sendChatMessage(text, messages);
       setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
     } catch {
-      toast.error("Could not get a response. Try again.");
+      toast.error(t("chat.error"));
       setMessages((prev) => prev.slice(0, -1));
     } finally {
       setLoading(false);
@@ -53,14 +76,14 @@ export const ChatWidget: React.FC = () => {
           }}
         >
           <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
-            <span className="font-semibold text-gray-800">Assistant</span>
+            <span className="font-semibold text-gray-800">{t("chat.title")}</span>
             <div className="flex items-center gap-1">
               <button
                 type="button"
                 onClick={() => setExpanded((e) => !e)}
                 className="rounded p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
-                aria-label={expanded ? "Shrink chat" : "Expand chat"}
-                title={expanded ? "Shrink" : "Expand"}
+                aria-label={expanded ? t("chat.shrink") : t("chat.expand")}
+                title={expanded ? t("chat.shrink") : t("chat.expand")}
               >
                 {expanded ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
               </button>
@@ -68,7 +91,7 @@ export const ChatWidget: React.FC = () => {
                 type="button"
                 onClick={() => setOpen(false)}
                 className="rounded p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
-                aria-label="Close chat"
+                aria-label={t("chat.close")}
               >
                 <X className="h-5 w-5" />
               </button>
@@ -80,7 +103,7 @@ export const ChatWidget: React.FC = () => {
           >
             {messages.length === 0 && (
               <p className="text-sm text-gray-500 text-center py-6">
-                Hello! Welcome. I’m your AI assistant. How can I help you today?
+                {t("chat.welcome")}
               </p>
             )}
             {messages.map((m, i) => (
@@ -89,13 +112,13 @@ export const ChatWidget: React.FC = () => {
                 className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
               >
                 <div
-                  className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
+                  className={`max-w-[85%] whitespace-pre-wrap break-words rounded-lg px-3 py-2 text-sm ${
                     m.role === "user"
                       ? "bg-primary text-white"
                       : "bg-gray-100 text-gray-800"
                   }`}
                 >
-                  {m.content}
+                  {m.role === "assistant" ? renderWithLinks(m.content) : m.content}
                 </div>
               </div>
             ))}
@@ -121,7 +144,7 @@ export const ChatWidget: React.FC = () => {
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask something..."
+                placeholder={t("chat.placeholder")}
                 className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                 disabled={loading}
               />
@@ -129,7 +152,7 @@ export const ChatWidget: React.FC = () => {
                 type="submit"
                 disabled={loading || !input.trim()}
                 className="rounded-lg bg-primary px-3 py-2 text-white hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-                aria-label="Send"
+                aria-label={t("chat.send")}
               >
                 <Send className="h-5 w-5" />
               </button>
@@ -141,10 +164,37 @@ export const ChatWidget: React.FC = () => {
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-white shadow-lg hover:bg-primary/90 transition-colors"
-        aria-label={open ? "Close chat" : "Open chat"}
+        className="fixed bottom-6 right-6 z-50 flex h-16 w-16 items-center justify-center rounded-full bg-primary text-white shadow-lg hover:bg-primary/90 transition-colors"
+        aria-label={open ? t("chat.close") : t("chat.open")}
+        title={open ? t("chat.close") : t("chat.label")}
       >
-        <Bot className="h-7 w-7" />
+        {open ? (
+          <X className="h-7 w-7" />
+        ) : (
+          <>
+            {/* Label curved along the top edge of the button, above the robot */}
+            <svg
+              viewBox="0 0 64 64"
+              className="pointer-events-none absolute inset-0 h-full w-full"
+              aria-hidden="true"
+            >
+              <defs>
+                <path id="chat-fab-arc" d="M 9,32 A 23,23 0 0 1 55,32" />
+              </defs>
+              <text
+                fill="currentColor"
+                fontSize="10"
+                fontWeight="700"
+                letterSpacing="0.4"
+              >
+                <textPath href="#chat-fab-arc" startOffset="50%" textAnchor="middle">
+                  {t("chat.label")}
+                </textPath>
+              </text>
+            </svg>
+            <Bot className="mt-3 h-6 w-6" />
+          </>
+        )}
       </button>
     </>
   );
