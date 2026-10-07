@@ -9,7 +9,7 @@ export interface IUser extends ICreateUser {
 
 export interface ProfileAvatarProps {
   name: string;
-  size: "w-24 h-24" | "w-10 h-10" | "w-7 h-7" | "w-6 h-6" | "w-8 h-8" | "w-10 h-6" | any;
+  size?: "w-24 h-24" | "w-10 h-10" | "w-7 h-7" | "w-6 h-6" | "w-8 h-8" | "w-10 h-6" | any;
   rounded?: boolean;
   color?: string;
   photo?: string;

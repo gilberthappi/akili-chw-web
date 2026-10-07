@@ -33,6 +33,7 @@ export interface User {
   email: string;
   phoneNumber?: string;
   roles: UserRole | UserRole[];
+  userRoles?: any[];
   permissions: string[];
   photo?: string;
   department?: UserDepartment;
@@ -329,6 +330,7 @@ export interface IAttachment {
   url: string;
   type: "image" | "video" | "audio" | "file";
   name?: string;
+  fileName?: string;
 }
 
 export interface IMessage {

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import WaveSurfer from "wavesurfer.js";
-import { Play, Pause } from "lucide-react";
+import { Play, Pause, CheckCheck } from "lucide-react";
 import { IAttachment } from "@/types";
 import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
 
@@ -9,6 +9,9 @@ interface AudioAttachmentProps {
   messageId: string;
   variant: "bubble" | "card";
   isOwn?: boolean;
+  senderPhoto?: string;
+  senderName?: string;
+  formattedTimestamp?: string;
 }
 
 const formatTime = (seconds: number): string => {
@@ -18,7 +21,13 @@ const formatTime = (seconds: number): string => {
   return `${m}:${s.toString().padStart(2, "0")}`;
 };
 
-export const AudioAttachment: React.FC<AudioAttachmentProps> = ({ attachment, messageId, variant, isOwn }) => {
+export const AudioAttachment: React.FC<AudioAttachmentProps> = ({
+  attachment,
+  messageId,
+  variant,
+  isOwn,
+  formattedTimestamp,
+}) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const wavesurferRef = useRef<WaveSurfer | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -31,12 +40,13 @@ export const AudioAttachment: React.FC<AudioAttachmentProps> = ({ attachment, me
     if (!containerRef.current) return;
     const wavesurfer = WaveSurfer.create({
       container: containerRef.current,
-      waveColor: isOwn ? "rgba(255,255,255,0.4)" : "#CBD5E1",
-      progressColor: isOwn ? "#ffffff" : "#3363AD",
+      waveColor: isOwn ? "rgba(255,255,255,0.4)" : "#94A3B8",
+      progressColor: isOwn ? "#38BDF8" : "#0284C7",
       cursorWidth: 0,
-      barWidth: 2,
-      barGap: 1,
-      height: 32,
+      barWidth: 3,
+      barGap: 2,
+      barRadius: 3,
+      height: 24,
       url: attachment.url,
     });
     wavesurferRef.current = wavesurfer;
@@ -48,7 +58,10 @@ export const AudioAttachment: React.FC<AudioAttachmentProps> = ({ attachment, me
     wavesurfer.on("audioprocess", () => setCurrentTime(wavesurfer.getCurrentTime()));
     wavesurfer.on("play", () => setIsPlaying(true));
     wavesurfer.on("pause", () => setIsPlaying(false));
-    wavesurfer.on("finish", () => setIsPlaying(false));
+    wavesurfer.on("finish", () => {
+      setIsPlaying(false);
+      setCurrentTime(0);
+    });
 
     return () => {
       wavesurfer.destroy();
@@ -73,25 +86,47 @@ export const AudioAttachment: React.FC<AudioAttachmentProps> = ({ attachment, me
 
   return (
     <div
-      className={`flex items-center gap-3 rounded-2xl p-2.5 ${isOwn ? "bg-white/15" : "bg-gray-50"} ${
-        variant === "card" ? "w-full" : "min-w-[190px] max-w-[240px]"
+      className={`flex items-center gap-2.5 px-1 py-0.5 min-w-[210px] max-w-[270px] ${
+        variant === "card" ? "w-full" : ""
       }`}
     >
+      {/* 1. Play / Pause Button */}
       <button
+        type="button"
         onClick={togglePlay}
         disabled={!isReady}
-        className={`w-9 h-9 flex-shrink-0 rounded-full disabled:opacity-50 flex items-center justify-center ${
-          isOwn ? "bg-white/25 hover:bg-white/35 text-white" : "bg-primary hover:bg-primary/90 text-white"
+        className={`p-1 rounded-full transition-transform active:scale-95 flex-shrink-0 disabled:opacity-50 ${
+          isOwn ? "hover:bg-white/10 text-white" : "hover:bg-slate-100 text-slate-700"
         }`}
+        title={isPlaying ? "Pause voice note" : "Play voice note"}
       >
-        {isPlaying ? <Pause size={16} className="fill-current" /> : <Play size={16} className="fill-current ml-0.5" />}
+        {isPlaying ? (
+          <Pause size={18} className="fill-current" />
+        ) : (
+          <Play size={18} className="fill-current ml-0.5" />
+        )}
       </button>
-      <div className="flex-1 min-w-0">
-        <div ref={containerRef} className="w-full" />
-        <span className={`text-xs ${isOwn ? "text-white/70" : "text-gray-500"}`}>
-          {formatTime(isPlaying || currentTime > 0 ? currentTime : duration)}
-        </span>
+
+      {/* 2. Waveform Canvas & Inline Time Info Row */}
+      <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5">
+        <div ref={containerRef} className="w-full cursor-pointer" />
+
+        <div
+          className={`flex items-center justify-between text-[10px] font-medium tracking-wide ${
+            isOwn ? "text-white/90" : "text-slate-500"
+          }`}
+        >
+          <span>{formatTime(isPlaying || currentTime > 0 ? currentTime : duration)}</span>
+
+          {formattedTimestamp && (
+            <div className={`flex items-center gap-1 ${isOwn ? "text-white/80" : "text-slate-400"}`}>
+              <span>{formattedTimestamp}</span>
+              {isOwn && <CheckCheck className="h-3 w-3 text-white/80" />}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 };
+

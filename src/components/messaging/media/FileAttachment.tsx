@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { FileText, FileSpreadsheet, Presentation, File, Paperclip } from "lucide-react";
+import { FileText, FileSpreadsheet, Presentation, File, Paperclip, ExternalLink, Download } from "lucide-react";
 import toast from "react-hot-toast";
 import { IAttachment } from "@/types";
 import { getProxyUrl } from "@/services/uploader.api";
@@ -12,24 +12,24 @@ interface FileAttachmentProps {
   isOwn?: boolean;
 }
 
-const fileMeta = (extension: string): { icon: React.ElementType; color: string; label: string } => {
+const fileBadgeInfo = (extension: string): { bg: string; text: string; label: string; icon: React.ElementType } => {
   switch (extension) {
     case "pdf":
-      return { icon: FileText, color: "#ef4444", label: "PDF" };
+      return { bg: "bg-rose-500", text: "text-white", label: "PDF", icon: FileText };
     case "doc":
     case "docx":
-      return { icon: FileText, color: "#2563eb", label: extension.toUpperCase() };
+      return { bg: "bg-blue-600", text: "text-white", label: "DOC", icon: FileText };
     case "xls":
     case "xlsx":
-      return { icon: FileSpreadsheet, color: "#16a34a", label: extension.toUpperCase() };
+      return { bg: "bg-emerald-600", text: "text-white", label: "XLS", icon: FileSpreadsheet };
     case "ppt":
     case "pptx":
-      return { icon: Presentation, color: "#ea580c", label: extension.toUpperCase() };
+      return { bg: "bg-amber-600", text: "text-white", label: "PPT", icon: Presentation };
     case "txt":
     case "csv":
-      return { icon: File, color: "#6b7280", label: extension.toUpperCase() };
+      return { bg: "bg-slate-600", text: "text-white", label: extension.toUpperCase(), icon: File };
     default:
-      return { icon: Paperclip, color: "#6b7280", label: extension ? extension.toUpperCase() : "FILE" };
+      return { bg: "bg-indigo-600", text: "text-white", label: extension ? extension.toUpperCase().slice(0, 4) : "FILE", icon: Paperclip };
   }
 };
 
@@ -45,10 +45,16 @@ const filenameFromUrl = (url: string): string => {
 export const FileAttachment: React.FC<FileAttachmentProps> = ({ attachment, variant, isOwn }) => {
   const filename = attachment.name || filenameFromUrl(attachment.url);
   const extension = filename.includes(".") ? filename.split(".").pop()!.toLowerCase() : "";
-  const { icon: Icon, color, label } = fileMeta(extension);
+  const { bg: badgeBg, label: badgeLabel, icon: Icon } = fileBadgeInfo(extension);
 
   const [downloading, setDownloading] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
+
+  const handleOpenView = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    window.open(attachment.url, "_blank", "noopener,noreferrer");
+  };
 
   const handleDownload = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -57,9 +63,6 @@ export const FileAttachment: React.FC<FileAttachmentProps> = ({ attachment, vari
     setDownloading(true);
     setProgress(0);
     try {
-      // Some files (e.g. Cloudinary "raw" delivery like PDFs) 401 on direct fetch — retry
-      // through the backend proxy (which streams the asset through with server-side auth)
-      // before giving up.
       let response = await fetch(attachment.url).catch(() => null);
       if (!response || !response.ok) {
         const token = localStorage.getItem("accessToken") || "";
@@ -67,23 +70,14 @@ export const FileAttachment: React.FC<FileAttachmentProps> = ({ attachment, vari
           headers: token ? { Authorization: token } : undefined,
         });
       }
-      if (!response.ok) {
-        const friendly =
-          response.status === 404
-            ? "This file couldn't be found — it may have been deleted or moved."
-            : response.status === 401 || response.status === 403
-            ? "You don't have permission to download this file."
-            : response.status >= 500
-            ? "The server had a problem processing this file. Please try again."
-            : "This file couldn't be downloaded.";
-        throw new Error(friendly);
-      }
-      if (!response.body) throw new Error("This file can't be downloaded in this browser.");
+      if (!response?.ok) throw new Error("File couldn't be downloaded.");
+      if (!response.body) throw new Error("Browser doesn't support streaming download.");
+
       const total = Number(response.headers.get("Content-Length")) || 0;
       const reader = response.body.getReader();
       const chunks: BlobPart[] = [];
       let received = 0;
-       
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -91,10 +85,9 @@ export const FileAttachment: React.FC<FileAttachmentProps> = ({ attachment, vari
         received += value.length;
         setProgress(total ? Math.round((received / total) * 100) : null);
       }
-      // Hold at a visible 100% before the file actually appears, so the user sees the
-      // download finish rather than jumping straight from a partial percentage to done.
+
       setProgress(100);
-      await wait(400);
+      await wait(300);
 
       const blob = new Blob(chunks);
       const blobUrl = URL.createObjectURL(blob);
@@ -107,14 +100,7 @@ export const FileAttachment: React.FC<FileAttachmentProps> = ({ attachment, vari
       URL.revokeObjectURL(blobUrl);
     } catch (error) {
       console.error("Download failed:", error);
-      // TypeError from fetch itself (not an HTTP error status) means the request never
-      // reached the server — a connectivity issue rather than a file problem.
-      const reason =
-        error instanceof TypeError
-          ? "Couldn't connect. Check your internet connection and try again."
-          : error instanceof Error
-          ? error.message
-          : "Something went wrong. Please try again.";
+      const reason = error instanceof Error ? error.message : "Download failed.";
       toast.error(`Couldn't download "${filename}" — ${reason}`);
     } finally {
       setDownloading(false);
@@ -122,64 +108,94 @@ export const FileAttachment: React.FC<FileAttachmentProps> = ({ attachment, vari
     }
   };
 
-  const ringSize = 36;
-  const ringRadius = 15;
-  const ringCircumference = 2 * Math.PI * ringRadius;
-
   return (
-    <button
-      type="button"
-      onClick={handleDownload}
-      disabled={downloading}
-      className={`flex items-center gap-3 rounded-2xl p-2.5 transition-colors text-left ${
-        isOwn ? "bg-white/15" : "bg-gray-50 hover:bg-gray-100"
-      } ${variant === "card" ? "w-full" : "min-w-[180px] max-w-[240px]"}`}
+    <div
+      className={`rounded-xl overflow-hidden border transition-all ${
+        variant === "card" ? "w-full" : "w-full min-w-[240px] max-w-[300px]"
+      } ${
+        isOwn
+          ? "bg-primary/20 border-white/20 text-white"
+          : "bg-slate-50 border-slate-200/90 text-slate-900"
+      }`}
     >
-      <span
-        className="relative w-9 h-9 flex-shrink-0 rounded-lg flex items-center justify-center"
-        style={{ backgroundColor: isOwn ? "rgba(255,255,255,0.2)" : `${color}1A` }}
+      {/* 1. Top Document Header Page Preview */}
+      <div
+        className="h-28 bg-white p-3.5 flex flex-col justify-between relative overflow-hidden border-b border-slate-100 cursor-pointer group"
+        onClick={handleOpenView}
       >
-        {downloading ? (
-          <>
-            <svg width={ringSize} height={ringSize} viewBox={`0 0 ${ringSize} ${ringSize}`} className="absolute inset-0 -rotate-90">
-              <circle
-                cx={ringSize / 2}
-                cy={ringSize / 2}
-                r={ringRadius}
-                fill="none"
-                stroke={isOwn ? "rgba(255,255,255,0.3)" : "#e5e7eb"}
-                strokeWidth={2}
-              />
-              <circle
-                cx={ringSize / 2}
-                cy={ringSize / 2}
-                r={ringRadius}
-                fill="none"
-                stroke={isOwn ? "#ffffff" : "#3363AD"}
-                strokeWidth={2}
-                strokeLinecap="round"
-                strokeDasharray={ringCircumference}
-                strokeDashoffset={
-                  progress === null ? ringCircumference * 0.75 : ringCircumference * (1 - progress / 100)
-                }
-                className={progress === null ? "animate-spin" : ""}
-                style={{ transformOrigin: "center" }}
-              />
-            </svg>
-            {progress !== null && (
-              <span className={`text-[9px] font-semibold ${isOwn ? "text-white" : "text-gray-700"}`}>
-                {progress}
-              </span>
-            )}
-          </>
-        ) : (
-          <Icon size={18} style={{ color: isOwn ? "#ffffff" : color }} />
-        )}
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className={`text-sm font-medium truncate ${isOwn ? "text-white" : "text-gray-900"}`}>{filename}</p>
-        <p className={`text-xs ${isOwn ? "text-white/70" : "text-gray-500"}`}>{label} Document</p>
+        <div className="space-y-2 opacity-80">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <span className="h-2.5 w-2.5 rounded-full bg-rose-500" />
+            <div className="h-2.5 w-2/3 bg-slate-800/90 rounded" />
+          </div>
+          <div className="h-2 w-full bg-slate-200 rounded" />
+          <div className="h-2 w-5/6 bg-slate-200 rounded" />
+          <div className="h-2 w-3/4 bg-slate-200 rounded" />
+          <div className="h-2 w-4/5 bg-slate-200 rounded" />
+        </div>
+
+        <div className="absolute right-3 bottom-2 text-slate-200 group-hover:text-primary/30 transition-colors">
+          <Icon size={42} strokeWidth={1.2} />
+        </div>
       </div>
-    </button>
+
+      {/* 2. File Info Row */}
+      <div className="p-3 flex items-center gap-3">
+        <div className={`w-10 h-10 ${badgeBg} rounded-lg flex flex-col items-center justify-center flex-shrink-0 shadow-2xs text-white`}>
+          <Icon size={16} className="mb-0.5" />
+          <span className="text-[8px] font-black uppercase tracking-wider leading-none">{badgeLabel}</span>
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <p className={`text-xs font-bold truncate leading-snug ${isOwn ? "text-white" : "text-slate-900"}`} title={filename}>
+            {filename}
+          </p>
+          <p className={`text-[10px] mt-0.5 truncate font-medium ${isOwn ? "text-white/80" : "text-slate-500"}`}>
+            {badgeLabel} Document
+          </p>
+        </div>
+      </div>
+
+      {/* 3. Bottom Action Footer */}
+      <div
+        className={`flex items-center justify-between px-3.5 py-2 text-xs font-semibold border-t ${
+          isOwn
+            ? "border-white/20 bg-black/10 text-white"
+            : "border-slate-200/80 bg-slate-100/70 text-slate-700"
+        }`}
+      >
+        <button
+          type="button"
+          onClick={handleOpenView}
+          className={`hover:underline flex items-center gap-1.5 transition-colors ${
+            isOwn ? "text-white hover:text-white/90" : "text-primary hover:text-primary/80"
+          }`}
+        >
+          <ExternalLink size={13} /> View
+        </button>
+
+        <button
+          type="button"
+          onClick={handleDownload}
+          disabled={downloading}
+          className={`hover:underline flex items-center gap-1.5 transition-colors ${
+            isOwn ? "text-white hover:text-white/90" : "text-primary hover:text-primary/80"
+          }`}
+        >
+          {downloading ? (
+            <span className="flex items-center gap-1">
+              <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+              {progress !== null ? `${progress}%` : "Downloading..."}
+            </span>
+          ) : (
+            <>
+              <Download size={13} /> Save as...
+            </>
+          )}
+        </button>
+      </div>
+    </div>
   );
 };
+
+

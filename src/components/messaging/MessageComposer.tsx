@@ -214,6 +214,7 @@ const AttachmentPreviewOverlay: React.FC<{
 
   const isImage = active.file.type.startsWith("image/");
   const isVideo = active.file.type.startsWith("video/");
+  const isPdf = active.file.type === "application/pdf" || active.file.name.toLowerCase().endsWith(".pdf");
 
   return (
     /* absolute inset-0 → scoped to the relative wrapper in Messaging.tsx,
@@ -250,6 +251,12 @@ const AttachmentPreviewOverlay: React.FC<{
             src={active.previewUrl}
             controls
             className="max-h-full max-w-full rounded-2xl shadow-lg"
+          />
+        ) : isPdf && active.previewUrl ? (
+          <iframe
+            src={active.previewUrl}
+            title={active.file.name}
+            className="w-full max-w-2xl h-[46vh] rounded-2xl shadow-lg border border-slate-200 bg-white overflow-hidden"
           />
         ) : (
           /* Document / audio / other */
@@ -471,7 +478,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
           return;
         }
         const blob = new Blob(recordedChunksRef.current, { type: "audio/webm" });
-        const file = new File([blob], `voice-note-${Date.now()}.webm`, { type: "audio/webm" });
+        const file = new (File as any)([blob], `voice-note-${Date.now()}.webm`, { type: "audio/webm" }) as File;
         setElapsedSeconds(0);
         try {
           const attachment = await uploadAndBuildAttachment(file);
