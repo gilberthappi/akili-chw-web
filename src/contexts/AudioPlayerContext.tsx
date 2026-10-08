@@ -20,7 +20,10 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
 export const useAudioPlayer = (): AudioPlayerContextValue => {
   const ctx = useContext(AudioPlayerContext);
   if (!ctx) {
-    throw new Error("useAudioPlayer must be used within an AudioPlayerProvider");
+    return {
+      activeAudioId: null,
+      setActiveAudio: () => {},
+    };
   }
   return ctx;
 };

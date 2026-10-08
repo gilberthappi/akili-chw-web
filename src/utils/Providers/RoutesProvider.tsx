@@ -9,6 +9,7 @@ import { Dashboard } from "@/pages/dashboard/Dashboard";
 import { DashboardV2 } from "@/pages/dashboard/DashboardV2";
 import { MyCourses } from "@/pages/dashboard/MyCourses";
 import { Messaging } from "@/pages/dashboard/Messaging";
+import { MessagingRedesign } from "@/pages/dashboard/MessagingRedesign";
 import { Staff } from "@/pages/dashboard/Staff";
 import { Feedbacks } from "@/pages/dashboard/Feedbacks";
 import Certificates from "@/pages/dashboard/CertificatesManagement";
@@ -216,6 +217,14 @@ const RoutesProvider = () => {
           element: (
             <ProtectedRoute allowedRoles={[...COLLAB_ROLES]}>
               <Messaging />
+            </ProtectedRoute>
+          ),
+        },
+        {
+          path: "messaging-redesign",
+          element: (
+            <ProtectedRoute allowedRoles={[...COLLAB_ROLES]}>
+              <MessagingRedesign />
             </ProtectedRoute>
           ),
         },
