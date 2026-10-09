@@ -358,6 +358,8 @@ export interface IMessage {
 export type ConversationType = "direct" | "group" | "community";
 
 export interface IConversationParticipant {
+  id?: string;
+  role?: string;
   conversationId: string;
   userId: string;
   joinedAt: string;
@@ -368,6 +370,7 @@ export interface IConversation {
   id: string;
   type: ConversationType;
   name?: string | null;
+  description?: string | null;
   isPublic?: boolean;
   createdAt: string;
   updatedAt: string;
@@ -376,6 +379,7 @@ export interface IConversation {
   lastMessage?: IMessage | null;
   muted?: boolean;
   createdById?: string;
+  onlyAdminsCanSend?: boolean;
   photo?: string | null;
 }
 

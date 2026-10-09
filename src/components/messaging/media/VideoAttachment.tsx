@@ -1,10 +1,12 @@
 import React, { useState } from "react";
-import { Play, X, AlertCircle, RotateCcw } from "lucide-react";
+import { Play, X, AlertCircle, RotateCcw, CheckCheck } from "lucide-react";
 import { IAttachment } from "@/types";
 
 interface VideoAttachmentProps {
   attachment: IAttachment;
   variant: "bubble" | "card";
+  formattedTimestamp?: string;
+  isOwn?: boolean;
 }
 
 const formatDuration = (seconds: number): string => {
@@ -14,7 +16,12 @@ const formatDuration = (seconds: number): string => {
   return `${m}:${s.toString().padStart(2, "0")}`;
 };
 
-export const VideoAttachment: React.FC<VideoAttachmentProps> = ({ attachment, variant }) => {
+export const VideoAttachment: React.FC<VideoAttachmentProps> = ({
+  attachment,
+  variant,
+  formattedTimestamp,
+  isOwn,
+}) => {
   const [fullscreen, setFullscreen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -23,8 +30,8 @@ export const VideoAttachment: React.FC<VideoAttachmentProps> = ({ attachment, va
 
   const boxClass =
     variant === "bubble"
-      ? "w-full h-52 relative bg-black flex items-center justify-center overflow-hidden"
-      : "w-full h-56 relative bg-black flex items-center justify-center overflow-hidden rounded-lg";
+      ? "w-full max-w-xs sm:max-w-sm h-60 relative bg-black flex items-center justify-center overflow-hidden rounded-2xl"
+      : "w-full h-56 relative bg-black flex items-center justify-center overflow-hidden rounded-2xl";
 
   const retry = () => {
     setError(false);
@@ -78,14 +85,20 @@ export const VideoAttachment: React.FC<VideoAttachmentProps> = ({ attachment, va
               className="absolute inset-0 flex items-center justify-center"
               title="Play video"
             >
-              <span className="w-12 h-12 rounded-full bg-black/50 flex items-center justify-center">
+              <span className="w-12 h-12 rounded-full bg-black/50 flex items-center justify-center shadow-lg transition-transform hover:scale-110">
                 <Play size={22} className="text-white fill-white ml-0.5" />
               </span>
             </button>
             {duration !== null && formatDuration(duration) && (
-              <span className="absolute bottom-2 left-2 bg-black/60 text-white text-xs rounded-full px-2 py-0.5">
+              <span className="absolute bottom-2 left-2 bg-black/60 text-white text-[10px] font-medium rounded-full px-2 py-0.5 z-10">
                 {formatDuration(duration)}
               </span>
+            )}
+            {formattedTimestamp && (
+              <div className="absolute bottom-1.5 right-1.5 px-2 py-0.5 rounded-full bg-black/45 backdrop-blur-xs text-white text-[10px] font-medium flex items-center gap-1 z-10 shadow-2xs pointer-events-none">
+                <span>{formattedTimestamp}</span>
+                {isOwn && <CheckCheck className="h-3 w-3 text-white/90" />}
+              </div>
             )}
           </>
         )}
