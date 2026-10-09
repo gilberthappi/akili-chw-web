@@ -121,6 +121,15 @@
     "shrink": "Shrink chat",
     "close": "Close chat",
     "open": "Open chat",
-    "send": "Send"
+    "send": "Send",
+    "newChat": "New chat",
+    "history": "Previous chats",
+    "showHistory": "Show previous chats",
+    "hideHistory": "Hide previous chats",
+    "noHistory": "No previous chats yet",
+    "deleteChat": "Delete chat",
+    "loadingHistory": "Loading…",
+    "historyError": "Could not load previous chats.",
+    "deleteError": "Could not delete the chat. Try again."
   }
 }

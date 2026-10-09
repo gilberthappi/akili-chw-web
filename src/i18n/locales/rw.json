@@ -121,6 +121,15 @@
     "shrink": "Kugabanya ikiganiro",
     "close": "Gufunga ikiganiro",
     "open": "Gufungura ikiganiro",
-    "send": "Ohereza"
+    "send": "Ohereza",
+    "newChat": "Ikiganiro gishya",
+    "history": "Ibiganiro byabanje",
+    "showHistory": "Kwerekana ibiganiro byabanje",
+    "hideHistory": "Guhisha ibiganiro byabanje",
+    "noHistory": "Nta biganiro byabanje birahari",
+    "deleteChat": "Gusiba ikiganiro",
+    "loadingHistory": "Birimo gufunguka…",
+    "historyError": "Ntibyashobotse kubona ibiganiro byabanje.",
+    "deleteError": "Ntibyashobotse gusiba ikiganiro. Mwongere mugerageze."
   }
 }

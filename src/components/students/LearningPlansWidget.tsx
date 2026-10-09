@@ -1,7 +1,23 @@
 import React, { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { CheckCircle2, ChevronDown, ChevronRight, Circle, Clock, Flag, Map as MapIcon, Route } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import toast from "react-hot-toast";
 import {
+  Award,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  Circle,
+  Clock,
+  Flag,
+  Map as MapIcon,
+  RotateCcw,
+  Route,
+  SlidersHorizontal,
+  X,
+} from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import {
+  adjustStudentLearningPlan,
   getStudentLearningPlans,
   type ILearningPlan,
   type LearnerLevel,
@@ -44,13 +60,132 @@ const ITEM_STATUS: Record<PlanItemStatus, { label: string; pill: string; dot: st
 const fmtDate = (iso?: string | null) =>
   iso ? new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }) : "—";
 
-const PlanDetails: React.FC<{ plan: ILearningPlan }> = ({ plan }) => {
+const LEVEL_SOURCE: Record<string, string> = { staff: "set by staff", learner: "chosen by learner" };
+
+const AdjustPlanModal: React.FC<{ studentId: string; plan: ILearningPlan; onClose: () => void }> = ({
+  studentId,
+  plan,
+  onClose,
+}) => {
+  const queryClient = useQueryClient();
+  const overridden = plan.levelSource === "staff" || plan.levelSource === "learner";
+  const [level, setLevel] = useState<LearnerLevel | "auto">(overridden && plan.level ? plan.level : "auto");
+  const [extraDays, setExtraDays] = useState<number>(plan.adjustments?.extraDays ?? 0);
+  const [note, setNote] = useState(plan.adjustments?.note ?? "");
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      adjustStudentLearningPlan(studentId, plan.course.id, {
+        level: level === "auto" ? null : level,
+        extraDays,
+        note: note.trim() || null,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["learning-plans", studentId] });
+      toast.success("Learning plan updated");
+      onClose();
+    },
+    onError: (err: unknown) => {
+      const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(message || "Could not update the plan");
+    },
+  });
+
+  const field = "w-full rounded-lg border border-[#E2E8F0] dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2 text-sm";
+
+  return (
+    <div className='fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4' onClick={onClose}>
+      <div
+        className='w-full max-w-md rounded-2xl bg-white dark:bg-slate-800 shadow-xl'
+        onClick={(e) => e.stopPropagation()}
+        role='dialog'
+        aria-modal='true'
+      >
+        <div className='flex items-center justify-between px-5 pt-4'>
+          <div>
+            <h4 className={`text-base font-semibold ${V2_STRONG}`}>Adjust learning plan</h4>
+            <p className={`text-xs ${V2_MUTED}`}>{plan.course.shortName?.trim() || plan.course.title}</p>
+          </div>
+          <button type='button' onClick={onClose} className='p-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700'>
+            <X className='w-4 h-4 text-[#9AA3B2]' />
+          </button>
+        </div>
+        <div className='px-5 py-4 space-y-4'>
+          <label className='block'>
+            <span className={`text-xs font-medium ${V2_MUTED}`}>Level</span>
+            <select className={`${field} mt-1`} value={level} onChange={(e) => setLevel(e.target.value as LearnerLevel | "auto")}>
+              <option value='auto'>
+                From pre-test{plan.pretestLevel ? ` (${LEVEL_META[plan.pretestLevel].label})` : ""}
+              </option>
+              {(Object.keys(LEVEL_META) as LearnerLevel[]).map((l) => (
+                <option key={l} value={l}>
+                  {LEVEL_META[l].label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className='block'>
+            <span className={`text-xs font-medium ${V2_MUTED}`}>Extra days (0–60)</span>
+            <input
+              type='number'
+              min={0}
+              max={60}
+              className={`${field} mt-1`}
+              value={extraDays}
+              onChange={(e) => setExtraDays(Math.max(0, Math.min(60, Math.round(Number(e.target.value) || 0))))}
+            />
+            <span className={`text-[11px] ${V2_MUTED}`}>Moves every sprint later by this many days.</span>
+          </label>
+          <label className='block'>
+            <span className={`text-xs font-medium ${V2_MUTED}`}>Note for the learner (optional)</span>
+            <textarea
+              rows={3}
+              maxLength={500}
+              className={`${field} mt-1 resize-none`}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder='Shown on the learner’s plan, e.g. the reason for the change'
+            />
+          </label>
+        </div>
+        <div className='flex justify-end gap-2 px-5 pb-5'>
+          <button
+            type='button'
+            onClick={onClose}
+            className='px-4 py-2 rounded-lg text-sm text-[#5B6575] hover:bg-slate-100 dark:hover:bg-slate-700'
+          >
+            Cancel
+          </button>
+          <button
+            type='button'
+            disabled={mutation.isPending}
+            onClick={() => mutation.mutate()}
+            className='px-4 py-2 rounded-lg text-sm font-semibold text-white bg-[#3363AD] hover:bg-[#2B5596] disabled:opacity-60'
+          >
+            {mutation.isPending ? "Saving…" : "Save"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const PlanDetails: React.FC<{ plan: ILearningPlan; studentId: string; canAdjust: boolean }> = ({
+  plan,
+  studentId,
+  canAdjust,
+}) => {
   const [view, setView] = useState<"map" | "sprints">("map");
+  const [adjusting, setAdjusting] = useState(false);
   const milestones = plan.milestones ?? [];
   const sprints = plan.sprints ?? [];
+  const adj = plan.adjustments;
+  const adjusted =
+    !!adj && (adj.rescheduleCount > 0 || adj.extraDays > 0 || plan.levelSource === "staff" || plan.levelSource === "learner");
 
   return (
     <div className='px-4 pb-4 space-y-4'>
+      {adjusting && <AdjustPlanModal studentId={studentId} plan={plan} onClose={() => setAdjusting(false)} />}
       <div className='grid grid-cols-2 md:grid-cols-4 gap-3 text-xs'>
         <div>
           <p className={V2_MUTED}>Pre-test (1st attempt)</p>
@@ -69,7 +204,12 @@ const PlanDetails: React.FC<{ plan: ILearningPlan }> = ({ plan }) => {
         </div>
         <div>
           <p className={V2_MUTED}>Planned finish</p>
-          <p className={`font-bold ${V2_STRONG}`}>{fmtDate(plan.targetEndDate)}</p>
+          <p className={`font-bold ${V2_STRONG}`}>
+            {fmtDate(plan.targetEndDate)}
+            {plan.originalTargetEndDate && plan.originalTargetEndDate !== plan.targetEndDate && (
+              <span className={`font-normal ${V2_MUTED}`}> · original {fmtDate(plan.originalTargetEndDate)}</span>
+            )}
+          </p>
         </div>
         <div>
           <p className={V2_MUTED}>{plan.status === "completed" ? "Finished" : "Expected finish"}</p>
@@ -80,7 +220,43 @@ const PlanDetails: React.FC<{ plan: ILearningPlan }> = ({ plan }) => {
         </div>
       </div>
 
-      <div className='flex gap-1'>
+      {(adjusted || !!plan.focusChapters?.length || (plan.progress?.sprintsDone ?? 0) > 0) && (
+        <div className='flex flex-wrap gap-x-4 gap-y-1 text-xs'>
+          {(plan.progress?.sprintsDone ?? 0) > 0 && (
+            <span className={`inline-flex items-center gap-1 ${V2_MUTED}`}>
+              <Award className='w-3.5 h-3.5 text-emerald-600' />
+              {plan.progress?.onTimeSprints ?? 0}/{plan.progress?.sprintsDone} sprints on time
+            </span>
+          )}
+          {!!plan.today?.streak && plan.today.streak >= 2 && (
+            <span className={V2_MUTED}>{plan.today.streak}-day activity streak</span>
+          )}
+          {plan.levelSource && LEVEL_SOURCE[plan.levelSource] && (
+            <span className={V2_MUTED}>
+              Level {LEVEL_SOURCE[plan.levelSource]}
+              {plan.pretestLevel && ` (pre-test: ${LEVEL_META[plan.pretestLevel].label})`}
+            </span>
+          )}
+          {!!adj?.rescheduleCount && (
+            <span className={V2_MUTED}>
+              Rescheduled by learner {adj.rescheduleCount}× (last from {fmtDate(adj.rescheduledFrom)})
+            </span>
+          )}
+          {!!adj?.extraDays && <span className={V2_MUTED}>+{adj.extraDays} days granted</span>}
+          {!!adj?.note && <span className={V2_MUTED}>Note: “{adj.note}”</span>}
+          {!!plan.focusChapters?.length && (
+            <span className='inline-flex items-center gap-1 text-amber-700 dark:text-amber-400'>
+              <RotateCcw className='w-3.5 h-3.5' />
+              Quiz to retake:{" "}
+              {plan.focusChapters
+                .map((c) => `Ch. ${c.chapterNumber} (${c.quizBest ?? 0}%/${c.quizPassMark ?? 0}%)`)
+                .join(", ")}
+            </span>
+          )}
+        </div>
+      )}
+
+      <div className='flex flex-wrap items-center gap-1'>
         {(["map", "sprints"] as const).map((key) => (
           <button
             key={key}
@@ -94,6 +270,16 @@ const PlanDetails: React.FC<{ plan: ILearningPlan }> = ({ plan }) => {
             {key === "map" ? "Completion map" : `Sprints (${sprints.length})`}
           </button>
         ))}
+        {canAdjust && (
+          <button
+            type='button'
+            onClick={() => setAdjusting(true)}
+            className='ml-auto px-3 py-1.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 border border-[#E2E8F0] text-[#334155] hover:bg-[#F8FAFC] dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700'
+          >
+            <SlidersHorizontal className='w-3.5 h-3.5' />
+            Adjust plan
+          </button>
+        )}
       </div>
 
       {view === "map" ? (
@@ -123,10 +309,18 @@ const PlanDetails: React.FC<{ plan: ILearningPlan }> = ({ plan }) => {
                       className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md border ${
                         c.done
                           ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:border-emerald-800"
-                          : "border-[#E8EEF6] text-[#5B6575] dark:border-slate-700 dark:text-slate-400"
+                          : c.needsReview
+                            ? "border-amber-200 bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:border-amber-800"
+                            : "border-[#E8EEF6] text-[#5B6575] dark:border-slate-700 dark:text-slate-400"
                       }`}
                     >
-                      {c.done ? <CheckCircle2 className='w-3 h-3' /> : <Circle className='w-3 h-3' />}
+                      {c.done ? (
+                        <CheckCircle2 className='w-3 h-3' />
+                      ) : c.needsReview ? (
+                        <RotateCcw className='w-3 h-3' />
+                      ) : (
+                        <Circle className='w-3 h-3' />
+                      )}
                       Ch. {c.chapterNumber}
                     </span>
                   ))}
@@ -148,18 +342,23 @@ const PlanDetails: React.FC<{ plan: ILearningPlan }> = ({ plan }) => {
             >
               <div className='flex items-center justify-between gap-2 mb-1'>
                 <span className={`text-sm font-bold ${V2_STRONG}`}>Sprint {s.number}</span>
-                <span className={`${V2_PILL} ${ITEM_STATUS[s.status].pill}`}>{ITEM_STATUS[s.status].label}</span>
+                <span className={`${V2_PILL} ${ITEM_STATUS[s.status].pill}`}>
+                  {s.status === "done" && s.onTime ? "On time" : ITEM_STATUS[s.status].label}
+                </span>
               </div>
               <p className={`text-[11px] mb-2 flex items-center gap-1 ${V2_MUTED}`}>
                 <Clock className='w-3 h-3' />
                 {fmtDate(s.startDate)} → {fmtDate(s.dueDate)} · {s.days} day{s.days === 1 ? "" : "s"}
                 {s.minutes ? ` · ~${s.minutes} min` : ""}
+                {s.reviewDays ? ` · +${s.reviewDays} review` : ""}
               </p>
               <ul className='space-y-1'>
                 {s.items.map((item) => (
                   <li key={item.id} className='flex items-start gap-1.5 text-xs'>
                     {item.done ? (
                       <CheckCircle2 className='w-3.5 h-3.5 mt-0.5 text-emerald-500 shrink-0' />
+                    ) : item.type === "chapter" && item.needsReview ? (
+                      <RotateCcw className='w-3.5 h-3.5 mt-0.5 text-amber-500 shrink-0' />
                     ) : item.type === "chapter" ? (
                       <Circle className='w-3.5 h-3.5 mt-0.5 text-[#C5D3E0] shrink-0' />
                     ) : (
@@ -167,7 +366,11 @@ const PlanDetails: React.FC<{ plan: ILearningPlan }> = ({ plan }) => {
                     )}
                     <span className={item.done ? `line-through ${V2_MUTED}` : V2_STRONG}>
                       {item.type === "chapter" ? `Ch. ${item.chapterNumber}: ${item.title}` : item.title}
-                      {item.type === "chapter" && item.hasQuiz && <span className={V2_MUTED}> + quiz</span>}
+                      {item.type === "chapter" && item.hasQuiz && (
+                        <span className={item.needsReview ? "text-amber-600" : V2_MUTED}>
+                          {item.needsReview ? ` · quiz ${item.quizBest ?? 0}% (pass ${item.quizPassMark ?? 0}%)` : " + quiz"}
+                        </span>
+                      )}
                     </span>
                   </li>
                 ))}
@@ -182,6 +385,8 @@ const PlanDetails: React.FC<{ plan: ILearningPlan }> = ({ plan }) => {
 
 export const LearningPlansWidget: React.FC<{ studentId: string }> = ({ studentId }) => {
   const [openCourse, setOpenCourse] = useState<string | null>(null);
+  const { hasRole } = useAuth();
+  const canAdjust = hasRole(["ADMIN", "STAFF", "TRAINER"]);
   const { data, isLoading } = useQuery({
     queryKey: ["learning-plans", studentId],
     queryFn: () => getStudentLearningPlans(studentId),
@@ -235,7 +440,7 @@ export const LearningPlansWidget: React.FC<{ studentId: string }> = ({ studentId
                     </span>
                   )}
                 </button>
-                {open && <PlanDetails plan={plan} />}
+                {open && <PlanDetails plan={plan} studentId={studentId} canAdjust={canAdjust} />}
               </div>
             );
           })}

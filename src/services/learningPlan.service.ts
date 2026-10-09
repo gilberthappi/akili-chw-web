@@ -5,7 +5,20 @@ export type PlanItemStatus = "done" | "in_progress" | "overdue" | "upcoming";
 export type PlanStatus = "awaiting_pretest" | "on_track" | "behind" | "completed";
 
 export type PlanSprintItem =
-  | { type: "chapter"; id: string; title: string; chapterNumber: number; minutes: number; hasQuiz: boolean; done: boolean }
+  | {
+      type: "chapter";
+      id: string;
+      title: string;
+      chapterNumber: number;
+      minutes: number;
+      hasQuiz: boolean;
+      done: boolean;
+      slidesDone?: boolean;
+      quiz?: "none" | "pending" | "passed" | "failed";
+      quizBest?: number | null;
+      quizPassMark?: number | null;
+      needsReview?: boolean;
+    }
   | { type: "final_test" | "final_exam"; id: string; title: string; done: boolean };
 
 export interface IPlanMilestone {
@@ -19,7 +32,7 @@ export interface IPlanMilestone {
   sectionNumber?: number;
   chaptersDone?: number;
   chaptersTotal?: number;
-  chapters?: { id: string; title: string; chapterNumber: number; hasQuiz: boolean; done: boolean }[];
+  chapters?: { id: string; title: string; chapterNumber: number; hasQuiz: boolean; done: boolean; needsReview?: boolean }[];
 }
 
 export interface IPlanSprint {
@@ -28,8 +41,11 @@ export interface IPlanSprint {
   startDate: string;
   dueDate: string;
   days: number;
+  reviewDays?: number;
   minutes: number;
   status: PlanItemStatus;
+  completedAt?: string | null;
+  onTime?: boolean | null;
   items: PlanSprintItem[];
 }
 
@@ -38,13 +54,26 @@ export interface ILearningPlan {
   status: PlanStatus;
   thresholds: { beginnerMax: number; advancedMin: number };
   level?: LearnerLevel;
+  pretestLevel?: LearnerLevel;
+  levelSource?: string;
   rules?: { chaptersPerSprint: number; sprintDays: number; finalSprintDays: number };
   pretest?: { score: number | null; takenAt: string; attempts: number; latestScore: number } | null;
   startDate?: string;
   targetEndDate?: string;
+  originalTargetEndDate?: string;
   projectedEndDate?: string;
   daysBehind?: number;
-  progress?: { chaptersDone: number; chaptersTotal: number; sprintsDone: number; sprintsTotal: number; percent: number };
+  adjustments?: { rescheduleCount: number; rescheduledFrom: string | null; extraDays: number; note: string | null; updatedAt: string | null };
+  progress?: {
+    chaptersDone: number;
+    chaptersTotal: number;
+    sprintsDone: number;
+    sprintsTotal: number;
+    percent: number;
+    onTimeSprints?: number;
+  };
+  today?: { streak: number; activeToday: boolean };
+  focusChapters?: { id: string; title: string; chapterNumber: number; quizBest: number | null; quizPassMark: number | null }[];
   currentSprint?: number | null;
   milestones?: IPlanMilestone[];
   sprints?: IPlanSprint[];
@@ -52,3 +81,16 @@ export interface ILearningPlan {
 
 export const getStudentLearningPlans = async (studentId: string): Promise<{ data: ILearningPlan[] }> =>
   (await api.get(`/learning-plan/students/${studentId}`)).data;
+
+export interface PlanAdjustPayload {
+  level?: LearnerLevel | null;
+  extraDays?: number;
+  note?: string | null;
+}
+
+export const adjustStudentLearningPlan = async (
+  studentId: string,
+  courseId: string,
+  payload: PlanAdjustPayload,
+): Promise<{ data: ILearningPlan }> =>
+  (await api.patch(`/learning-plan/students/${studentId}/courses/${courseId}`, payload)).data;
