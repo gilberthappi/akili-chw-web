@@ -26,9 +26,23 @@ export const MessageMedia: React.FC<MessageMediaProps> = ({
 }) => {
   switch (attachment.type) {
     case "image":
-      return <ImageAttachment attachment={attachment} variant={variant} />;
+      return (
+        <ImageAttachment
+          attachment={attachment}
+          variant={variant}
+          formattedTimestamp={formattedTimestamp}
+          isOwn={isOwn}
+        />
+      );
     case "video":
-      return <VideoAttachment attachment={attachment} variant={variant} />;
+      return (
+        <VideoAttachment
+          attachment={attachment}
+          variant={variant}
+          formattedTimestamp={formattedTimestamp}
+          isOwn={isOwn}
+        />
+      );
     case "audio":
       return (
         <AudioAttachment

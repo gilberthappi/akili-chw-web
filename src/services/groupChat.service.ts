@@ -19,6 +19,7 @@ export interface IGroupChatRaw {
   description?: string | null;
   lastMessageId?: string | null;
   createdById: string;
+  onlyAdminsCanSend?: boolean;
   isArchived: boolean;
   createdAt: string;
   updatedAt: string;
@@ -61,7 +62,7 @@ export const getGroupWithMessages = async (
 
 export const updateGroup = async (
   groupId: string,
-  data: { name?: string; description?: string; photo?: string },
+  data: { name?: string; description?: string; photo?: string; onlyAdminsCanSend?: boolean },
 ): Promise<IGroupChatRaw> => {
   return (await api.put(`/group-chats/${groupId}`, data)).data;
 };
@@ -99,6 +100,14 @@ export const removeGroupParticipant = async (
   userId: string,
 ): Promise<void> => {
   await api.delete(`/group-chats/${groupId}/participants/${userId}`);
+};
+
+export const updateGroupParticipantRole = async (
+  groupId: string,
+  userId: string,
+  role: string,
+): Promise<void> => {
+  await api.put(`/group-chats/${groupId}/participants/${userId}/role`, { role });
 };
 
 // ==================== MESSAGES ====================

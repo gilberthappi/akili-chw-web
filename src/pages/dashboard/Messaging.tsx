@@ -13,6 +13,7 @@ import {
   FileText,
   ChevronRight,
   UserPlus,
+  UserMinus,
   BellOff,
   Sparkles,
   Shield,
@@ -21,6 +22,11 @@ import {
   Check,
   Loader2,
   ExternalLink,
+  Edit3,
+  Trash2,
+  Settings,
+  Crown,
+  Lock,
 } from "lucide-react";
 import { IConversation, IMessage, ConversationType, IAttachment } from "@/types";
 import { IUser } from "@/types/common";
@@ -28,6 +34,10 @@ import { useAuth } from "@/hooks/useAuth";
 import ProfileAvatar from "@/components/profile/ProfileAvatar";
 import { MessageComposer } from "@/components/messaging/MessageComposer";
 import { MessageMedia } from "@/components/messaging/media/MessageMedia";
+import CreateGroupModal from "@/components/messaging/CreateGroupModal";
+import EditGroupModal from "@/components/messaging/EditGroupModal";
+import AddMembersModal from "@/components/messaging/AddMembersModal";
+import TerminateGroupModal from "@/components/messaging/TerminateGroupModal";
 import {
   sendDirectMessage,
   markDirectMessageRead,
@@ -35,13 +45,16 @@ import {
 import {
   sendGroupMessage,
   markGroupMessageRead,
+  removeGroupParticipant,
+  updateGroupParticipantRole,
+  IGroupChatRaw,
 } from "@/services/groupChat.service";
 import {
   createCommunityPost,
   ICommunityPostRaw,
 } from "@/services/community.service";
 import { IDirectMessageRaw } from "@/services/directChat.service";
-import { normalizeMessage, normalizeCommunityPost, stringifyAttachments } from "@/services/messaging.adapter";
+import { normalizeMessage, normalizeGroupChat, normalizeCommunityPost, stringifyAttachments } from "@/services/messaging.adapter";
 import { getAllUsersNopagination } from "@/services/users.api";
 import {
   useGetConversations,
@@ -69,7 +82,7 @@ import toast from "react-hot-toast";
 export const Messaging: React.FC = () => {
   const { user } = useAuth();
   const { photoUrl: ownPhotoUrl } = useProfilePhoto();
-  const { dialog: confirmDialog } = useConfirmDialog();
+  const { confirm: confirmAction, dialog: confirmDialog } = useConfirmDialog();
 
   // Navigation & Conversation selection
   const [activeTab, setActiveTab] = useState<ConversationType>("direct");
@@ -92,6 +105,84 @@ export const Messaging: React.FC = () => {
   const [selectedGroupParticipants, setSelectedGroupParticipants] = useState<string[]>([]);
   const [creatingGroup, setCreatingGroup] = useState(false);
   const [mediaFilter, setMediaFilter] = useState<"all" | "image" | "file" | "audio">("all");
+
+  // Group Management Modals state
+  const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
+  const [showEditGroupModal, setShowEditGroupModal] = useState(false);
+  const [showAddMembersModal, setShowAddMembersModal] = useState(false);
+  const [showTerminateGroupModal, setShowTerminateGroupModal] = useState(false);
+  const [removingParticipantId, setRemovingParticipantId] = useState<string | null>(null);
+  const [updatingRoleUserId, setUpdatingRoleUserId] = useState<string | null>(null);
+
+  const handleRemoveParticipant = (participantUserId: string, participantName: string) => {
+    if (!selectedConversation || selectedConversation.type !== "group") return;
+
+    confirmAction({
+      title: "Remove Participant",
+      message: `Are you sure you want to remove ${participantName} from this group?`,
+      confirmLabel: "Remove Member",
+      variant: "danger",
+      onConfirm: async () => {
+        setRemovingParticipantId(participantUserId);
+        try {
+          await removeGroupParticipant(selectedConversation.id, participantUserId);
+          toast.success(`Removed ${participantName} from group`);
+          invalidateConversations();
+          setSelectedConversation((prev) => {
+            if (!prev) return null;
+            return {
+              ...prev,
+              participants: prev.participants.filter((p) => p.userId !== participantUserId),
+            };
+          });
+        } catch (err: any) {
+          toast.error(err?.response?.data?.message || err?.message || "Failed to remove participant");
+        } finally {
+          setRemovingParticipantId(null);
+        }
+      },
+    });
+  };
+
+  const handleToggleAdminRole = (
+    participantUserId: string,
+    currentRole: string | undefined,
+    participantName: string
+  ) => {
+    if (!selectedConversation || selectedConversation.type !== "group") return;
+    const isCurrentlyAdmin = currentRole === "admin" || currentRole === "creator";
+    const newRole = isCurrentlyAdmin ? "member" : "admin";
+    const actionTitle = isCurrentlyAdmin ? "Demote Admin" : "Promote to Admin";
+    const actionMessage = isCurrentlyAdmin
+      ? `Are you sure you want to remove Admin role from ${participantName}?`
+      : `Are you sure you want to make ${participantName} a Group Admin?`;
+
+    confirmAction({
+      title: actionTitle,
+      message: actionMessage,
+      confirmLabel: isCurrentlyAdmin ? "Demote Member" : "Promote to Admin",
+      variant: isCurrentlyAdmin ? "danger" : "default",
+      onConfirm: async () => {
+        setUpdatingRoleUserId(participantUserId);
+        try {
+          await updateGroupParticipantRole(selectedConversation.id, participantUserId, newRole);
+          toast.success(isCurrentlyAdmin ? `Demoted ${participantName} to Member` : `Promoted ${participantName} to Group Admin`);
+          invalidateConversations();
+          setSelectedConversation((prev) => {
+            if (!prev) return null;
+            return {
+              ...prev,
+              participants: prev.participants.map((p) => (p.userId === participantUserId ? { ...p, role: newRole } : p)),
+            };
+          });
+        } catch (err: any) {
+          toast.error(err?.response?.data?.message || err?.message || "Failed to update participant role");
+        } finally {
+          setUpdatingRoleUserId(null);
+        }
+      },
+    });
+  };
 
   // Extract ONLY RECEIVED attachments (sent by other users, excluding own sent messages)
   const sharedAttachments = React.useMemo(() => {
@@ -139,6 +230,20 @@ export const Messaging: React.FC = () => {
       role.includes("MANAGER")
     );
   });
+
+  const isGroupAdmin = React.useMemo(() => {
+    if (!selectedConversation || selectedConversation.type !== "group") return false;
+    if (isAdminOrCoordinator) return true;
+    if (selectedConversation.createdById === user?.id) return true;
+    return selectedConversation.participants?.some(
+      (p) => p.userId === user?.id && (p.role === "admin" || p.role === "creator")
+    );
+  }, [selectedConversation, user?.id, isAdminOrCoordinator]);
+
+  const isRestrictedFromPosting =
+    selectedConversation?.type === "group" &&
+    selectedConversation.onlyAdminsCanSend === true &&
+    !isGroupAdmin;
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const markedAsReadRef = useRef<Set<string>>(new Set());
@@ -478,7 +583,13 @@ export const Messaging: React.FC = () => {
             </div>
             
             <button
-              onClick={() => openNewChatModal(activeTab === "group" && isAdminOrCoordinator ? "group" : "direct")}
+              onClick={() => {
+                if (activeTab === "group" && isAdminOrCoordinator) {
+                  setShowCreateGroupModal(true);
+                } else {
+                  openNewChatModal("direct");
+                }
+              }}
               className="h-9 px-3.5 bg-primary hover:bg-primary/90 text-white rounded-xl flex items-center gap-1.5 text-xs font-semibold shadow-sm shadow-primary/30 transition-all duration-200 active:scale-95"
             >
               <Plus className="h-4 w-4" />
@@ -705,6 +816,7 @@ export const Messaging: React.FC = () => {
 
                   const formattedTime = new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
                   const isSingleAudio = !msg.content && msg.attachments?.length === 1 && msg.attachments[0].type === "audio";
+                  const isSingleMedia = !msg.content && msg.attachments?.length === 1 && (msg.attachments[0].type === "image" || msg.attachments[0].type === "video");
 
                   return (
                     <div key={msg.id} className={`flex items-end gap-2.5 ${isMine ? "justify-end" : "justify-start"} group`}>
@@ -719,9 +831,17 @@ export const Messaging: React.FC = () => {
 
                         <div
                           className={`rounded-2xl text-xs leading-relaxed shadow-2xs transition-all duration-200 relative ${
-                            isSingleAudio ? "px-2.5 py-1.5" : msg.content ? "p-3.5" : "p-1.5"
+                            isSingleMedia
+                              ? "p-0 bg-transparent border-none shadow-none overflow-hidden rounded-2xl"
+                              : isSingleAudio
+                              ? "px-2.5 py-1.5"
+                              : msg.content
+                              ? "p-3.5"
+                              : "p-1.5"
                           } ${
-                            isMine
+                            isSingleMedia
+                              ? ""
+                              : isMine
                               ? "bg-primary text-white rounded-br-xs shadow-primary/10 font-normal"
                               : "bg-white text-slate-800 rounded-bl-xs border border-slate-200/90"
                           }`}
@@ -739,13 +859,13 @@ export const Messaging: React.FC = () => {
                                   isOwn={isMine}
                                   senderPhoto={msg.sender?.photo}
                                   senderName={senderName}
-                                  formattedTimestamp={isSingleAudio ? formattedTime : undefined}
+                                  formattedTimestamp={isSingleAudio || isSingleMedia ? formattedTime : undefined}
                                 />
                               ))}
                             </div>
                           )}
 
-                          {!isSingleAudio && (
+                          {!isSingleAudio && !isSingleMedia && (
                             <div className={`flex items-center justify-end gap-1 px-1 mt-1 text-[9px] ${isMine ? "text-white/80" : "text-slate-400"}`}>
                               <span>{formattedTime}</span>
                               {isMine && <CheckCheck className="h-3 w-3 text-white/80" />}
@@ -773,14 +893,21 @@ export const Messaging: React.FC = () => {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Bottom Message Input Composer */}
+            {/* Bottom Message Input Composer or Restricted Banner */}
             <div className="border-t border-slate-200 bg-white">
-              <MessageComposer
-                value={messageText}
-                onChange={handleMessageInputChange}
-                onSend={handleSendMessage}
-                placeholder="Write a message..."
-              />
+              {isRestrictedFromPosting ? (
+                <div className="p-4 bg-slate-50 text-center flex items-center justify-center gap-2 text-xs font-semibold text-slate-600">
+                  <Lock className="h-4 w-4 text-slate-400" />
+                  <span>Only group admins can send messages to this group.</span>
+                </div>
+              ) : (
+                <MessageComposer
+                  value={messageText}
+                  onChange={handleMessageInputChange}
+                  onSend={handleSendMessage}
+                  placeholder="Write a message..."
+                />
+              )}
             </div>
           </div>
         </div>
@@ -813,15 +940,18 @@ export const Messaging: React.FC = () => {
             const other = getOtherParticipant(selectedConversation);
             const title = selectedConversation.type === "direct" ? other?.fullNames || "Direct Chat" : selectedConversation.name;
             const photo = selectedConversation.type === "direct" ? other?.photo : selectedConversation.photo;
+            const isGroup = selectedConversation.type === "group";
 
             return (
               <div className="py-6 flex flex-col items-center text-center border-b border-slate-200">
                 <ProfileAvatar photo={photo || undefined} name={title || "User"} className="w-16 h-16 rounded-2xl border-2 border-primary/20 shadow-md mb-3" />
                 <h4 className="text-sm font-bold text-slate-900">{title}</h4>
-                <p className="text-xs text-slate-500 mt-0.5">{selectedConversation.type === "direct" ? "Health Worker" : "Healthcare Group"}</p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {isGroup ? `${selectedConversation.participants?.length || 0} Members` : "Health Worker"}
+                </p>
                 
                 {/* Action Buttons */}
-                <div className="flex items-center gap-3 mt-4 w-full justify-center">
+                <div className="flex items-center gap-2 mt-4 w-full justify-center">
                   <button className="flex-1 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-700 rounded-xl transition-all flex items-center justify-center gap-1.5">
                     <Phone className="h-3.5 w-3.5 text-primary" /> Call
                   </button>
@@ -829,25 +959,152 @@ export const Messaging: React.FC = () => {
                     <BellOff className="h-3.5 w-3.5 text-amber-600" /> Mute
                   </button>
                 </div>
+
+                {/* Group Admin Management Buttons */}
+                {isGroup && isAdminOrCoordinator && (
+                  <div className="mt-3 pt-3 border-t border-slate-100 w-full flex flex-col gap-1.5">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setShowEditGroupModal(true)}
+                        className="flex-1 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 text-xs font-semibold rounded-xl transition-all flex items-center justify-center gap-1.5"
+                      >
+                        <Edit3 className="h-3.5 w-3.5" /> Edit Group
+                      </button>
+                      <button
+                        onClick={() => setShowAddMembersModal(true)}
+                        className="flex-1 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-semibold rounded-xl transition-all flex items-center justify-center gap-1.5"
+                      >
+                        <UserPlus className="h-3.5 w-3.5" /> Add Member
+                      </button>
+                    </div>
+                    <button
+                      onClick={() => setShowTerminateGroupModal(true)}
+                      className="w-full py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs font-semibold rounded-xl transition-all flex items-center justify-center gap-1.5"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" /> Terminate / Delete Group
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })()}
 
-          {/* Quick Info Sections */}
-          <div className="py-4 space-y-4 border-b border-slate-200">
-            <h5 className="text-xs font-bold text-slate-900">Information</h5>
-            
-            <div className="space-y-3 text-xs">
-              <div className="flex items-center gap-2.5 text-slate-600">
-                <MapPin className="h-4 w-4 text-primary flex-shrink-0" />
-                <span className="truncate">Gasabo, Remera Sector</span>
-              </div>
-              <div className="flex items-center gap-2.5 text-slate-600">
-                <Shield className="h-4 w-4 text-emerald-600 flex-shrink-0" />
-                <span className="truncate">King Faisal Hospital Partner</span>
+          {/* Group Description & Information */}
+          {selectedConversation.type === "group" ? (
+            <div className="py-4 space-y-3 border-b border-slate-200">
+              <h5 className="text-xs font-bold text-slate-900">Group Description</h5>
+              <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 p-2.5 rounded-xl border border-slate-200/80">
+                {(selectedConversation as any).description || "No description set for this group."}
+              </p>
+              
+              {/* Group Participants List */}
+              <div className="pt-2">
+                <div className="flex items-center justify-between mb-2">
+                  <h5 className="text-xs font-bold text-slate-900">
+                    Participants ({selectedConversation.participants?.length || 0})
+                  </h5>
+                  {isAdminOrCoordinator && (
+                    <button
+                      onClick={() => setShowAddMembersModal(true)}
+                      className="text-[11px] font-bold text-primary hover:underline flex items-center gap-1"
+                    >
+                      <Plus className="h-3 w-3" /> Add
+                    </button>
+                  )}
+                </div>
+
+                <div className="space-y-1.5 max-h-56 overflow-y-auto custom-scrollbar pr-1">
+                  {selectedConversation.participants?.map((p) => {
+                    const participantUser = p.user;
+                    const participantName = participantUser?.fullNames || "User";
+                    const isSelf = p.userId === user?.id;
+                    const isAdmin = p.role === "admin" || p.role === "creator";
+
+                    return (
+                      <div
+                        key={p.id || p.userId}
+                        className="flex items-center justify-between p-2 rounded-xl bg-slate-50 hover:bg-slate-100/80 border border-slate-200/80 transition-all"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          <ProfileAvatar photo={participantUser?.photo || undefined} name={participantName} className="w-8 h-8 rounded-full border border-slate-200 flex-shrink-0" />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1">
+                              <p className="text-xs font-semibold text-slate-800 truncate">
+                                {participantName} {isSelf && <span className="text-[10px] text-slate-400 font-normal">(You)</span>}
+                              </p>
+                              {isAdmin && (
+                                <Crown className="h-3 w-3 text-amber-500 flex-shrink-0" title="Group Admin" />
+                              )}
+                            </div>
+                            <p className="text-[10px] text-slate-500 truncate">{isAdmin ? "Group Admin" : "Member"}</p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          {!isSelf && participantUser && (
+                            <button
+                              onClick={() => startDirectChatWithUser(participantUser)}
+                              className="p-1 text-slate-400 hover:text-primary hover:bg-white rounded-lg border border-transparent hover:border-slate-200"
+                              title="Direct Message"
+                            >
+                              <MessageSquare className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                          {!isSelf && isAdminOrCoordinator && (
+                            <button
+                              onClick={() => handleToggleAdminRole(p.userId, p.role, participantName)}
+                              disabled={updatingRoleUserId === p.userId}
+                              className={`p-1 rounded-lg border border-transparent transition-all ${
+                                isAdmin
+                                  ? "text-amber-500 hover:text-slate-600 hover:bg-slate-100 hover:border-slate-200"
+                                  : "text-slate-400 hover:text-amber-600 hover:bg-amber-50 hover:border-amber-200"
+                              }`}
+                              title={isAdmin ? "Demote to Member" : "Make Group Admin"}
+                            >
+                              {updatingRoleUserId === p.userId ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-500" />
+                              ) : (
+                                <Crown className="h-3.5 w-3.5" />
+                              )}
+                            </button>
+                          )}
+                          {!isSelf && isAdminOrCoordinator && (
+                            <button
+                              onClick={() => handleRemoveParticipant(p.userId, participantName)}
+                              disabled={removingParticipantId === p.userId}
+                              className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg border border-transparent hover:border-rose-200 transition-all"
+                              title="Remove Participant"
+                            >
+                              {removingParticipantId === p.userId ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin text-rose-600" />
+                              ) : (
+                                <UserMinus className="h-3.5 w-3.5" />
+                              )}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="py-4 space-y-4 border-b border-slate-200">
+              <h5 className="text-xs font-bold text-slate-900">Information</h5>
+              
+              <div className="space-y-3 text-xs">
+                <div className="flex items-center gap-2.5 text-slate-600">
+                  <MapPin className="h-4 w-4 text-primary flex-shrink-0" />
+                  <span className="truncate">Gasabo, Remera Sector</span>
+                </div>
+                <div className="flex items-center gap-2.5 text-slate-600">
+                  <Shield className="h-4 w-4 text-emerald-600 flex-shrink-0" />
+                  <span className="truncate">King Faisal Hospital Partner</span>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Shared Media Gallery Preview */}
           <div className="py-4 space-y-3">
@@ -1152,6 +1409,76 @@ export const Messaging: React.FC = () => {
 
           </div>
         </div>
+      )}
+
+      {/* Group Modals */}
+      {showCreateGroupModal && (
+        <CreateGroupModal
+          isOpen={showCreateGroupModal}
+          onClose={() => setShowCreateGroupModal(false)}
+          currentUserId={user?.id}
+          onGroupCreated={(newGroup) => {
+            invalidateConversations();
+            setSelectedConversation(normalizeGroupChat(newGroup));
+            setActiveTab("group");
+            setShowCreateGroupModal(false);
+          }}
+        />
+      )}
+
+      {showEditGroupModal && selectedConversation && selectedConversation.type === "group" && (
+        <EditGroupModal
+          isOpen={showEditGroupModal}
+          groupId={selectedConversation.id}
+          initialName={selectedConversation.name || ""}
+          initialDescription={selectedConversation.description || ""}
+          initialPhoto={selectedConversation.photo || ""}
+          initialOnlyAdminsCanSend={selectedConversation.onlyAdminsCanSend || false}
+          onClose={() => setShowEditGroupModal(false)}
+          onGroupUpdated={(updated) => {
+            invalidateConversations();
+            setSelectedConversation((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    name: updated.name,
+                    photo: updated.photo !== undefined ? updated.photo : prev.photo,
+                    description: updated.description !== undefined ? updated.description : prev.description,
+                    onlyAdminsCanSend: updated.onlyAdminsCanSend !== undefined ? updated.onlyAdminsCanSend : prev.onlyAdminsCanSend,
+                  }
+                : null
+            );
+            setShowEditGroupModal(false);
+          }}
+        />
+      )}
+
+      {showAddMembersModal && selectedConversation && selectedConversation.type === "group" && (
+        <AddMembersModal
+          isOpen={showAddMembersModal}
+          groupId={selectedConversation.id}
+          existingParticipantUserIds={selectedConversation.participants?.map((p) => p.userId) || []}
+          onClose={() => setShowAddMembersModal(false)}
+          onMembersAdded={() => {
+            invalidateConversations();
+            setShowAddMembersModal(false);
+          }}
+        />
+      )}
+
+      {showTerminateGroupModal && selectedConversation && selectedConversation.type === "group" && (
+        <TerminateGroupModal
+          isOpen={showTerminateGroupModal}
+          groupId={selectedConversation.id}
+          groupName={selectedConversation.name || "this group"}
+          onClose={() => setShowTerminateGroupModal(false)}
+          onGroupTerminated={() => {
+            invalidateConversations();
+            setSelectedConversation(null);
+            setShowInfoPanel(false);
+            setShowTerminateGroupModal(false);
+          }}
+        />
       )}
 
       {confirmDialog}

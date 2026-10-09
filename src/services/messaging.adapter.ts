@@ -139,11 +139,15 @@ export const normalizeGroupChat = (raw: IGroupChatRaw): IConversation => ({
   type: "group",
   name: raw.name,
   photo: raw.photo,
+  description: raw.description,
   createdById: raw.createdById,
+  onlyAdminsCanSend: raw.onlyAdminsCanSend,
   createdAt: raw.createdAt,
   updatedAt: raw.updatedAt,
   lastMessageId: raw.lastMessageId,
-  participants: raw.participants.map((p) => ({
+  participants: (raw.participants || []).map((p) => ({
+    id: p.id,
+    role: p.role,
     conversationId: raw.id,
     userId: p.userId,
     joinedAt: p.joinedAt,

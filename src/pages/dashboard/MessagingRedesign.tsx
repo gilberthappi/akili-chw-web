@@ -705,6 +705,7 @@ export const MessagingRedesign: React.FC = () => {
 
                   const formattedTime = new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
                   const isSingleAudio = !msg.content && msg.attachments?.length === 1 && msg.attachments[0].type === "audio";
+                  const isSingleMedia = !msg.content && msg.attachments?.length === 1 && (msg.attachments[0].type === "image" || msg.attachments[0].type === "video");
 
                   return (
                     <div key={msg.id} className={`flex items-end gap-2.5 ${isMine ? "justify-end" : "justify-start"} group`}>
@@ -719,9 +720,17 @@ export const MessagingRedesign: React.FC = () => {
 
                         <div
                           className={`rounded-2xl text-xs leading-relaxed shadow-2xs transition-all duration-200 relative ${
-                            isSingleAudio ? "px-2.5 py-1.5" : msg.content ? "p-3.5" : "p-1.5"
+                            isSingleMedia
+                              ? "p-0 bg-transparent border-none shadow-none overflow-hidden rounded-2xl"
+                              : isSingleAudio
+                              ? "px-2.5 py-1.5"
+                              : msg.content
+                              ? "p-3.5"
+                              : "p-1.5"
                           } ${
-                            isMine
+                            isSingleMedia
+                              ? ""
+                              : isMine
                               ? "bg-primary text-white rounded-br-xs shadow-primary/10 font-normal"
                               : "bg-white text-slate-800 rounded-bl-xs border border-slate-200/90"
                           }`}
@@ -739,13 +748,13 @@ export const MessagingRedesign: React.FC = () => {
                                   isOwn={isMine}
                                   senderPhoto={msg.sender?.photo}
                                   senderName={senderName}
-                                  formattedTimestamp={isSingleAudio ? formattedTime : undefined}
+                                  formattedTimestamp={isSingleAudio || isSingleMedia ? formattedTime : undefined}
                                 />
                               ))}
                             </div>
                           )}
 
-                          {!isSingleAudio && (
+                          {!isSingleAudio && !isSingleMedia && (
                             <div className={`flex items-center justify-end gap-1 px-1 mt-1 text-[9px] ${isMine ? "text-white/80" : "text-slate-400"}`}>
                               <span>{formattedTime}</span>
                               {isMine && <CheckCheck className="h-3 w-3 text-white/80" />}
