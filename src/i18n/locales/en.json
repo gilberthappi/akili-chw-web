@@ -113,8 +113,8 @@
   },
   "chat": {
     "label": "Viki",
-    "title": "Assistant",
-    "welcome": "Hello! Welcome. I’m your AI assistant. How can I help you today?",
+    "title": "Viki",
+    "welcome": "Hello! Welcome. I’m Viki, your AI assistant. How can I help you today?",
     "placeholder": "Ask something...",
     "error": "Could not get a response. Try again.",
     "expand": "Expand chat",
@@ -130,6 +130,10 @@
     "deleteChat": "Delete chat",
     "loadingHistory": "Loading…",
     "historyError": "Could not load previous chats.",
-    "deleteError": "Could not delete the chat. Try again."
+    "deleteError": "Could not delete the chat. Try again.",
+    "rateGood": "Good answer",
+    "rateBad": "Bad answer",
+    "ratingThanks": "Thanks for your feedback!",
+    "ratingError": "Could not save your rating. Try again."
   }
 }

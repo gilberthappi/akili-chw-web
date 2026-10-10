@@ -130,6 +130,10 @@
     "deleteChat": "Gusiba ikiganiro",
     "loadingHistory": "Birimo gufunguka…",
     "historyError": "Ntibyashobotse kubona ibiganiro byabanje.",
-    "deleteError": "Ntibyashobotse gusiba ikiganiro. Mwongere mugerageze."
+    "deleteError": "Ntibyashobotse gusiba ikiganiro. Mwongere mugerageze.",
+    "rateGood": "Igisubizo cyiza",
+    "rateBad": "Igisubizo kibi",
+    "ratingThanks": "Murakoze ku gitekerezo cyanyu!",
+    "ratingError": "Ntibyashobotse kubika igitekerezo cyanyu. Mwongere mugerageze."
   }
 }

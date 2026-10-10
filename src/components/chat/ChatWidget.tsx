@@ -9,13 +9,17 @@ import {
   PanelLeftOpen,
   SquarePen,
   Trash2,
+  ThumbsUp,
+  ThumbsDown,
 } from "lucide-react";
 import {
   deleteChatConversation,
   getChatConversationMessages,
   listChatConversations,
+  rateChatMessage,
   sendChatMessage,
   type ChatMessage,
+  type ChatRating,
 } from "@/services/chat.service";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
@@ -69,8 +73,8 @@ const titleFrom = (text: string): string =>
   text.length > 60 ? `${text.slice(0, 57).trimEnd()}…` : text;
 
 export const ChatWidget: React.FC = () => {
-  // Drop the `lng` option to make them follow the language chosen in Settings instead.
-  const { t } = useTranslation(undefined, { lng: "rw" });
+  // Labels and the welcome message follow the language chosen in Settings.
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -225,7 +229,7 @@ export const ChatWidget: React.FC = () => {
 
     setLoadingId(id);
     try {
-      const { reply, conversationId } = await sendChatMessage(
+      const { reply, conversationId, replyId } = await sendChatMessage(
         text,
         history,
         id.startsWith(LOCAL_PREFIX) ? undefined : id,
@@ -233,7 +237,10 @@ export const ChatWidget: React.FC = () => {
       // Goes to the conversation it was asked in, even if the user switched.
       updateConversation(id, (c) => ({
         ...c,
-        messages: [...(c.messages ?? []), { role: "assistant", content: reply }],
+        messages: [
+          ...(c.messages ?? []),
+          { role: "assistant", content: reply, id: replyId ?? undefined, rating: null },
+        ],
       }));
       if (conversationId && conversationId !== id) {
         const from = id;
@@ -252,6 +259,34 @@ export const ChatWidget: React.FC = () => {
       setInput(text);
     } finally {
       setLoadingId(null);
+    }
+  };
+
+  const setReplyRating = (messageId: string, rating: ChatRating | null) => {
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.messages?.some((m) => m.id === messageId)
+          ? {
+              ...c,
+              messages: c.messages.map((m) => (m.id === messageId ? { ...m, rating } : m)),
+            }
+          : c,
+      ),
+    );
+  };
+
+  /** Clicking the rating already chosen removes it. Shown at once, undone if saving fails. */
+  const rateReply = async (message: ChatMessage, rating: ChatRating) => {
+    if (!message.id) return;
+    const previous = message.rating ?? null;
+    const next = previous === rating ? null : rating;
+    setReplyRating(message.id, next);
+    try {
+      await rateChatMessage(message.id, next);
+      if (next) toast.success(t("chat.ratingThanks"));
+    } catch {
+      setReplyRating(message.id, previous);
+      toast.error(t("chat.ratingError"));
     }
   };
 
@@ -320,7 +355,7 @@ export const ChatWidget: React.FC = () => {
     <>
       {open && (
         <div
-          className="fixed right-0 z-40 flex flex-col rounded-t-xl border border-gray-200 bg-white shadow-xl transition-[width,height] duration-200"
+          className="fixed right-0 z-40 flex flex-col rounded-xl border border-gray-200 bg-white shadow-xl transition-[width,height] duration-200"
           style={{
             width: expanded
               ? showHistory
@@ -329,7 +364,7 @@ export const ChatWidget: React.FC = () => {
               : PANEL_W,
             height: expanded ? PANEL_H_EXPANDED : PANEL_H,
             right: 24,
-            bottom: 80,
+            bottom: 24,
           }}
         >
           <div className="flex items-center justify-between border-b border-gray-200 px-3 py-3">
@@ -395,22 +430,59 @@ export const ChatWidget: React.FC = () => {
                     {t("chat.welcome")}
                   </p>
                 )}
-                {messages.map((m, i) => (
-                  <div
-                    key={i}
-                    className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
-                  >
+                {messages.map((m, i) => {
+                  const rating = m.rating ?? null;
+                  return (
                     <div
-                      className={`max-w-[85%] whitespace-pre-wrap break-words rounded-lg px-3 py-2 text-sm ${
-                        m.role === "user"
-                          ? "bg-primary text-white"
-                          : "bg-gray-100 text-gray-800"
-                      }`}
+                      key={i}
+                      className={`flex flex-col ${m.role === "user" ? "items-end" : "items-start"}`}
                     >
-                      {m.role === "assistant" ? renderWithLinks(m.content) : m.content}
+                      <div
+                        className={`max-w-[85%] whitespace-pre-wrap break-words rounded-lg px-3 py-2 text-sm ${
+                          m.role === "user"
+                            ? "bg-primary text-white"
+                            : "bg-gray-100 text-gray-800"
+                        }`}
+                      >
+                        {m.role === "assistant" ? renderWithLinks(m.content) : m.content}
+                      </div>
+                      {m.role === "assistant" && m.id && (
+                        <div className="mt-1 flex items-center gap-0.5">
+                          <button
+                            type="button"
+                            onClick={() => void rateReply(m, "up")}
+                            className={`rounded p-1 hover:bg-gray-100 ${
+                              rating === "up" ? "text-green-600" : "text-gray-400 hover:text-gray-600"
+                            }`}
+                            aria-label={t("chat.rateGood")}
+                            aria-pressed={rating === "up"}
+                            title={t("chat.rateGood")}
+                          >
+                            <ThumbsUp
+                              className="h-3.5 w-3.5"
+                              fill={rating === "up" ? "currentColor" : "none"}
+                            />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void rateReply(m, "down")}
+                            className={`rounded p-1 hover:bg-gray-100 ${
+                              rating === "down" ? "text-red-600" : "text-gray-400 hover:text-gray-600"
+                            }`}
+                            aria-label={t("chat.rateBad")}
+                            aria-pressed={rating === "down"}
+                            title={t("chat.rateBad")}
+                          >
+                            <ThumbsDown
+                              className="h-3.5 w-3.5"
+                              fill={rating === "down" ? "currentColor" : "none"}
+                            />
+                          </button>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
                 {loadingHere && (
                   <div className="flex justify-start">
                     <div className="rounded-lg bg-gray-100 px-3 py-2 text-sm text-gray-500">
@@ -453,41 +525,17 @@ export const ChatWidget: React.FC = () => {
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="fixed bottom-6 right-6 z-50 flex h-16 w-16 items-center justify-center rounded-full bg-primary text-white shadow-lg hover:bg-primary/90 transition-colors"
-        aria-label={open ? t("chat.close") : t("chat.open")}
-        title={open ? t("chat.close") : t("chat.label")}
-      >
-        {open ? (
-          <X className="h-7 w-7" />
-        ) : (
-          <>
-            {/* Label curved along the top edge of the button, above the robot */}
-            <svg
-              viewBox="0 0 64 64"
-              className="pointer-events-none absolute inset-0 h-full w-full"
-              aria-hidden="true"
-            >
-              <defs>
-                <path id="chat-fab-arc" d="M 9,32 A 23,23 0 0 1 55,32" />
-              </defs>
-              <text
-                fill="currentColor"
-                fontSize="10"
-                fontWeight="700"
-                letterSpacing="0.4"
-              >
-                <textPath href="#chat-fab-arc" startOffset="50%" textAnchor="middle">
-                  {t("chat.label")}
-                </textPath>
-              </text>
-            </svg>
-            <Bot className="mt-3 h-6 w-6" />
-          </>
-        )}
-      </button>
+      {!open && (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-white shadow-lg transition-colors hover:bg-primary/90"
+          aria-label={t("chat.open")}
+          title={t("chat.label")}
+        >
+          <Bot className="h-7 w-7" />
+        </button>
+      )}
     </>
   );
 };

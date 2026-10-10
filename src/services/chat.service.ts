@@ -1,6 +1,14 @@
 import api from "./api";
 
-export type ChatMessage = { role: "user" | "assistant"; content: string };
+export type ChatRating = "up" | "down";
+
+export type ChatMessage = {
+  role: "user" | "assistant";
+  content: string;
+  /** Set once the server has saved the message; only saved replies can be rated. */
+  id?: string;
+  rating?: ChatRating | null;
+};
 
 export type ChatConversationSummary = {
   id: string;
@@ -16,10 +24,18 @@ export const sendChatMessage = async (
   message: string,
   history: ChatMessage[] = [],
   conversationId?: string,
-): Promise<{ reply: string; conversationId: string | null }> => {
-  const { data } = await api.post<{ reply: string; conversationId: string | null }>(
+): Promise<{ reply: string; conversationId: string | null; replyId: string | null }> => {
+  const { data } = await api.post<{
+    reply: string;
+    conversationId: string | null;
+    replyId: string | null;
+  }>(
     "/chat",
-    { message, history, ...(conversationId ? { conversationId } : {}) },
+    {
+      message,
+      history: history.map(({ role, content }) => ({ role, content })),
+      ...(conversationId ? { conversationId } : {}),
+    },
     { timeout: 300_000 },
   );
   return data;
@@ -43,4 +59,12 @@ export const getChatConversationMessages = async (
 
 export const deleteChatConversation = async (conversationId: string): Promise<void> => {
   await api.delete(`/chat/conversations/${encodeURIComponent(conversationId)}`);
+};
+
+/** Rates one of Viki's replies; null removes the rating. */
+export const rateChatMessage = async (
+  messageId: string,
+  rating: ChatRating | null,
+): Promise<void> => {
+  await api.put(`/chat/messages/${encodeURIComponent(messageId)}/rating`, { rating });
 };
