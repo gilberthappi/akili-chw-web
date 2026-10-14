@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import {
   V2_CARD_SHELL,
   V2_EMPTY,
@@ -24,6 +25,7 @@ import {
 } from "@/components/studyTime/StudyTimeCharts";
 
 export const StudyTimeWidget: React.FC<{ studentId: string }> = ({ studentId }) => {
+  const { t } = useTranslation();
   const [days, setDays] = useState(30);
   const { data, isLoading, isError } = useQuery({
     queryKey: ["study-time", "student", studentId, days],
@@ -36,11 +38,9 @@ export const StudyTimeWidget: React.FC<{ studentId: string }> = ({ studentId }) 
     <div className={`${V2_CARD_SHELL} overflow-hidden`}>
       <div className='px-4 py-3 flex flex-wrap items-start justify-between gap-2'>
         <div>
-          <h3 className={V2_SECTION_TITLE}>Study time</h3>
+          <h3 className={V2_SECTION_TITLE}>{t("studyTime.title")}</h3>
           <p className={`text-[11px] ${V2_MUTED}`}>
-            When this learner studies alone (self-paced) or with others (supervised: meetings or
-            studying with {stats?.groupMinLearners ?? 3}+ learners of the same health center).
-            Times are Kigali time.
+            {t("studyTime.subtitleStudent", { n: stats?.groupMinLearners ?? 3 })}
           </p>
         </div>
         <StudyRangeSelect value={days} onChange={setDays} />
@@ -50,33 +50,38 @@ export const StudyTimeWidget: React.FC<{ studentId: string }> = ({ studentId }) 
         <StudySkeleton />
       ) : isError || !stats ? (
         <div className={`${V2_EMPTY} mx-4 mb-4`}>
-          <p className={`text-xs ${V2_MUTED}`}>Could not load study time.</p>
+          <p className={`text-xs ${V2_MUTED}`}>{t("studyTime.loadError")}</p>
         </div>
       ) : stats.totals.total === 0 ? (
         <div className={`${V2_EMPTY} mx-4 mb-4`}>
-          <p className={`text-xs ${V2_MUTED}`}>No study activity in the last {days} days.</p>
+          <p className={`text-xs ${V2_MUTED}`}>{t("studyTime.emptyStudent", { days })}</p>
         </div>
       ) : (
         <div className='px-4 pb-4 space-y-4'>
           <div className='grid grid-cols-2 md:grid-cols-4 gap-2'>
             <StudyKpi
-              label='Total study time'
+              label={t("studyTime.totalTime")}
               value={formatStudyMinutes(stats.totals.total)}
-              hint={`${stats.totals.activeDays} of ${stats.range.days} days active`}
+              hint={t("studyTime.activeDaysHint", {
+                active: stats.totals.activeDays,
+                days: stats.range.days,
+              })}
             />
             <StudyKpi
-              label='Average per active day'
+              label={t("studyTime.avgPerActiveDay")}
               value={formatStudyMinutes(stats.totals.avgPerActiveDay)}
             />
             <StudyKpi
-              label='Preferred time'
-              value={stats.preferred.period ? stats.preferred.periodLabel!.split(" ")[0] : "—"}
-              hint={`Peak ${formatHourRange(stats.preferred.hour)}`}
+              label={t("studyTime.preferredTime")}
+              value={
+                stats.preferred.period ? t(`studyTime.periodsShort.${stats.preferred.period}`) : "—"
+              }
+              hint={t("studyTime.peak", { range: formatHourRange(stats.preferred.hour) })}
             />
             <StudyKpi
-              label='Most active day'
-              value={stats.preferred.weekday ?? "—"}
-              hint={`${stats.totals.supervisedShare}% supervised`}
+              label={t("studyTime.mostActiveDay")}
+              value={stats.preferred.weekday ? t(`studyTime.weekdays.${stats.preferred.weekday}`) : "—"}
+              hint={t("studyTime.supervisedPct", { pct: stats.totals.supervisedShare })}
             />
           </div>
 
@@ -84,17 +89,21 @@ export const StudyTimeWidget: React.FC<{ studentId: string }> = ({ studentId }) 
 
           <div className='grid grid-cols-1 lg:grid-cols-2 gap-4'>
             <div>
-              <StudyChartTitle>Hours of the day</StudyChartTitle>
+              <StudyChartTitle>{t("studyTime.hoursOfDay")}</StudyChartTitle>
               <StudyStackedBars data={stats.byHour} xKey='hour' tickFormatter={hourTick} />
             </div>
             <div>
-              <StudyChartTitle>Days of the week</StudyChartTitle>
-              <StudyStackedBars data={stats.byWeekday} xKey='weekday' />
+              <StudyChartTitle>{t("studyTime.daysOfWeek")}</StudyChartTitle>
+              <StudyStackedBars
+                data={stats.byWeekday}
+                xKey='weekday'
+                tickFormatter={(w) => t(`studyTime.weekdays.${w}`)}
+              />
             </div>
           </div>
 
           <div>
-            <StudyChartTitle>Daily trend</StudyChartTitle>
+            <StudyChartTitle>{t("studyTime.dailyTrend")}</StudyChartTitle>
             <StudyDailyTrend data={stats.daily} />
           </div>
 

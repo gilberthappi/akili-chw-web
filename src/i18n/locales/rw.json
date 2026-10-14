@@ -135,5 +135,60 @@
     "rateBad": "Igisubizo kibi",
     "ratingThanks": "Murakoze ku gitekerezo cyanyu!",
     "ratingError": "Ntibyashobotse kubika igitekerezo cyanyu. Mwongere mugerageze."
+  },
+  "studyTime": {
+    "title": "Igihe cyo kwiga",
+    "subtitleStudent": "Igihe uyu munyeshuri yiga wenyine cyangwa ari kumwe n'abandi (akurikiranwa: mu nama cyangwa yigana n'abanyeshuri {{n}}+ bo ku kigo nderabuzima kimwe). Amasaha ni aya Kigali.",
+    "subtitleOverview": "Kwiga wenyine n'ukurikiranwa (mu nama cyangwa abanyeshuri {{n}}+ bo ku kigo nderabuzima kimwe bigira hamwe), n'igihe abanyeshuri bakunda kwiga. Amasaha ni aya Kigali.",
+    "rangeDays": "Iminsi {{n}}",
+    "selfPaced": "Kwiga wenyine",
+    "meeting": "Inama",
+    "group": "Kwigira mu itsinda",
+    "supervised": "Gukurikiranwa",
+    "totalTime": "Igihe cyose cyo kwiga",
+    "activeDaysHint": "Yize iminsi {{active}} kuri {{days}}",
+    "avgPerActiveDay": "Impuzandengo ku munsi yize",
+    "preferredTime": "Igihe akunda kwiga",
+    "peak": "Isaha ikunzwe: {{range}}",
+    "mostActiveDay": "Umunsi yiga cyane",
+    "supervisedPct": "{{pct}}% akurikiranwa",
+    "hoursOfDay": "Amasaha y'umunsi",
+    "daysOfWeek": "Iminsi y'icyumweru",
+    "dailyTrend": "Uko bigenda buri munsi",
+    "loadError": "Ntibyashobotse kubona igihe cyo kwiga.",
+    "emptyStudent": "Nta gihe cyo kwiga cyabonetse mu minsi {{days}} ishize.",
+    "emptyOverview": "Nta gihe cyo kwiga cyabonetse ku byo mwahisemo.",
+    "activeLearners": "Abanyeshuri bize",
+    "ofInScope": "kuri {{n}} bose",
+    "avgPerLearner": "Impuzandengo ku munyeshuri",
+    "supervisedShare": "Igipimo cyo gukurikiranwa",
+    "supervisedTime": "{{time}} bakurikiranwa",
+    "peakHour": "Isaha ikunzwe",
+    "busiestDay": "Umunsi wigwamo cyane",
+    "learnersByPeriod": "Abanyeshuri ukurikije igihe bakunda kwiga",
+    "learnersMostly": "Abanyeshuri benshi biga…",
+    "mostlySelf": "bonyine",
+    "mostlySupervised": "bakurikiranwa",
+    "periods": {
+      "morning": "Mu gitondo (05–12h)",
+      "afternoon": "Ku manywa (12–17h)",
+      "evening": "Nimugoroba (17–21h)",
+      "night": "Nijoro (21–05h)"
+    },
+    "periodsShort": {
+      "morning": "Mu gitondo",
+      "afternoon": "Ku manywa",
+      "evening": "Nimugoroba",
+      "night": "Nijoro"
+    },
+    "weekdays": {
+      "Mon": "Mbere",
+      "Tue": "Kabiri",
+      "Wed": "Gatatu",
+      "Thu": "Kane",
+      "Fri": "Gatanu",
+      "Sat": "Gatandatu",
+      "Sun": "Cyumweru"
+    }
   }
 }

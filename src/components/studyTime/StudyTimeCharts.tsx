@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   Area,
   AreaChart,
@@ -23,10 +24,10 @@ export const STUDY_COLORS = {
   group: "#F59E0B",
 };
 
-const SERIES: { key: keyof Pick<StudySplit, "self" | "meeting" | "group">; name: string }[] = [
-  { key: "self", name: "Self-paced" },
-  { key: "meeting", name: "Meeting" },
-  { key: "group", name: "Group study" },
+const SERIES: { key: keyof Pick<StudySplit, "self" | "meeting" | "group">; labelKey: string }[] = [
+  { key: "self", labelKey: "studyTime.selfPaced" },
+  { key: "meeting", labelKey: "studyTime.meeting" },
+  { key: "group", labelKey: "studyTime.group" },
 ];
 
 export const STUDY_RANGES = [7, 30, 90] as const;
@@ -34,7 +35,9 @@ export const STUDY_RANGES = [7, 30, 90] as const;
 export const StudyRangeSelect: React.FC<{ value: number; onChange: (days: number) => void }> = ({
   value,
   onChange,
-}) => (
+}) => {
+  const { t } = useTranslation();
+  return (
   <div className='inline-flex rounded-xl border border-[#B8CDE0] dark:border-slate-600 p-0.5'>
     {STUDY_RANGES.map((d) => (
       <button
@@ -47,22 +50,26 @@ export const StudyRangeSelect: React.FC<{ value: number; onChange: (days: number
             : "text-[#5B6575] dark:text-slate-300 hover:bg-[#F1F5F9] dark:hover:bg-slate-700"
         }`}
       >
-        {d}d
+        {t("studyTime.rangeDays", { n: d })}
       </button>
     ))}
   </div>
-);
+  );
+};
 
-export const StudyLegend: React.FC = () => (
+export const StudyLegend: React.FC = () => {
+  const { t } = useTranslation();
+  return (
   <div className={`flex flex-wrap items-center gap-3 text-[11px] ${V2_MUTED}`}>
     {SERIES.map((s) => (
       <span key={s.key} className='inline-flex items-center gap-1.5'>
         <span className='w-2.5 h-2.5 rounded-[3px]' style={{ backgroundColor: STUDY_COLORS[s.key] }} />
-        {s.name}
+        {t(s.labelKey)}
       </span>
     ))}
   </div>
-);
+  );
+};
 
 export const StudyKpi: React.FC<{ label: string; value: string; hint?: string }> = ({
   label,
@@ -78,6 +85,7 @@ export const StudyKpi: React.FC<{ label: string; value: string; hint?: string }>
 
 /** Self-paced vs supervised share as a single stacked bar. */
 export const StudySplitBar: React.FC<{ split: StudySplit }> = ({ split }) => {
+  const { t } = useTranslation();
   const total = split.self + split.supervised;
   const pct = (n: number) => (total ? (n / total) * 100 : 0);
   return (
@@ -96,7 +104,7 @@ export const StudySplitBar: React.FC<{ split: StudySplit }> = ({ split }) => {
             <span className='font-bold' style={{ color: STUDY_COLORS[s.key] }}>
               {Math.round(pct(split[s.key]))}%
             </span>{" "}
-            {s.name} · {formatStudyMinutes(split[s.key])}
+            {t(s.labelKey)} · {formatStudyMinutes(split[s.key])}
           </span>
         ))}
       </div>
@@ -119,7 +127,9 @@ export const StudyStackedBars: React.FC<{
   xKey: string;
   height?: number;
   tickFormatter?: (v: number | string) => string;
-}> = ({ data, xKey, height = 180, tickFormatter }) => (
+}> = ({ data, xKey, height = 180, tickFormatter }) => {
+  const { t } = useTranslation();
+  return (
   <div style={{ height }}>
     <ResponsiveContainer width='100%' height='100%'>
       <BarChart data={data} margin={{ top: 6, right: 4, left: -18, bottom: 0 }} barCategoryGap='14%'>
@@ -143,7 +153,7 @@ export const StudyStackedBars: React.FC<{
           <Bar
             key={s.key}
             dataKey={s.key}
-            name={s.name}
+            name={t(s.labelKey)}
             stackId='a'
             fill={STUDY_COLORS[s.key]}
             radius={idx === SERIES.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
@@ -153,13 +163,16 @@ export const StudyStackedBars: React.FC<{
       </BarChart>
     </ResponsiveContainer>
   </div>
-);
+  );
+};
 
 /** Daily self-paced vs supervised minutes. */
 export const StudyDailyTrend: React.FC<{ data: ({ date: string } & StudySplit)[]; height?: number }> = ({
   data,
   height = 160,
-}) => (
+}) => {
+  const { t } = useTranslation();
+  return (
   <div style={{ height }}>
     <ResponsiveContainer width='100%' height='100%'>
       <AreaChart data={data} margin={{ top: 6, right: 4, left: -18, bottom: 0 }}>
@@ -177,7 +190,7 @@ export const StudyDailyTrend: React.FC<{ data: ({ date: string } & StudySplit)[]
         <Area
           type='monotone'
           dataKey='self'
-          name='Self-paced'
+          name={t("studyTime.selfPaced")}
           stackId='a'
           stroke={STUDY_COLORS.self}
           fill={STUDY_COLORS.self}
@@ -186,7 +199,7 @@ export const StudyDailyTrend: React.FC<{ data: ({ date: string } & StudySplit)[]
         <Area
           type='monotone'
           dataKey='supervised'
-          name='Supervised'
+          name={t("studyTime.supervised")}
           stackId='a'
           stroke={STUDY_COLORS.meeting}
           fill={STUDY_COLORS.meeting}
@@ -195,7 +208,8 @@ export const StudyDailyTrend: React.FC<{ data: ({ date: string } & StudySplit)[]
       </AreaChart>
     </ResponsiveContainer>
   </div>
-);
+  );
+};
 
 export const StudyChartTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <p className={`text-[12px] font-bold mb-1 ${V2_STRONG}`}>{children}</p>

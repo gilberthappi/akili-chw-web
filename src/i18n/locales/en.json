@@ -135,5 +135,60 @@
     "rateBad": "Bad answer",
     "ratingThanks": "Thanks for your feedback!",
     "ratingError": "Could not save your rating. Try again."
+  },
+  "studyTime": {
+    "title": "Study time",
+    "subtitleStudent": "When this learner studies alone (self-paced) or with others (supervised: meetings or studying with {{n}}+ learners of the same health center). Times are Kigali time.",
+    "subtitleOverview": "Self-paced vs supervised learning (meetings or {{n}}+ learners of the same health center studying together), and when learners prefer to study. Kigali time.",
+    "rangeDays": "{{n}}d",
+    "selfPaced": "Self-paced",
+    "meeting": "Meeting",
+    "group": "Group study",
+    "supervised": "Supervised",
+    "totalTime": "Total study time",
+    "activeDaysHint": "{{active}} of {{days}} days active",
+    "avgPerActiveDay": "Average per active day",
+    "preferredTime": "Preferred time",
+    "peak": "Peak {{range}}",
+    "mostActiveDay": "Most active day",
+    "supervisedPct": "{{pct}}% supervised",
+    "hoursOfDay": "Hours of the day",
+    "daysOfWeek": "Days of the week",
+    "dailyTrend": "Daily trend",
+    "loadError": "Could not load study time.",
+    "emptyStudent": "No study activity in the last {{days}} days.",
+    "emptyOverview": "No study activity for the selected filters.",
+    "activeLearners": "Active learners",
+    "ofInScope": "of {{n}} in scope",
+    "avgPerLearner": "Average per learner",
+    "supervisedShare": "Supervised share",
+    "supervisedTime": "{{time}} supervised",
+    "peakHour": "Peak hour",
+    "busiestDay": "Busiest day",
+    "learnersByPeriod": "Learners by preferred time",
+    "learnersMostly": "Learners mostly…",
+    "mostlySelf": "self-paced",
+    "mostlySupervised": "supervised",
+    "periods": {
+      "morning": "Morning (05–12h)",
+      "afternoon": "Afternoon (12–17h)",
+      "evening": "Evening (17–21h)",
+      "night": "Night (21–05h)"
+    },
+    "periodsShort": {
+      "morning": "Morning",
+      "afternoon": "Afternoon",
+      "evening": "Evening",
+      "night": "Night"
+    },
+    "weekdays": {
+      "Mon": "Mon",
+      "Tue": "Tue",
+      "Wed": "Wed",
+      "Thu": "Thu",
+      "Fri": "Fri",
+      "Sat": "Sat",
+      "Sun": "Sun"
+    }
   }
 }

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useAdminDashboardFilters } from "../../AdminDashboardFiltersContext";
 import { useStudyTimeOverview } from "@/hooks/useStudyTimeOverview";
 import { formatHourRange, formatStudyMinutes } from "@/services/studyTime.service";
@@ -17,6 +18,7 @@ import {
 import { V2_CARD_SHELL, V2_EMPTY, V2_MUTED, V2_SECTION_TITLE, V2_STRONG } from "./v2CardStyles";
 
 export const StudyTimeOverviewWidgetV2: React.FC = () => {
+  const { t } = useTranslation();
   const { filters } = useAdminDashboardFilters();
   const [days, setDays] = useState(30);
   const { data, isLoading, isError } = useStudyTimeOverview(filters, days);
@@ -28,10 +30,9 @@ export const StudyTimeOverviewWidgetV2: React.FC = () => {
     <div className={`${V2_CARD_SHELL} overflow-hidden`}>
       <div className='px-4 py-3 flex flex-wrap items-start justify-between gap-2'>
         <div>
-          <h3 className={V2_SECTION_TITLE}>Study time</h3>
+          <h3 className={V2_SECTION_TITLE}>{t("studyTime.title")}</h3>
           <p className={`text-[11px] ${V2_MUTED}`}>
-            Self-paced vs supervised learning (meetings or {data?.groupMinLearners ?? 3}+ learners of
-            the same health center studying together), and when learners prefer to study. Kigali time.
+            {t("studyTime.subtitleOverview", { n: data?.groupMinLearners ?? 3 })}
           </p>
         </div>
         {periodSelected ? (
@@ -47,59 +48,66 @@ export const StudyTimeOverviewWidgetV2: React.FC = () => {
         <StudySkeleton />
       ) : isError || !data ? (
         <div className={`${V2_EMPTY} mx-4 mb-4`}>
-          <p className={`text-xs ${V2_MUTED}`}>Could not load study time.</p>
+          <p className={`text-xs ${V2_MUTED}`}>{t("studyTime.loadError")}</p>
         </div>
       ) : data.totals.total === 0 ? (
         <div className={`${V2_EMPTY} mx-4 mb-4`}>
-          <p className={`text-xs ${V2_MUTED}`}>No study activity for the selected filters.</p>
+          <p className={`text-xs ${V2_MUTED}`}>{t("studyTime.emptyOverview")}</p>
         </div>
       ) : (
         <div className='px-4 pb-4 space-y-4'>
           <div className='grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2'>
-            <StudyKpi label='Total study time' value={formatStudyMinutes(data.totals.total)} />
+            <StudyKpi label={t("studyTime.totalTime")} value={formatStudyMinutes(data.totals.total)} />
             <StudyKpi
-              label='Active learners'
+              label={t("studyTime.activeLearners")}
               value={`${data.learners.active}`}
-              hint={`of ${data.learners.inScope} in scope`}
+              hint={t("studyTime.ofInScope", { n: data.learners.inScope })}
             />
             <StudyKpi
-              label='Average per learner'
+              label={t("studyTime.avgPerLearner")}
               value={formatStudyMinutes(data.learners.avgMinutesPerActive)}
             />
             <StudyKpi
-              label='Supervised share'
+              label={t("studyTime.supervisedShare")}
               value={`${data.totals.supervisedShare}%`}
-              hint={`${formatStudyMinutes(data.totals.supervised)} supervised`}
+              hint={t("studyTime.supervisedTime", { time: formatStudyMinutes(data.totals.supervised) })}
             />
             <StudyKpi
-              label='Peak hour'
+              label={t("studyTime.peakHour")}
               value={data.preferred.hour === null ? "—" : hourTick(data.preferred.hour)}
               hint={formatHourRange(data.preferred.hour)}
             />
-            <StudyKpi label='Busiest day' value={data.preferred.weekday ?? "—"} />
+            <StudyKpi
+              label={t("studyTime.busiestDay")}
+              value={data.preferred.weekday ? t(`studyTime.weekdays.${data.preferred.weekday}`) : "—"}
+            />
           </div>
 
           <StudySplitBar split={data.totals} />
 
           <div className='grid grid-cols-1 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)] gap-4'>
             <div className='min-w-0'>
-              <StudyChartTitle>Hours of the day</StudyChartTitle>
+              <StudyChartTitle>{t("studyTime.hoursOfDay")}</StudyChartTitle>
               <StudyStackedBars data={data.byHour} xKey='hour' tickFormatter={hourTick} />
             </div>
 
             <div className='min-w-0'>
-              <StudyChartTitle>Days of the week</StudyChartTitle>
-              <StudyStackedBars data={data.byWeekday} xKey='weekday' />
+              <StudyChartTitle>{t("studyTime.daysOfWeek")}</StudyChartTitle>
+              <StudyStackedBars
+                data={data.byWeekday}
+                xKey='weekday'
+                tickFormatter={(w) => t(`studyTime.weekdays.${w}`)}
+              />
             </div>
 
             <div className='min-w-0 space-y-3'>
               <div>
-                <StudyChartTitle>Learners by preferred time</StudyChartTitle>
+                <StudyChartTitle>{t("studyTime.learnersByPeriod")}</StudyChartTitle>
                 <div className='space-y-1.5'>
                   {data.learnersByPeriod.map((p) => (
                     <div key={p.period}>
                       <div className={`flex justify-between text-[11px] ${V2_MUTED}`}>
-                        <span>{p.label}</span>
+                        <span>{t(`studyTime.periods.${p.period}`)}</span>
                         <span className={`font-bold ${V2_STRONG}`}>{p.learners}</span>
                       </div>
                       <div className='h-1.5 rounded-full bg-[#E8EEF5] dark:bg-slate-700 overflow-hidden'>
@@ -114,19 +122,19 @@ export const StudyTimeOverviewWidgetV2: React.FC = () => {
               </div>
 
               <div>
-                <StudyChartTitle>Learners mostly…</StudyChartTitle>
+                <StudyChartTitle>{t("studyTime.learnersMostly")}</StudyChartTitle>
                 <div className={`flex justify-between text-[11px] ${V2_MUTED}`}>
                   <span>
                     <span className='font-bold' style={{ color: STUDY_COLORS.self }}>
                       {data.learnersByMode.selfPaced}
                     </span>{" "}
-                    self-paced
+                    {t("studyTime.mostlySelf")}
                   </span>
                   <span>
                     <span className='font-bold' style={{ color: STUDY_COLORS.meeting }}>
                       {data.learnersByMode.supervised}
                     </span>{" "}
-                    supervised
+                    {t("studyTime.mostlySupervised")}
                   </span>
                 </div>
                 <div className='mt-1 flex h-1.5 rounded-full overflow-hidden bg-[#E8EEF5] dark:bg-slate-700'>
@@ -148,7 +156,7 @@ export const StudyTimeOverviewWidgetV2: React.FC = () => {
           </div>
 
           <div>
-            <StudyChartTitle>Daily trend</StudyChartTitle>
+            <StudyChartTitle>{t("studyTime.dailyTrend")}</StudyChartTitle>
             <StudyDailyTrend data={data.daily} />
           </div>
 
