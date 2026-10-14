@@ -9,6 +9,7 @@ import { RecentActivitiesWidgetV2 } from "./widgets/admin/RecentActivitiesWidget
 import { MapRegionalOverviewWidgetV2 } from "./widgets/admin/MapRegionalOverviewWidgetV2";
 import { EnrollmentTrendsWidgetV2 } from "./widgets/admin/EnrollmentTrendsWidgetV2";
 import { CourseRatingsWidgetV2 } from "./widgets/admin/CourseRatingsWidgetV2";
+import { StudyTimeOverviewWidgetV2 } from "./widgets/admin/StudyTimeOverviewWidgetV2";
 import { DashboardVersionSwitcher } from "@/components/dashboard/DashboardVersionSwitcher";
 import { DashboardGlobalFilters } from "@/components/dashboard/DashboardGlobalFilters";
 import { useAuth } from "@/hooks/useAuth";
@@ -90,6 +91,8 @@ const AdminDashboardV2Board: React.FC = () => {
           <CourseRatingsWidgetV2 />
         </div>
       </div>
+
+      <StudyTimeOverviewWidgetV2 />
     </div>
   );
 };
