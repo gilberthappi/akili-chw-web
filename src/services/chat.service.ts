@@ -61,6 +61,21 @@ export const deleteChatConversation = async (conversationId: string): Promise<vo
   await api.delete(`/chat/conversations/${encodeURIComponent(conversationId)}`);
 };
 
+/**
+ * Prepares a reply to be read aloud. Kinyarwanda comes back as audio from the
+ * eBumenyi voice; other languages come back as text for the browser's own voice.
+ */
+export const speakChatReply = async (
+  text: string,
+): Promise<{ language: string; text: string; audioBase64?: string }> => {
+  const { data } = await api.post<{ language: string; text: string; audioBase64?: string }>(
+    "/chat/speak",
+    { text },
+    { timeout: 180_000 },
+  );
+  return data;
+};
+
 /** Rates one of Viki's replies; null removes the rating. */
 export const rateChatMessage = async (
   messageId: string,

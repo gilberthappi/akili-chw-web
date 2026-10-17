@@ -10,7 +10,6 @@ import {
   Clock,
   Flag,
   Map as MapIcon,
-  RotateCcw,
   Route,
   SlidersHorizontal,
   X,
@@ -220,7 +219,7 @@ const PlanDetails: React.FC<{ plan: ILearningPlan; studentId: string; canAdjust:
         </div>
       </div>
 
-      {(adjusted || !!plan.focusChapters?.length || (plan.progress?.sprintsDone ?? 0) > 0) && (
+      {(adjusted || (plan.progress?.sprintsDone ?? 0) > 0) && (
         <div className='flex flex-wrap gap-x-4 gap-y-1 text-xs'>
           {(plan.progress?.sprintsDone ?? 0) > 0 && (
             <span className={`inline-flex items-center gap-1 ${V2_MUTED}`}>
@@ -244,15 +243,6 @@ const PlanDetails: React.FC<{ plan: ILearningPlan; studentId: string; canAdjust:
           )}
           {!!adj?.extraDays && <span className={V2_MUTED}>+{adj.extraDays} days granted</span>}
           {!!adj?.note && <span className={V2_MUTED}>Note: “{adj.note}”</span>}
-          {!!plan.focusChapters?.length && (
-            <span className='inline-flex items-center gap-1 text-amber-700 dark:text-amber-400'>
-              <RotateCcw className='w-3.5 h-3.5' />
-              Quiz to retake:{" "}
-              {plan.focusChapters
-                .map((c) => `Ch. ${c.chapterNumber} (${c.quizBest ?? 0}%/${c.quizPassMark ?? 0}%)`)
-                .join(", ")}
-            </span>
-          )}
         </div>
       )}
 
@@ -309,15 +299,11 @@ const PlanDetails: React.FC<{ plan: ILearningPlan; studentId: string; canAdjust:
                       className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md border ${
                         c.done
                           ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:border-emerald-800"
-                          : c.needsReview
-                            ? "border-amber-200 bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:border-amber-800"
-                            : "border-[#E8EEF6] text-[#5B6575] dark:border-slate-700 dark:text-slate-400"
+                          : "border-[#E8EEF6] text-[#5B6575] dark:border-slate-700 dark:text-slate-400"
                       }`}
                     >
                       {c.done ? (
                         <CheckCircle2 className='w-3 h-3' />
-                      ) : c.needsReview ? (
-                        <RotateCcw className='w-3 h-3' />
                       ) : (
                         <Circle className='w-3 h-3' />
                       )}
@@ -357,8 +343,6 @@ const PlanDetails: React.FC<{ plan: ILearningPlan; studentId: string; canAdjust:
                   <li key={item.id} className='flex items-start gap-1.5 text-xs'>
                     {item.done ? (
                       <CheckCircle2 className='w-3.5 h-3.5 mt-0.5 text-emerald-500 shrink-0' />
-                    ) : item.type === "chapter" && item.needsReview ? (
-                      <RotateCcw className='w-3.5 h-3.5 mt-0.5 text-amber-500 shrink-0' />
                     ) : item.type === "chapter" ? (
                       <Circle className='w-3.5 h-3.5 mt-0.5 text-[#C5D3E0] shrink-0' />
                     ) : (
@@ -366,11 +350,6 @@ const PlanDetails: React.FC<{ plan: ILearningPlan; studentId: string; canAdjust:
                     )}
                     <span className={item.done ? `line-through ${V2_MUTED}` : V2_STRONG}>
                       {item.type === "chapter" ? `Ch. ${item.chapterNumber}: ${item.title}` : item.title}
-                      {item.type === "chapter" && item.hasQuiz && (
-                        <span className={item.needsReview ? "text-amber-600" : V2_MUTED}>
-                          {item.needsReview ? ` · quiz ${item.quizBest ?? 0}% (pass ${item.quizPassMark ?? 0}%)` : " + quiz"}
-                        </span>
-                      )}
                     </span>
                   </li>
                 ))}

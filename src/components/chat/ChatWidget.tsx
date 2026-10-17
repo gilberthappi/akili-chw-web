@@ -11,6 +11,9 @@ import {
   Trash2,
   ThumbsUp,
   ThumbsDown,
+  Volume2,
+  Square,
+  Loader2,
 } from "lucide-react";
 import {
   deleteChatConversation,
@@ -18,6 +21,7 @@ import {
   listChatConversations,
   rateChatMessage,
   sendChatMessage,
+  speakChatReply,
   type ChatMessage,
   type ChatRating,
 } from "@/services/chat.service";
@@ -86,6 +90,10 @@ export const ChatWidget: React.FC = () => {
   const [messagesLoading, setMessagesLoading] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Reply being read aloud: "loading" while its audio is prepared.
+  const [speaking, setSpeaking] = useState<{ key: string; status: "loading" | "playing" } | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const speakRequestRef = useRef(0);
 
   const active = conversations.find((c) => c.id === activeId) ?? null;
   const messages = active?.messages ?? [];
@@ -290,6 +298,66 @@ export const ChatWidget: React.FC = () => {
     }
   };
 
+
+  const stopSpeaking = () => {
+    speakRequestRef.current += 1; // ignore a reply still being prepared
+    const audio = audioRef.current;
+    if (audio) {
+      audio.pause();
+      URL.revokeObjectURL(audio.src);
+      audioRef.current = null;
+    }
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    setSpeaking(null);
+  };
+
+  const toggleSpeak = async (key: string, text: string) => {
+    const wasThisOne = speaking?.key === key;
+    stopSpeaking();
+    if (wasThisOne) return;
+
+    const requestId = speakRequestRef.current;
+    setSpeaking({ key, status: "loading" });
+    try {
+      const result = await speakChatReply(text);
+      if (requestId !== speakRequestRef.current) return;
+      const done = () => {
+        if (requestId === speakRequestRef.current) setSpeaking(null);
+      };
+
+      if (result.audioBase64) {
+        const bytes = Uint8Array.from(atob(result.audioBase64), (c) => c.charCodeAt(0));
+        const audio = new Audio(URL.createObjectURL(new Blob([bytes], { type: "audio/wav" })));
+        audioRef.current = audio;
+        audio.onended = done;
+        audio.onerror = done;
+        setSpeaking({ key, status: "playing" });
+        await audio.play();
+        return;
+      }
+
+      if (!("speechSynthesis" in window)) {
+        toast.error(t("chat.speechUnsupported"));
+        setSpeaking(null);
+        return;
+      }
+      const utterance = new SpeechSynthesisUtterance(result.text);
+      utterance.lang = "en-US";
+      utterance.onend = done;
+      utterance.onerror = done;
+      setSpeaking({ key, status: "playing" });
+      window.speechSynthesis.speak(utterance);
+    } catch {
+      // Request errors are already shown by the api client.
+      if (requestId === speakRequestRef.current) setSpeaking(null);
+    }
+  };
+
+  useEffect(() => {
+    stopSpeaking();
+  }, [open, activeId]);
+  useEffect(() => stopSpeaking, []);
+
   const iconButton =
     "rounded p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700";
 
@@ -432,6 +500,8 @@ export const ChatWidget: React.FC = () => {
                 )}
                 {messages.map((m, i) => {
                   const rating = m.rating ?? null;
+                  const speakKey = `${activeId}-${i}`;
+                  const speakStatus = speaking?.key === speakKey ? speaking.status : null;
                   return (
                     <div
                       key={i}
@@ -446,8 +516,28 @@ export const ChatWidget: React.FC = () => {
                       >
                         {m.role === "assistant" ? renderWithLinks(m.content) : m.content}
                       </div>
-                      {m.role === "assistant" && m.id && (
+                      {m.role === "assistant" && (
                         <div className="mt-1 flex items-center gap-0.5">
+                          <button
+                            type="button"
+                            onClick={() => void toggleSpeak(speakKey, m.content)}
+                            className={`rounded p-1 hover:bg-gray-100 ${
+                              speakStatus ? "text-primary" : "text-gray-400 hover:text-gray-600"
+                            }`}
+                            aria-label={speakStatus ? t("chat.stopListening") : t("chat.listen")}
+                            aria-pressed={speakStatus !== null}
+                            title={speakStatus ? t("chat.stopListening") : t("chat.listen")}
+                          >
+                            {speakStatus === "loading" ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : speakStatus === "playing" ? (
+                              <Square className="h-3.5 w-3.5" fill="currentColor" />
+                            ) : (
+                              <Volume2 className="h-3.5 w-3.5" />
+                            )}
+                          </button>
+                          {m.id && (
+                          <>
                           <button
                             type="button"
                             onClick={() => void rateReply(m, "up")}
@@ -478,6 +568,8 @@ export const ChatWidget: React.FC = () => {
                               fill={rating === "down" ? "currentColor" : "none"}
                             />
                           </button>
+                          </>
+                          )}
                         </div>
                       )}
                     </div>

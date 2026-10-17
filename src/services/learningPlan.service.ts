@@ -17,7 +17,6 @@ export type PlanSprintItem =
       quiz?: "none" | "pending" | "passed" | "failed";
       quizBest?: number | null;
       quizPassMark?: number | null;
-      needsReview?: boolean;
     }
   | { type: "final_test" | "final_exam"; id: string; title: string; done: boolean };
 
@@ -32,7 +31,7 @@ export interface IPlanMilestone {
   sectionNumber?: number;
   chaptersDone?: number;
   chaptersTotal?: number;
-  chapters?: { id: string; title: string; chapterNumber: number; hasQuiz: boolean; done: boolean; needsReview?: boolean }[];
+  chapters?: { id: string; title: string; chapterNumber: number; hasQuiz: boolean; done: boolean }[];
 }
 
 export interface IPlanSprint {
@@ -73,7 +72,6 @@ export interface ILearningPlan {
     onTimeSprints?: number;
   };
   today?: { streak: number; activeToday: boolean };
-  focusChapters?: { id: string; title: string; chapterNumber: number; quizBest: number | null; quizPassMark: number | null }[];
   currentSprint?: number | null;
   milestones?: IPlanMilestone[];
   sprints?: IPlanSprint[];
