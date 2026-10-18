@@ -2,7 +2,7 @@ import React, { useRef, useState, useCallback, useEffect } from "react";
 import { Paperclip, Send, Mic, X, FileText, Smile, Plus, FileVideo, FileAudio, File } from "lucide-react";
 import toast from "react-hot-toast";
 import { uploadFileByType, uploadAudio } from "@/services/uploader.api";
-import { IAttachment } from "@/types";
+import { IAttachment, IQuotedMessage } from "@/types";
 import { VoiceRecorderBar } from "./VoiceRecorderBar";
 
 interface StagedFile {
@@ -15,6 +15,8 @@ interface MessageComposerProps {
   onChange: (text: string) => void;
   onSend: (attachments: IAttachment[]) => void;
   placeholder?: string;
+  replyingTo?: IQuotedMessage | null;
+  onCancelReply?: () => void;
 }
 
 const attachmentTypeFor = (mime: string): IAttachment["type"] => {
@@ -394,6 +396,8 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
   onChange,
   onSend,
   placeholder = "Write your message...",
+  replyingTo,
+  onCancelReply,
 }) => {
   const [staged, setStaged] = useState<StagedFile[]>([]);
   const [activeIdx, setActiveIdx] = useState(0);
@@ -482,7 +486,19 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
         setElapsedSeconds(0);
         try {
           const attachment = await uploadAndBuildAttachment(file);
-          onSend([attachment]);
+          const outgoing: IAttachment[] = [attachment];
+          if (replyingTo) {
+            outgoing.push({
+              url: "",
+              type: "reply",
+              replyToId: replyingTo.id,
+              replyToSender: replyingTo.senderName,
+              replyToContent: replyingTo.content,
+              replyToType: replyingTo.type,
+            });
+            onCancelReply?.();
+          }
+          onSend(outgoing);
         } catch {
           toast.error("Failed to send voice message");
         }
@@ -543,6 +559,18 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
       setIsUploading(false);
     }
 
+    if (replyingTo) {
+      attachments.push({
+        url: "",
+        type: "reply",
+        replyToId: replyingTo.id,
+        replyToSender: replyingTo.senderName,
+        replyToContent: replyingTo.content,
+        replyToType: replyingTo.type,
+      });
+      onCancelReply?.();
+    }
+
     setStaged([]);
     setActiveIdx(0);
     onSend(attachments);
@@ -581,6 +609,38 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
 
       {/* ── Normal composer bar ── */}
       <div className="bg-white border-t border-gray-100 flex-shrink-0 px-4 py-3">
+        {/* Quoted message replying banner */}
+        {replyingTo && (
+          <div className="flex items-center justify-between px-3.5 py-2 bg-slate-100/90 border-l-4 border-primary rounded-xl mb-2.5 text-xs text-slate-700 animate-fade-in shadow-xs">
+            <div className="min-w-0 flex-1">
+              <span className="font-bold text-primary truncate block text-xs">
+                Replying to {replyingTo.senderName}
+              </span>
+              <span className="text-slate-500 truncate block text-[11px]">
+                {replyingTo.type === "image"
+                  ? "📷 Photo"
+                  : replyingTo.type === "video"
+                  ? "🎥 Video"
+                  : replyingTo.type === "audio"
+                  ? "🎤 Voice Note"
+                  : replyingTo.type === "file"
+                  ? "📄 Document"
+                  : replyingTo.content || "Message"}
+              </span>
+            </div>
+            {onCancelReply && (
+              <button
+                type="button"
+                onClick={onCancelReply}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg ml-2 hover:bg-slate-200/50 transition-colors"
+                title="Cancel reply"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+        )}
+
         <div className="flex items-center gap-2">
           {/* Hidden file input */}
           <input

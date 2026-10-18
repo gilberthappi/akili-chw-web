@@ -21,8 +21,10 @@ import {
   Check,
   Loader2,
   ExternalLink,
+  Globe,
+  Reply,
 } from "lucide-react";
-import { IConversation, IMessage, ConversationType, IAttachment } from "@/types";
+import { IConversation, IMessage, ConversationType, IAttachment, IQuotedMessage } from "@/types";
 import { IUser } from "@/types/common";
 import { useAuth } from "@/hooks/useAuth";
 import ProfileAvatar from "@/components/profile/ProfileAvatar";
@@ -47,6 +49,7 @@ import {
   useGetConversations,
   useCreateConversation,
   useGetMessages,
+  useGetInfiniteMessages,
   useInvalidateConversations,
 } from "@/hooks/useConversations";
 import { AudioPlayerProvider } from "@/contexts/AudioPlayerContext";
@@ -60,6 +63,7 @@ import {
   onNewMessage,
   onMessageEdited,
   onMessageDeleted,
+  onMessageRead,
   onUserTyping,
   emitTyping,
   IRawMessagePayload,
@@ -78,11 +82,12 @@ export const MessagingRedesign: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [showInfoPanel, setShowInfoPanel] = useState(false);
   const [messageText, setMessageText] = useState("");
+  const [replyingTo, setReplyingTo] = useState<IQuotedMessage | null>(null);
   const [typingUsers, setTypingUsers] = useState<Array<{ userId: string; userName: string }>>([]);
 
-  // Modals & New Chat / Group state
+  // Modals & New Chat / Group / Community state
   const [showNewChatModal, setShowNewChatModal] = useState(false);
-  const [modalTab, setModalTab] = useState<"direct" | "group">("direct");
+  const [modalTab, setModalTab] = useState<"direct" | "group" | "community">("direct");
   const [allUsers, setAllUsers] = useState<IUser[]>([]);
   const [userSearchTerm, setUserSearchTerm] = useState("");
   const [loadingUsers, setLoadingUsers] = useState(false);
@@ -92,6 +97,12 @@ export const MessagingRedesign: React.FC = () => {
   const [selectedGroupParticipants, setSelectedGroupParticipants] = useState<string[]>([]);
   const [creatingGroup, setCreatingGroup] = useState(false);
   const [mediaFilter, setMediaFilter] = useState<"all" | "image" | "file" | "audio">("all");
+
+  // Community creation state
+  const [communityName, setCommunityName] = useState("");
+  const [communityDescription, setCommunityDescription] = useState("");
+  const [communityIsPublic, setCommunityIsPublic] = useState(true);
+  const [creatingCommunity, setCreatingCommunity] = useState(false);
 
   // Extract ONLY RECEIVED attachments (sent by other users, excluding own sent messages)
   const sharedAttachments = React.useMemo(() => {
@@ -147,7 +158,12 @@ export const MessagingRedesign: React.FC = () => {
   const { data: conversations = [] } = useGetConversations();
   const typedConversations: IConversation[] = Array.isArray(conversations) ? conversations : [];
 
-  const { data: messagesData } = useGetMessages(
+  const {
+    data: infiniteMessagesData,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useGetInfiniteMessages(
     selectedConversation?.id || null,
     selectedConversation?.type
   );
@@ -180,16 +196,21 @@ export const MessagingRedesign: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Sync messages
+  // Sync messages from infinite query pages
   useEffect(() => {
+    setReplyingTo(null);
     if (!selectedConversation?.id) {
       setMessages([]);
       return;
     }
-    const typedMessagesData = Array.isArray(messagesData) ? messagesData : [];
-    setMessages(typedMessagesData);
-    setTimeout(() => scrollToBottom(), 0);
-  }, [selectedConversation?.id, messagesData]);
+    if (!infiniteMessagesData?.pages) return;
+    const all = infiniteMessagesData.pages.flatMap((page) => page || []);
+    const seen = new Map<string, IMessage>();
+    for (const m of all) {
+      if (m?.id) seen.set(m.id, m);
+    }
+    setMessages(Array.from(seen.values()));
+  }, [selectedConversation?.id, infiniteMessagesData]);
 
   // Request online status
   useEffect(() => {
@@ -284,11 +305,29 @@ export const MessagingRedesign: React.FC = () => {
       }
     });
 
+    const unsubscribeMessageRead = onMessageRead(type, (data) => {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === data.messageId
+            ? {
+                ...msg,
+                readCount: data.readCount ?? (msg.readCount || 0) + 1,
+                readBy:
+                  msg.readBy && msg.readBy.length > 0
+                    ? msg.readBy
+                    : [{ userId: data.userId || "" }],
+              }
+            : msg
+        )
+      );
+    });
+
     return () => {
       unsubscribeNewMessage();
       unsubscribeMessageEdited();
       unsubscribeMessageDeleted();
       unsubscribeUserTyping();
+      unsubscribeMessageRead();
     };
   }, [selectedConversation?.id, selectedConversation?.type, user?.id]);
 
@@ -359,11 +398,16 @@ export const MessagingRedesign: React.FC = () => {
     }
   };
 
-  // Open New Chat / Group Modal
-  const openNewChatModal = async (defaultTab?: "direct" | "group") => {
-    const targetTab = defaultTab === "group" && isAdminOrCoordinator ? "group" : "direct";
+  // Open New Chat / Group / Community Modal
+  const openNewChatModal = async (defaultTab?: "direct" | "group" | "community") => {
+    let targetTab: "direct" | "group" | "community" = "direct";
+    if (defaultTab === "group" && isAdminOrCoordinator) targetTab = "group";
+    else if (defaultTab === "community" && isAdminOrCoordinator) targetTab = "community";
     setModalTab(targetTab);
     setGroupName("");
+    setCommunityName("");
+    setCommunityDescription("");
+    setCommunityIsPublic(true);
     setSelectedGroupParticipants([]);
     setShowNewChatModal(true);
     setLoadingUsers(true);
@@ -423,6 +467,37 @@ export const MessagingRedesign: React.FC = () => {
     }
   };
 
+  // Handle Community Creation for Admins & RBC Coordinators
+  const handleCreateCommunity = async () => {
+    if (!communityName.trim()) {
+      toast.error("Please enter a community name");
+      return;
+    }
+    setCreatingCommunity(true);
+    try {
+      const conv = await createConversationMutation.mutateAsync({
+        type: "community",
+        name: communityName.trim(),
+        description: communityDescription.trim() || undefined,
+        isPublic: communityIsPublic,
+        participantIds: selectedGroupParticipants,
+      });
+      setShowNewChatModal(false);
+      setCommunityName("");
+      setCommunityDescription("");
+      setCommunityIsPublic(true);
+      setSelectedGroupParticipants([]);
+      setActiveTab("community");
+      setSelectedConversation(conv);
+      toast.success(`Community "${conv.name}" created successfully!`);
+    } catch (err: any) {
+      console.error("Failed to create community:", err);
+      toast.error(err?.message || "Failed to create community");
+    } finally {
+      setCreatingCommunity(false);
+    }
+  };
+
   const toggleGroupParticipant = (userId: string) => {
     setSelectedGroupParticipants((prev) =>
       prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
@@ -478,11 +553,25 @@ export const MessagingRedesign: React.FC = () => {
             </div>
             
             <button
-              onClick={() => openNewChatModal(activeTab === "group" && isAdminOrCoordinator ? "group" : "direct")}
+              onClick={() =>
+                openNewChatModal(
+                  activeTab === "community" && isAdminOrCoordinator
+                    ? "community"
+                    : activeTab === "group" && isAdminOrCoordinator
+                    ? "group"
+                    : "direct"
+                )
+              }
               className="h-9 px-3.5 bg-primary hover:bg-primary/90 text-white rounded-xl flex items-center gap-1.5 text-xs font-semibold shadow-sm shadow-primary/30 transition-all duration-200 active:scale-95"
             >
               <Plus className="h-4 w-4" />
-              <span>{activeTab === "group" && isAdminOrCoordinator ? "New Group" : "New Chat"}</span>
+              <span>
+                {activeTab === "community" && isAdminOrCoordinator
+                  ? "New Community"
+                  : activeTab === "group" && isAdminOrCoordinator
+                  ? "New Group"
+                  : "New Chat"}
+              </span>
             </button>
           </div>
 
@@ -540,8 +629,23 @@ export const MessagingRedesign: React.FC = () => {
             <div className="flex flex-col items-center justify-center h-48 text-center p-6 text-slate-400">
               <MessageSquare className="h-8 w-8 mb-2 stroke-1 text-slate-400" />
               <p className="text-xs font-medium">No conversations found</p>
-              <button onClick={() => openNewChatModal(activeTab === "group" && isAdminOrCoordinator ? "group" : "direct")} className="mt-3 text-xs text-primary hover:underline font-semibold">
-                {activeTab === "group" && isAdminOrCoordinator ? "Create a new group" : "Start a new chat"}
+              <button
+                onClick={() =>
+                  openNewChatModal(
+                    activeTab === "community" && isAdminOrCoordinator
+                      ? "community"
+                      : activeTab === "group" && isAdminOrCoordinator
+                      ? "group"
+                      : "direct"
+                  )
+                }
+                className="mt-3 text-xs text-primary hover:underline font-semibold"
+              >
+                {activeTab === "community" && isAdminOrCoordinator
+                  ? "Create a new community"
+                  : activeTab === "group" && isAdminOrCoordinator
+                  ? "Create a new group"
+                  : "Start a new chat"}
               </button>
             </div>
           ) : (
@@ -686,6 +790,26 @@ export const MessagingRedesign: React.FC = () => {
             {/* Messages Feed Stream */}
             <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar bg-slate-50/60">
               
+              {/* Load older messages pagination button */}
+              {hasNextPage && (
+                <div className="flex justify-center my-2">
+                  <button
+                    onClick={() => fetchNextPage()}
+                    disabled={isFetchingNextPage}
+                    className="px-3.5 py-1.5 bg-white border border-slate-200 rounded-full text-xs font-semibold text-primary hover:bg-primary/5 transition-all shadow-2xs flex items-center gap-1.5 disabled:opacity-50"
+                  >
+                    {isFetchingNextPage ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Loading earlier messages...
+                      </>
+                    ) : (
+                      "Load earlier messages"
+                    )}
+                  </button>
+                </div>
+              )}
+
               {/* Date divider */}
               <div className="flex items-center justify-center my-4">
                 <span className="px-3 py-1 bg-white border border-slate-200 rounded-full text-[10px] font-semibold text-slate-500 shadow-2xs">
@@ -713,6 +837,24 @@ export const MessagingRedesign: React.FC = () => {
                         <ProfileAvatar photo={msg.sender?.photo || undefined} name={senderName} className="w-8 h-8 mb-1 flex-shrink-0 border border-slate-200 shadow-2xs" />
                       )}
 
+                      {/* Reply button on hover */}
+                      <button
+                        onClick={() =>
+                          setReplyingTo({
+                            id: msg.id,
+                            senderName,
+                            content: msg.content || "",
+                            type: msg.type,
+                          })
+                        }
+                        className={`opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-full hover:bg-slate-200/80 text-slate-400 hover:text-primary mb-2 flex-shrink-0 ${
+                          isMine ? "order-first mr-1" : "order-last ml-1"
+                        }`}
+                        title="Reply to message"
+                      >
+                        <Reply className="h-3.5 w-3.5" />
+                      </button>
+
                       <div className="max-w-md lg:max-w-lg space-y-1">
                         {!isMine && selectedConversation.type !== "direct" && (
                           <p className="text-[10px] font-bold text-primary ml-1">{senderName}</p>
@@ -735,6 +877,32 @@ export const MessagingRedesign: React.FC = () => {
                               : "bg-white text-slate-800 rounded-bl-xs border border-slate-200/90"
                           }`}
                         >
+                          {/* Quoted message if replying to someone */}
+                          {msg.replyTo && (
+                            <div
+                              className={`mb-2 rounded-xl p-2.5 text-xs border-l-4 transition-all ${
+                                isMine
+                                  ? "bg-black/20 border-white/80 text-white/95"
+                                  : "bg-slate-100/90 border-primary text-slate-800"
+                              }`}
+                            >
+                              <p className="font-bold text-[11px] truncate mb-0.5">
+                                {msg.replyTo.senderName}
+                              </p>
+                              <p className="text-[11px] line-clamp-2 opacity-85">
+                                {msg.replyTo.type === "image"
+                                  ? "📷 Photo"
+                                  : msg.replyTo.type === "video"
+                                  ? "🎥 Video"
+                                  : msg.replyTo.type === "audio"
+                                  ? "🎤 Voice Note"
+                                  : msg.replyTo.type === "file"
+                                  ? "📄 Document"
+                                  : msg.replyTo.content || "Message"}
+                              </p>
+                            </div>
+                          )}
+
                           {msg.content && <p className="whitespace-pre-wrap break-words">{msg.content}</p>}
 
                           {msg.attachments && msg.attachments.length > 0 && (
@@ -757,7 +925,13 @@ export const MessagingRedesign: React.FC = () => {
                           {!isSingleAudio && !isSingleMedia && (
                             <div className={`flex items-center justify-end gap-1 px-1 mt-1 text-[9px] ${isMine ? "text-white/80" : "text-slate-400"}`}>
                               <span>{formattedTime}</span>
-                              {isMine && <CheckCheck className="h-3 w-3 text-white/80" />}
+                              {isMine && (
+                                (msg.readBy && msg.readBy.length > 0) ? (
+                                  <CheckCheck className="h-3 w-3 text-sky-300" />
+                                ) : (
+                                  <Check className="h-3 w-3 text-white/80" />
+                                )
+                              )}
                             </div>
                           )}
                         </div>
@@ -789,6 +963,8 @@ export const MessagingRedesign: React.FC = () => {
                 onChange={handleMessageInputChange}
                 onSend={handleSendMessage}
                 placeholder="Write a message..."
+                replyingTo={replyingTo}
+                onCancelReply={() => setReplyingTo(null)}
               />
             </div>
           </div>
@@ -985,12 +1161,20 @@ export const MessagingRedesign: React.FC = () => {
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                {modalTab === "group" ? (
+                {modalTab === "community" ? (
+                  <Globe className="h-4 w-4 text-primary" />
+                ) : modalTab === "group" ? (
                   <Users className="h-4 w-4 text-primary" />
                 ) : (
                   <UserPlus className="h-4 w-4 text-primary" />
                 )}
-                <span>{modalTab === "group" ? "Create New Group" : "Start Direct Chat"}</span>
+                <span>
+                  {modalTab === "community"
+                    ? "Create New Community"
+                    : modalTab === "group"
+                    ? "Create New Group"
+                    : "Start Direct Chat"}
+                </span>
               </h3>
               <button onClick={() => setShowNewChatModal(false)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
                 <X className="h-4 w-4" />
@@ -1021,7 +1205,19 @@ export const MessagingRedesign: React.FC = () => {
                   }`}
                 >
                   <Users className="h-3.5 w-3.5" />
-                  <span>Create Group</span>
+                  <span>Group</span>
+                </button>
+
+                <button
+                  onClick={() => setModalTab("community")}
+                  className={`flex-1 py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+                    modalTab === "community"
+                      ? "bg-white text-primary shadow-xs font-bold"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <Globe className="h-3.5 w-3.5" />
+                  <span>Community</span>
                 </button>
               </div>
             )}
@@ -1152,6 +1348,127 @@ export const MessagingRedesign: React.FC = () => {
                         </>
                       ) : (
                         `Create Group (${selectedGroupParticipants.length} Members)`
+                      )}
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* TAB 3: CREATE COMMUNITY */}
+            {modalTab === "community" && (
+              <div className="space-y-3.5">
+                {!isAdminOrCoordinator ? (
+                  <div className="p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs">
+                    Community creation is restricted to Admins and RBC Coordinators.
+                  </div>
+                ) : (
+                  <>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Community Name</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Rwanda Community Health Workers Forum"
+                        value={communityName}
+                        onChange={(e) => setCommunityName(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 text-slate-800 placeholder-slate-400 text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Description (Optional)</label>
+                      <textarea
+                        rows={2}
+                        placeholder="Purpose of this community and collaboration topics..."
+                        value={communityDescription}
+                        onChange={(e) => setCommunityDescription(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 text-slate-800 placeholder-slate-400 text-xs rounded-xl px-3.5 py-2 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 resize-none"
+                      />
+                    </div>
+
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-xs font-bold text-slate-800">Public Community</p>
+                          <p className="text-[10px] text-slate-500">Allow all health workers across districts to discover and join</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={communityIsPublic}
+                            onChange={(e) => setCommunityIsPublic(e.target.checked)}
+                            className="sr-only peer"
+                          />
+                          <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                        </label>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs font-bold text-slate-700">Initial Members (Optional)</label>
+                        <span className="text-[10px] text-slate-500 font-medium">
+                          {selectedGroupParticipants.length} selected
+                        </span>
+                      </div>
+
+                      <div className="relative mb-2">
+                        <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                        <input
+                          type="text"
+                          placeholder="Search members to invite..."
+                          value={userSearchTerm}
+                          onChange={(e) => setUserSearchTerm(e.target.value)}
+                          className="w-full bg-slate-100 border border-slate-200 text-slate-800 placeholder-slate-400 text-xs rounded-xl pl-9 pr-4 py-2 focus:outline-none focus:border-primary"
+                        />
+                      </div>
+
+                      <div className="max-h-36 overflow-y-auto space-y-1 custom-scrollbar border border-slate-200/80 rounded-xl p-1 bg-slate-50/50">
+                        {loadingUsers ? (
+                          <div className="p-4 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
+                            <Loader2 className="h-4 w-4 animate-spin text-primary" /> Loading members...
+                          </div>
+                        ) : (
+                          allUsers
+                            .filter((u) => u.id !== user?.id && u.fullNames?.toLowerCase().includes(userSearchTerm.toLowerCase()))
+                            .map((u) => {
+                              const isSelected = selectedGroupParticipants.includes(u.id);
+                              return (
+                                <div
+                                  key={u.id}
+                                  onClick={() => toggleGroupParticipant(u.id)}
+                                  className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-all ${
+                                    isSelected ? "bg-primary/10 border border-primary/30" : "hover:bg-white border border-transparent"
+                                  }`}
+                                >
+                                  <div className={`w-4 h-4 rounded flex items-center justify-center border transition-all ${
+                                    isSelected ? "bg-primary border-primary text-white" : "border-slate-300 bg-white"
+                                  }`}>
+                                    {isSelected && <Check className="h-3 w-3" />}
+                                  </div>
+                                  <ProfileAvatar photo={u.photo || undefined} name={u.fullNames} className="w-8 h-8 border border-slate-200" />
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-xs font-semibold text-slate-800 truncate">{u.fullNames}</p>
+                                    <p className="text-[10px] text-slate-500 truncate">{u.district || "Health Worker"}</p>
+                                  </div>
+                                </div>
+                              );
+                            })
+                        )}
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={handleCreateCommunity}
+                      disabled={creatingCommunity || !communityName.trim()}
+                      className="w-full py-2.5 bg-primary hover:bg-primary/90 text-white rounded-xl font-bold text-xs shadow-md shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+                    >
+                      {creatingCommunity ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" /> Creating Community...
+                        </>
+                      ) : (
+                        `Create Community (${selectedGroupParticipants.length} Initial Members)`
                       )}
                     </button>
                   </>

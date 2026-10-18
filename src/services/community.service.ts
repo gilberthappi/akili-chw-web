@@ -26,6 +26,14 @@ export interface ICommunityPostRaw {
   saveCount: number;
   reshareCount: number;
   resharedFromId?: string | null;
+  resharedFrom?: {
+    id: string;
+    title: string;
+    content: string;
+    photo?: string | null;
+    attachments?: string | null;
+    author?: { id: string; fullNames: string; photo?: string | null } | null;
+  } | null;
   timestamp: string;
   // getCommunityPosts renames the joined `author` relation to `sender`; createPost/lastPost
   // keep it as `author` — accept either so posts render correctly regardless of source.

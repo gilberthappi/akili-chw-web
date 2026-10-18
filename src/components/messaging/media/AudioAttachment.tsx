@@ -34,6 +34,7 @@ export const AudioAttachment: React.FC<AudioAttachmentProps> = ({
   const [isReady, setIsReady] = useState(false);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
+  const [playbackSpeed, setPlaybackSpeed] = useState<1 | 1.5 | 2>(1);
   const { activeAudioId, setActiveAudio } = useAudioPlayer();
 
   useEffect(() => {
@@ -54,6 +55,7 @@ export const AudioAttachment: React.FC<AudioAttachmentProps> = ({
     wavesurfer.on("ready", () => {
       setIsReady(true);
       setDuration(wavesurfer.getDuration());
+      wavesurfer.setPlaybackRate(playbackSpeed);
     });
     wavesurfer.on("audioprocess", () => setCurrentTime(wavesurfer.getCurrentTime()));
     wavesurfer.on("play", () => setIsPlaying(true));
@@ -84,6 +86,14 @@ export const AudioAttachment: React.FC<AudioAttachmentProps> = ({
     wavesurferRef.current.playPause();
   };
 
+  const cycleSpeed = () => {
+    const next = playbackSpeed === 1 ? 1.5 : playbackSpeed === 1.5 ? 2 : 1;
+    setPlaybackSpeed(next);
+    if (wavesurferRef.current) {
+      wavesurferRef.current.setPlaybackRate(next);
+    }
+  };
+
   return (
     <div
       className={`flex items-center gap-2.5 px-1 py-0.5 min-w-[210px] max-w-[270px] ${
@@ -105,6 +115,20 @@ export const AudioAttachment: React.FC<AudioAttachmentProps> = ({
         ) : (
           <Play size={18} className="fill-current ml-0.5" />
         )}
+      </button>
+
+      {/* 1.1 Speed Multiplier Pill */}
+      <button
+        type="button"
+        onClick={cycleSpeed}
+        className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold tracking-tight transition-all flex-shrink-0 select-none ${
+          isOwn
+            ? "bg-white/20 hover:bg-white/30 text-white"
+            : "bg-slate-200/80 hover:bg-slate-300 text-slate-700"
+        }`}
+        title="Toggle playback speed (1x / 1.5x / 2x)"
+      >
+        {playbackSpeed}x
       </button>
 
       {/* 2. Waveform Canvas & Inline Time Info Row */}

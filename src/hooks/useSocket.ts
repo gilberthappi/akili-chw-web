@@ -156,7 +156,7 @@ export const onMessageLiked = (
 
 export const onMessageRead = (
   type: ConversationType,
-  callback: (data: { messageId: string; userId: string; readAt: string }) => void,
+  callback: (data: { messageId: string; userId: string; readCount?: number; readAt?: string }) => void,
 ): Unsubscribe => on(type, "message:read", callback);
 
 export const onUserTyping = (

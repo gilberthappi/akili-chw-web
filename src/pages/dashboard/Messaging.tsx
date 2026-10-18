@@ -27,30 +27,49 @@ import {
   Settings,
   Crown,
   Lock,
+  Globe,
+  LogOut,
+  Heart,
+  Reply,
+  Copy,
+  Bookmark,
 } from "lucide-react";
-import { IConversation, IMessage, ConversationType, IAttachment } from "@/types";
+import { IConversation, IMessage, ConversationType, IAttachment, IQuotedMessage } from "@/types";
 import { IUser } from "@/types/common";
 import { useAuth } from "@/hooks/useAuth";
 import ProfileAvatar from "@/components/profile/ProfileAvatar";
 import { MessageComposer } from "@/components/messaging/MessageComposer";
 import { MessageMedia } from "@/components/messaging/media/MessageMedia";
+import { CommunityPostCard } from "@/components/messaging/CommunityPostCard";
+import { SavedPostsModal } from "@/components/messaging/SavedPostsModal";
+import { InChatSearchBar } from "@/components/messaging/InChatSearchBar";
 import CreateGroupModal from "@/components/messaging/CreateGroupModal";
 import EditGroupModal from "@/components/messaging/EditGroupModal";
 import AddMembersModal from "@/components/messaging/AddMembersModal";
 import TerminateGroupModal from "@/components/messaging/TerminateGroupModal";
+import EditCommunityModal from "@/components/messaging/EditCommunityModal";
+import AddCommunityMembersModal from "@/components/messaging/AddCommunityMembersModal";
+import TerminateCommunityModal from "@/components/messaging/TerminateCommunityModal";
 import {
   sendDirectMessage,
   markDirectMessageRead,
+  editDirectMessage,
+  deleteDirectMessage,
+  toggleDirectMessageLike,
 } from "@/services/directChat.service";
 import {
   sendGroupMessage,
   markGroupMessageRead,
   removeGroupParticipant,
   updateGroupParticipantRole,
+  editGroupMessage,
+  deleteGroupMessage,
+  toggleGroupMessageLike,
   IGroupChatRaw,
 } from "@/services/groupChat.service";
 import {
   createCommunityPost,
+  removeCommunityMember,
   ICommunityPostRaw,
 } from "@/services/community.service";
 import { IDirectMessageRaw } from "@/services/directChat.service";
@@ -70,9 +89,12 @@ import { useNotificationsContext } from "@/contexts/NotificationsContext";
 import {
   initializeNamespaceSockets,
   joinConversationRoom,
+  leaveConversationRoom,
   onNewMessage,
   onMessageEdited,
   onMessageDeleted,
+  onMessageLiked,
+  onMessageRead,
   onUserTyping,
   emitTyping,
   IRawMessagePayload,
@@ -93,9 +115,17 @@ export const Messaging: React.FC = () => {
   const [messageText, setMessageText] = useState("");
   const [typingUsers, setTypingUsers] = useState<Array<{ userId: string; userName: string }>>([]);
 
+  // In-chat interaction states: reply, search, bookmarks, editing
+  const [replyingTo, setReplyingTo] = useState<IQuotedMessage | null>(null);
+  const [showInChatSearch, setShowInChatSearch] = useState(false);
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
+  const [showSavedPostsModal, setShowSavedPostsModal] = useState(false);
+  const [editingMessage, setEditingMessage] = useState<IMessage | null>(null);
+  const [editingMessageText, setEditingMessageText] = useState("");
+
   // Modals & New Chat / Group state
   const [showNewChatModal, setShowNewChatModal] = useState(false);
-  const [modalTab, setModalTab] = useState<"direct" | "group">("direct");
+  const [modalTab, setModalTab] = useState<"direct" | "group" | "community">("direct");
   const [allUsers, setAllUsers] = useState<IUser[]>([]);
   const [userSearchTerm, setUserSearchTerm] = useState("");
   const [loadingUsers, setLoadingUsers] = useState(false);
@@ -106,6 +136,12 @@ export const Messaging: React.FC = () => {
   const [creatingGroup, setCreatingGroup] = useState(false);
   const [mediaFilter, setMediaFilter] = useState<"all" | "image" | "file" | "audio">("all");
 
+  // Community creation state
+  const [communityName, setCommunityName] = useState("");
+  const [communityDescription, setCommunityDescription] = useState("");
+  const [communityIsPublic, setCommunityIsPublic] = useState(true);
+  const [creatingCommunity, setCreatingCommunity] = useState(false);
+
   // Group Management Modals state
   const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
   const [showEditGroupModal, setShowEditGroupModal] = useState(false);
@@ -113,6 +149,62 @@ export const Messaging: React.FC = () => {
   const [showTerminateGroupModal, setShowTerminateGroupModal] = useState(false);
   const [removingParticipantId, setRemovingParticipantId] = useState<string | null>(null);
   const [updatingRoleUserId, setUpdatingRoleUserId] = useState<string | null>(null);
+
+  // Community Management Modals state
+  const [showEditCommunityModal, setShowEditCommunityModal] = useState(false);
+  const [showAddCommunityMembersModal, setShowAddCommunityMembersModal] = useState(false);
+  const [showTerminateCommunityModal, setShowTerminateCommunityModal] = useState(false);
+  const [removingCommunityMemberId, setRemovingCommunityMemberId] = useState<string | null>(null);
+
+  const handleRemoveCommunityMember = (participantUserId: string, participantName: string) => {
+    if (!selectedConversation || selectedConversation.type !== "community") return;
+
+    confirmAction({
+      title: "Remove Community Member",
+      message: `Are you sure you want to remove ${participantName} from this community?`,
+      confirmLabel: "Remove Member",
+      variant: "danger",
+      onConfirm: async () => {
+        setRemovingCommunityMemberId(participantUserId);
+        try {
+          await removeCommunityMember(selectedConversation.id, participantUserId);
+          toast.success(`Removed ${participantName} from community`);
+          invalidateConversations();
+          setSelectedConversation((prev) => {
+            if (!prev) return null;
+            return {
+              ...prev,
+              participants: prev.participants.filter((p) => p.userId !== participantUserId),
+            };
+          });
+        } catch (err: any) {
+          toast.error(err?.response?.data?.message || err?.message || "Failed to remove member");
+        } finally {
+          setRemovingCommunityMemberId(null);
+        }
+      },
+    });
+  };
+
+  const handleLeaveCommunity = () => {
+    if (!selectedConversation || selectedConversation.type !== "community" || !user?.id) return;
+    confirmAction({
+      title: "Leave Community",
+      message: "Are you sure you want to leave this community?",
+      confirmLabel: "Leave",
+      variant: "danger",
+      onConfirm: async () => {
+        try {
+          await removeCommunityMember(selectedConversation.id, user.id);
+          toast.success("You have left the community");
+          invalidateConversations();
+          setSelectedConversation(null);
+        } catch (err: any) {
+          toast.error(err?.response?.data?.message || err?.message || "Failed to leave community");
+        }
+      },
+    });
+  };
 
   const handleRemoveParticipant = (participantUserId: string, participantName: string) => {
     if (!selectedConversation || selectedConversation.type !== "group") return;
@@ -296,16 +388,18 @@ export const Messaging: React.FC = () => {
     setTimeout(() => scrollToBottom(), 0);
   }, [selectedConversation?.id, messagesData]);
 
-  // Request online status
+  // Request online status for other user
   useEffect(() => {
     if (selectedConversation?.type !== "direct") return;
-    const otherUserId = selectedConversation.participants[0]?.userId;
+    const otherUserId =
+      selectedConversation.participants?.find((p) => p.userId !== user?.id)?.userId ||
+      selectedConversation.participants?.[0]?.userId;
     if (!otherUserId) return;
 
     requestUserStatus([otherUserId]);
     const interval = setInterval(() => requestUserStatus([otherUserId]), 20000);
     return () => clearInterval(interval);
-  }, [selectedConversation?.id, selectedConversation?.type]);
+  }, [selectedConversation?.id, selectedConversation?.type, user?.id]);
 
   const selfTypingTimeoutRef = useRef<NodeJS.Timeout>();
   const remoteTypingTimeoutsRef = useRef<{ [userId: string]: NodeJS.Timeout }>({});
@@ -341,6 +435,14 @@ export const Messaging: React.FC = () => {
         : normalizeMessage(raw as IDirectMessageRaw, conversationId);
 
     const unsubscribeNewMessage = onNewMessage(type, (raw) => {
+      // Guard against messages belonging to other conversations on this namespace
+      const rawTargetId =
+        (raw as any).chatId ||
+        (raw as any).conversationId ||
+        (raw as any).groupId ||
+        (raw as any).communityId;
+      if (rawTargetId && rawTargetId !== conversationId) return;
+
       const message = toIMessage(raw);
       setMessages((prev) => (prev.some((m) => m.id === message.id) ? prev : [...prev, message]));
       
@@ -357,6 +459,13 @@ export const Messaging: React.FC = () => {
     });
 
     const unsubscribeMessageEdited = onMessageEdited(type, (raw) => {
+      const rawTargetId =
+        (raw as any).chatId ||
+        (raw as any).conversationId ||
+        (raw as any).groupId ||
+        (raw as any).communityId;
+      if (rawTargetId && rawTargetId !== conversationId) return;
+
       const updatedMessage = toIMessage(raw);
       setMessages((prev) =>
         prev.map((msg) => (msg.id === updatedMessage.id ? { ...msg, ...updatedMessage } : msg))
@@ -365,6 +474,36 @@ export const Messaging: React.FC = () => {
 
     const unsubscribeMessageDeleted = onMessageDeleted(type, (messageId: string) => {
       setMessages((prev) => prev.filter((msg) => msg.id !== messageId));
+    });
+
+    const unsubscribeMessageLiked = onMessageLiked(type, (data) => {
+      setMessages((prev) =>
+        prev.map((msg) => {
+          if (msg.id !== data.messageId) return msg;
+          const isMine = data.userId === user?.id;
+          return {
+            ...msg,
+            likes: data.likeCount !== undefined ? data.likeCount : (msg.likes || 0) + (data.liked ? 1 : -1),
+            isLikedByMe: isMine ? data.liked : msg.isLikedByMe,
+          };
+        })
+      );
+    });
+
+    const unsubscribeMessageRead = onMessageRead(type, (data) => {
+      setMessages((prev) =>
+        prev.map((msg) => {
+          if (msg.id !== data.messageId) return msg;
+          const readBy = msg.readBy || [];
+          if (readBy.some((r) => (typeof r === "string" ? r === data.userId : r.userId === data.userId))) {
+            return msg;
+          }
+          return {
+            ...msg,
+            readBy: [...readBy, { userId: data.userId, readAt: data.readAt || new Date().toISOString() }],
+          };
+        })
+      );
     });
 
     const unsubscribeUserTyping = onUserTyping(type, (data) => {
@@ -390,9 +529,12 @@ export const Messaging: React.FC = () => {
     });
 
     return () => {
+      leaveConversationRoom(type, conversationId);
       unsubscribeNewMessage();
       unsubscribeMessageEdited();
       unsubscribeMessageDeleted();
+      unsubscribeMessageLiked();
+      unsubscribeMessageRead();
       unsubscribeUserTyping();
     };
   }, [selectedConversation?.id, selectedConversation?.type, user?.id]);
@@ -424,8 +566,23 @@ export const Messaging: React.FC = () => {
     if ((!messageText.trim() && attachments.length === 0) || !selectedConversation) return;
 
     const textToSend = messageText.trim();
-    const attachmentsJson = attachments.length > 0 ? stringifyAttachments(attachments) : undefined;
+    
+    // Attach reply info if replying
+    let finalAttachments = [...attachments];
+    if (replyingTo) {
+      finalAttachments.push({
+        url: "",
+        type: "reply" as any,
+        replyToId: replyingTo.id,
+        replyToSender: replyingTo.senderName,
+        replyToContent: replyingTo.content,
+        replyToType: replyingTo.type,
+      } as any);
+    }
+
+    const attachmentsJson = finalAttachments.length > 0 ? stringifyAttachments(finalAttachments) : undefined;
     setMessageText("");
+    setReplyingTo(null);
 
     if (selfTypingTimeoutRef.current) {
       clearTimeout(selfTypingTimeoutRef.current);
@@ -448,9 +605,11 @@ export const Messaging: React.FC = () => {
         const norm = normalizeMessage(raw, selectedConversation.id);
         setMessages((prev) => (prev.some((m) => m.id === norm.id) ? prev : [...prev, norm]));
       } else if (selectedConversation.type === "community") {
+        const title = textToSend.length > 50 ? textToSend.slice(0, 50) + "..." : textToSend || "Community Post";
         const raw = await createCommunityPost(selectedConversation.id, {
-          title: textToSend.slice(0, 50) || "Community Post",
+          title,
           content: textToSend,
+          photo: attachments.find((a) => a.type === "image")?.url,
           attachments: attachmentsJson,
         });
         const norm = normalizeCommunityPost(raw, selectedConversation.id);
@@ -464,11 +623,116 @@ export const Messaging: React.FC = () => {
     }
   };
 
-  // Open New Chat / Group Modal
-  const openNewChatModal = async (defaultTab?: "direct" | "group") => {
-    const targetTab = defaultTab === "group" && isAdminOrCoordinator ? "group" : "direct";
+  // Toggle Like on Direct or Group Message
+  const handleToggleMessageLike = async (message: IMessage) => {
+    if (!selectedConversation) return;
+    try {
+      if (selectedConversation.type === "direct") {
+        const res = await toggleDirectMessageLike(selectedConversation.id, message.id);
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === message.id ? { ...m, likes: res.likeCount, isLikedByMe: res.liked } : m
+          )
+        );
+      } else if (selectedConversation.type === "group") {
+        const res = await toggleGroupMessageLike(selectedConversation.id, message.id);
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === message.id ? { ...m, likes: res.likeCount, isLikedByMe: res.liked } : m
+          )
+        );
+      }
+    } catch {
+      toast.error("Failed to update reaction");
+    }
+  };
+
+  // Copy message text to clipboard
+  const handleCopyMessage = async (content?: string) => {
+    if (!content) return;
+    try {
+      await navigator.clipboard.writeText(content);
+      toast.success("Message copied to clipboard!");
+    } catch {
+      toast.error("Failed to copy message");
+    }
+  };
+
+  // Delete message with confirmation
+  const handleDeleteMessage = (messageId: string) => {
+    if (!selectedConversation) return;
+    confirmAction({
+      title: "Delete Message",
+      message: "Are you sure you want to delete this message? This action cannot be undone.",
+      confirmLabel: "Delete",
+      variant: "danger",
+      onConfirm: async () => {
+        try {
+          if (selectedConversation.type === "direct") {
+            await deleteDirectMessage(selectedConversation.id, messageId);
+          } else if (selectedConversation.type === "group") {
+            await deleteGroupMessage(selectedConversation.id, messageId);
+          }
+          setMessages((prev) => prev.filter((m) => m.id !== messageId));
+          toast.success("Message deleted");
+        } catch (err: any) {
+          toast.error(err?.response?.data?.message || "Failed to delete message");
+        }
+      },
+    });
+  };
+
+  // Start editing a message
+  const handleStartEditMessage = (message: IMessage) => {
+    setEditingMessage(message);
+    setEditingMessageText(message.content || "");
+  };
+
+  // Save edited message
+  const handleSaveEditMessage = async () => {
+    if (!editingMessage || !selectedConversation || !editingMessageText.trim()) return;
+    try {
+      if (selectedConversation.type === "direct") {
+        const updated = await editDirectMessage(selectedConversation.id, editingMessage.id, editingMessageText.trim());
+        setMessages((prev) =>
+          prev.map((m) => (m.id === editingMessage.id ? { ...m, content: updated.content, isEdited: true } : m))
+        );
+      } else if (selectedConversation.type === "group") {
+        const updated = await editGroupMessage(selectedConversation.id, editingMessage.id, editingMessageText.trim());
+        setMessages((prev) =>
+          prev.map((m) => (m.id === editingMessage.id ? { ...m, content: updated.content, isEdited: true } : m))
+        );
+      }
+      setEditingMessage(null);
+      setEditingMessageText("");
+      toast.success("Message updated");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to edit message");
+    }
+  };
+
+  // Jump to message search match
+  const handleJumpToSearchMatch = (messageId: string) => {
+    setHighlightedMessageId(messageId);
+    const element = document.getElementById(`message-${messageId}`) || document.getElementById(`post-${messageId}`);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  };
+
+  // Open New Chat / Group / Community Modal
+  const openNewChatModal = async (defaultTab?: "direct" | "group" | "community") => {
+    const targetTab =
+      defaultTab === "community" && isAdminOrCoordinator
+        ? "community"
+        : defaultTab === "group" && isAdminOrCoordinator
+        ? "group"
+        : "direct";
     setModalTab(targetTab);
     setGroupName("");
+    setCommunityName("");
+    setCommunityDescription("");
+    setCommunityIsPublic(true);
     setSelectedGroupParticipants([]);
     setShowNewChatModal(true);
     setLoadingUsers(true);
@@ -528,6 +792,37 @@ export const Messaging: React.FC = () => {
     }
   };
 
+  // Handle Community Creation for Admins & RBC Coordinators
+  const handleCreateCommunity = async () => {
+    if (!communityName.trim()) {
+      toast.error("Please enter a community name");
+      return;
+    }
+    setCreatingCommunity(true);
+    try {
+      const conv = await createConversationMutation.mutateAsync({
+        type: "community",
+        name: communityName.trim(),
+        description: communityDescription.trim() || undefined,
+        isPublic: communityIsPublic,
+        participantIds: selectedGroupParticipants,
+      });
+      setShowNewChatModal(false);
+      setCommunityName("");
+      setCommunityDescription("");
+      setCommunityIsPublic(true);
+      setSelectedGroupParticipants([]);
+      setActiveTab("community");
+      setSelectedConversation(conv);
+      toast.success(`Community "${conv.name}" created successfully!`);
+    } catch (err: any) {
+      console.error("Failed to create community:", err);
+      toast.error(err?.message || "Failed to create community");
+    } finally {
+      setCreatingCommunity(false);
+    }
+  };
+
   const toggleGroupParticipant = (userId: string) => {
     setSelectedGroupParticipants((prev) =>
       prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
@@ -584,7 +879,9 @@ export const Messaging: React.FC = () => {
             
             <button
               onClick={() => {
-                if (activeTab === "group" && isAdminOrCoordinator) {
+                if (activeTab === "community" && isAdminOrCoordinator) {
+                  openNewChatModal("community");
+                } else if (activeTab === "group" && isAdminOrCoordinator) {
                   setShowCreateGroupModal(true);
                 } else {
                   openNewChatModal("direct");
@@ -593,7 +890,13 @@ export const Messaging: React.FC = () => {
               className="h-9 px-3.5 bg-primary hover:bg-primary/90 text-white rounded-xl flex items-center gap-1.5 text-xs font-semibold shadow-sm shadow-primary/30 transition-all duration-200 active:scale-95"
             >
               <Plus className="h-4 w-4" />
-              <span>{activeTab === "group" && isAdminOrCoordinator ? "New Group" : "New Chat"}</span>
+              <span>
+                {activeTab === "community" && isAdminOrCoordinator
+                  ? "New Community"
+                  : activeTab === "group" && isAdminOrCoordinator
+                  ? "New Group"
+                  : "New Chat"}
+              </span>
             </button>
           </div>
 
@@ -771,8 +1074,27 @@ export const Messaging: React.FC = () => {
             </div>
 
             {/* Header Right Quick Action Buttons */}
-            <div className="flex items-center gap-1 text-slate-500">
-              <button title="Search in chat" className="p-2 hover:bg-slate-100 text-slate-600 hover:text-slate-900 rounded-xl transition-all">
+            <div className="flex items-center gap-1.5 text-slate-500">
+              {selectedConversation.type === "community" && (
+                <button
+                  onClick={() => setShowSavedPostsModal(true)}
+                  title="View Saved Posts"
+                  className="px-2.5 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200/90 flex items-center gap-1.5 text-xs font-bold transition-all shadow-2xs mr-1"
+                >
+                  <Bookmark className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
+                  <span className="hidden sm:inline">Saved Posts</span>
+                </button>
+              )}
+
+              <button
+                onClick={() => setShowInChatSearch(!showInChatSearch)}
+                title="Search in chat"
+                className={`p-2 rounded-xl transition-all ${
+                  showInChatSearch
+                    ? "bg-primary/10 text-primary border border-primary/20"
+                    : "hover:bg-slate-100 text-slate-600 hover:text-slate-900"
+                }`}
+              >
                 <Search className="h-4 w-4" />
               </button>
               <button title="Audio Call" className="p-2 hover:bg-slate-100 text-slate-600 hover:text-slate-900 rounded-xl transition-all">
@@ -792,24 +1114,61 @@ export const Messaging: React.FC = () => {
             </div>
           </div>
 
+          {/* In-Chat Search Bar */}
+          <InChatSearchBar
+            isOpen={showInChatSearch}
+            onClose={() => {
+              setShowInChatSearch(false);
+              setHighlightedMessageId(null);
+            }}
+            messages={messages}
+            onSelectMatch={handleJumpToSearchMatch}
+          />
+
           {/* Messages Feed & Attachment Staging Area */}
           <div className="flex-1 flex flex-col min-h-0 relative">
             {/* Messages Feed Stream */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar bg-slate-50/60">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 custom-scrollbar bg-slate-50/60">
               
               {/* Date divider */}
-              <div className="flex items-center justify-center my-4">
+              <div className="flex items-center justify-center my-3">
                 <span className="px-3 py-1 bg-white border border-slate-200 rounded-full text-[10px] font-semibold text-slate-500 shadow-2xs">
-                  Today
+                  {selectedConversation.type === "community" ? "Community Feed" : "Today"}
                 </span>
               </div>
 
               {messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-64 text-slate-400 space-y-2">
                   <Sparkles className="h-8 w-8 text-primary/60 animate-pulse" />
-                  <p className="text-xs font-medium text-slate-500">No messages yet. Send a greeting to start chatting!</p>
+                  <p className="text-xs font-medium text-slate-500">
+                    {selectedConversation.type === "community"
+                      ? "No posts in this community yet. Create the first post below!"
+                      : "No messages yet. Send a greeting to start chatting!"}
+                  </p>
+                </div>
+              ) : selectedConversation.type === "community" ? (
+                /* Community Feed View with Social Post Cards */
+                <div className="max-w-2xl mx-auto w-full space-y-4">
+                  {messages.map((post) => (
+                    <CommunityPostCard
+                      key={post.id}
+                      post={post}
+                      communityId={selectedConversation.id}
+                      currentUser={user}
+                      isAdmin={isAdminOrCoordinator}
+                      onPostUpdated={(updated) => {
+                        setMessages((prev) =>
+                          prev.map((m) => (m.id === updated.id ? updated : m))
+                        );
+                      }}
+                      onPostDeleted={(postId) => {
+                        setMessages((prev) => prev.filter((m) => m.id !== postId));
+                      }}
+                    />
+                  ))}
                 </div>
               ) : (
+                /* Direct & Group Chat Messages Stream with Hover Action Bar */
                 messages.map((msg) => {
                   const isMine = msg.senderId === user?.id;
                   const senderName = msg.sender?.fullNames || "User";
@@ -817,12 +1176,92 @@ export const Messaging: React.FC = () => {
                   const formattedTime = new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
                   const isSingleAudio = !msg.content && msg.attachments?.length === 1 && msg.attachments[0].type === "audio";
                   const isSingleMedia = !msg.content && msg.attachments?.length === 1 && (msg.attachments[0].type === "image" || msg.attachments[0].type === "video");
+                  const isHighlighted = highlightedMessageId === msg.id;
 
                   return (
-                    <div key={msg.id} className={`flex items-end gap-2.5 ${isMine ? "justify-end" : "justify-start"} group`}>
+                    <div
+                      key={msg.id}
+                      id={`message-${msg.id}`}
+                      className={`flex items-end gap-2.5 ${
+                        isMine ? "justify-end" : "justify-start"
+                      } group transition-all duration-300 ${isHighlighted ? "scale-[1.01]" : ""}`}
+                    >
                       {!isMine && (
                         <ProfileAvatar photo={msg.sender?.photo || undefined} name={senderName} className="w-8 h-8 mb-1 flex-shrink-0 border border-slate-200 shadow-2xs" />
                       )}
+
+                      {/* Message Hover Actions Toolbar */}
+                      <div
+                        className={`opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 bg-white border border-slate-200 shadow-xs rounded-xl px-1 py-0.5 mb-2 flex-shrink-0 z-10 ${
+                          isMine ? "order-first mr-1" : "order-last ml-1"
+                        }`}
+                      >
+                        {/* Like reaction */}
+                        <button
+                          onClick={() => handleToggleMessageLike(msg)}
+                          className={`p-1 rounded-lg transition-colors ${
+                            msg.isLikedByMe
+                              ? "text-rose-500 hover:text-rose-600 bg-rose-50"
+                              : "text-slate-400 hover:text-rose-500 hover:bg-slate-50"
+                          }`}
+                          title="Like message"
+                        >
+                          <Heart
+                            className={`h-3.5 w-3.5 ${
+                              msg.isLikedByMe ? "fill-rose-500 text-rose-500" : ""
+                            }`}
+                          />
+                        </button>
+
+                        {/* Reply */}
+                        <button
+                          onClick={() =>
+                            setReplyingTo({
+                              id: msg.id,
+                              senderName,
+                              content: msg.content || "",
+                              type: msg.type,
+                            })
+                          }
+                          className="p-1 rounded-lg text-slate-400 hover:text-primary hover:bg-slate-50 transition-colors"
+                          title="Reply to message"
+                        >
+                          <Reply className="h-3.5 w-3.5" />
+                        </button>
+
+                        {/* Copy */}
+                        {msg.content && (
+                          <button
+                            onClick={() => handleCopyMessage(msg.content)}
+                            className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors"
+                            title="Copy message"
+                          >
+                            <Copy className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+
+                        {/* Edit (own message only) */}
+                        {isMine && (
+                          <button
+                            onClick={() => handleStartEditMessage(msg)}
+                            className="p-1 rounded-lg text-slate-400 hover:text-primary hover:bg-slate-50 transition-colors"
+                            title="Edit message"
+                          >
+                            <Edit3 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+
+                        {/* Delete (own message only) */}
+                        {isMine && (
+                          <button
+                            onClick={() => handleDeleteMessage(msg.id)}
+                            className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-slate-50 transition-colors"
+                            title="Delete message"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
 
                       <div className="max-w-md lg:max-w-lg space-y-1">
                         {!isMine && selectedConversation.type !== "direct" && (
@@ -831,6 +1270,8 @@ export const Messaging: React.FC = () => {
 
                         <div
                           className={`rounded-2xl text-xs leading-relaxed shadow-2xs transition-all duration-200 relative ${
+                            isHighlighted ? "ring-4 ring-yellow-400/80 shadow-md" : ""
+                          } ${
                             isSingleMedia
                               ? "p-0 bg-transparent border-none shadow-none overflow-hidden rounded-2xl"
                               : isSingleAudio
@@ -846,7 +1287,59 @@ export const Messaging: React.FC = () => {
                               : "bg-white text-slate-800 rounded-bl-xs border border-slate-200/90"
                           }`}
                         >
-                          {msg.content && <p className="whitespace-pre-wrap break-words">{msg.content}</p>}
+                          {/* Quoted Reply Banner */}
+                          {msg.replyTo && (
+                            <div
+                              className={`mb-2 rounded-xl p-2.5 text-xs border-l-4 transition-all ${
+                                isMine
+                                  ? "bg-black/20 border-white/80 text-white/95"
+                                  : "bg-slate-100/90 border-primary text-slate-800"
+                              }`}
+                            >
+                              <p className="font-bold text-[11px] truncate mb-0.5">
+                                {msg.replyTo.senderName}
+                              </p>
+                              <p className="text-[11px] line-clamp-2 opacity-85">
+                                {msg.replyTo.type === "image"
+                                  ? "📷 Photo"
+                                  : msg.replyTo.type === "video"
+                                  ? "🎥 Video"
+                                  : msg.replyTo.type === "audio"
+                                  ? "🎤 Voice Note"
+                                  : msg.replyTo.type === "file"
+                                  ? "📄 Document"
+                                  : msg.replyTo.content || "Message"}
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Inline Edit Form */}
+                          {editingMessage?.id === msg.id ? (
+                            <div className="space-y-2 py-1">
+                              <textarea
+                                value={editingMessageText}
+                                onChange={(e) => setEditingMessageText(e.target.value)}
+                                className="w-full text-xs text-slate-900 bg-white p-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                rows={2}
+                              />
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  onClick={() => setEditingMessage(null)}
+                                  className="px-2 py-1 text-[11px] rounded bg-white/20 hover:bg-white/30 text-white font-medium"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  onClick={handleSaveEditMessage}
+                                  className="px-2.5 py-1 text-[11px] rounded bg-white text-primary font-bold shadow-xs hover:bg-white/90"
+                                >
+                                  Save
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            msg.content && <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                          )}
 
                           {msg.attachments && msg.attachments.length > 0 && (
                             <div className={msg.content ? "mt-2 space-y-1.5" : "space-y-1.5"}>
@@ -865,12 +1358,39 @@ export const Messaging: React.FC = () => {
                             </div>
                           )}
 
-                          {!isSingleAudio && !isSingleMedia && (
-                            <div className={`flex items-center justify-end gap-1 px-1 mt-1 text-[9px] ${isMine ? "text-white/80" : "text-slate-400"}`}>
-                              <span>{formattedTime}</span>
-                              {isMine && <CheckCheck className="h-3 w-3 text-white/80" />}
+                          {/* Footer: Likes pill, edited tag, time, and read checks */}
+                          <div className={`flex items-center justify-between gap-2 px-1 mt-1 text-[9px] ${isMine ? "text-white/80" : "text-slate-400"}`}>
+                            <div>
+                              {msg.likes && msg.likes > 0 ? (
+                                <span
+                                  className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full font-bold ${
+                                    isMine
+                                      ? "bg-white/20 text-white"
+                                      : "bg-rose-50 text-rose-600 border border-rose-200/60"
+                                  }`}
+                                >
+                                  <Heart className="h-2.5 w-2.5 fill-current text-rose-500" />
+                                  <span>{msg.likes}</span>
+                                </span>
+                              ) : null}
+                              {msg.isEdited && (
+                                <span className="ml-1 opacity-70 italic">(edited)</span>
+                              )}
                             </div>
-                          )}
+
+                            {!isSingleAudio && !isSingleMedia && (
+                              <div className="flex items-center gap-1">
+                                <span>{formattedTime}</span>
+                                {isMine && (
+                                  (msg.readBy && msg.readBy.length > 0) ? (
+                                    <CheckCheck className="h-3 w-3 text-sky-200" />
+                                  ) : (
+                                    <Check className="h-3 w-3 text-white/80" />
+                                  )
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -905,7 +1425,13 @@ export const Messaging: React.FC = () => {
                   value={messageText}
                   onChange={handleMessageInputChange}
                   onSend={handleSendMessage}
-                  placeholder="Write a message..."
+                  placeholder={
+                    selectedConversation.type === "community"
+                      ? "Share an update or question with the community..."
+                      : "Write a message..."
+                  }
+                  replyingTo={replyingTo}
+                  onCancelReply={() => setReplyingTo(null)}
                 />
               )}
             </div>
@@ -941,14 +1467,26 @@ export const Messaging: React.FC = () => {
             const title = selectedConversation.type === "direct" ? other?.fullNames || "Direct Chat" : selectedConversation.name;
             const photo = selectedConversation.type === "direct" ? other?.photo : selectedConversation.photo;
             const isGroup = selectedConversation.type === "group";
+            const isCommunity = selectedConversation.type === "community";
+            const isCommunityCreator = isCommunity && (selectedConversation.createdById === user?.id || (selectedConversation as any).creator?.id === user?.id);
+            const canManageCommunity = isCommunity && (isAdminOrCoordinator || isCommunityCreator);
 
             return (
               <div className="py-6 flex flex-col items-center text-center border-b border-slate-200">
                 <ProfileAvatar photo={photo || undefined} name={title || "User"} className="w-16 h-16 rounded-2xl border-2 border-primary/20 shadow-md mb-3" />
                 <h4 className="text-sm font-bold text-slate-900">{title}</h4>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  {isGroup ? `${selectedConversation.participants?.length || 0} Members` : "Health Worker"}
+                  {isGroup || isCommunity
+                    ? `${selectedConversation.participants?.length || 0} Members`
+                    : "Health Worker"}
                 </p>
+
+                {isCommunity && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 mt-1.5 rounded-full text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20">
+                    <Globe className="h-3 w-3" />
+                    {(selectedConversation as any).isPublic !== false ? "Public Community" : "Private Community"}
+                  </span>
+                )}
                 
                 {/* Action Buttons */}
                 <div className="flex items-center gap-2 mt-4 w-full justify-center">
@@ -985,12 +1523,132 @@ export const Messaging: React.FC = () => {
                     </button>
                   </div>
                 )}
+
+                {/* Community Admin / Creator Actions */}
+                {canManageCommunity && (
+                  <div className="mt-3 pt-3 border-t border-slate-100 w-full flex flex-col gap-1.5">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setShowEditCommunityModal(true)}
+                        className="flex-1 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 text-xs font-semibold rounded-xl transition-all flex items-center justify-center gap-1.5"
+                      >
+                        <Edit3 className="h-3.5 w-3.5" /> Edit Community
+                      </button>
+                      <button
+                        onClick={() => setShowAddCommunityMembersModal(true)}
+                        className="flex-1 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-semibold rounded-xl transition-all flex items-center justify-center gap-1.5"
+                      >
+                        <UserPlus className="h-3.5 w-3.5" /> Add Member
+                      </button>
+                    </div>
+                    <button
+                      onClick={() => setShowTerminateCommunityModal(true)}
+                      className="w-full py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs font-semibold rounded-xl transition-all flex items-center justify-center gap-1.5"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" /> Delete Community
+                    </button>
+                  </div>
+                )}
+
+                {/* Community Member Leave Button (for non-managers) */}
+                {isCommunity && !canManageCommunity && (
+                  <div className="mt-3 pt-3 border-t border-slate-100 w-full">
+                    <button
+                      onClick={handleLeaveCommunity}
+                      className="w-full py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs font-semibold rounded-xl transition-all flex items-center justify-center gap-1.5"
+                    >
+                      <LogOut className="h-3.5 w-3.5" /> Leave Community
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })()}
 
-          {/* Group Description & Information */}
-          {selectedConversation.type === "group" ? (
+          {/* Community Description & Information */}
+          {selectedConversation.type === "community" ? (
+            <div className="py-4 space-y-3 border-b border-slate-200">
+              <h5 className="text-xs font-bold text-slate-900">Community Description</h5>
+              <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 p-2.5 rounded-xl border border-slate-200/80">
+                {(selectedConversation as any).description || "No description set for this community."}
+              </p>
+              
+              {/* Community Members List */}
+              <div className="pt-2">
+                <div className="flex items-center justify-between mb-2">
+                  <h5 className="text-xs font-bold text-slate-900">
+                    Members ({selectedConversation.participants?.length || 0})
+                  </h5>
+                  {(isAdminOrCoordinator || selectedConversation.createdById === user?.id) && (
+                    <button
+                      onClick={() => setShowAddCommunityMembersModal(true)}
+                      className="text-[11px] font-bold text-primary hover:underline flex items-center gap-1"
+                    >
+                      <Plus className="h-3 w-3" /> Add
+                    </button>
+                  )}
+                </div>
+
+                <div className="space-y-1.5 max-h-56 overflow-y-auto custom-scrollbar pr-1">
+                  {selectedConversation.participants?.map((p) => {
+                    const participantUser = p.user;
+                    const participantName = participantUser?.fullNames || "User";
+                    const isSelf = p.userId === user?.id;
+                    const isCreator = p.userId === selectedConversation.createdById;
+                    const isAdmin = p.role === "admin" || isCreator;
+
+                    return (
+                      <div
+                        key={p.id || p.userId}
+                        className="flex items-center justify-between p-2 rounded-xl bg-slate-50 hover:bg-slate-100/80 border border-slate-200/80 transition-all"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          <ProfileAvatar photo={participantUser?.photo || undefined} name={participantName} className="w-8 h-8 rounded-full border border-slate-200 flex-shrink-0" />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1">
+                              <p className="text-xs font-semibold text-slate-800 truncate">
+                                {participantName} {isSelf && <span className="text-[10px] text-slate-400 font-normal">(You)</span>}
+                              </p>
+                              {isCreator && (
+                                <Crown className="h-3 w-3 text-amber-500 flex-shrink-0" title="Community Creator" />
+                              )}
+                            </div>
+                            <p className="text-[10px] text-slate-500 truncate">{isCreator ? "Creator" : isAdmin ? "Admin" : "Member"}</p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          {!isSelf && participantUser && (
+                            <button
+                              onClick={() => startDirectChatWithUser(participantUser)}
+                              className="p-1 text-slate-400 hover:text-primary hover:bg-white rounded-lg border border-transparent hover:border-slate-200"
+                              title="Direct Message"
+                            >
+                              <MessageSquare className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                          {!isSelf && (isAdminOrCoordinator || selectedConversation.createdById === user?.id) && (
+                            <button
+                              onClick={() => handleRemoveCommunityMember(p.userId, participantName)}
+                              disabled={removingCommunityMemberId === p.userId}
+                              className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg border border-transparent hover:border-rose-200 transition-all"
+                              title="Remove Member"
+                            >
+                              {removingCommunityMemberId === p.userId ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin text-rose-600" />
+                              ) : (
+                                <UserMinus className="h-3.5 w-3.5" />
+                              )}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          ) : selectedConversation.type === "group" ? (
             <div className="py-4 space-y-3 border-b border-slate-200">
               <h5 className="text-xs font-bold text-slate-900">Group Description</h5>
               <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 p-2.5 rounded-xl border border-slate-200/80">
@@ -1233,12 +1891,20 @@ export const Messaging: React.FC = () => {
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                {modalTab === "group" ? (
+                {modalTab === "community" ? (
+                  <Globe className="h-4 w-4 text-primary" />
+                ) : modalTab === "group" ? (
                   <Users className="h-4 w-4 text-primary" />
                 ) : (
                   <UserPlus className="h-4 w-4 text-primary" />
                 )}
-                <span>{modalTab === "group" ? "Create New Group" : "Start Direct Chat"}</span>
+                <span>
+                  {modalTab === "community"
+                    ? "Create New Community"
+                    : modalTab === "group"
+                    ? "Create New Group"
+                    : "Start Direct Chat"}
+                </span>
               </h3>
               <button onClick={() => setShowNewChatModal(false)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
                 <X className="h-4 w-4" />
@@ -1270,6 +1936,18 @@ export const Messaging: React.FC = () => {
                 >
                   <Users className="h-3.5 w-3.5" />
                   <span>Create Group</span>
+                </button>
+
+                <button
+                  onClick={() => setModalTab("community")}
+                  className={`flex-1 py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+                    modalTab === "community"
+                      ? "bg-white text-primary shadow-xs font-bold"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <Globe className="h-3.5 w-3.5" />
+                  <span>Community</span>
                 </button>
               </div>
             )}
@@ -1407,6 +2085,127 @@ export const Messaging: React.FC = () => {
               </div>
             )}
 
+            {/* TAB 3: CREATE COMMUNITY */}
+            {modalTab === "community" && (
+              <div className="space-y-3.5">
+                {!isAdminOrCoordinator ? (
+                  <div className="p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs">
+                    Community creation is restricted to Admins and RBC Coordinators.
+                  </div>
+                ) : (
+                  <>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Community Name</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Maternal Health Knowledge Hub"
+                        value={communityName}
+                        onChange={(e) => setCommunityName(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 text-slate-800 placeholder-slate-400 text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Description (Optional)</label>
+                      <textarea
+                        rows={2}
+                        placeholder="What is this community about? Share guidelines or topics..."
+                        value={communityDescription}
+                        onChange={(e) => setCommunityDescription(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 text-slate-800 placeholder-slate-400 text-xs rounded-xl px-3.5 py-2 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 resize-none"
+                      />
+                    </div>
+
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-xs font-bold text-slate-800">Public Community</p>
+                          <p className="text-[10px] text-slate-500">Allow all health workers across districts to discover and join</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={communityIsPublic}
+                            onChange={(e) => setCommunityIsPublic(e.target.checked)}
+                            className="sr-only peer"
+                          />
+                          <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                        </label>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs font-bold text-slate-700">Initial Members (Optional)</label>
+                        <span className="text-[10px] text-slate-500 font-medium">
+                          {selectedGroupParticipants.length} selected
+                        </span>
+                      </div>
+
+                      <div className="relative mb-2">
+                        <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                        <input
+                          type="text"
+                          placeholder="Search members to invite..."
+                          value={userSearchTerm}
+                          onChange={(e) => setUserSearchTerm(e.target.value)}
+                          className="w-full bg-slate-100 border border-slate-200 text-slate-800 placeholder-slate-400 text-xs rounded-xl pl-9 pr-4 py-2 focus:outline-none focus:border-primary"
+                        />
+                      </div>
+
+                      <div className="max-h-36 overflow-y-auto space-y-1 custom-scrollbar border border-slate-200/80 rounded-xl p-1 bg-slate-50/50">
+                        {loadingUsers ? (
+                          <div className="p-4 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
+                            <Loader2 className="h-4 w-4 animate-spin text-primary" /> Loading members...
+                          </div>
+                        ) : (
+                          allUsers
+                            .filter((u) => u.id !== user?.id && u.fullNames?.toLowerCase().includes(userSearchTerm.toLowerCase()))
+                            .map((u) => {
+                              const isSelected = selectedGroupParticipants.includes(u.id);
+                              return (
+                                <div
+                                  key={u.id}
+                                  onClick={() => toggleGroupParticipant(u.id)}
+                                  className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-all ${
+                                    isSelected ? "bg-primary/10 border border-primary/30" : "hover:bg-white border border-transparent"
+                                  }`}
+                                >
+                                  <div className={`w-4 h-4 rounded flex items-center justify-center border transition-all ${
+                                    isSelected ? "bg-primary border-primary text-white" : "border-slate-300 bg-white"
+                                  }`}>
+                                    {isSelected && <Check className="h-3 w-3" />}
+                                  </div>
+                                  <ProfileAvatar photo={u.photo || undefined} name={u.fullNames} className="w-8 h-8 border border-slate-200" />
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-xs font-semibold text-slate-800 truncate">{u.fullNames}</p>
+                                    <p className="text-[10px] text-slate-500 truncate">{u.district || "Health Worker"}</p>
+                                  </div>
+                                </div>
+                              );
+                            })
+                        )}
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={handleCreateCommunity}
+                      disabled={creatingCommunity || !communityName.trim()}
+                      className="w-full py-2.5 bg-primary hover:bg-primary/90 text-white rounded-xl font-bold text-xs shadow-md shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+                    >
+                      {creatingCommunity ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" /> Creating Community...
+                        </>
+                      ) : (
+                        `Create Community (${selectedGroupParticipants.length} Initial Members)`
+                      )}
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+
           </div>
         </div>
       )}
@@ -1480,6 +2279,77 @@ export const Messaging: React.FC = () => {
           }}
         />
       )}
+
+      {/* Community Management Modals */}
+      {showEditCommunityModal && selectedConversation && selectedConversation.type === "community" && (
+        <EditCommunityModal
+          isOpen={showEditCommunityModal}
+          communityId={selectedConversation.id}
+          initialName={selectedConversation.name || ""}
+          initialDescription={(selectedConversation as any).description || ""}
+          initialPhoto={selectedConversation.photo || ""}
+          initialIsPublic={(selectedConversation as any).isPublic !== false}
+          onClose={() => setShowEditCommunityModal(false)}
+          onCommunityUpdated={(updated) => {
+            setSelectedConversation((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    name: updated.name || prev.name,
+                    photo: updated.photo !== undefined ? updated.photo : prev.photo,
+                    description: updated.description !== undefined ? updated.description : (prev as any).description,
+                    isPublic: updated.isPublic !== undefined ? updated.isPublic : (prev as any).isPublic,
+                  }
+                : null
+            );
+            invalidateConversations();
+          }}
+        />
+      )}
+
+      {showAddCommunityMembersModal && selectedConversation && selectedConversation.type === "community" && (
+        <AddCommunityMembersModal
+          isOpen={showAddCommunityMembersModal}
+          communityId={selectedConversation.id}
+          existingMemberUserIds={selectedConversation.participants?.map((p) => p.userId) || []}
+          onClose={() => setShowAddCommunityMembersModal(false)}
+          onMembersAdded={() => {
+            invalidateConversations();
+          }}
+        />
+      )}
+
+      {showTerminateCommunityModal && selectedConversation && selectedConversation.type === "community" && (
+        <TerminateCommunityModal
+          isOpen={showTerminateCommunityModal}
+          communityId={selectedConversation.id}
+          communityName={selectedConversation.name || "this community"}
+          onClose={() => setShowTerminateCommunityModal(false)}
+          onCommunityTerminated={() => {
+            invalidateConversations();
+            setSelectedConversation(null);
+            setShowInfoPanel(false);
+            setShowTerminateCommunityModal(false);
+          }}
+        />
+      )}
+
+      {/* Saved Posts Modal */}
+      <SavedPostsModal
+        isOpen={showSavedPostsModal}
+        onClose={() => setShowSavedPostsModal(false)}
+        onSelectPost={(commId, postId) => {
+          const found = typedConversations.find((c) => c.id === commId);
+          if (found) {
+            setActiveTab("community");
+            setSelectedConversation(found);
+            setTimeout(() => {
+              const el = document.getElementById(`post-${postId}`);
+              if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+            }, 300);
+          }
+        }}
+      />
 
       {confirmDialog}
     </div>

@@ -168,17 +168,8 @@ export const CommunityComment: React.FC<CommunityCommentProps> = ({
 
         <div className="flex items-center gap-4 mt-3 pt-2 border-t border-gray-100">
           <button
-            onClick={() => setLiked((v) => !v)}
-            className={`flex items-center gap-1 text-sm transition-colors ${
-              liked ? "text-red-500" : "text-gray-500 hover:text-red-500"
-            }`}
-          >
-            <Heart size={14} className={liked ? "fill-current" : ""} />
-            <span>Like</span>
-          </button>
-          <button
             onClick={() => setReplying((v) => !v)}
-            className="flex items-center gap-1 text-sm text-gray-500 hover:text-blue-500 transition-colors"
+            className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-primary transition-colors"
           >
             <MessageCircle size={14} />
             <span>Reply</span>
