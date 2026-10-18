@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Heart, MessageCircle, Edit, Trash, MoreVertical, ChevronDown, ChevronUp } from "lucide-react";
+import { MessageCircle, Edit, Trash, MoreVertical, ChevronDown, ChevronUp } from "lucide-react";
 import { Input } from "@/components/common/Input";
 import { Button } from "@/components/common/Button";
 import ProfileAvatar from "@/components/profile/ProfileAvatar";
@@ -35,7 +35,6 @@ export const CommunityComment: React.FC<CommunityCommentProps> = ({
   const [submitting, setSubmitting] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(comment.text);
-  const [liked, setLiked] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const { confirm, dialog } = useConfirmDialog();
 

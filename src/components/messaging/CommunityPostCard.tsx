@@ -39,7 +39,7 @@ import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 interface CommunityPostCardProps {
   post: IMessage;
   communityId: string;
-  currentUser?: IUser | null;
+  currentUser?: { id: string; fullNames?: string; photo?: string | null } | null;
   isAdmin?: boolean;
   onPostUpdated?: (updated: IMessage) => void;
   onPostDeleted?: (postId: string) => void;

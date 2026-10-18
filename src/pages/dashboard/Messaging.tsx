@@ -24,7 +24,6 @@ import {
   ExternalLink,
   Edit3,
   Trash2,
-  Settings,
   Crown,
   Lock,
   Globe,
@@ -65,7 +64,6 @@ import {
   editGroupMessage,
   deleteGroupMessage,
   toggleGroupMessageLike,
-  IGroupChatRaw,
 } from "@/services/groupChat.service";
 import {
   createCommunityPost,
@@ -746,7 +744,7 @@ export const Messaging: React.FC = () => {
     }
   };
 
-  const startDirectChatWithUser = async (targetUser: IUser) => {
+  const startDirectChatWithUser = async (targetUser: { id: string; fullNames?: string }) => {
     try {
       const conv = await createConversationMutation.mutateAsync({
         type: "direct",
@@ -1610,7 +1608,9 @@ export const Messaging: React.FC = () => {
                                 {participantName} {isSelf && <span className="text-[10px] text-slate-400 font-normal">(You)</span>}
                               </p>
                               {isCreator && (
-                                <Crown className="h-3 w-3 text-amber-500 flex-shrink-0" title="Community Creator" />
+                                <span title="Community Creator">
+                                  <Crown className="h-3 w-3 text-amber-500 flex-shrink-0" />
+                                </span>
                               )}
                             </div>
                             <p className="text-[10px] text-slate-500 truncate">{isCreator ? "Creator" : isAdmin ? "Admin" : "Member"}</p>
@@ -1691,7 +1691,9 @@ export const Messaging: React.FC = () => {
                                 {participantName} {isSelf && <span className="text-[10px] text-slate-400 font-normal">(You)</span>}
                               </p>
                               {isAdmin && (
-                                <Crown className="h-3 w-3 text-amber-500 flex-shrink-0" title="Group Admin" />
+                                <span title="Group Admin">
+                                  <Crown className="h-3 w-3 text-amber-500 flex-shrink-0" />
+                                </span>
                               )}
                             </div>
                             <p className="text-[10px] text-slate-500 truncate">{isAdmin ? "Group Admin" : "Member"}</p>
