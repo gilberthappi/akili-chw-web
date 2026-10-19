@@ -138,5 +138,60 @@
     "listen": "Listen",
     "stopListening": "Stop reading",
     "speechUnsupported": "This browser cannot read text aloud."
+  },
+  "studyTime": {
+    "title": "Learning time",
+    "subtitleOverview": "How learners spend time — self-paced, meetings, and groups of {{n}}+ from the same health center",
+    "subtitleStudent": "Self-paced, meetings, and groups of {{n}}+ from the same health center",
+    "loadError": "Could not load learning time.",
+    "emptyOverview": "No learning time in this period.",
+    "emptyStudent": "No learning time in the last {{days}} days.",
+    "totalTime": "Total time",
+    "activeLearners": "Active learners",
+    "ofInScope": "of {{n}} in scope",
+    "avgPerLearner": "Average per learner",
+    "supervisedShare": "Supervised share",
+    "supervisedTime": "{{time}} supervised",
+    "peakHour": "Peak hour",
+    "busiestDay": "Busiest day",
+    "hoursOfDay": "Hours of the day",
+    "daysOfWeek": "Days of the week",
+    "learnersByPeriod": "Learners by time of day",
+    "learnersMostly": "How learners mostly study",
+    "mostlySelf": "mostly self-paced",
+    "mostlySupervised": "mostly supervised",
+    "dailyTrend": "Daily trend",
+    "activeDaysHint": "{{active}} of {{days}} days",
+    "avgPerActiveDay": "Average per active day",
+    "preferredTime": "Preferred time",
+    "peak": "Peak {{range}}",
+    "mostActiveDay": "Most active day",
+    "supervisedPct": "{{pct}}% supervised",
+    "selfPaced": "Self-paced",
+    "meeting": "Meeting",
+    "group": "Group",
+    "supervised": "Supervised",
+    "rangeDays": "{{n}}d",
+    "weekdays": {
+      "Mon": "Mon",
+      "Tue": "Tue",
+      "Wed": "Wed",
+      "Thu": "Thu",
+      "Fri": "Fri",
+      "Sat": "Sat",
+      "Sun": "Sun"
+    },
+    "periods": {
+      "morning": "Morning (05–12h)",
+      "afternoon": "Afternoon (12–17h)",
+      "evening": "Evening (17–21h)",
+      "night": "Night (21–05h)"
+    },
+    "periodsShort": {
+      "morning": "Morning",
+      "afternoon": "Afternoon",
+      "evening": "Evening",
+      "night": "Night"
+    }
   }
 }

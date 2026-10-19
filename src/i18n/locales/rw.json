@@ -138,5 +138,60 @@
     "listen": "Umva",
     "stopListening": "Hagarika gusoma",
     "speechUnsupported": "Iyi mushakisha ntishobora gusoma inyandiko mu ijwi."
+  },
+  "studyTime": {
+    "title": "Igihe cyo kwiga",
+    "subtitleOverview": "Uko abiga bamara igihe — kwiga wenyine, inama, n'amatsinda y'abantu {{n}}+ bo mu kigo kimwe cy'ubuzima",
+    "subtitleStudent": "Kwiga wenyine, inama, n'amatsinda y'abantu {{n}}+ bo mu kigo kimwe cy'ubuzima",
+    "loadError": "Ntibyashobotse kubona igihe cyo kwiga.",
+    "emptyOverview": "Nta gihe cyo kwiga muri iki gihe.",
+    "emptyStudent": "Nta gihe cyo kwiga mu minsi {{days}} ishize.",
+    "totalTime": "Igihe cyose",
+    "activeLearners": "Abiga bakora",
+    "ofInScope": "mu {{n}} bari mu rwego",
+    "avgPerLearner": "Impuzandengo ku mwiga",
+    "supervisedShare": "Igice cyagenzuwe",
+    "supervisedTime": "{{time}} byagenzuwe",
+    "peakHour": "Isaha ikora cyane",
+    "busiestDay": "Umunsi ukora cyane",
+    "hoursOfDay": "Amasaha y'umunsi",
+    "daysOfWeek": "Iminsi y'icyumweru",
+    "learnersByPeriod": "Abiga ukurikije igihe",
+    "learnersMostly": "Uburyo abiga bakunda",
+    "mostlySelf": "kwiga wenyine",
+    "mostlySupervised": "bagenzurwa",
+    "dailyTrend": "Imiterere buri munsi",
+    "activeDaysHint": "{{active}} mu minsi {{days}}",
+    "avgPerActiveDay": "Impuzandengo ku munsi ukora",
+    "preferredTime": "Igihe bakunda",
+    "peak": "Igihe cyinshi {{range}}",
+    "mostActiveDay": "Umunsi bakora cyane",
+    "supervisedPct": "{{pct}}% byagenzuwe",
+    "selfPaced": "Kwiga wenyine",
+    "meeting": "Inama",
+    "group": "Itsinda",
+    "supervised": "Byagenzuwe",
+    "rangeDays": "Iminsi {{n}}",
+    "weekdays": {
+      "Mon": "Mbe",
+      "Tue": "Kab",
+      "Wed": "Gat",
+      "Thu": "Kan",
+      "Fri": "Gtn",
+      "Sat": "Gtd",
+      "Sun": "Cyu"
+    },
+    "periods": {
+      "morning": "Gitondo (05–12h)",
+      "afternoon": "Ku manywa (12–17h)",
+      "evening": "Nimugoroba (17–21h)",
+      "night": "Nijoro (21–05h)"
+    },
+    "periodsShort": {
+      "morning": "Gitondo",
+      "afternoon": "Ku manywa",
+      "evening": "Nimugoroba",
+      "night": "Nijoro"
+    }
   }
 }
