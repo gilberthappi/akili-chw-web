@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { CheckCheck, Heart, Copy, Pencil, Trash2, X, Check } from "lucide-react";
+import { CheckCheck, Heart, Copy, Pencil, Trash2, X, Check, Reply } from "lucide-react";
 import toast from "react-hot-toast";
 import { IMessage } from "@/types";
 import ProfileAvatar from "@/components/profile/ProfileAvatar";
@@ -21,6 +21,7 @@ interface MessageBubbleProps {
   onCancelEdit: () => void;
   onDelete: () => void;
   onToggleLike: () => void;
+  onReply?: () => void;
   /** Briefly rings the bubble — used to draw attention after jumping here from a search result. */
   highlighted?: boolean;
   /** When set, wraps matching text in a yellow highlight inside the bubble. */
@@ -44,6 +45,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   onCancelEdit,
   onDelete,
   onToggleLike,
+  onReply,
   highlighted,
   highlightText,
   isCurrentMatch,
@@ -75,7 +77,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   };
 
   const showEditDelete = isOwn;
-  const isRead = (message.readBy?.length || 0) > 0;
+  const isRead = ((message as any).readCount || 0) > 0 || (message.readBy?.length || 0) > 0;
   const attachment = message.attachments?.[0];
   const isEdgeToEdgeMedia = !isEditing && !!attachment && (message.type === "image" || message.type === "video");
   const isCompactMedia = !isEditing && !!attachment && (message.type === "audio" || message.type === "file");
@@ -128,6 +130,32 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
               ${isCurrentMatch ? "ring-2 ring-amber-400 ring-offset-1" : highlighted ? "ring-4 ring-yellow-300 ring-offset-1" : highlightText && message.content?.toLowerCase().includes(highlightText.toLowerCase()) ? "ring-2 ring-yellow-200" : ""}
             `}
           >
+            {/* Quoted Reply Banner */}
+            {message.replyTo && (
+              <div
+                className={`mb-2 rounded-xl p-2.5 text-xs border-l-4 transition-all ${
+                  isOwn
+                    ? "bg-black/20 border-white/80 text-white/95"
+                    : "bg-slate-100/90 border-primary text-slate-800"
+                }`}
+              >
+                <p className="font-bold text-[11px] truncate mb-0.5">
+                  {message.replyTo.senderName}
+                </p>
+                <p className="text-[11px] line-clamp-2 opacity-85">
+                  {message.replyTo.type === "image"
+                    ? "📷 Photo"
+                    : message.replyTo.type === "video"
+                    ? "🎥 Video"
+                    : message.replyTo.type === "audio"
+                    ? "🎤 Voice Note"
+                    : message.replyTo.type === "file"
+                    ? "📄 Document"
+                    : message.replyTo.content || "Message"}
+                </p>
+              </div>
+            )}
+
             {isEditing ? (
               <div className="space-y-2">
                 <textarea
@@ -166,7 +194,13 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                   <span className="text-[10px] text-white flex items-center gap-1">
                     {timeLabel}
                     {isOwn && (
-                      <CheckCheck size={11} className={isRead ? "text-[#34B7F1]" : "text-white/70"} />
+                      isRead ? (
+                        <CheckCheck size={11} className="text-[#34B7F1]" />
+                      ) : (message as any).isDelivered ? (
+                        <CheckCheck size={11} className="text-white/70" />
+                      ) : (
+                        <Check size={11} className="text-white/70" />
+                      )
                     )}
                   </span>
                 </div>
@@ -189,7 +223,13 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                 )}
                 {timeLabel}
                 {isOwn && (
-                  <CheckCheck size={12} className={isRead ? "text-[#34B7F1]" : "text-gray-300"} />
+                  isRead ? (
+                    <CheckCheck size={12} className="text-[#34B7F1]" />
+                  ) : (message as any).isDelivered ? (
+                    <CheckCheck size={12} className="text-gray-400" />
+                  ) : (
+                    <Check size={12} className="text-gray-400" />
+                  )
                 )}
               </span>
             </div>
@@ -201,6 +241,15 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           <div
             className={`flex items-center gap-0.5 bg-white/95 backdrop-blur-sm border border-gray-200/80 rounded-2xl shadow-lg px-1.5 py-1 flex-shrink-0 animate-fade-in`}
           >
+            {onReply && (
+              <button
+                onClick={onReply}
+                className="p-1.5 rounded-xl text-gray-400 hover:text-primary hover:bg-primary/10 transition-all duration-200"
+                title="Reply"
+              >
+                <Reply size={14} />
+              </button>
+            )}
             <button
               onClick={onToggleLike}
               className={`p-1.5 rounded-xl transition-all duration-200 ${

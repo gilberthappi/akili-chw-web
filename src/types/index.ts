@@ -326,11 +326,23 @@ export interface ICommentThread {
   replies?: ICommentThread[];
 }
 
+export interface IQuotedMessage {
+  id: string;
+  senderName: string;
+  senderId?: string;
+  content: string;
+  type?: string;
+}
+
 export interface IAttachment {
   url: string;
-  type: "image" | "video" | "audio" | "file";
+  type: "image" | "video" | "audio" | "file" | "reply";
   name?: string;
   fileName?: string;
+  replyToId?: string;
+  replyToSender?: string;
+  replyToContent?: string;
+  replyToType?: string;
 }
 
 export interface IMessage {
@@ -342,13 +354,28 @@ export interface IMessage {
   title?: string;
   content?: string;
   attachments?: IAttachment[] | null;
+  replyTo?: IQuotedMessage | null;
   timestamp: string;
   editedAt?: string | null;
   isEdited?: boolean;
   readBy?: IReadBy[];
   likes?: number;
   isLikedByMe?: boolean;
+  viewCount?: number;
+  commentCount?: number;
+  saveCount?: number;
+  isSaved?: boolean;
   comments?: ICommentThread[];
+  reshareCount?: number;
+  resharedFromId?: string;
+  resharedFrom?: {
+    id: string;
+    title?: string;
+    content?: string;
+    photo?: string | null;
+    attachments?: string | null;
+    author?: { id: string; fullNames: string; photo?: string | null } | null;
+  } | null;
   /** Only present on search results — this message's 0-based position under the
    * conversation's normal newest-first pagination, used to jump to the page that
    * contains it. */

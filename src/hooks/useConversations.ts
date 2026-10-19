@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
 import { IConversation, IMessage, ConversationType } from "@/types";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -53,8 +53,47 @@ export const useGetConversations = () => {
   return useQuery(["conversations"], queryFn, {
     enabled: !!user?.id,
     staleTime: 1000 * 60 * 5, // 5 minutes
-    cacheTime: 1000 * 60 * 10, // 10 minutes
+    cacheTime: 1000 * 60 * 30, // 30 minutes
   });
+};
+
+/**
+ * Hook to fetch messages for a conversation with infinite scroll pagination
+ */
+export const useGetInfiniteMessages = (
+  conversationId: string | null,
+  type: ConversationType | undefined,
+  pageSize = 50,
+) => {
+  return useInfiniteQuery<IMessage[], Error>(
+    ["messages", conversationId, type],
+    async ({ pageParam = 0 }) => {
+      if (!conversationId || !type) return [];
+
+      if (type === "direct") {
+        const res: any = await getDirectChatMessages(conversationId, pageSize, pageParam);
+        const list = Array.isArray(res) ? res : res?.data || res?.messages || [];
+        return list.map((m: any) => normalizeMessage(m, conversationId));
+      }
+      if (type === "group") {
+        const res: any = await getGroupMessages(conversationId, pageSize, pageParam);
+        const list = Array.isArray(res) ? res : res?.data || res?.messages || [];
+        return list.map((m: any) => normalizeMessage(m, conversationId));
+      }
+      const res: any = await getCommunityPosts(conversationId, pageSize, pageParam);
+      const posts = Array.isArray(res) ? res : res?.data || res?.posts || [];
+      return posts.map((p: any) => normalizeCommunityPost(p, conversationId));
+    },
+    {
+      getNextPageParam: (lastPage, allPages) => {
+        if (!lastPage || lastPage.length < pageSize) return undefined;
+        return allPages.reduce((sum, p) => sum + p.length, 0);
+      },
+      enabled: !!conversationId && !!type,
+      staleTime: 1000 * 30,
+      cacheTime: 1000 * 60 * 5,
+    }
+  );
 };
 
 /**
@@ -70,15 +109,18 @@ export const useGetMessages = (
     if (!conversationId || !type) return [];
 
     if (type === "direct") {
-      const { data } = await getDirectChatMessages(conversationId, limit, offset);
-      return data.map((m) => normalizeMessage(m, conversationId));
+      const res: any = await getDirectChatMessages(conversationId, limit, offset);
+      const list = Array.isArray(res) ? res : res?.data || res?.messages || [];
+      return list.map((m: any) => normalizeMessage(m, conversationId));
     }
     if (type === "group") {
-      const { data } = await getGroupMessages(conversationId, limit, offset);
-      return data.map((m) => normalizeMessage(m, conversationId));
+      const res: any = await getGroupMessages(conversationId, limit, offset);
+      const list = Array.isArray(res) ? res : res?.data || res?.messages || [];
+      return list.map((m: any) => normalizeMessage(m, conversationId));
     }
-    const { data: posts } = await getCommunityPosts(conversationId, limit, offset);
-    return posts.map((p) => normalizeCommunityPost(p, conversationId));
+    const res: any = await getCommunityPosts(conversationId, limit, offset);
+    const posts = Array.isArray(res) ? res : res?.data || res?.posts || [];
+    return posts.map((p: any) => normalizeCommunityPost(p, conversationId));
   };
 
   return useQuery(["messages", conversationId, type], queryFn, {
@@ -98,6 +140,7 @@ export const useCreateConversation = () => {
   const mutationFn = async (data: {
     type: ConversationType;
     name?: string;
+    description?: string;
     isPublic?: boolean;
     photo?: string;
     participantIds: string[];
@@ -117,6 +160,7 @@ export const useCreateConversation = () => {
     }
     const community = await createCommunity({
       name: data.name || "Community",
+      description: data.description,
       isPublic: data.isPublic,
       participantIds: data.participantIds,
       photo: data.photo,

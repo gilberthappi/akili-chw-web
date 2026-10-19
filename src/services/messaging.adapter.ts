@@ -3,6 +3,7 @@ import {
   IConversationParticipant,
   IMessage,
   IAttachment,
+  IQuotedMessage,
   ICommentThread,
   ConversationType,
 } from "@/types";
@@ -26,9 +27,44 @@ export const parseAttachments = (
   try {
     const parsed = JSON.parse(attachments);
     if (!Array.isArray(parsed)) return null;
-    return parsed.map((a: IAttachment) => ({ ...a, url: resolveAttachmentUrl(a.url) }));
+    return parsed
+      .filter((a: any) => a && a.type !== "reply")
+      .map((a: IAttachment) => ({ ...a, url: resolveAttachmentUrl(a.url) }));
   } catch {
     return null;
+  }
+};
+
+export const extractReplyAndAttachments = (
+  attachmentsRaw?: string | null,
+): { attachments: IAttachment[] | null; replyTo: IQuotedMessage | null } => {
+  if (!attachmentsRaw) return { attachments: null, replyTo: null };
+  try {
+    const parsed = JSON.parse(attachmentsRaw);
+    if (!Array.isArray(parsed)) return { attachments: null, replyTo: null };
+
+    let replyTo: IQuotedMessage | null = null;
+    const cleanAttachments: IAttachment[] = [];
+
+    for (const item of parsed) {
+      if (item && item.type === "reply" && item.replyToId) {
+        replyTo = {
+          id: item.replyToId,
+          senderName: item.replyToSender || "User",
+          content: item.replyToContent || "",
+          type: item.replyToType || "text",
+        };
+      } else if (item && item.url) {
+        cleanAttachments.push({ ...item, url: resolveAttachmentUrl(item.url) });
+      }
+    }
+
+    return {
+      attachments: cleanAttachments.length > 0 ? cleanAttachments : null,
+      replyTo,
+    };
+  } catch {
+    return { attachments: null, replyTo: null };
   }
 };
 
@@ -44,49 +80,82 @@ export const stringifyAttachments = (
 export const normalizeMessage = (
   raw: IDirectMessageRaw,
   conversationId: string,
-): IMessage => ({
-  id: raw.id,
-  conversationId,
-  senderId: raw.senderId,
-  sender: raw.sender
-    ? { id: raw.sender.id, fullNames: raw.sender.fullNames, photo: raw.sender.photo || undefined }
-    : undefined,
-  type: (raw.type as IMessage["type"]) || "text",
-  content: raw.isDeleted ? "[Deleted]" : raw.content,
-  attachments: parseAttachments(raw.attachments),
-  timestamp: raw.timestamp,
-  editedAt: raw.editedAt,
-  isEdited: !!raw.editedAt,
-  likes: raw.likeCount,
-  isLikedByMe: (raw.likes?.length || 0) > 0,
-  readBy: raw.readCount ? [{ userId: "", readAt: raw.timestamp }] : [],
-  offsetInConversation: raw.offsetInConversation,
-});
+): IMessage => {
+  const { attachments, replyTo } = extractReplyAndAttachments(raw.attachments);
+  return {
+    id: raw.id,
+    conversationId,
+    senderId: raw.senderId,
+    sender: raw.sender
+      ? { id: raw.sender.id, fullNames: raw.sender.fullNames, photo: raw.sender.photo || undefined }
+      : undefined,
+    type: (raw.type as IMessage["type"]) || "text",
+    content: raw.isDeleted ? "[Deleted]" : raw.content,
+    attachments,
+    replyTo: replyTo || (raw as any).replyTo || null,
+    timestamp: raw.timestamp,
+    editedAt: raw.editedAt,
+    isEdited: !!raw.editedAt,
+    likes: raw.likeCount,
+    isLikedByMe: (raw.likes?.length || 0) > 0,
+    readBy: raw.readCount ? [{ userId: "", readAt: raw.timestamp }] : [],
+    offsetInConversation: raw.offsetInConversation,
+  };
+};
 
 export const normalizeCommunityPost = (
   raw: ICommunityPostRaw,
   communityId: string,
-): IMessage => ({
-  id: raw.id,
-  conversationId: communityId,
-  senderId: raw.authorId,
-  sender: (() => {
-    const authorInfo = raw.author || raw.sender;
-    return authorInfo
-      ? { id: authorInfo.id, fullNames: authorInfo.fullNames, photo: authorInfo.photo || undefined }
-      : undefined;
-  })(),
-  type: "blog",
-  title: raw.title,
-  content: raw.content,
-  attachments:
-    parseAttachments(raw.attachments) ||
-    (raw.photo ? [{ url: resolveAttachmentUrl(raw.photo), type: "image" as const }] : null),
-  timestamp: raw.timestamp,
-  likes: raw.likeCount,
-  comments: raw.comments?.map((c) => normalizeCommentThread(c, raw.id)) || [],
-  offsetInConversation: raw.offsetInConversation,
-});
+): IMessage => {
+  const isReshared = !!raw.resharedFromId;
+  const reshared = raw.resharedFrom;
+  const content = isReshared
+    ? raw.content || reshared?.content || reshared?.title || ""
+    : raw.content;
+  const rawAttachments =
+    isReshared && !raw.attachments && reshared?.attachments
+      ? reshared.attachments
+      : raw.attachments;
+  const photo =
+    isReshared && !raw.photo && reshared?.photo ? reshared.photo : raw.photo;
+
+  return {
+    id: raw.id,
+    conversationId: communityId,
+    senderId: raw.authorId,
+    sender: (() => {
+      const authorInfo = raw.author || raw.sender;
+      return authorInfo
+        ? {
+            id: authorInfo.id,
+            fullNames: authorInfo.fullNames,
+            photo: authorInfo.photo || undefined,
+          }
+        : undefined;
+    })(),
+    type: "blog",
+    title: raw.title || (isReshared ? reshared?.title : undefined),
+    content,
+    attachments:
+      parseAttachments(rawAttachments) ||
+      (photo
+        ? [{ url: resolveAttachmentUrl(photo), type: "image" as const }]
+        : null),
+    timestamp: raw.timestamp,
+    likes: raw.likeCount ?? (raw.likes?.length || 0),
+    isLikedByMe: (raw.likes?.length || 0) > 0,
+    viewCount: raw.viewCount || 0,
+    commentCount: raw.commentCount ?? raw.comments?.length ?? 0,
+    saveCount: raw.saveCount || 0,
+    isSaved:
+      ((raw as any).savedBy?.length || 0) > 0 || (raw as any).isSaved === true,
+    reshareCount: raw.reshareCount || 0,
+    resharedFromId: raw.resharedFromId || undefined,
+    resharedFrom: reshared || undefined,
+    comments: raw.comments?.map((c) => normalizeCommentThread(c, raw.id)) || [],
+    offsetInConversation: raw.offsetInConversation,
+  };
+};
 
 const normalizeCommentThread = (
   raw: IGroupCommentRaw | ICommunityCommentRaw,
