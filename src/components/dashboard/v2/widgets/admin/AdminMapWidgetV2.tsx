@@ -65,7 +65,7 @@ export const AdminMapWidgetV2: React.FC<AdminMapWidgetV2Props> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
-  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+   
   const [geoData, setGeoData] = useState<GeoJSON.FeatureCollection | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hoveredDistrict, setHoveredDistrict] = useState<{
@@ -113,7 +113,7 @@ export const AdminMapWidgetV2: React.FC<AdminMapWidgetV2Props> = ({
 
   const processedFeatures = useMemo(() => {
     if (!geoData) return [];
-    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+     
     const reverseRings = (coords: number[][][]) => coords.map((ring) => [...ring].reverse());
     /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
     return geoData.features.map((f: any) => {

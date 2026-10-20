@@ -566,7 +566,7 @@ export const Messaging: React.FC = () => {
     const textToSend = messageText.trim();
     
     // Attach reply info if replying
-    let finalAttachments = [...attachments];
+    const finalAttachments = [...attachments];
     if (replyingTo) {
       finalAttachments.push({
         url: "",
