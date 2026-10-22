@@ -137,6 +137,11 @@
     "ratingError": "Ntibyashobotse kubika igitekerezo cyanyu. Mwongere mugerageze.",
     "listen": "Umva",
     "stopListening": "Hagarika gusoma",
+    "pause": "Hagarika",
+    "play": "Kina",
+    "speaking": "Arasoma",
+    "mute": "Hagarika ijwi",
+    "unmute": "Subiza ijwi",
     "speechUnsupported": "Iyi mushakisha ntishobora gusoma inyandiko mu ijwi."
   },
   "studyTime": {

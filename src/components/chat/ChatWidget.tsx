@@ -12,7 +12,9 @@ import {
   ThumbsUp,
   ThumbsDown,
   Volume2,
-  Square,
+  VolumeX,
+  Pause,
+  Play,
   Loader2,
 } from "lucide-react";
 import {
@@ -70,6 +72,14 @@ function renderWithLinks(text: string): React.ReactNode[] {
   );
 }
 
+type SpeakPhase = "loading" | "playing" | "paused";
+type SpeakSession = {
+  key: string;
+  phase: SpeakPhase;
+  muted: boolean;
+  kind: "audio" | "speech" | null;
+};
+
 const localId = (): string =>
   `${LOCAL_PREFIX}${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
@@ -90,10 +100,13 @@ export const ChatWidget: React.FC = () => {
   const [messagesLoading, setMessagesLoading] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  // Reply being read aloud: "loading" while its audio is prepared.
-  const [speaking, setSpeaking] = useState<{ key: string; status: "loading" | "playing" } | null>(null);
+  // Reply being read aloud. Pause and mute keep the prepared audio.
+  const [speaking, setSpeaking] = useState<SpeakSession | null>(null);
+  const speakingRef = useRef<SpeakSession | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const speakRequestRef = useRef(0);
+  const speechTextRef = useRef<{ text: string; lang: string } | null>(null);
+  const speechGenRef = useRef(0);
 
   const active = conversations.find((c) => c.id === activeId) ?? null;
   const messages = active?.messages ?? [];
@@ -299,58 +312,177 @@ export const ChatWidget: React.FC = () => {
   };
 
 
-  const stopSpeaking = () => {
-    speakRequestRef.current += 1; // ignore a reply still being prepared
-    const audio = audioRef.current;
-    if (audio) {
-      audio.pause();
-      URL.revokeObjectURL(audio.src);
-      audioRef.current = null;
-    }
-    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
-    setSpeaking(null);
+  const setSession = (next: SpeakSession | null) => {
+    speakingRef.current = next;
+    setSpeaking(next);
   };
 
-  const toggleSpeak = async (key: string, text: string) => {
-    const wasThisOne = speaking?.key === key;
-    stopSpeaking();
-    if (wasThisOne) return;
+  const releaseAudio = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.onended = null;
+    audio.onerror = null;
+    audio.pause();
+    if (audio.src) URL.revokeObjectURL(audio.src);
+    audioRef.current = null;
+  };
 
+  const stopSpeaking = () => {
+    speakRequestRef.current += 1; // ignore a reply still being prepared
+    speechGenRef.current += 1;
+    releaseAudio();
+    speechTextRef.current = null;
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    setSession(null);
+  };
+
+  const startDeviceUtterance = (text: string, lang: string) => {
+    if (!("speechSynthesis" in window)) return;
     const requestId = speakRequestRef.current;
-    setSpeaking({ key, status: "loading" });
+    const synth = window.speechSynthesis;
+    const restart = synth.speaking || synth.paused;
+    const gen = ++speechGenRef.current;
+    if (restart) synth.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = lang === "rw" ? "rw-RW" : "en-US";
+    utterance.onend = () => {
+      if (gen !== speechGenRef.current || requestId !== speakRequestRef.current) return;
+      const session = speakingRef.current;
+      // Pause and mute can end the utterance on some browsers. Keep the session so Play resumes it.
+      if (session && (session.phase === "paused" || session.muted)) return;
+      speechTextRef.current = null;
+      setSession(null);
+    };
+    utterance.onerror = (event) => {
+      if (event.error === "interrupted" || event.error === "canceled") return;
+      if (gen !== speechGenRef.current || requestId !== speakRequestRef.current) return;
+      setSession(null);
+    };
+    const speakNow = () => {
+      if (gen === speechGenRef.current && requestId === speakRequestRef.current) synth.speak(utterance);
+    };
+    // Chrome drops an utterance spoken in the same turn as cancel().
+    if (restart) window.setTimeout(speakNow, 50);
+    else speakNow();
+  };
+
+  const syncOutput = (session: SpeakSession) => {
+    if (session.kind === "audio" && audioRef.current) {
+      const audio = audioRef.current;
+      audio.muted = session.muted;
+      if (session.phase === "playing") {
+        if (audio.paused) {
+          void audio.play().catch(() => {
+            if (speakingRef.current?.key === session.key) {
+              setSession({ ...speakingRef.current, phase: "paused" });
+            }
+          });
+        }
+      } else if (session.phase === "paused") {
+        audio.pause();
+      }
+      return;
+    }
+
+    if (session.kind !== "speech" || !("speechSynthesis" in window)) return;
+    const synth = window.speechSynthesis;
+    const audible = session.phase === "playing" && !session.muted;
+    if (!audible) {
+      if (synth.speaking && !synth.paused) synth.pause();
+      return;
+    }
+    if (synth.paused) {
+      synth.resume();
+      window.setTimeout(() => {
+        const current = speakingRef.current;
+        if (
+          current?.key === session.key &&
+          current.phase === "playing" &&
+          !current.muted &&
+          !synth.speaking
+        ) {
+          const payload = speechTextRef.current;
+          if (payload) startDeviceUtterance(payload.text, payload.lang);
+        }
+      }, 80);
+      return;
+    }
+    if (!synth.speaking) {
+      const payload = speechTextRef.current;
+      if (payload) startDeviceUtterance(payload.text, payload.lang);
+    }
+  };
+
+  const onSpeakControl = async (key: string, text: string) => {
+    const current = speakingRef.current;
+    if (current?.key === key && current.phase === "loading") {
+      stopSpeaking();
+      return;
+    }
+    if (current?.key === key && current.phase === "playing") {
+      const next = { ...current, phase: "paused" as const };
+      setSession(next);
+      syncOutput(next);
+      return;
+    }
+    if (current?.key === key && current.phase === "paused") {
+      const next = { ...current, phase: "playing" as const };
+      setSession(next);
+      syncOutput(next);
+      return;
+    }
+
+    stopSpeaking();
+    const requestId = speakRequestRef.current;
+    setSession({ key, phase: "loading", muted: false, kind: null });
     try {
       const result = await speakChatReply(text);
       if (requestId !== speakRequestRef.current) return;
-      const done = () => {
-        if (requestId === speakRequestRef.current) setSpeaking(null);
-      };
 
       if (result.audioBase64) {
         const bytes = Uint8Array.from(atob(result.audioBase64), (c) => c.charCodeAt(0));
         const audio = new Audio(URL.createObjectURL(new Blob([bytes], { type: "audio/wav" })));
         audioRef.current = audio;
-        audio.onended = done;
-        audio.onerror = done;
-        setSpeaking({ key, status: "playing" });
-        await audio.play();
+        audio.onended = () => {
+          if (requestId !== speakRequestRef.current) return;
+          releaseAudio();
+          setSession(null);
+        };
+        audio.onerror = () => {
+          if (requestId !== speakRequestRef.current) return;
+          releaseAudio();
+          setSession(null);
+        };
+        const session: SpeakSession = { key, phase: "playing", muted: false, kind: "audio" };
+        setSession(session);
+        try {
+          await audio.play();
+        } catch {
+          if (requestId === speakRequestRef.current) setSession({ ...session, phase: "paused" });
+        }
         return;
       }
 
       if (!("speechSynthesis" in window)) {
         toast.error(t("chat.speechUnsupported"));
-        setSpeaking(null);
+        setSession(null);
         return;
       }
-      const utterance = new SpeechSynthesisUtterance(result.text);
-      utterance.lang = "en-US";
-      utterance.onend = done;
-      utterance.onerror = done;
-      setSpeaking({ key, status: "playing" });
-      window.speechSynthesis.speak(utterance);
+      speechTextRef.current = { text: result.text || text, lang: result.language };
+      setSession({ key, phase: "playing", muted: false, kind: "speech" });
+      startDeviceUtterance(result.text || text, result.language);
     } catch {
       // Request errors are already shown by the api client.
-      if (requestId === speakRequestRef.current) setSpeaking(null);
+      if (requestId === speakRequestRef.current) setSession(null);
     }
+  };
+
+  const toggleMute = () => {
+    const current = speakingRef.current;
+    if (!current || current.phase === "loading") return;
+    const next = { ...current, muted: !current.muted };
+    setSession(next);
+    syncOutput(next);
   };
 
   useEffect(() => {
@@ -501,7 +633,8 @@ export const ChatWidget: React.FC = () => {
                 {messages.map((m, i) => {
                   const rating = m.rating ?? null;
                   const speakKey = `${activeId}-${i}`;
-                  const speakStatus = speaking?.key === speakKey ? speaking.status : null;
+                  const session = speaking?.key === speakKey ? speaking : null;
+                  const phase = session?.phase ?? null;
                   return (
                     <div
                       key={i}
@@ -520,22 +653,76 @@ export const ChatWidget: React.FC = () => {
                         <div className="mt-1 flex items-center gap-0.5">
                           <button
                             type="button"
-                            onClick={() => void toggleSpeak(speakKey, m.content)}
+                            onClick={() => void onSpeakControl(speakKey, m.content)}
                             className={`rounded p-1 hover:bg-gray-100 ${
-                              speakStatus ? "text-primary" : "text-gray-400 hover:text-gray-600"
+                              phase ? "text-primary" : "text-gray-400 hover:text-gray-600"
                             }`}
-                            aria-label={speakStatus ? t("chat.stopListening") : t("chat.listen")}
-                            aria-pressed={speakStatus !== null}
-                            title={speakStatus ? t("chat.stopListening") : t("chat.listen")}
+                            aria-label={
+                              phase === "loading"
+                                ? t("chat.stopListening")
+                                : phase === "playing"
+                                  ? t("chat.pause")
+                                  : phase === "paused"
+                                    ? t("chat.play")
+                                    : t("chat.listen")
+                            }
+                            aria-pressed={phase === "playing"}
+                            title={
+                              phase === "loading"
+                                ? t("chat.stopListening")
+                                : phase === "playing"
+                                  ? t("chat.pause")
+                                  : phase === "paused"
+                                    ? t("chat.play")
+                                    : t("chat.listen")
+                            }
                           >
-                            {speakStatus === "loading" ? (
+                            {phase === "loading" ? (
                               <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : speakStatus === "playing" ? (
-                              <Square className="h-3.5 w-3.5" fill="currentColor" />
+                            ) : phase === "playing" ? (
+                              <Pause className="h-3.5 w-3.5" fill="currentColor" />
+                            ) : phase === "paused" ? (
+                              <Play className="h-3.5 w-3.5" fill="currentColor" />
                             ) : (
                               <Volume2 className="h-3.5 w-3.5" />
                             )}
                           </button>
+                          {phase === "playing" && !session?.muted && (
+                            <span
+                              className="inline-flex h-3.5 items-end gap-[2px] px-0.5"
+                              aria-label={t("chat.speaking")}
+                              title={t("chat.speaking")}
+                            >
+                              {[0, 1, 2].map((bar) => (
+                                <span
+                                  key={bar}
+                                  className="chat-speak-bar w-[2px] rounded-full bg-primary"
+                                  style={{
+                                    height: bar === 1 ? 14 : 8,
+                                    animationDelay: `${bar * 0.15}s`,
+                                  }}
+                                />
+                              ))}
+                            </span>
+                          )}
+                          {session && phase !== "loading" && (
+                            <button
+                              type="button"
+                              onClick={toggleMute}
+                              className={`rounded p-1 hover:bg-gray-100 ${
+                                session.muted ? "text-amber-600" : "text-gray-400 hover:text-gray-600"
+                              }`}
+                              aria-label={session.muted ? t("chat.unmute") : t("chat.mute")}
+                              aria-pressed={session.muted}
+                              title={session.muted ? t("chat.unmute") : t("chat.mute")}
+                            >
+                              {session.muted ? (
+                                <VolumeX className="h-3.5 w-3.5" />
+                              ) : (
+                                <Volume2 className="h-3.5 w-3.5" />
+                              )}
+                            </button>
+                          )}
                           {m.id && (
                           <>
                           <button

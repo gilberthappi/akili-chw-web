@@ -137,6 +137,11 @@
     "ratingError": "Could not save your rating. Try again.",
     "listen": "Listen",
     "stopListening": "Stop reading",
+    "pause": "Pause",
+    "play": "Play",
+    "speaking": "Speaking",
+    "mute": "Mute",
+    "unmute": "Unmute",
     "speechUnsupported": "This browser cannot read text aloud."
   },
   "studyTime": {
