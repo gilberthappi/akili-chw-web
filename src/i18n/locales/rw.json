@@ -146,8 +146,8 @@
   },
   "studyTime": {
     "title": "Igihe cyo kwiga",
-    "subtitleOverview": "Uko abiga bamara igihe — kwiga wenyine, inama, n'amatsinda y'abantu {{n}}+ bo mu kigo kimwe cy'ubuzima",
-    "subtitleStudent": "Kwiga wenyine, inama, n'amatsinda y'abantu {{n}}+ bo mu kigo kimwe cy'ubuzima",
+    "subtitleOverview": "Uko abiga bamara igihe — kwiga wenyine, inama, amatsinda y'abantu {{n}}+ bo mu kigo kimwe cy'ubuzima, cyangwa abantu {{n}}+ biga mu metero {{meters}} z'umwe n'undi",
+    "subtitleStudent": "Kwiga wenyine, inama, amatsinda y'abantu {{n}}+ bo mu kigo kimwe cy'ubuzima, cyangwa abantu {{n}}+ biga mu metero {{meters}} z'umwe n'undi",
     "loadError": "Ntibyashobotse kubona igihe cyo kwiga.",
     "emptyOverview": "Nta gihe cyo kwiga muri iki gihe.",
     "emptyStudent": "Nta gihe cyo kwiga mu minsi {{days}} ishize.",
@@ -175,6 +175,7 @@
     "selfPaced": "Kwiga wenyine",
     "meeting": "Inama",
     "group": "Itsinda",
+    "nearby": "Hafi",
     "supervised": "Byagenzuwe",
     "rangeDays": "Iminsi {{n}}",
     "weekdays": {

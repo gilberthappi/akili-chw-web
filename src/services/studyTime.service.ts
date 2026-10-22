@@ -2,17 +2,19 @@ import api from "./api";
 
 export type StudyPeriod = "morning" | "afternoon" | "evening" | "night";
 
-/** Minutes, split by how the learner studied. `supervised` = `meeting` + `group`. */
+/** Minutes, split by how the learner studied. `supervised` = `meeting` + `group` + `nearby`. */
 export interface StudySplit {
   self: number;
   supervised: number;
   meeting: number;
   group: number;
+  nearby: number;
 }
 
 export interface StudyStats {
   range: { from: string; to: string; days: number };
   groupMinLearners: number;
+  nearbyMeters: number;
   totals: StudySplit & {
     total: number;
     activeDays: number;

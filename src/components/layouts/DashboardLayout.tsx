@@ -45,7 +45,7 @@ import ProfileAvatar from "@/components/profile/ProfileAvatar";
 import { useProfilePhoto } from "@/hooks/useProfilePhoto";
 import { ChatWidget } from "@/components/chat/ChatWidget";
 import { useUnreadCounts } from "@/hooks/useUnreadCounts";
-import { postHeartbeat } from "@/services/activity.service";
+import { currentStudyLocation, postHeartbeat } from "@/services/activity.service";
 import {
   APP_SHELL_ROLES,
   CEHO_ONLY,
@@ -478,7 +478,7 @@ const DashboardLayout = ({
 
     const sendHeartbeat = () => {
       const courseMatch = location.pathname.match(/^\/learn\/([^/]+)/);
-      void postHeartbeat(courseMatch?.[1]);
+      void currentStudyLocation().then((coords) => postHeartbeat(courseMatch?.[1], coords));
     };
 
     sendHeartbeat();

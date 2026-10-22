@@ -22,12 +22,14 @@ export const STUDY_COLORS = {
   self: "#3363AD",
   meeting: "#10B981",
   group: "#F59E0B",
+  nearby: "#7C3AED",
 };
 
-const SERIES: { key: keyof Pick<StudySplit, "self" | "meeting" | "group">; labelKey: string }[] = [
+const SERIES: { key: keyof Pick<StudySplit, "self" | "meeting" | "group" | "nearby">; labelKey: string }[] = [
   { key: "self", labelKey: "studyTime.selfPaced" },
   { key: "meeting", labelKey: "studyTime.meeting" },
   { key: "group", labelKey: "studyTime.group" },
+  { key: "nearby", labelKey: "studyTime.nearby" },
 ];
 
 export const STUDY_RANGES = [7, 30, 90] as const;

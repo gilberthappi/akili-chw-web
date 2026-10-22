@@ -146,8 +146,8 @@
   },
   "studyTime": {
     "title": "Learning time",
-    "subtitleOverview": "How learners spend time — self-paced, meetings, and groups of {{n}}+ from the same health center",
-    "subtitleStudent": "Self-paced, meetings, and groups of {{n}}+ from the same health center",
+    "subtitleOverview": "How learners spend time — self-paced, meetings, groups of {{n}}+ from the same health center, or {{n}}+ studying within {{meters}} m of each other",
+    "subtitleStudent": "Self-paced, meetings, groups of {{n}}+ from the same health center, or {{n}}+ studying within {{meters}} m of each other",
     "loadError": "Could not load learning time.",
     "emptyOverview": "No learning time in this period.",
     "emptyStudent": "No learning time in the last {{days}} days.",
@@ -175,6 +175,7 @@
     "selfPaced": "Self-paced",
     "meeting": "Meeting",
     "group": "Group",
+    "nearby": "Nearby",
     "supervised": "Supervised",
     "rangeDays": "{{n}}d",
     "weekdays": {

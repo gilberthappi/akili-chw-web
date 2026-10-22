@@ -40,7 +40,10 @@ export const StudyTimeWidget: React.FC<{ studentId: string }> = ({ studentId }) 
         <div>
           <h3 className={V2_SECTION_TITLE}>{t("studyTime.title")}</h3>
           <p className={`text-[11px] ${V2_MUTED}`}>
-            {t("studyTime.subtitleStudent", { n: stats?.groupMinLearners ?? 3 })}
+            {t("studyTime.subtitleStudent", {
+              n: stats?.groupMinLearners ?? 3,
+              meters: stats?.nearbyMeters ?? 150,
+            })}
           </p>
         </div>
         <StudyRangeSelect value={days} onChange={setDays} />
