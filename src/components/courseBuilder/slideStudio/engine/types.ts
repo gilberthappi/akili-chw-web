@@ -1,3 +1,5 @@
+import type { Canvas as FabricCanvas } from "fabric";
+
 // Slide Studio Engine TypeScript Contracts
 
 export type StudioAspectRatio = "16:9" | "9:16" | "4:3" | "custom";
@@ -43,7 +45,11 @@ export interface SlideStudioCanvasRef {
   canUndo: boolean;
   canRedo: boolean;
   changeRatio: (ratio: StudioAspectRatio) => void;
+  getFabricCanvas: () => FabricCanvas | null;
+  addBentCard: (radii?: [number, number, number, number], title?: string, fill?: string) => void;
+  addText: (text: string, fontSize?: number) => void;
   getCanvasJson: () => Record<string, unknown>;
   loadCanvasJson: (json: Record<string, unknown>) => Promise<void>;
   exportHighResBlob: (multiplier?: number) => Promise<Blob>;
 }
+

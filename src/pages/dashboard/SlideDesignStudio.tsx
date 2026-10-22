@@ -1,5 +1,6 @@
 import { useRef, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import type { FabricObject } from "fabric";
 import {
   ArrowLeft,
   Undo2,
@@ -22,6 +23,8 @@ import {
   SlideStudioCanvasRef,
   StudioAspectRatio,
 } from "@/components/courseBuilder/slideStudio/engine/types";
+import { StudioToolDock } from "@/components/courseBuilder/slideStudio/dock/StudioToolDock";
+import { CardPropertyInspector } from "@/components/courseBuilder/slideStudio/inspectors/CardPropertyInspector";
 
 export default function SlideDesignStudio() {
   const navigate = useNavigate();
@@ -37,7 +40,9 @@ export default function SlideDesignStudio() {
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [canUndo, setCanUndo] = useState<boolean>(false);
   const [canRedo, setCanRedo] = useState<boolean>(false);
+  const [selectedObject, setSelectedObject] = useState<FabricObject | null>(null);
   const zoomPercent = Math.round(zoom * 100);
+
 
   // Sync undo/redo availability from canvas
   const updateHistoryState = useCallback(() => {
@@ -86,18 +91,12 @@ export default function SlideDesignStudio() {
   };
 
   const handleAddCard = () => {
-    const container = document.querySelector(".relative.w-full.h-full") as unknown as {
-      __addSampleCard?: () => void;
-    };
-    container?.__addSampleCard?.();
+    canvasRef.current?.addBentCard([24, 24, 24, 24], "Standard Card");
     updateHistoryState();
   };
 
   const handleAddText = () => {
-    const container = document.querySelector(".relative.w-full.h-full") as unknown as {
-      __addSampleText?: () => void;
-    };
-    container?.__addSampleText?.();
+    canvasRef.current?.addText("Slide Title", 36);
     updateHistoryState();
   };
 
@@ -105,9 +104,14 @@ export default function SlideDesignStudio() {
     if (!canvasRef.current) return;
     setIsSaving(true);
     try {
-      const _json = canvasRef.current.getCanvasJson();
-      const _highResBlob = await canvasRef.current.exportHighResBlob(2);
+      const json = canvasRef.current.getCanvasJson();
+      const highResBlob = await canvasRef.current.exportHighResBlob(2);
       // In production pipeline, this uploads to Cloudinary & persists to DB
+      console.log(
+        "[SlideStudio] Slide payload prepared:",
+        Object.keys(json).length,
+        highResBlob.size
+      );
       toast.success("Slide design saved successfully!");
     } catch (err) {
       console.error("[SlideStudio] Save error:", err);
@@ -349,18 +353,47 @@ export default function SlideDesignStudio() {
         </div>
       </header>
 
-      {/* ── Main Canvas Viewport ─────────────────────────────────────────── */}
-      <main className="flex-1 relative overflow-hidden">
-        <SlideStudioCanvas
-          ref={canvasRef}
-          ratio={ratio}
-          showGrid={showGrid}
-          onViewportChange={(currentZoom) => {
-            setZoom(currentZoom);
+      {/* ── Studio Body: Left Dock + Center Canvas + Right Inspector ───────── */}
+      <div className="flex-1 flex overflow-hidden relative">
+        <StudioToolDock
+          onAddBentCard={(radii, title, fill) => {
+            canvasRef.current?.addBentCard(radii, title, fill);
+            updateHistoryState();
+          }}
+          onAddHeading={(text, size) => {
+            canvasRef.current?.addText(text || "Slide Title", size || 36);
+            updateHistoryState();
+          }}
+          onAddBodyText={(text) => {
+            canvasRef.current?.addText(
+              text || "Double click to edit body description.",
+              18
+            );
             updateHistoryState();
           }}
         />
-      </main>
+
+        <main className="flex-1 relative overflow-hidden">
+          <SlideStudioCanvas
+            ref={canvasRef}
+            ratio={ratio}
+            showGrid={showGrid}
+            onViewportChange={(currentZoom) => {
+              setZoom(currentZoom);
+              updateHistoryState();
+            }}
+            onSelectionChange={(active) => {
+              setSelectedObject(active);
+            }}
+          />
+        </main>
+
+        <CardPropertyInspector
+          canvas={canvasRef.current?.getFabricCanvas() ?? null}
+          selectedObject={selectedObject}
+          onModify={updateHistoryState}
+        />
+      </div>
     </div>
   );
 }

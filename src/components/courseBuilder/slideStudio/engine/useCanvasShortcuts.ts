@@ -9,6 +9,7 @@ interface UseCanvasShortcutsProps {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onDeleteSelected: () => void;
+  onDuplicateSelected?: () => void;
   isSpacePressedRef: React.MutableRefObject<boolean>;
   setIsPanningMode: (active: boolean) => void;
 }
@@ -21,6 +22,7 @@ export function useCanvasShortcuts({
   onZoomIn,
   onZoomOut,
   onDeleteSelected,
+  onDuplicateSelected,
   isSpacePressedRef,
   setIsPanningMode,
 }: UseCanvasShortcutsProps) {
@@ -30,7 +32,7 @@ export function useCanvasShortcuts({
       if (
         activeEl instanceof HTMLInputElement ||
         activeEl instanceof HTMLTextAreaElement ||
-        activeEl?.isContentEditable
+        (activeEl instanceof HTMLElement && activeEl.isContentEditable)
       ) {
         return true;
       }
@@ -79,6 +81,14 @@ export function useCanvasShortcuts({
           onRedo();
           return;
         }
+
+        // Duplicate: Ctrl+D
+        if (e.key.toLowerCase() === "d") {
+          e.preventDefault();
+          onDuplicateSelected?.();
+          return;
+        }
+
 
         // Reset Fit: Ctrl+0
         if (e.key === "0") {
@@ -138,6 +148,7 @@ export function useCanvasShortcuts({
     onZoomIn,
     onZoomOut,
     onDeleteSelected,
+    onDuplicateSelected,
     isSpacePressedRef,
     setIsPanningMode,
   ]);

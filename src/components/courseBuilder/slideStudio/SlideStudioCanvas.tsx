@@ -7,7 +7,6 @@ import {
 } from "react";
 import {
   Canvas as FabricCanvas,
-  Rect,
   IText,
   Shadow,
   type FabricObject,
@@ -21,6 +20,7 @@ import { useCanvasViewport } from "./engine/useCanvasViewport";
 import { useCanvasHistory } from "./engine/useCanvasHistory";
 import { useCanvasShortcuts } from "./engine/useCanvasShortcuts";
 import { applyFigmaControlsStyle } from "./engine/figmaControls";
+import { BentCard, CornerRadii } from "./shapes/BentCard";
 
 interface SlideStudioCanvasProps {
   ratio?: StudioAspectRatio;
@@ -114,6 +114,13 @@ export const SlideStudioCanvas = forwardRef<
       redo: () => history.redo(fabricRef.current),
       canUndo: history.canUndo,
       canRedo: history.canRedo,
+      getFabricCanvas: () => fabricRef.current,
+      addBentCard: (radii?: [number, number, number, number], title?: string, fill?: string) => {
+        addBentCard(radii, title, fill);
+      },
+      addText: (content: string, fontSize?: number) => {
+        addText(content, fontSize);
+      },
       getCanvasJson: () => {
         if (!fabricRef.current) return {};
         return fabricRef.current.toObject();
@@ -210,6 +217,23 @@ export const SlideStudioCanvas = forwardRef<
           canvas.requestRenderAll();
           history.saveSnapshot(canvas, true);
         }
+      },
+      onDuplicateSelected: () => {
+        const canvas = fabricRef.current;
+        if (!canvas) return;
+        const active = canvas.getActiveObject();
+        if (!active) return;
+        active.clone().then((cloned: FabricObject) => {
+          cloned.set({
+            left: (cloned.left || 0) + 30,
+            top: (cloned.top || 0) + 30,
+          });
+          applyFigmaControlsStyle(cloned);
+          canvas.add(cloned);
+          canvas.setActiveObject(cloned);
+          canvas.requestRenderAll();
+          history.saveSnapshot(canvas, true);
+        });
       },
       isSpacePressedRef,
       setIsPanningMode: (active) => {
@@ -350,22 +374,21 @@ export const SlideStudioCanvas = forwardRef<
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []); // Run once on mount
 
-    // ── Helper: Add Sample Card (For Day 1 Verification) ────────────────────
-    const addSampleCard = useCallback(() => {
+    // ── Helper: Add Bent Card ──────────────────────────────────────────────
+    const addBentCard = useCallback((radii: CornerRadii = [24, 24, 24, 24], _title?: string, fill = "#ffffff") => {
       const canvas = fabricRef.current;
       if (!canvas) return;
 
       const artboard = viewport.artboard;
-      const card = new Rect({
-        left: artboard.width / 2 - 250,
-        top: artboard.height / 2 - 150,
-        width: 500,
-        height: 300,
-        fill: "#ffffff",
+      const card = new BentCard({
+        left: artboard.width / 2 - 240,
+        top: artboard.height / 2 - 140,
+        width: 480,
+        height: 280,
+        fill,
         stroke: "#e2e8f0",
         strokeWidth: 2,
-        rx: 24, // 24px rounded corners (bending preview)
-        ry: 24,
+        cornerRadii: [...radii],
         shadow: new Shadow({
           color: "rgba(15, 23, 42, 0.12)",
           blur: 32,
@@ -378,20 +401,21 @@ export const SlideStudioCanvas = forwardRef<
       canvas.add(card);
       canvas.setActiveObject(card);
       canvas.requestRenderAll();
-    }, [viewport.artboard]);
+      history.saveSnapshot(canvas, true);
+    }, [viewport.artboard, history]);
 
-    // ── Helper: Add Sample Text (For Day 1 Verification) ────────────────────
-    const addSampleText = useCallback(() => {
+    // ── Helper: Add Text ────────────────────────────────────────────────────
+    const addText = useCallback((content: string, fontSize = 32) => {
       const canvas = fabricRef.current;
       if (!canvas) return;
 
       const artboard = viewport.artboard;
-      const text = new IText("Design Slide Without Limits", {
-        left: artboard.width / 2 - 220,
-        top: artboard.height / 2 - 40,
-        fontSize: 32,
+      const text = new IText(content, {
+        left: artboard.width / 2 - 200,
+        top: artboard.height / 2 - 30,
+        fontSize,
         fontFamily: "Arial",
-        fontWeight: "bold",
+        fontWeight: fontSize > 24 ? "bold" : "normal",
         fill: "#0f172a",
       });
 
@@ -399,7 +423,18 @@ export const SlideStudioCanvas = forwardRef<
       canvas.add(text);
       canvas.setActiveObject(text);
       canvas.requestRenderAll();
-    }, [viewport.artboard]);
+      history.saveSnapshot(canvas, true);
+    }, [viewport.artboard, history]);
+
+    // ── Helper: Add Sample Card (Backward compatible) ────────────────────────
+    const addSampleCard = useCallback(() => {
+      addBentCard([24, 24, 24, 24]);
+    }, [addBentCard]);
+
+    // ── Helper: Add Sample Text (Backward compatible) ────────────────────────
+    const addSampleText = useCallback(() => {
+      addText("Design Slide Without Limits", 32);
+    }, [addText]);
 
     // Expose test helper callbacks on the DOM element
     useEffect(() => {
