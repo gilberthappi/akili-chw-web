@@ -48,8 +48,14 @@ export interface SlideStudioCanvasRef {
   getFabricCanvas: () => FabricCanvas | null;
   addBentCard: (radii?: [number, number, number, number], title?: string, fill?: string) => void;
   addText: (text: string, fontSize?: number) => void;
+  addOrganicBlob: () => void;
+  addWavyDivider: () => void;
+  addShieldBadge: () => void;
+  addSpeechBubble: () => void;
+  addChevronArrow: () => void;
+  togglePenTool: () => void;
+  isPenActive: boolean;
   getCanvasJson: () => Record<string, unknown>;
   loadCanvasJson: (json: Record<string, unknown>) => Promise<void>;
   exportHighResBlob: (multiplier?: number) => Promise<Blob>;
 }
-

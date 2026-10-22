@@ -41,6 +41,7 @@ export default function SlideDesignStudio() {
   const [canUndo, setCanUndo] = useState<boolean>(false);
   const [canRedo, setCanRedo] = useState<boolean>(false);
   const [selectedObject, setSelectedObject] = useState<FabricObject | null>(null);
+  const [isPenActive, setIsPenActive] = useState<boolean>(false);
   const zoomPercent = Math.round(zoom * 100);
 
 
@@ -356,8 +357,33 @@ export default function SlideDesignStudio() {
       {/* ── Studio Body: Left Dock + Center Canvas + Right Inspector ───────── */}
       <div className="flex-1 flex overflow-hidden relative">
         <StudioToolDock
+          isPenActive={isPenActive}
+          onTogglePenTool={() => {
+            canvasRef.current?.togglePenTool();
+            setIsPenActive(canvasRef.current?.isPenActive ?? false);
+          }}
           onAddBentCard={(radii, title, fill) => {
             canvasRef.current?.addBentCard(radii, title, fill);
+            updateHistoryState();
+          }}
+          onAddOrganicBlob={() => {
+            canvasRef.current?.addOrganicBlob();
+            updateHistoryState();
+          }}
+          onAddWavyDivider={() => {
+            canvasRef.current?.addWavyDivider();
+            updateHistoryState();
+          }}
+          onAddShieldBadge={() => {
+            canvasRef.current?.addShieldBadge();
+            updateHistoryState();
+          }}
+          onAddSpeechBubble={() => {
+            canvasRef.current?.addSpeechBubble();
+            updateHistoryState();
+          }}
+          onAddChevronArrow={() => {
+            canvasRef.current?.addChevronArrow();
             updateHistoryState();
           }}
           onAddHeading={(text, size) => {

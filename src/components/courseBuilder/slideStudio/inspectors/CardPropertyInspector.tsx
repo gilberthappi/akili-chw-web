@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { Canvas as FabricCanvas, IText, Textbox, type FabricObject } from "fabric";
+import { Canvas as FabricCanvas, IText, Textbox, Path, type FabricObject } from "fabric";
 import { BentCard, CornerRadii } from "../shapes/BentCard";
+import { regenerateBlobPath } from "../shapes/OrganicBlob";
 import { ColorPickerPopover } from "./ColorPickerPopover";
 import { CornerRadiusControl } from "./CornerRadiusControl";
 import {
   Layers,
   Trash2,
   Copy,
+  Shuffle,
 } from "lucide-react";
 
 interface CardPropertyInspectorProps {
@@ -26,7 +28,10 @@ export const CardPropertyInspector: React.FC<CardPropertyInspectorProps> = ({
   const [strokeColor, setStrokeColor] = useState<string>("#e2e8f0");
   const [strokeWidth, setStrokeWidth] = useState<number>(2);
   const [strokeStyle, setStrokeStyle] = useState<"solid" | "dashed" | "dotted">("solid");
+  const [strokeLineCap, setStrokeLineCap] = useState<"round" | "square" | "butt">("round");
   const [cornerRadii, setCornerRadii] = useState<CornerRadii>([24, 24, 24, 24]);
+  const [fontSize, setFontSize] = useState<number>(32);
+  const [fontFamily, setFontFamily] = useState<string>("Arial");
   const [width, setWidth] = useState<number>(0);
   const [height, setHeight] = useState<number>(0);
   const [posX, setPosX] = useState<number>(0);
@@ -48,6 +53,7 @@ export const CardPropertyInspector: React.FC<CardPropertyInspectorProps> = ({
     const stroke = typeof selectedObject.stroke === "string" ? selectedObject.stroke : "#e2e8f0";
     setStrokeColor(stroke);
     setStrokeWidth(selectedObject.strokeWidth ?? 0);
+    setStrokeLineCap((selectedObject.strokeLineCap as "round" | "square" | "butt") || "round");
 
     // Stroke dash
     if (selectedObject.strokeDashArray && selectedObject.strokeDashArray.length > 0) {
@@ -66,6 +72,12 @@ export const CardPropertyInspector: React.FC<CardPropertyInspectorProps> = ({
       if (Array.isArray(radii) && radii.length === 4) {
         setCornerRadii([...radii]);
       }
+    }
+
+    // Text properties (if IText or Textbox)
+    if (selectedObject instanceof IText || selectedObject instanceof Textbox) {
+      setFontSize(selectedObject.fontSize || 32);
+      setFontFamily(selectedObject.fontFamily || "Arial");
     }
 
     // Transform dimensions and coordinates
@@ -112,16 +124,33 @@ export const CardPropertyInspector: React.FC<CardPropertyInspectorProps> = ({
     );
   }
 
-  const isCard =
-    selectedObject instanceof BentCard ||
-    selectedObject.type === "BentCard" ||
-    selectedObject.type === "bent-card" ||
-    selectedObject.type === "rect";
-
-  const isText = selectedObject instanceof IText || selectedObject instanceof Textbox;
+  // Type Detection Flags
   const isGroup = selectedObject.type === "activeselection" || selectedObject.type === "group";
+  const isCard = selectedObject instanceof BentCard || "cornerRadii" in selectedObject;
+  const isText = selectedObject instanceof IText || selectedObject instanceof Textbox || selectedObject.type === "i-text" || selectedObject.type === "textbox";
+  const shapeType = (selectedObject as unknown as { shapeType?: string }).shapeType;
+  const isBlob = shapeType === "OrganicBlob";
+  const isWave = shapeType === "WavyDivider";
+  const isShield = shapeType === "ShieldBadge";
+  const isBubble = shapeType === "SpeechBubble";
+  const isChevron = shapeType === "ChevronArrow";
+  const isPath = selectedObject instanceof Path || selectedObject.type === "path";
+  const isStrokeable = isCard || isPath || isBlob || isWave || isShield || isBubble || isChevron;
 
-  // ── Change Handlers ───────────────────────────────────────────────────────
+  const getElementTitle = () => {
+    if (isGroup) return `Multi-Selection (${(selectedObject as unknown as { _objects?: unknown[] })._objects?.length ?? ""})`;
+    if (isCard) return "Container Card";
+    if (isBlob) return "Organic Blob";
+    if (isWave) return "Wave Divider";
+    if (isShield) return "Medical Shield";
+    if (isBubble) return "Speech Bubble";
+    if (isChevron) return "Process Chevron";
+    if (isText) return "Typography";
+    if (isPath) return "Vector Path";
+    return "Canvas Object";
+  };
+
+  // Property Handlers
   const handlePosXChange = (val: number) => {
     const num = isNaN(val) ? 0 : val;
     setPosX(num);
@@ -198,7 +227,6 @@ export const CardPropertyInspector: React.FC<CardPropertyInspectorProps> = ({
     onModify();
   };
 
-
   const handleStrokeStyleChange = (style: "solid" | "dashed" | "dotted") => {
     setStrokeStyle(style);
     if (style === "dashed") {
@@ -212,17 +240,52 @@ export const CardPropertyInspector: React.FC<CardPropertyInspectorProps> = ({
     onModify();
   };
 
+  const handleStrokeLineCapChange = (cap: "round" | "square" | "butt") => {
+    setStrokeLineCap(cap);
+    selectedObject.set("strokeLineCap", cap);
+    canvas.requestRenderAll();
+    onModify();
+  };
+
   const handleCornerRadiiChange = (radii: CornerRadii) => {
     setCornerRadii(radii);
     if (selectedObject instanceof BentCard || "setCornerRadii" in selectedObject) {
       (selectedObject as BentCard).setCornerRadii(radii);
     } else if ("rx" in selectedObject && "ry" in selectedObject) {
-      // Fallback for standard rect
       (selectedObject as unknown as { rx: number; ry: number }).rx = radii[0];
       (selectedObject as unknown as { rx: number; ry: number }).ry = radii[0];
     }
     canvas.requestRenderAll();
     onModify();
+  };
+
+  const handleFontSizeChange = (size: number) => {
+    const val = Math.max(8, isNaN(size) ? 16 : size);
+    setFontSize(val);
+    if (selectedObject instanceof IText || selectedObject instanceof Textbox) {
+      selectedObject.set("fontSize", val);
+      selectedObject.setCoords();
+      canvas.requestRenderAll();
+      onModify();
+    }
+  };
+
+  const handleFontFamilyChange = (family: string) => {
+    setFontFamily(family);
+    if (selectedObject instanceof IText || selectedObject instanceof Textbox) {
+      selectedObject.set("fontFamily", family);
+      selectedObject.setCoords();
+      canvas.requestRenderAll();
+      onModify();
+    }
+  };
+
+  const handleShuffleBlob = () => {
+    if (isBlob && selectedObject instanceof Path) {
+      regenerateBlobPath(selectedObject);
+      canvas.requestRenderAll();
+      onModify();
+    }
   };
 
   const handleDelete = () => {
@@ -252,13 +315,7 @@ export const CardPropertyInspector: React.FC<CardPropertyInspectorProps> = ({
         <div className="flex items-center space-x-2">
           <span className="w-2 h-2 rounded-full bg-blue-600" />
           <span className="text-xs font-bold text-slate-900 tracking-tight">
-            {isGroup
-              ? `Multi-Selection (${(selectedObject as unknown as { _objects?: unknown[] })._objects?.length ?? ""})`
-              : isCard
-                ? "Bent Card"
-                : isText
-                  ? "Text Element"
-                  : "Object"}
+            {getElementTitle()}
           </span>
         </div>
 
@@ -348,8 +405,7 @@ export const CardPropertyInspector: React.FC<CardPropertyInspectorProps> = ({
         </div>
       </div>
 
-
-      {/* ── Section: Corner Curvature (Bending) ─────────────────────────── */}
+      {/* ── Section: Corner Curvature (Only for Bent Cards) ───────────────── */}
       {isCard && (
         <div className="p-4">
           <CornerRadiusControl
@@ -359,10 +415,86 @@ export const CardPropertyInspector: React.FC<CardPropertyInspectorProps> = ({
         </div>
       )}
 
+      {/* ── Section: Organic Blob Controls ───────────────────────────────── */}
+      {isBlob && (
+        <div className="p-4 space-y-2.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+              Organic Spline
+            </span>
+            <button
+              type="button"
+              onClick={handleShuffleBlob}
+              className="flex items-center space-x-1 px-2.5 py-1 bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 rounded-lg text-xs font-semibold transition"
+              title="Generate a new randomized organic spline curve"
+            >
+              <Shuffle className="w-3 h-3" />
+              <span>Shuffle Shape</span>
+            </button>
+          </div>
+          <span className="block text-[10px] text-slate-400">
+            C1-smooth Catmull-Rom spline with randomized radial anchors.
+          </span>
+        </div>
+      )}
+
+      {/* ── Section: Typography Controls (When Text is selected) ──────────── */}
+      {isText && (
+        <div className="p-4 space-y-3">
+          <span className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+            Font & Typography
+          </span>
+
+          {/* Font Size */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-xs text-slate-600">
+              <span>Font Size</span>
+              <div className="flex items-center space-x-1">
+                <input
+                  type="number"
+                  min={8}
+                  max={160}
+                  value={fontSize}
+                  onChange={(e) => handleFontSizeChange(Number(e.target.value))}
+                  className="w-14 px-1.5 py-0.5 bg-slate-50 border border-slate-200 rounded text-xs font-mono font-semibold text-slate-800 text-right outline-hidden focus:border-blue-500 focus:bg-white"
+                />
+                <span className="text-[11px] text-slate-400">px</span>
+              </div>
+            </div>
+            <input
+              type="range"
+              min={12}
+              max={96}
+              value={fontSize}
+              onChange={(e) => handleFontSizeChange(Number(e.target.value))}
+              className="w-full accent-blue-600 cursor-pointer"
+            />
+          </div>
+
+          {/* Font Family */}
+          <div className="space-y-1">
+            <span className="text-[10px] text-slate-400 font-semibold uppercase">
+              Font Family
+            </span>
+            <select
+              value={fontFamily}
+              onChange={(e) => handleFontFamilyChange(e.target.value)}
+              className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800 outline-hidden focus:border-blue-500 focus:bg-white transition"
+            >
+              <option value="Arial">Arial (Clean Sans)</option>
+              <option value="Inter">Inter (Modern UI)</option>
+              <option value="Georgia">Georgia (Editorial Serif)</option>
+              <option value="Courier New">Courier New (Monospace)</option>
+              <option value="Impact">Impact (Display)</option>
+            </select>
+          </div>
+        </div>
+      )}
+
       {/* ── Section: Fill Color & Opacity ───────────────────────────────── */}
       <div className="p-4 space-y-3">
         <ColorPickerPopover
-          label="Fill Color"
+          label={isText ? "Text Color" : "Fill Color"}
           color={fillColor}
           onChange={handleFillChange}
         />
@@ -390,10 +522,10 @@ export const CardPropertyInspector: React.FC<CardPropertyInspectorProps> = ({
       </div>
 
       {/* ── Section: Border & Stroke Controls ───────────────────────────── */}
-      {isCard && (
+      {isStrokeable && (
         <div className="p-4 space-y-3">
           <ColorPickerPopover
-            label="Border Color"
+            label="Stroke / Border"
             color={strokeColor}
             onChange={handleStrokeColorChange}
           />
@@ -402,7 +534,7 @@ export const CardPropertyInspector: React.FC<CardPropertyInspectorProps> = ({
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-xs text-slate-600">
               <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                Border Width
+                Stroke Width
               </span>
               <span className="font-mono font-semibold text-slate-800">
                 {strokeWidth}px
@@ -411,7 +543,7 @@ export const CardPropertyInspector: React.FC<CardPropertyInspectorProps> = ({
             <input
               type="range"
               min={0}
-              max={20}
+              max={24}
               value={strokeWidth}
               onChange={(e) => handleStrokeWidthChange(Number(e.target.value))}
               className="w-full accent-blue-600 cursor-pointer"
@@ -421,7 +553,7 @@ export const CardPropertyInspector: React.FC<CardPropertyInspectorProps> = ({
           {/* Stroke Style Buttons */}
           <div className="space-y-1.5 pt-1">
             <span className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-              Border Style
+              Dash Style
             </span>
             <div className="grid grid-cols-3 gap-1 text-[11px]">
               <button
@@ -459,6 +591,31 @@ export const CardPropertyInspector: React.FC<CardPropertyInspectorProps> = ({
               </button>
             </div>
           </div>
+
+          {/* Line Cap (Only for vector paths and strokes) */}
+          {(isPath || isBlob || isWave) && (
+            <div className="space-y-1.5 pt-1">
+              <span className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                Line End Cap
+              </span>
+              <div className="grid grid-cols-3 gap-1 text-[11px]">
+                {(["round", "square", "butt"] as const).map((cap) => (
+                  <button
+                    key={cap}
+                    type="button"
+                    onClick={() => handleStrokeLineCapChange(cap)}
+                    className={`px-2 py-1 rounded-md border font-medium capitalize transition ${
+                      strokeLineCap === cap
+                        ? "bg-blue-50 text-blue-700 border-blue-200 font-semibold"
+                        : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                    }`}
+                  >
+                    {cap}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </aside>

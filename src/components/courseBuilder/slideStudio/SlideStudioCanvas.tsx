@@ -21,6 +21,14 @@ import { useCanvasHistory } from "./engine/useCanvasHistory";
 import { useCanvasShortcuts } from "./engine/useCanvasShortcuts";
 import { applyFigmaControlsStyle } from "./engine/figmaControls";
 import { BentCard, CornerRadii } from "./shapes/BentCard";
+import { createOrganicBlob } from "./shapes/OrganicBlob";
+import { createWavyDivider } from "./shapes/WavyDivider";
+import {
+  createShieldBadge,
+  createSpeechBubble,
+  createChevronArrow,
+} from "./shapes/PresetVectorShapes";
+import { useVectorPenTool } from "./engine/useVectorPenTool";
 
 interface SlideStudioCanvasProps {
   ratio?: StudioAspectRatio;
@@ -120,6 +128,15 @@ export const SlideStudioCanvas = forwardRef<
       },
       addText: (content: string, fontSize?: number) => {
         addText(content, fontSize);
+      },
+      addOrganicBlob: () => addOrganicBlob(),
+      addWavyDivider: () => addWavyDivider(),
+      addShieldBadge: () => addShieldBadge(),
+      addSpeechBubble: () => addSpeechBubble(),
+      addChevronArrow: () => addChevronArrow(),
+      togglePenTool: () => penTool.togglePen(),
+      get isPenActive() {
+        return penTool.isPenActive;
       },
       getCanvasJson: () => {
         if (!fabricRef.current) return {};
@@ -426,6 +443,140 @@ export const SlideStudioCanvas = forwardRef<
       history.saveSnapshot(canvas, true);
     }, [viewport.artboard, history]);
 
+    // ── Helper: Add Organic Blob ───────────────────────────────────────────
+    const addOrganicBlob = useCallback(() => {
+      const canvas = fabricRef.current;
+      if (!canvas) return;
+
+      const artboard = viewport.artboard;
+      const blob = createOrganicBlob({
+        left: artboard.width / 2,
+        top: artboard.height / 2,
+        fill: "#3B82F6",
+        stroke: "#2563EB",
+        strokeWidth: 2,
+        opacity: 0.85,
+        shadow: new Shadow({
+          color: "rgba(59, 130, 246, 0.25)",
+          blur: 24,
+          offsetX: 0,
+          offsetY: 8,
+        }),
+      });
+
+      applyFigmaControlsStyle(blob);
+      canvas.add(blob);
+      canvas.setActiveObject(blob);
+      canvas.requestRenderAll();
+      history.saveSnapshot(canvas, true);
+    }, [viewport.artboard, history]);
+
+    // ── Helper: Add Wavy Divider ───────────────────────────────────────────
+    const addWavyDivider = useCallback(() => {
+      const canvas = fabricRef.current;
+      if (!canvas) return;
+
+      const artboard = viewport.artboard;
+      const wave = createWavyDivider({
+        left: artboard.width / 2,
+        top: artboard.height - 100,
+        width: artboard.width,
+        height: 180,
+        fill: "#2563EB",
+        stroke: "#1D4ED8",
+        strokeWidth: 0,
+        opacity: 0.9,
+      });
+
+      applyFigmaControlsStyle(wave);
+      canvas.add(wave);
+      canvas.setActiveObject(wave);
+      canvas.requestRenderAll();
+      history.saveSnapshot(canvas, true);
+    }, [viewport.artboard, history]);
+
+    // ── Helper: Add Shield Badge ───────────────────────────────────────────
+    const addShieldBadge = useCallback(() => {
+      const canvas = fabricRef.current;
+      if (!canvas) return;
+
+      const artboard = viewport.artboard;
+      const shield = createShieldBadge({
+        left: artboard.width / 2,
+        top: artboard.height / 2,
+        shadow: new Shadow({
+          color: "rgba(16, 185, 129, 0.25)",
+          blur: 20,
+          offsetX: 0,
+          offsetY: 8,
+        }),
+      });
+
+      applyFigmaControlsStyle(shield);
+      canvas.add(shield);
+      canvas.setActiveObject(shield);
+      canvas.requestRenderAll();
+      history.saveSnapshot(canvas, true);
+    }, [viewport.artboard, history]);
+
+    // ── Helper: Add Speech Bubble ──────────────────────────────────────────
+    const addSpeechBubble = useCallback(() => {
+      const canvas = fabricRef.current;
+      if (!canvas) return;
+
+      const artboard = viewport.artboard;
+      const bubble = createSpeechBubble({
+        left: artboard.width / 2,
+        top: artboard.height / 2,
+        shadow: new Shadow({
+          color: "rgba(139, 92, 246, 0.25)",
+          blur: 20,
+          offsetX: 0,
+          offsetY: 8,
+        }),
+      });
+
+      applyFigmaControlsStyle(bubble);
+      canvas.add(bubble);
+      canvas.setActiveObject(bubble);
+      canvas.requestRenderAll();
+      history.saveSnapshot(canvas, true);
+    }, [viewport.artboard, history]);
+
+    // ── Helper: Add Chevron Arrow ──────────────────────────────────────────
+    const addChevronArrow = useCallback(() => {
+      const canvas = fabricRef.current;
+      if (!canvas) return;
+
+      const artboard = viewport.artboard;
+      const chevron = createChevronArrow({
+        left: artboard.width / 2,
+        top: artboard.height / 2,
+        shadow: new Shadow({
+          color: "rgba(2, 132, 199, 0.25)",
+          blur: 20,
+          offsetX: 0,
+          offsetY: 8,
+        }),
+      });
+
+      applyFigmaControlsStyle(chevron);
+      canvas.add(chevron);
+      canvas.setActiveObject(chevron);
+      canvas.requestRenderAll();
+      history.saveSnapshot(canvas, true);
+    }, [viewport.artboard, history]);
+
+    // ── Vector Pen Tool Integration ────────────────────────────────────────
+    const penTool = useVectorPenTool({
+      canvas: fabricRef.current,
+      onPathCreated: () => {
+        if (fabricRef.current) {
+          history.saveSnapshot(fabricRef.current, true);
+        }
+      },
+    });
+
     // ── Helper: Add Sample Card (Backward compatible) ────────────────────────
     const addSampleCard = useCallback(() => {
       addBentCard([24, 24, 24, 24]);
@@ -491,6 +642,24 @@ export const SlideStudioCanvas = forwardRef<
 
         {/* Main Fabric.js Canvas */}
         <canvas ref={canvasElRef} className="absolute inset-0 z-10" />
+
+        {/* Interactive Pen Tool Banner */}
+        {penTool.isPenActive && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 bg-blue-600 text-white px-4 py-2 rounded-full shadow-lg flex items-center space-x-3 text-xs font-semibold animate-in fade-in slide-in-from-top-2">
+            <span className="flex h-2 w-2 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+            </span>
+            <span>Pen Tool Active: Click to add points • Double-click or click start point to close</span>
+            <button
+              type="button"
+              onClick={() => penTool.cancelPen()}
+              className="bg-blue-700 hover:bg-blue-800 text-[11px] px-2.5 py-0.5 rounded-full font-medium transition"
+            >
+              Cancel (Esc)
+            </button>
+          </div>
+        )}
 
         {/* Bottom Info Status Pill */}
         <div className="absolute bottom-4 left-4 z-20 flex items-center space-x-2 bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-lg border border-gray-200/80 shadow-xs text-xs text-gray-600">
