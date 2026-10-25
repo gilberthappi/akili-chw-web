@@ -4,28 +4,34 @@ import {
   type FabricObjectProps,
   type SerializedObjectProps,
 } from "fabric";
+import { LightingState, hexToRgba } from "../lighting/types";
+import { LightingEngine } from "../lighting/LightingEngine";
 
 export type CornerRadii = [number, number, number, number]; // [TL, TR, BR, BL]
 
 export interface BentCardProps extends Partial<FabricObjectProps> {
   cornerRadii?: CornerRadii;
+  lightingState?: LightingState;
 }
 
 export interface SerializedBentCardProps extends SerializedObjectProps {
   cornerRadii: CornerRadii;
+  lightingState?: LightingState;
 }
 
-const BENT_CARD_PROPS = ["cornerRadii"] as const;
+const BENT_CARD_PROPS = ["cornerRadii", "lightingState"] as const;
 
 /**
- * BentCard - High-precision vector container card supporting independent 4-corner radii.
+ * BentCard - High-precision vector container card supporting independent 4-corner radii
+ * and multi-pass lighting (stacked ambient/contact drop shadows + inverse-clipped inset shadow).
  * Corner array order matches CSS standard: [Top-Left, Top-Right, Bottom-Right, Bottom-Left].
- * Uses cubic Bezier arc approximation (k = 1 - 0.5522847498) for smooth, non-distorting curves.
+ * Uses cubic Bezier arc approximation (k = 0.4477152502) for smooth, non-distorting curves.
  */
 export class BentCard extends FabricObject {
   static type = "BentCard";
 
   public cornerRadii: CornerRadii = [24, 24, 24, 24];
+  public lightingState?: LightingState;
 
   constructor(options: BentCardProps = {}) {
     super({
@@ -39,6 +45,9 @@ export class BentCard extends FabricObject {
 
     if (options.cornerRadii) {
       this.cornerRadii = [...options.cornerRadii];
+    }
+    if (options.lightingState) {
+      this.lightingState = options.lightingState;
     }
   }
 
@@ -55,9 +64,9 @@ export class BentCard extends FabricObject {
   }
 
   /**
-   * Renders the custom 4-corner curved path onto the 2D canvas context.
+   * Constructs the 4-corner cubic Bezier closed path on any Canvas 2D context.
    */
-  _render(ctx: CanvasRenderingContext2D) {
+  public _buildPath(ctx: CanvasRenderingContext2D, callBeginPath = true) {
     const w = this.width;
     const h = this.height;
     const x = -w / 2;
@@ -82,7 +91,9 @@ export class BentCard extends FabricObject {
     // Standard cubic Bezier arc approximation constant
     const k = 0.4477152502; // 1 - 0.5522847498
 
-    ctx.beginPath();
+    if (callBeginPath) {
+      ctx.beginPath();
+    }
 
     // Start at top edge after Top-Left curve
     ctx.moveTo(x + tl, y);
@@ -140,8 +151,64 @@ export class BentCard extends FabricObject {
     }
 
     ctx.closePath();
+  }
 
+  /**
+   * Renders the custom 4-corner curved path and multi-pass shadows onto the 2D canvas context.
+   */
+  _render(ctx: CanvasRenderingContext2D) {
+    // 1. Extra Ambient Shadow Pass (if stacked ambient + contact shadows exist)
+    const ambientLayer = this.lightingState?.layers.find(
+      (l) => l.enabled && l.type === "ambient" && l.opacity > 0
+    );
+    const contactLayer = this.lightingState?.layers.find(
+      (l) => l.enabled && l.type === "contact" && l.opacity > 0
+    );
+
+    // If both exist, render the soft ambient layer behind
+    if (ambientLayer && contactLayer) {
+      ctx.save();
+      ctx.shadowColor = hexToRgba(ambientLayer.color, ambientLayer.opacity);
+      ctx.shadowBlur = ambientLayer.blur;
+      ctx.shadowOffsetX = ambientLayer.offsetX;
+      ctx.shadowOffsetY = ambientLayer.offsetY;
+      ctx.fillStyle = typeof this.fill === "string" ? this.fill : "#ffffff";
+      this._buildPath(ctx, true);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // 2. Main Shape Path & Rendering
+    this._buildPath(ctx, true);
     this._renderPaintInOrder(ctx);
+  }
+
+  /**
+   * Paints fill, inner shadow, and stroke in optimal depth order.
+   */
+  _renderPaintInOrder(ctx: CanvasRenderingContext2D) {
+    // A. Paint Base Fill
+    this._renderFill(ctx);
+
+    // B. Paint Inset / Inner Shadow (if enabled)
+    const innerLayer = this.lightingState?.layers.find(
+      (l) => l.enabled && l.type === "inner" && l.opacity > 0
+    );
+    if (innerLayer) {
+      LightingEngine.renderInnerShadow(
+        ctx,
+        (c, callBegin) => this._buildPath(c, callBegin),
+        this.width,
+        this.height,
+        innerLayer
+      );
+    }
+
+    // C. Re-establish path for Stroke
+    if (this.stroke && this.strokeWidth) {
+      this._buildPath(ctx, true);
+      this._renderStroke(ctx);
+    }
   }
 
   /**

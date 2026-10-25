@@ -20,6 +20,7 @@ import { useCanvasViewport } from "./engine/useCanvasViewport";
 import { useCanvasHistory } from "./engine/useCanvasHistory";
 import { useCanvasShortcuts } from "./engine/useCanvasShortcuts";
 import { applyFigmaControlsStyle } from "./engine/figmaControls";
+import { LightingEngine } from "./lighting/LightingEngine";
 import { BentCard, CornerRadii } from "./shapes/BentCard";
 import { createOrganicBlob } from "./shapes/OrganicBlob";
 import { createWavyDivider } from "./shapes/WavyDivider";
@@ -406,13 +407,9 @@ export const SlideStudioCanvas = forwardRef<
         stroke: "#e2e8f0",
         strokeWidth: 2,
         cornerRadii: [...radii],
-        shadow: new Shadow({
-          color: "rgba(15, 23, 42, 0.12)",
-          blur: 32,
-          offsetX: 0,
-          offsetY: 12,
-        }),
       });
+
+      LightingEngine.applyPreset("elevated", card);
 
       applyFigmaControlsStyle(card);
       canvas.add(card);

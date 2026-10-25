@@ -4,6 +4,7 @@ import { BentCard, CornerRadii } from "../shapes/BentCard";
 import { regenerateBlobPath } from "../shapes/OrganicBlob";
 import { ColorPickerPopover } from "./ColorPickerPopover";
 import { CornerRadiusControl } from "./CornerRadiusControl";
+import { LightingInspector } from "./LightingInspector";
 import {
   Layers,
   Trash2,
@@ -618,6 +619,13 @@ export const CardPropertyInspector: React.FC<CardPropertyInspectorProps> = ({
           )}
         </div>
       )}
+
+      {/* ── Section: Lighting Studio & Depth ─────────────────────────────── */}
+      <LightingInspector
+        canvas={canvas}
+        selectedObject={selectedObject}
+        onModify={onModify}
+      />
     </aside>
   );
 };
