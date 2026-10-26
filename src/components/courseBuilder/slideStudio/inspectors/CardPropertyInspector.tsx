@@ -5,6 +5,9 @@ import { regenerateBlobPath } from "../shapes/OrganicBlob";
 import { ColorPickerPopover } from "./ColorPickerPopover";
 import { CornerRadiusControl } from "./CornerRadiusControl";
 import { LightingInspector } from "./LightingInspector";
+import { SlideBackgroundInspector } from "./SlideBackgroundInspector";
+import { ImageMaskingInspector } from "./ImageMaskingInspector";
+import { ArtboardBackgroundState } from "../media/types";
 import {
   Layers,
   Trash2,
@@ -16,12 +19,18 @@ interface CardPropertyInspectorProps {
   canvas: FabricCanvas | null;
   selectedObject: FabricObject | null;
   onModify: () => void;
+  backgroundState?: ArtboardBackgroundState;
+  onBackgroundChange?: (bg: ArtboardBackgroundState) => void;
+  aspectRatioLabel?: string;
 }
 
 export const CardPropertyInspector: React.FC<CardPropertyInspectorProps> = ({
   canvas,
   selectedObject,
   onModify,
+  backgroundState,
+  onBackgroundChange,
+  aspectRatioLabel,
 }) => {
   // Local Inspector States
   const [fillColor, setFillColor] = useState<string>("#ffffff");
@@ -110,6 +119,15 @@ export const CardPropertyInspector: React.FC<CardPropertyInspectorProps> = ({
   }, [selectedObject, canvas]);
 
   if (!selectedObject || !canvas) {
+    if (backgroundState && onBackgroundChange) {
+      return (
+        <SlideBackgroundInspector
+          background={backgroundState}
+          onChange={onBackgroundChange}
+          aspectRatioLabel={aspectRatioLabel}
+        />
+      );
+    }
     return (
       <aside className="w-72 bg-white border-l border-slate-200 p-5 flex flex-col items-center justify-center text-center select-none flex-shrink-0 z-20">
         <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-400 mb-3 shadow-2xs">
@@ -521,6 +539,20 @@ export const CardPropertyInspector: React.FC<CardPropertyInspectorProps> = ({
           />
         </div>
       </div>
+
+      {/* ── Section: Image & Masking (For Cards & All Vector Shapes) ───── */}
+      {isStrokeable && (
+        <ImageMaskingInspector
+          key={
+            (selectedObject as unknown as { id?: string; shapeType?: string }).id ||
+            (selectedObject as unknown as { shapeType?: string }).shapeType ||
+            `shape-${(selectedObject as unknown as { type?: string }).type}`
+          }
+          shape={selectedObject}
+          canvas={canvas}
+          onModify={onModify}
+        />
+      )}
 
       {/* ── Section: Border & Stroke Controls ───────────────────────────── */}
       {isStrokeable && (

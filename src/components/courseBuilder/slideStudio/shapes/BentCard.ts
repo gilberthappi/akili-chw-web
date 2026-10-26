@@ -6,24 +6,28 @@ import {
 } from "fabric";
 import { LightingState, hexToRgba } from "../lighting/types";
 import { LightingEngine } from "../lighting/LightingEngine";
+import { EmbeddedImageState } from "../media/types";
+import { ImageEngine } from "../media/ImageEngine";
 
 export type CornerRadii = [number, number, number, number]; // [TL, TR, BR, BL]
 
 export interface BentCardProps extends Partial<FabricObjectProps> {
   cornerRadii?: CornerRadii;
   lightingState?: LightingState;
+  embeddedImage?: EmbeddedImageState;
 }
 
 export interface SerializedBentCardProps extends SerializedObjectProps {
   cornerRadii: CornerRadii;
   lightingState?: LightingState;
+  embeddedImage?: EmbeddedImageState;
 }
 
-const BENT_CARD_PROPS = ["cornerRadii", "lightingState"] as const;
+const BENT_CARD_PROPS = ["cornerRadii", "lightingState", "embeddedImage"] as const;
 
 /**
- * BentCard - High-precision vector container card supporting independent 4-corner radii
- * and multi-pass lighting (stacked ambient/contact drop shadows + inverse-clipped inset shadow).
+ * BentCard - High-precision vector container card supporting independent 4-corner radii,
+ * vector clipping masks (embedded image conforms to Bezier curvature), and multi-pass lighting.
  * Corner array order matches CSS standard: [Top-Left, Top-Right, Bottom-Right, Bottom-Left].
  * Uses cubic Bezier arc approximation (k = 0.4477152502) for smooth, non-distorting curves.
  */
@@ -32,6 +36,8 @@ export class BentCard extends FabricObject {
 
   public cornerRadii: CornerRadii = [24, 24, 24, 24];
   public lightingState?: LightingState;
+  public embeddedImage?: EmbeddedImageState;
+  private _cachedImgEl?: HTMLImageElement;
 
   constructor(options: BentCardProps = {}) {
     super({
@@ -49,6 +55,9 @@ export class BentCard extends FabricObject {
     if (options.lightingState) {
       this.lightingState = options.lightingState;
     }
+    if (options.embeddedImage) {
+      this.setEmbeddedImage(options.embeddedImage);
+    }
   }
 
   /**
@@ -61,6 +70,32 @@ export class BentCard extends FabricObject {
       this.cornerRadii = [...radii];
     }
     this.dirty = true;
+  }
+
+  /**
+   * Embeds or updates an image inside the card, clipped by the card's 4-corner curves.
+   */
+  public setEmbeddedImage(imageState?: EmbeddedImageState) {
+    this.embeddedImage = imageState ? { ...imageState } : undefined;
+    this._cachedImgEl = undefined;
+
+    if (this.embeddedImage?.url) {
+      const cached = ImageEngine.getCachedImage(this.embeddedImage.url);
+      if (cached) {
+        this._cachedImgEl = cached;
+      } else {
+        ImageEngine.loadImage(this.embeddedImage.url)
+          .then((loaded) => {
+            this._cachedImgEl = loaded;
+            this.dirty = true;
+            this.canvas?.requestRenderAll();
+          })
+          .catch(() => {});
+      }
+    }
+
+    this.dirty = true;
+    this.canvas?.requestRenderAll();
   }
 
   /**
@@ -184,13 +219,43 @@ export class BentCard extends FabricObject {
   }
 
   /**
-   * Paints fill, inner shadow, and stroke in optimal depth order.
+   * Paints fill, embedded image, inner shadow, and stroke in optimal depth order.
    */
   _renderPaintInOrder(ctx: CanvasRenderingContext2D) {
     // A. Paint Base Fill
     this._renderFill(ctx);
 
-    // B. Paint Inset / Inner Shadow (if enabled)
+    // B. Paint Embedded Image (Clipped to the card's 4-corner Bezier curves)
+    if (this.embeddedImage) {
+      const imgEl = this._cachedImgEl || (this.embeddedImage.url ? ImageEngine.getCachedImage(this.embeddedImage.url) : undefined);
+      if (!imgEl && this.embeddedImage.url) {
+        ImageEngine.loadImage(this.embeddedImage.url)
+          .then((loaded) => {
+            this._cachedImgEl = loaded;
+            this.dirty = true;
+            this.canvas?.requestRenderAll();
+          })
+          .catch(() => {});
+      }
+
+      if (imgEl) {
+        ctx.save();
+        this._buildPath(ctx, true);
+        ctx.clip();
+
+        ImageEngine.renderEmbeddedImage(
+          ctx,
+          this.width,
+          this.height,
+          this.embeddedImage,
+          imgEl
+        );
+
+        ctx.restore();
+      }
+    }
+
+    // C. Paint Inset / Inner Shadow (if enabled, casts over image edges)
     const innerLayer = this.lightingState?.layers.find(
       (l) => l.enabled && l.type === "inner" && l.opacity > 0
     );
@@ -204,7 +269,7 @@ export class BentCard extends FabricObject {
       );
     }
 
-    // C. Re-establish path for Stroke
+    // D. Re-establish path for Stroke (framed on top of image and shadow)
     if (this.stroke && this.strokeWidth) {
       this._buildPath(ctx, true);
       this._renderStroke(ctx);

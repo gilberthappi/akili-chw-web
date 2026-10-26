@@ -25,6 +25,12 @@ import {
 } from "@/components/courseBuilder/slideStudio/engine/types";
 import { StudioToolDock } from "@/components/courseBuilder/slideStudio/dock/StudioToolDock";
 import { CardPropertyInspector } from "@/components/courseBuilder/slideStudio/inspectors/CardPropertyInspector";
+import {
+  ArtboardBackgroundState,
+  DEFAULT_ARTBOARD_BG,
+  DEFAULT_IMAGE_FILTERS,
+} from "@/components/courseBuilder/slideStudio/media/types";
+import { ImageEngine } from "@/components/courseBuilder/slideStudio/media/ImageEngine";
 
 export default function SlideDesignStudio() {
   const navigate = useNavigate();
@@ -42,6 +48,8 @@ export default function SlideDesignStudio() {
   const [canRedo, setCanRedo] = useState<boolean>(false);
   const [selectedObject, setSelectedObject] = useState<FabricObject | null>(null);
   const [isPenActive, setIsPenActive] = useState<boolean>(false);
+  const [backgroundState, setBackgroundState] =
+    useState<ArtboardBackgroundState>(DEFAULT_ARTBOARD_BG);
   const zoomPercent = Math.round(zoom * 100);
 
 
@@ -386,6 +394,43 @@ export default function SlideDesignStudio() {
             canvasRef.current?.addChevronArrow();
             updateHistoryState();
           }}
+          onAddPhotoCard={(url, title) => {
+            const canvas = canvasRef.current?.getFabricCanvas();
+            const active = canvas?.getActiveObject();
+            if (
+              active &&
+              active.type !== "activeselection" &&
+              active.type !== "group" &&
+              ("cornerRadii" in active ||
+                "shapeType" in active ||
+                "_renderPathCommands" in active ||
+                "embeddedImage" in active)
+            ) {
+              ImageEngine.setShapeEmbeddedImage(active, {
+                url,
+                name: title || "Masked Photo",
+                naturalWidth: 800,
+                naturalHeight: 600,
+                fitMode: "cover",
+                zoom: 1.0,
+                panX: 0,
+                panY: 0,
+                opacity: 1.0,
+                filters: { ...DEFAULT_IMAGE_FILTERS },
+              });
+              // Force selection state refresh
+              setSelectedObject(active);
+              canvas?.requestRenderAll();
+              updateHistoryState();
+              const label =
+                (active as unknown as { shapeType?: string }).shapeType ||
+                "shape";
+              toast.success(`Photo masked into ${label}!`);
+            } else {
+              canvasRef.current?.addPhotoCard(url, title);
+              updateHistoryState();
+            }
+          }}
           onAddHeading={(text, size) => {
             canvasRef.current?.addText(text || "Slide Title", size || 36);
             updateHistoryState();
@@ -404,6 +449,7 @@ export default function SlideDesignStudio() {
             ref={canvasRef}
             ratio={ratio}
             showGrid={showGrid}
+            background={backgroundState}
             onViewportChange={(currentZoom) => {
               setZoom(currentZoom);
               updateHistoryState();
@@ -418,6 +464,12 @@ export default function SlideDesignStudio() {
           canvas={canvasRef.current?.getFabricCanvas() ?? null}
           selectedObject={selectedObject}
           onModify={updateHistoryState}
+          backgroundState={backgroundState}
+          onBackgroundChange={(newBg) => {
+            setBackgroundState(newBg);
+            updateHistoryState();
+          }}
+          aspectRatioLabel={ratio}
         />
       </div>
     </div>

@@ -53,6 +53,7 @@ export interface SlideStudioCanvasRef {
   addShieldBadge: () => void;
   addSpeechBubble: () => void;
   addChevronArrow: () => void;
+  addPhotoCard: (url: string, title?: string) => void;
   togglePenTool: () => void;
   isPenActive: boolean;
   getCanvasJson: () => Record<string, unknown>;

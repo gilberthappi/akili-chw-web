@@ -12,8 +12,11 @@ import {
   Shield,
   MessageSquare,
   ChevronsRight,
+  Image as ImageIcon,
+  Upload,
 } from "lucide-react";
 import { CornerRadii } from "../shapes/BentCard";
+import { STOCK_HEALTHCARE_PHOTOS } from "../media/types";
 
 interface StudioToolDockProps {
   onAddBentCard: (radii?: CornerRadii, title?: string, fill?: string) => void;
@@ -24,6 +27,7 @@ interface StudioToolDockProps {
   onAddShieldBadge?: () => void;
   onAddSpeechBubble?: () => void;
   onAddChevronArrow?: () => void;
+  onAddPhotoCard?: (url: string, title?: string) => void;
   onTogglePenTool?: () => void;
   isPenActive?: boolean;
 }
@@ -37,11 +41,37 @@ export const StudioToolDock: React.FC<StudioToolDockProps> = ({
   onAddShieldBadge,
   onAddSpeechBubble,
   onAddChevronArrow,
+  onAddPhotoCard,
   onTogglePenTool,
   isPenActive = false,
 }) => {
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const url = event.target?.result as string;
+      if (url && onAddPhotoCard) {
+        onAddPhotoCard(url, file.name);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   return (
     <aside className="w-64 bg-white border-r border-slate-200 flex flex-col select-none flex-shrink-0 z-20 shadow-xs">
+      {/* Hidden File Input */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileUpload}
+        accept="image/*"
+        className="hidden"
+      />
+
       {/* Dock Header */}
       <div className="p-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
         <div className="flex items-center space-x-2">
@@ -81,6 +111,58 @@ export const StudioToolDock: React.FC<StudioToolDockProps> = ({
             </div>
             <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-blue-600 transition" />
           </button>
+        </div>
+
+        {/* Photos & Media Section (Day 5) */}
+        <div>
+          <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
+            Photos & Media
+          </span>
+          <div className="space-y-1.5">
+            {/* Upload Button */}
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full flex items-center justify-between p-2.5 rounded-xl border border-dashed border-slate-300 bg-slate-50/70 hover:bg-slate-100 hover:border-blue-400 transition group text-left"
+            >
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600">
+                  <Upload className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="block text-xs font-semibold text-slate-900 group-hover:text-blue-600 transition">
+                    Upload Photo
+                  </span>
+                  <span className="block text-[10px] text-slate-400">
+                    PNG, JPG, WebP
+                  </span>
+                </div>
+              </div>
+              <Plus className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-600 transition" />
+            </button>
+
+            {/* Quick-insert stock grid */}
+            <div className="grid grid-cols-3 gap-1.5 pt-1">
+              {STOCK_HEALTHCARE_PHOTOS.slice(0, 3).map((stock) => (
+                <button
+                  key={stock.id}
+                  type="button"
+                  onClick={() => onAddPhotoCard?.(stock.url, stock.title)}
+                  title={`Mask "${stock.title}" into selected shape, or add as photo card`}
+                  className="h-14 rounded-lg border border-slate-200 overflow-hidden relative transition hover:scale-105 group"
+                >
+                  <img
+                    src={stock.thumbnailUrl}
+                    alt={stock.title}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white">
+                    <Plus className="w-4 h-4" />
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Shapes & Vectors Section (Day 3) */}

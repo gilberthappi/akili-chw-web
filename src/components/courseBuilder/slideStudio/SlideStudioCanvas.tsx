@@ -29,12 +29,19 @@ import {
   createSpeechBubble,
   createChevronArrow,
 } from "./shapes/PresetVectorShapes";
+import {
+  ArtboardBackgroundState,
+  DEFAULT_ARTBOARD_BG,
+  DEFAULT_IMAGE_FILTERS,
+} from "./media/types";
+import { ImageEngine } from "./media/ImageEngine";
 import { useVectorPenTool } from "./engine/useVectorPenTool";
 
 interface SlideStudioCanvasProps {
   ratio?: StudioAspectRatio;
   initialRatio?: StudioAspectRatio;
   showGrid?: boolean;
+  background?: ArtboardBackgroundState;
   onViewportChange?: (zoom: number, ratio: StudioAspectRatio) => void;
   onSelectionChange?: (activeObject: FabricObject | null) => void;
 }
@@ -48,6 +55,7 @@ export const SlideStudioCanvas = forwardRef<
       ratio: propRatio,
       initialRatio = "16:9",
       showGrid = true,
+      background,
       onViewportChange,
       onSelectionChange,
     },
@@ -135,6 +143,7 @@ export const SlideStudioCanvas = forwardRef<
       addShieldBadge: () => addShieldBadge(),
       addSpeechBubble: () => addSpeechBubble(),
       addChevronArrow: () => addChevronArrow(),
+      addPhotoCard: (url: string, title?: string) => addPhotoCard(url, title),
       togglePenTool: () => penTool.togglePen(),
       get isPenActive() {
         return penTool.isPenActive;
@@ -155,11 +164,67 @@ export const SlideStudioCanvas = forwardRef<
         const canvas = fabricRef.current;
         if (!canvas) throw new Error("Canvas is not ready");
 
+        const w = viewport.artboard.width * multiplier;
+        const h = viewport.artboard.height * multiplier;
+
+        // Create offscreen canvas to composite slide background + fabric objects
+        const offscreen = document.createElement("canvas");
+        offscreen.width = w;
+        offscreen.height = h;
+        const ctx = offscreen.getContext("2d");
+        if (!ctx) throw new Error("Offscreen 2D context creation failed");
+
+        // 1. Draw Slide Background
+        const currentBg = background || DEFAULT_ARTBOARD_BG;
+        if (currentBg.type === "image" && currentBg.imageUrl) {
+          try {
+            const bgImg = await ImageEngine.loadImage(currentBg.imageUrl);
+            const { dx, dy, dw, dh } = ImageEngine.computeInFrameRect(
+              w,
+              h,
+              bgImg.naturalWidth,
+              bgImg.naturalHeight,
+              currentBg.imageMode || "cover",
+              1,
+              0,
+              0
+            );
+            ctx.save();
+            if (currentBg.blur && currentBg.blur > 0) {
+              ctx.filter = `blur(${currentBg.blur * multiplier}px)`;
+            }
+            ctx.drawImage(bgImg, dx + w / 2, dy + h / 2, dw, dh);
+            ctx.restore();
+
+            if (currentBg.overlayOpacity && currentBg.overlayOpacity > 0) {
+              ctx.fillStyle = currentBg.overlayColor || "#0f172a";
+              ctx.globalAlpha = currentBg.overlayOpacity;
+              ctx.fillRect(0, 0, w, h);
+              ctx.globalAlpha = 1;
+            }
+          } catch {
+            ctx.fillStyle = currentBg.color || "#0f172a";
+            ctx.fillRect(0, 0, w, h);
+          }
+        } else if (currentBg.type === "gradient" && currentBg.gradient) {
+          const g = currentBg.gradient;
+          const rad = (g.angle * Math.PI) / 180;
+          const x2 = w * Math.cos(rad);
+          const y2 = h * Math.sin(rad);
+          const grad = ctx.createLinearGradient(0, 0, Math.abs(x2), Math.abs(y2));
+          g.stops.forEach((s) => grad.addColorStop(s.offset, s.color));
+          ctx.fillStyle = grad;
+          ctx.fillRect(0, 0, w, h);
+        } else {
+          ctx.fillStyle = currentBg.color || "#ffffff";
+          ctx.fillRect(0, 0, w, h);
+        }
+
+        // 2. Render Fabric objects on top
         const currentVpt = canvas.viewportTransform
           ? [...canvas.viewportTransform]
           : [1, 0, 0, 1, 0, 0];
 
-        // Temporarily reset viewport to 1:1 world artboard for pure lossless export
         canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
 
         const dataUrl = canvas.toDataURL({
@@ -177,8 +242,15 @@ export const SlideStudioCanvas = forwardRef<
         );
         canvas.requestRenderAll();
 
-        const res = await fetch(dataUrl);
-        return await res.blob();
+        const objectsImg = await ImageEngine.loadImage(dataUrl);
+        ctx.drawImage(objectsImg, 0, 0, w, h);
+
+        return new Promise<Blob>((resolve, reject) => {
+          offscreen.toBlob((blob) => {
+            if (blob) resolve(blob);
+            else reject(new Error("Failed to export high-res PNG"));
+          }, "image/png");
+        });
       },
     }));
 
@@ -418,6 +490,46 @@ export const SlideStudioCanvas = forwardRef<
       history.saveSnapshot(canvas, true);
     }, [viewport.artboard, history]);
 
+    // ── Helper: Add Photo Card (Day 5) ─────────────────────────────────────
+    const addPhotoCard = useCallback(
+      (url: string, title?: string) => {
+        const canvas = fabricRef.current;
+        if (!canvas) return;
+
+        const artboard = viewport.artboard;
+        const card = new BentCard({
+          left: artboard.width / 2 - 260,
+          top: artboard.height / 2 - 160,
+          width: 520,
+          height: 320,
+          fill: "#0f172a",
+          stroke: "#cbd5e1",
+          strokeWidth: 1.5,
+          cornerRadii: [24, 24, 24, 24],
+          embeddedImage: {
+            url,
+            name: title || "Photo Card",
+            naturalWidth: 800,
+            naturalHeight: 600,
+            fitMode: "cover",
+            zoom: 1.0,
+            panX: 0,
+            panY: 0,
+            opacity: 1.0,
+            filters: { ...DEFAULT_IMAGE_FILTERS },
+          },
+        });
+
+        LightingEngine.applyPreset("elevated", card);
+        applyFigmaControlsStyle(card);
+        canvas.add(card);
+        canvas.setActiveObject(card);
+        canvas.requestRenderAll();
+        history.saveSnapshot(canvas, true);
+      },
+      [viewport.artboard, history]
+    );
+
     // ── Helper: Add Text ────────────────────────────────────────────────────
     const addText = useCallback((content: string, fontSize = 32) => {
       const canvas = fabricRef.current;
@@ -615,18 +727,30 @@ export const SlideStudioCanvas = forwardRef<
       >
         {/* Visual Artboard Elevated Canvas Background */}
         <div
-          className="absolute pointer-events-none transition-all duration-75"
+          className="absolute pointer-events-none transition-all duration-75 overflow-hidden"
           style={{
             left: artboardScreenLeft,
             top: artboardScreenTop,
             width: artboardScreenWidth,
             height: artboardScreenHeight,
-            backgroundColor: DEFAULT_CANVAS_BG,
+            ...ImageEngine.getArtboardBackgroundCss(background || DEFAULT_ARTBOARD_BG),
             boxShadow:
               "0 20px 45px -10px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05)",
             borderRadius: 4,
           }}
         >
+          {/* Background Photo Dimming Overlay & Blur */}
+          {background?.type === "image" && (
+            <div
+              className="absolute inset-0 pointer-events-none transition-all duration-100"
+              style={{
+                backgroundColor: background.overlayColor || "#0f172a",
+                opacity: background.overlayOpacity ?? 0.35,
+                backdropFilter: background.blur ? `blur(${background.blur}px)` : undefined,
+              }}
+            />
+          )}
+
           {/* Subtle artboard tag */}
           <div className="absolute -top-6 left-0 flex items-center space-x-1.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
             <span>{viewport.artboard.label}</span>
