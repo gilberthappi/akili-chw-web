@@ -35,6 +35,7 @@ import {
   DEFAULT_IMAGE_FILTERS,
 } from "./media/types";
 import { ImageEngine } from "./media/ImageEngine";
+import { TypographyEngine } from "./typography/TypographyEngine";
 import { useVectorPenTool } from "./engine/useVectorPenTool";
 
 interface SlideStudioCanvasProps {
@@ -138,6 +139,12 @@ export const SlideStudioCanvas = forwardRef<
       addText: (content: string, fontSize?: number) => {
         addText(content, fontSize);
       },
+      addCurvedText: (
+        text: string,
+        curvature?: number,
+        fontSize?: number,
+        options?: Record<string, unknown>
+      ) => addCurvedText(text, curvature, fontSize, options),
       addOrganicBlob: () => addOrganicBlob(),
       addWavyDivider: () => addWavyDivider(),
       addShieldBadge: () => addShieldBadge(),
@@ -551,6 +558,53 @@ export const SlideStudioCanvas = forwardRef<
       canvas.requestRenderAll();
       history.saveSnapshot(canvas, true);
     }, [viewport.artboard, history]);
+
+    // ── Helper: Add Curved / Graphic Text (Day 6) ───────────────────────────
+    const addCurvedText = useCallback(
+      (
+        content: string,
+        curvature = 45,
+        fontSize = 36,
+        options: Record<string, unknown> = {}
+      ) => {
+        const canvas = fabricRef.current;
+        if (!canvas) return;
+
+        const artboard = viewport.artboard;
+        const text = new IText(content, {
+          left: artboard.width / 2 - 200,
+          top: artboard.height / 2 - 50,
+          fontSize,
+          fontFamily: (options.fontFamily as string) || "Inter",
+          fontWeight: (options.fontWeight as string) || "bold",
+          fill: (options.fill as string) || "#0f172a",
+          ...options,
+        });
+
+        if (curvature !== 0) {
+          TypographyEngine.applyCurvature(text, curvature);
+        }
+
+        if (options.gradient) {
+          TypographyEngine.applyTextGradient(text, options.gradient as any);
+        }
+
+        if (options.stroke) {
+          TypographyEngine.applyTextStroke(text, options.stroke as any);
+        }
+
+        if (options.glow) {
+          TypographyEngine.applyTextGlow(text, options.glow as any);
+        }
+
+        applyFigmaControlsStyle(text);
+        canvas.add(text);
+        canvas.setActiveObject(text);
+        canvas.requestRenderAll();
+        history.saveSnapshot(canvas, true);
+      },
+      [viewport.artboard, history]
+    );
 
     // ── Helper: Add Organic Blob ───────────────────────────────────────────
     const addOrganicBlob = useCallback(() => {

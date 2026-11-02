@@ -48,6 +48,12 @@ export interface SlideStudioCanvasRef {
   getFabricCanvas: () => FabricCanvas | null;
   addBentCard: (radii?: [number, number, number, number], title?: string, fill?: string) => void;
   addText: (text: string, fontSize?: number) => void;
+  addCurvedText: (
+    text: string,
+    curvature?: number,
+    fontSize?: number,
+    options?: Record<string, unknown>
+  ) => void;
   addOrganicBlob: () => void;
   addWavyDivider: () => void;
   addShieldBadge: () => void;

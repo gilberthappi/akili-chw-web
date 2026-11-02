@@ -435,6 +435,15 @@ export default function SlideDesignStudio() {
             canvasRef.current?.addText(text || "Slide Title", size || 36);
             updateHistoryState();
           }}
+          onAddCurvedText={(text, curvature, size, options) => {
+            canvasRef.current?.addCurvedText(
+              text || "Curved Headline",
+              curvature ?? 45,
+              size ?? 36,
+              options
+            );
+            updateHistoryState();
+          }}
           onAddBodyText={(text) => {
             canvasRef.current?.addText(
               text || "Double click to edit body description.",

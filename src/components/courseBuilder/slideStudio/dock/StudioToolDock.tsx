@@ -14,6 +14,8 @@ import {
   ChevronsRight,
   Image as ImageIcon,
   Upload,
+  Compass,
+  Sparkles,
 } from "lucide-react";
 import { CornerRadii } from "../shapes/BentCard";
 import { STOCK_HEALTHCARE_PHOTOS } from "../media/types";
@@ -28,6 +30,12 @@ interface StudioToolDockProps {
   onAddSpeechBubble?: () => void;
   onAddChevronArrow?: () => void;
   onAddPhotoCard?: (url: string, title?: string) => void;
+  onAddCurvedText?: (
+    text?: string,
+    curvature?: number,
+    fontSize?: number,
+    options?: Record<string, unknown>
+  ) => void;
   onTogglePenTool?: () => void;
   isPenActive?: boolean;
 }
@@ -42,6 +50,7 @@ export const StudioToolDock: React.FC<StudioToolDockProps> = ({
   onAddSpeechBubble,
   onAddChevronArrow,
   onAddPhotoCard,
+  onAddCurvedText,
   onTogglePenTool,
   isPenActive = false,
 }) => {
@@ -323,12 +332,78 @@ export const StudioToolDock: React.FC<StudioToolDockProps> = ({
           </div>
         </div>
 
-        {/* Typography Section */}
+        {/* Typography Section (Day 6) */}
         <div>
           <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
-            Typography
+            Typography Studio
           </span>
           <div className="space-y-1.5">
+            {/* Curved Arc Title Preset */}
+            <button
+              type="button"
+              onClick={() =>
+                onAddCurvedText?.("CURVED SLIDE BANNER", 45, 36, {
+                  fontFamily: "Outfit",
+                  fontWeight: "bold",
+                  fill: "#2563EB",
+                  charSpacing: 60,
+                })
+              }
+              className="w-full flex items-center justify-between p-2.5 rounded-xl border border-blue-200 bg-blue-50/50 hover:bg-blue-50 hover:border-blue-400 hover:shadow-xs transition group text-left"
+            >
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 rounded-lg bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-600">
+                  <Compass className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="block text-xs font-bold text-blue-900 group-hover:text-blue-700 transition">
+                    Curved Arc Title
+                  </span>
+                  <span className="block text-[10px] text-blue-600/80">
+                    +45° Arched Banner
+                  </span>
+                </div>
+              </div>
+              <ChevronRight className="w-3.5 h-3.5 text-blue-400 group-hover:text-blue-700 transition" />
+            </button>
+
+            {/* Gradient Hero Title Preset */}
+            <button
+              type="button"
+              onClick={() =>
+                onAddCurvedText?.("Impactful Headline", 0, 44, {
+                  fontFamily: "Montserrat",
+                  fontWeight: "800",
+                  gradient: {
+                    enabled: true,
+                    type: "linear",
+                    angle: 90,
+                    stops: [
+                      { offset: 0, color: "#2563EB" },
+                      { offset: 1, color: "#06B6D4" },
+                    ],
+                  },
+                })
+              }
+              className="w-full flex items-center justify-between p-2.5 rounded-xl border border-slate-200 bg-white hover:border-blue-400 hover:shadow-xs transition group text-left"
+            >
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 rounded-lg bg-purple-50 border border-purple-200 flex items-center justify-center text-purple-600">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="block text-xs font-bold text-slate-900 group-hover:text-blue-600 transition">
+                    Gradient Hero Title
+                  </span>
+                  <span className="block text-[10px] text-slate-400">
+                    Dual-color linear blend
+                  </span>
+                </div>
+              </div>
+              <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-blue-600 transition" />
+            </button>
+
+            {/* Standard Heading */}
             <button
               type="button"
               onClick={() => onAddHeading("Main Slide Heading", 40)}

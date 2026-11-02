@@ -7,6 +7,7 @@ import { CornerRadiusControl } from "./CornerRadiusControl";
 import { LightingInspector } from "./LightingInspector";
 import { SlideBackgroundInspector } from "./SlideBackgroundInspector";
 import { ImageMaskingInspector } from "./ImageMaskingInspector";
+import { TypographyInspector } from "./TypographyInspector";
 import { ArtboardBackgroundState } from "../media/types";
 import {
   Layers,
@@ -457,88 +458,50 @@ export const CardPropertyInspector: React.FC<CardPropertyInspectorProps> = ({
         </div>
       )}
 
-      {/* ── Section: Typography Controls (When Text is selected) ──────────── */}
+      {/* ── Section: Typography Studio (When Text is selected) ──────────── */}
       {isText && (
-        <div className="p-4 space-y-3">
-          <span className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-            Font & Typography
-          </span>
+        <TypographyInspector
+          key={
+            (selectedObject as unknown as { id?: string }).id ||
+            `text-${(selectedObject as unknown as { text?: string }).text?.slice(0, 10)}`
+          }
+          textObj={selectedObject}
+          canvas={canvas}
+          onModify={onModify}
+        />
+      )}
 
-          {/* Font Size */}
-          <div className="space-y-1.5">
+      {/* ── Section: Fill Color & Opacity (For Shapes & Cards) ───────────── */}
+      {!isText && (
+        <div className="p-4 space-y-3">
+          <ColorPickerPopover
+            label="Fill Color"
+            color={fillColor}
+            onChange={handleFillChange}
+          />
+
+          {/* Opacity Slider */}
+          <div className="space-y-1.5 pt-1">
             <div className="flex items-center justify-between text-xs text-slate-600">
-              <span>Font Size</span>
-              <div className="flex items-center space-x-1">
-                <input
-                  type="number"
-                  min={8}
-                  max={160}
-                  value={fontSize}
-                  onChange={(e) => handleFontSizeChange(Number(e.target.value))}
-                  className="w-14 px-1.5 py-0.5 bg-slate-50 border border-slate-200 rounded text-xs font-mono font-semibold text-slate-800 text-right outline-hidden focus:border-blue-500 focus:bg-white"
-                />
-                <span className="text-[11px] text-slate-400">px</span>
-              </div>
+              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                Opacity
+              </span>
+              <span className="font-mono font-semibold text-slate-800">
+                {Math.round(opacity * 100)}%
+              </span>
             </div>
             <input
               type="range"
-              min={12}
-              max={96}
-              value={fontSize}
-              onChange={(e) => handleFontSizeChange(Number(e.target.value))}
+              min={0}
+              max={1}
+              step={0.01}
+              value={opacity}
+              onChange={(e) => handleOpacityChange(Number(e.target.value))}
               className="w-full accent-blue-600 cursor-pointer"
             />
           </div>
-
-          {/* Font Family */}
-          <div className="space-y-1">
-            <span className="text-[10px] text-slate-400 font-semibold uppercase">
-              Font Family
-            </span>
-            <select
-              value={fontFamily}
-              onChange={(e) => handleFontFamilyChange(e.target.value)}
-              className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800 outline-hidden focus:border-blue-500 focus:bg-white transition"
-            >
-              <option value="Arial">Arial (Clean Sans)</option>
-              <option value="Inter">Inter (Modern UI)</option>
-              <option value="Georgia">Georgia (Editorial Serif)</option>
-              <option value="Courier New">Courier New (Monospace)</option>
-              <option value="Impact">Impact (Display)</option>
-            </select>
-          </div>
         </div>
       )}
-
-      {/* ── Section: Fill Color & Opacity ───────────────────────────────── */}
-      <div className="p-4 space-y-3">
-        <ColorPickerPopover
-          label={isText ? "Text Color" : "Fill Color"}
-          color={fillColor}
-          onChange={handleFillChange}
-        />
-
-        {/* Opacity Slider */}
-        <div className="space-y-1.5 pt-1">
-          <div className="flex items-center justify-between text-xs text-slate-600">
-            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-              Opacity
-            </span>
-            <span className="font-mono font-semibold text-slate-800">
-              {Math.round(opacity * 100)}%
-            </span>
-          </div>
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.01}
-            value={opacity}
-            onChange={(e) => handleOpacityChange(Number(e.target.value))}
-            className="w-full accent-blue-600 cursor-pointer"
-          />
-        </div>
-      </div>
 
       {/* ── Section: Image & Masking (For Cards & All Vector Shapes) ───── */}
       {isStrokeable && (
@@ -652,12 +615,14 @@ export const CardPropertyInspector: React.FC<CardPropertyInspectorProps> = ({
         </div>
       )}
 
-      {/* ── Section: Lighting Studio & Depth ─────────────────────────────── */}
-      <LightingInspector
-        canvas={canvas}
-        selectedObject={selectedObject}
-        onModify={onModify}
-      />
+      {/* ── Section: Lighting Studio & Depth (Shapes only) ───────────────── */}
+      {!isText && (
+        <LightingInspector
+          canvas={canvas}
+          selectedObject={selectedObject}
+          onModify={onModify}
+        />
+      )}
     </aside>
   );
 };
