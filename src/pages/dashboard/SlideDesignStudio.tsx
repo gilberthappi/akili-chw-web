@@ -12,10 +12,8 @@ import {
   Monitor,
   Smartphone,
   Square,
-  Check,
+  Send,
   Download,
-  Type,
-  Square as SquareIcon,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { SlideStudioCanvas } from "@/components/courseBuilder/slideStudio/SlideStudioCanvas";
@@ -43,7 +41,7 @@ export default function SlideDesignStudio() {
   const [ratio, setRatio] = useState<StudioAspectRatio>("16:9");
   const [zoom, setZoom] = useState<number>(1);
   const [showGrid, setShowGrid] = useState<boolean>(true);
-  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [isPublishing, setIsPublishing] = useState<boolean>(false);
   const [canUndo, setCanUndo] = useState<boolean>(false);
   const [canRedo, setCanRedo] = useState<boolean>(false);
   const [selectedObject, setSelectedObject] = useState<FabricObject | null>(null);
@@ -51,7 +49,6 @@ export default function SlideDesignStudio() {
   const [backgroundState, setBackgroundState] =
     useState<ArtboardBackgroundState>(DEFAULT_ARTBOARD_BG);
   const zoomPercent = Math.round(zoom * 100);
-
 
   // Sync undo/redo availability from canvas
   const updateHistoryState = useCallback(() => {
@@ -99,34 +96,24 @@ export default function SlideDesignStudio() {
     updateHistoryState();
   };
 
-  const handleAddCard = () => {
-    canvasRef.current?.addBentCard([24, 24, 24, 24], "Standard Card");
-    updateHistoryState();
-  };
-
-  const handleAddText = () => {
-    canvasRef.current?.addText("Slide Title", 36);
-    updateHistoryState();
-  };
-
-  const handleSave = async () => {
+  const handlePublish = async () => {
     if (!canvasRef.current) return;
-    setIsSaving(true);
+    setIsPublishing(true);
     try {
       const json = canvasRef.current.getCanvasJson();
       const highResBlob = await canvasRef.current.exportHighResBlob(2);
       // In production pipeline, this uploads to Cloudinary & persists to DB
       console.log(
-        "[SlideStudio] Slide payload prepared:",
+        "[SlideStudio] Slide published:",
         Object.keys(json).length,
         highResBlob.size
       );
-      toast.success("Slide design saved successfully!");
+      toast.success("Slide published successfully!");
     } catch (err) {
-      console.error("[SlideStudio] Save error:", err);
-      toast.error("Failed to save slide design");
+      console.error("[SlideStudio] Publish error:", err);
+      toast.error("Failed to publish slide");
     } finally {
-      setIsSaving(false);
+      setIsPublishing(false);
     }
   };
 
@@ -174,19 +161,21 @@ export default function SlideDesignStudio() {
                   setIsEditingTitle(false);
                 }
               }}
-              onChange={(e) => setSlideTitle(e.target.value)}
-              className="text-sm font-semibold text-slate-900 border border-blue-400 rounded px-2 py-0.5 outline-hidden focus:ring-2 focus:ring-blue-500/20 max-w-[240px]"
+              onChange={(e) => {
+                setSlideTitle(e.target.value);
+              }}
+              className="text-sm font-semibold text-slate-900 border border-blue-400 rounded px-2 py-0.5 outline-hidden focus:ring-2 focus:ring-blue-500/20 max-w-[200px]"
             />
           ) : (
             <div
               onClick={() => setIsEditingTitle(true)}
-              className="group flex items-center space-x-1.5 cursor-pointer px-2 py-1 rounded hover:bg-slate-50"
-              title="Click to rename slide"
+              className="group flex items-center space-x-1.5 cursor-pointer px-2 py-1 rounded hover:bg-slate-50 max-w-[160px] sm:max-w-[220px]"
+              title={slideTitle ? `${slideTitle} (Click to rename)` : "Click to rename slide"}
             >
-              <span className="text-sm font-semibold text-slate-800 tracking-tight">
+              <span className="text-sm font-semibold text-slate-800 tracking-tight truncate block">
                 {slideTitle}
               </span>
-              <span className="text-xs text-slate-400 group-hover:text-blue-600 transition">
+              <span className="text-xs text-slate-400 group-hover:text-blue-600 transition shrink-0">
                 ✏️
               </span>
             </div>
@@ -235,31 +224,8 @@ export default function SlideDesignStudio() {
           </div>
         </div>
 
-        {/* Center: Tools, Undo/Redo & Viewport Zoom */}
+        {/* Center: Undo/Redo & Viewport Zoom */}
         <div className="flex items-center space-x-2">
-          {/* Quick Insert Actions */}
-          <div className="flex items-center space-x-1 bg-slate-50 p-1 rounded-lg border border-slate-200">
-            <button
-              onClick={handleAddCard}
-              className="flex items-center space-x-1.5 px-2.5 py-1 text-xs font-medium text-slate-700 bg-white hover:bg-slate-100 rounded border border-slate-200 shadow-2xs transition"
-              title="Add Container Card"
-            >
-              <SquareIcon className="w-3.5 h-3.5 text-blue-600" />
-              <span>Card</span>
-            </button>
-
-            <button
-              onClick={handleAddText}
-              className="flex items-center space-x-1.5 px-2.5 py-1 text-xs font-medium text-slate-700 bg-white hover:bg-slate-100 rounded border border-slate-200 shadow-2xs transition"
-              title="Add Text Block"
-            >
-              <Type className="w-3.5 h-3.5 text-blue-600" />
-              <span>Heading</span>
-            </button>
-          </div>
-
-          <div className="h-5 w-px bg-slate-200 mx-1" />
-
           {/* Undo / Redo */}
           <div className="flex items-center space-x-1 bg-slate-50 p-0.5 rounded-lg border border-slate-200">
             <button
@@ -352,12 +318,13 @@ export default function SlideDesignStudio() {
           </button>
 
           <button
-            onClick={handleSave}
-            disabled={isSaving}
+            onClick={handlePublish}
+            disabled={isPublishing}
             className="px-4 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs hover:shadow transition flex items-center space-x-1.5 disabled:opacity-50"
+            title="Publish slide to course presentation"
           >
-            <Check className="w-3.5 h-3.5" />
-            <span>{isSaving ? "Saving..." : "Save Slide"}</span>
+            <Send className="w-3.5 h-3.5" />
+            <span>{isPublishing ? "Publishing..." : "Publish Slide"}</span>
           </button>
         </div>
       </header>
@@ -450,6 +417,21 @@ export default function SlideDesignStudio() {
               18
             );
             updateHistoryState();
+          }}
+          onAddSvgAsset={(svgString, name) => {
+            canvasRef.current?.addSvgAsset(svgString, name);
+            updateHistoryState();
+          }}
+          onAddConnectorLine={() => {
+            canvasRef.current?.addConnectorLine();
+            updateHistoryState();
+          }}
+          currentSlideTitle={slideTitle}
+          onGetCanvasJson={() => canvasRef.current?.getCanvasJson() ?? {}}
+          onLoadTemplateJson={async (json) => {
+            await canvasRef.current?.loadCanvasJson(json);
+            updateHistoryState();
+            toast.success("Template loaded onto canvas!");
           }}
         />
 

@@ -60,9 +60,16 @@ export interface SlideStudioCanvasRef {
   addSpeechBubble: () => void;
   addChevronArrow: () => void;
   addPhotoCard: (url: string, title?: string) => void;
+  addSvgAsset: (
+    svgString: string,
+    name?: string,
+    options?: Record<string, unknown>
+  ) => Promise<void>;
+  addConnectorLine: (options?: Record<string, unknown>) => void;
   togglePenTool: () => void;
   isPenActive: boolean;
   getCanvasJson: () => Record<string, unknown>;
   loadCanvasJson: (json: Record<string, unknown>) => Promise<void>;
+  clearCanvas: () => void;
   exportHighResBlob: (multiplier?: number) => Promise<Blob>;
 }

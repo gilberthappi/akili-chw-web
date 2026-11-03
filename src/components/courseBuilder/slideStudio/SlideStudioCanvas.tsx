@@ -36,6 +36,8 @@ import {
 } from "./media/types";
 import { ImageEngine } from "./media/ImageEngine";
 import { TypographyEngine } from "./typography/TypographyEngine";
+import { SvgAssetEngine } from "./assets/SvgAssetEngine";
+import { createConnectorLine } from "./shapes/ConnectorLine";
 import { useVectorPenTool } from "./engine/useVectorPenTool";
 
 interface SlideStudioCanvasProps {
@@ -151,6 +153,13 @@ export const SlideStudioCanvas = forwardRef<
       addSpeechBubble: () => addSpeechBubble(),
       addChevronArrow: () => addChevronArrow(),
       addPhotoCard: (url: string, title?: string) => addPhotoCard(url, title),
+      addSvgAsset: (
+        svgString: string,
+        name?: string,
+        options?: Record<string, unknown>
+      ) => addSvgAsset(svgString, name, options),
+      addConnectorLine: (options?: Record<string, unknown>) =>
+        addConnectorLine(options),
       togglePenTool: () => penTool.togglePen(),
       get isPenActive() {
         return penTool.isPenActive;
@@ -166,6 +175,15 @@ export const SlideStudioCanvas = forwardRef<
         canvas.getObjects().forEach(applyFigmaControlsStyle);
         canvas.requestRenderAll();
         history.initHistory(canvas);
+      },
+      clearCanvas: () => {
+        const canvas = fabricRef.current;
+        if (!canvas) return;
+        canvas.discardActiveObject();
+        const objects = [...canvas.getObjects()];
+        objects.forEach((obj) => canvas.remove(obj));
+        canvas.requestRenderAll();
+        history.saveSnapshot(canvas, true);
       },
       exportHighResBlob: async (multiplier = 2): Promise<Blob> => {
         const canvas = fabricRef.current;
@@ -729,6 +747,70 @@ export const SlideStudioCanvas = forwardRef<
       canvas.requestRenderAll();
       history.saveSnapshot(canvas, true);
     }, [viewport.artboard, history]);
+
+    // ── Helper: Add Multi-Color SVG Asset (Day 7) ───────────────────────────
+    const addSvgAsset = useCallback(
+      async (
+        svgString: string,
+        name = "Vector Graphic",
+        options: Record<string, unknown> = {}
+      ) => {
+        const canvas = fabricRef.current;
+        if (!canvas) return;
+
+        const artboard = viewport.artboard;
+        const targetSize = (options.size as number) || 120;
+
+        const group = await SvgAssetEngine.loadSvgIntoGroup(
+          svgString,
+          targetSize,
+          name
+        );
+
+        group.set({
+          left: (options.left as number) || artboard.width / 2 - targetSize / 2,
+          top: (options.top as number) || artboard.height / 2 - targetSize / 2,
+          ...options,
+        });
+
+        applyFigmaControlsStyle(group);
+        canvas.add(group);
+        canvas.setActiveObject(group);
+        canvas.requestRenderAll();
+        history.saveSnapshot(canvas, true);
+      },
+      [viewport.artboard, history]
+    );
+
+    // ── Helper: Add Workflow Connector Line (Day 7) ─────────────────────────
+    const addConnectorLine = useCallback(
+      (options: Record<string, unknown> = {}) => {
+        const canvas = fabricRef.current;
+        if (!canvas) return;
+
+        const artboard = viewport.artboard;
+        const line = createConnectorLine({
+          startX: 0,
+          startY: 0,
+          endX: 240,
+          endY: 80,
+          style: "bezier",
+          stroke: "#2563EB",
+          strokeWidth: 3,
+          arrowHead: "triangle",
+          left: artboard.width / 2 - 120,
+          top: artboard.height / 2,
+          ...options,
+        });
+
+        applyFigmaControlsStyle(line);
+        canvas.add(line);
+        canvas.setActiveObject(line);
+        canvas.requestRenderAll();
+        history.saveSnapshot(canvas, true);
+      },
+      [viewport.artboard, history]
+    );
 
     // ── Vector Pen Tool Integration ────────────────────────────────────────
     const penTool = useVectorPenTool({

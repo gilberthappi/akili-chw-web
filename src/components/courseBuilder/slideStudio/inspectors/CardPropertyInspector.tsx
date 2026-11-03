@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Canvas as FabricCanvas, IText, Textbox, Path, type FabricObject } from "fabric";
+import { Canvas as FabricCanvas, IText, Textbox, Path, Group, type FabricObject } from "fabric";
 import { BentCard, CornerRadii } from "../shapes/BentCard";
 import { regenerateBlobPath } from "../shapes/OrganicBlob";
 import { ColorPickerPopover } from "./ColorPickerPopover";
@@ -8,6 +8,7 @@ import { LightingInspector } from "./LightingInspector";
 import { SlideBackgroundInspector } from "./SlideBackgroundInspector";
 import { ImageMaskingInspector } from "./ImageMaskingInspector";
 import { TypographyInspector } from "./TypographyInspector";
+import { SvgColorInspector } from "./SvgColorInspector";
 import { ArtboardBackgroundState } from "../media/types";
 import {
   Layers,
@@ -155,9 +156,18 @@ export const CardPropertyInspector: React.FC<CardPropertyInspectorProps> = ({
   const isBubble = shapeType === "SpeechBubble";
   const isChevron = shapeType === "ChevronArrow";
   const isPath = selectedObject instanceof Path || selectedObject.type === "path";
-  const isStrokeable = isCard || isPath || isBlob || isWave || isShield || isBubble || isChevron;
+  const isSvgAsset = Boolean(
+    (selectedObject as any).customType === "svg-asset" ||
+    (selectedObject as any).isSvgAsset
+  );
+  const isConnector = shapeType === "ConnectorLine";
+  const isStrokeable =
+    !isSvgAsset &&
+    (isCard || isPath || isBlob || isWave || isShield || isBubble || isChevron || isConnector);
 
   const getElementTitle = () => {
+    if (isSvgAsset) return (selectedObject as any).svgName || "Vector Graphic";
+    if (isConnector) return "Workflow Connector";
     if (isGroup) return `Multi-Selection (${(selectedObject as unknown as { _objects?: unknown[] })._objects?.length ?? ""})`;
     if (isCard) return "Container Card";
     if (isBlob) return "Organic Blob";
@@ -471,8 +481,38 @@ export const CardPropertyInspector: React.FC<CardPropertyInspectorProps> = ({
         />
       )}
 
+      {/* ── Section: SVG Color Palette Inspector (Multi-color SVGs) ─────── */}
+      {isSvgAsset && (
+        <>
+          <SvgColorInspector
+            svgGroup={selectedObject as Group}
+            onModify={onModify}
+          />
+          {/* Opacity Slider for SVG */}
+          <div className="p-4 pt-0 space-y-1.5">
+            <div className="flex items-center justify-between text-xs text-slate-600">
+              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                Asset Opacity
+              </span>
+              <span className="font-mono font-semibold text-slate-800">
+                {Math.round(opacity * 100)}%
+              </span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.01}
+              value={opacity}
+              onChange={(e) => handleOpacityChange(Number(e.target.value))}
+              className="w-full accent-blue-600 cursor-pointer"
+            />
+          </div>
+        </>
+      )}
+
       {/* ── Section: Fill Color & Opacity (For Shapes & Cards) ───────────── */}
-      {!isText && (
+      {!isText && !isSvgAsset && (
         <div className="p-4 space-y-3">
           <ColorPickerPopover
             label="Fill Color"
@@ -616,7 +656,7 @@ export const CardPropertyInspector: React.FC<CardPropertyInspectorProps> = ({
       )}
 
       {/* ── Section: Lighting Studio & Depth (Shapes only) ───────────────── */}
-      {!isText && (
+      {!isText && !isSvgAsset && !isConnector && (
         <LightingInspector
           canvas={canvas}
           selectedObject={selectedObject}
