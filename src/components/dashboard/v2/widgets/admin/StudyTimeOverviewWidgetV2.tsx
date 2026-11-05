@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useAdminDashboardFilters } from "../../AdminDashboardFiltersContext";
+import { useOptionalAdminDashboardFilters } from "../../AdminDashboardFiltersContext";
+import { DEFAULT_DASHBOARD_FILTERS } from "@/utils/constants/dashboardFilters";
 import { useStudyTimeOverview } from "@/hooks/useStudyTimeOverview";
 import { formatHourRange, formatStudyMinutes } from "@/services/studyTime.service";
 import {
@@ -19,7 +20,7 @@ import { V2_CARD_SHELL, V2_EMPTY, V2_MUTED, V2_SECTION_TITLE, V2_STRONG } from "
 
 export const StudyTimeOverviewWidgetV2: React.FC = () => {
   const { t } = useTranslation();
-  const { filters } = useAdminDashboardFilters();
+  const filters = useOptionalAdminDashboardFilters()?.filters ?? DEFAULT_DASHBOARD_FILTERS;
   const [days, setDays] = useState(30);
   const { data, isLoading, isError } = useStudyTimeOverview(filters, days);
   const periodSelected = Boolean(filters.year || filters.month);

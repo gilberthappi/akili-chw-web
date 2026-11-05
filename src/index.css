@@ -126,3 +126,7 @@
   transform-origin: bottom;
   animation: chat-speak-bar 0.8s ease-in-out infinite;
 }
+
+.leaflet-container img {
+  max-width: none !important;
+}

@@ -68,6 +68,57 @@ export const getLearnerActiveness = async (
   pagination: { page: number; limit: number; total: number; totalPages: number };
 }> => (await api.get("/attendance/learners", { params })).data;
 
+export type AttendanceDayMark = "attended" | "missed" | "pending" | "future" | "before";
+
+export interface IAttendanceDay {
+  date: string;
+  mark: AttendanceDayMark;
+  minutes: number;
+}
+
+export interface IAttendanceCalendar {
+  tracked: boolean;
+  userId: string;
+  fullNames: string;
+  status: LearnerActivityStatus;
+  month: string;
+  attended: number;
+  missed: number;
+  minutes: number;
+  days: IAttendanceDay[];
+  team: { userId: string; fullNames: string }[];
+}
+
+export interface IActiveLearnerPoint {
+  userId: string;
+  fullNames: string;
+  healthCenterName: string | null;
+  district: string | null;
+  latitude: number;
+  longitude: number;
+  recordedAt: string;
+  lastActiveDay: string;
+  status: LearnerActivityStatus;
+}
+
+export const getAttendanceCalendar = async (params: {
+  month?: string;
+  userId?: string;
+}): Promise<{ data: IAttendanceCalendar }> =>
+  (await api.get("/attendance/calendar", { params })).data;
+
+export const getActiveLearnerMap = async (
+  filters: AttendanceFilters,
+): Promise<{ data: IActiveLearnerPoint[] }> =>
+  (await api.get("/attendance/map", { params: filters })).data;
+
+export const formatStudyMinutes = (minutes: number) => {
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest ? `${hours}h ${rest}m` : `${hours}h`;
+};
+
 export const exportLearnerActiveness = async (params: Omit<LearnerListParams, "page" | "limit">) => {
   const res = await api.get("/attendance/learners/export", { params, responseType: "blob" });
   const url = URL.createObjectURL(res.data as Blob);

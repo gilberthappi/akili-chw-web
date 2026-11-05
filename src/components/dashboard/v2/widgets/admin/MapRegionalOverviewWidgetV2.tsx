@@ -1,6 +1,10 @@
 import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import * as d3 from "d3";
+import { useQuery } from "@tanstack/react-query";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import {
+  Activity,
   Award,
   Building2,
   CheckCircle,
@@ -12,7 +16,14 @@ import {
   MapDistrictOverview,
   useAdminDashboardV2MapOverview,
 } from "@/hooks/useAdminDashboardV2MapOverview";
+import {
+  getActiveLearnerMap,
+  type IActiveLearnerPoint,
+} from "@/services/attendance.service";
 import { V2_CARD_SHELL_PADDED } from "./v2CardStyles";
+
+const escapeHtml = (value: string) =>
+  value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]!));
 
 /** Map density metric (classic-style choropleth). */
 type MapMetric =
@@ -57,23 +68,6 @@ const getMetricValue = (
 };
 
 const EMPTY_FILL = "#E2E8F0";
-
-/** Relative luminance 0–1; used to pick readable label colors on choropleth fills. */
-const fillLuminance = (color: string): number => {
-  try {
-    const c = d3.rgb(color);
-    // WCAG relative luminance
-    const lin = (v: number) => {
-      const s = v / 255;
-      return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
-    };
-    return 0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b);
-  } catch {
-    return 0.5;
-  }
-};
-
-const isDarkFill = (color: string) => fillLuminance(color) < 0.45;
 
 const DISTRICT_PROVINCE_MAP: Record<
   string,
@@ -283,6 +277,192 @@ const overviewBars = (
   ];
 };
 
+type DistrictShapeProps = {
+  districtName: string;
+  province: string;
+  fillColor: string;
+  metricValue: number;
+  demoTotal: number;
+  enrollments: number;
+  completions: number;
+  certifications: number;
+  healthCentersCount: number;
+};
+
+/** Real latitude and longitude, with zoom. District coloring stays on the shapes. */
+function DistrictZoomMap({
+  collection,
+  selectedDistrict,
+  showActive,
+  points,
+  onSelect,
+  onHover,
+  onLeave,
+}: {
+  collection: GeoJSON.FeatureCollection;
+  selectedDistrict: string;
+  showActive: boolean;
+  points: IActiveLearnerPoint[];
+  onSelect: (districtName: string) => void;
+  onHover: (district: DistrictShapeProps & { x: number; y: number }) => void;
+  onLeave: () => void;
+}) {
+  const frame = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const layerRef = useRef<L.GeoJSON | null>(null);
+  const markersRef = useRef<L.LayerGroup | null>(null);
+  const settled = useRef(false);
+  const pointsRef = useRef(points);
+  const showActiveRef = useRef(showActive);
+  pointsRef.current = points;
+  showActiveRef.current = showActive;
+  const handlers = useRef({ onSelect, onHover, onLeave });
+  handlers.current = { onSelect, onHover, onLeave };
+
+  const paintScale = (map: L.Map) => {
+    const line = map.getContainer().querySelector<HTMLElement>(".leaflet-control-scale-line");
+    if (!line) return;
+    const y = map.getSize().y / 2;
+    const meters = map.distance(
+      map.containerPointToLatLng([0, y]),
+      map.containerPointToLatLng([100, y]),
+    );
+    line.style.width = "100px";
+    line.textContent = `${Math.round(meters / 1000)} km`;
+  };
+
+  const applyDefaultView = () => {
+    const map = mapRef.current;
+    const layer = layerRef.current;
+    if (!map || !layer || settled.current || !layer.getBounds().isValid()) return;
+    map.invalidateSize();
+    map.fitBounds(layer.getBounds(), { padding: [16, 16], animate: false });
+    const lat = (map.getCenter().lat * Math.PI) / 180;
+    const zoom = Math.log2((156543.03392 * Math.cos(lat) * 100) / 33000);
+    const snap = map.options.zoomSnap;
+    map.options.zoomSnap = 0;
+    map.setZoom(zoom, { animate: false });
+    map.options.zoomSnap = snap;
+    paintScale(map);
+  };
+
+  const paintMarkers = () => {
+    const map = mapRef.current;
+    if (!map) return;
+    markersRef.current?.remove();
+    markersRef.current = null;
+    if (!showActiveRef.current) return;
+    const group = L.layerGroup();
+    pointsRef.current.forEach((point) => {
+      const place = [point.healthCenterName, point.district].filter(Boolean).join(" · ");
+      L.circleMarker([point.latitude, point.longitude], {
+        radius: 6,
+        color: "#047857",
+        weight: 2,
+        fillColor: "#10b981",
+        fillOpacity: 0.95,
+      })
+        .bindPopup(
+          `<strong>${escapeHtml(point.fullNames)}</strong>${
+            place ? `<br/>${escapeHtml(place)}` : ""
+          }<br/>Last active ${escapeHtml(point.lastActiveDay)}`,
+        )
+        .addTo(group);
+    });
+    group.addTo(map);
+    markersRef.current = group;
+  };
+
+  useEffect(() => {
+    const node = frame.current;
+    if (!node || mapRef.current) return;
+    const map = L.map(node, { zoomControl: true, zoomSnap: 0.25 }).setView([-1.94, 29.87], 8);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "&copy; OpenStreetMap",
+      maxZoom: 18,
+    }).addTo(map);
+    L.control.scale({ imperial: false, position: "bottomleft" }).addTo(map);
+    map.on("zoomend moveend", () => paintScale(map));
+    map.on("dragstart", () => {
+      settled.current = true;
+    });
+    map.on("zoomstart", (event) => {
+      if ((event as L.LeafletEvent & { originalEvent?: Event }).originalEvent) settled.current = true;
+    });
+    mapRef.current = map;
+    const observer = new ResizeObserver(() => applyDefaultView());
+    observer.observe(node);
+    const timer = window.setTimeout(() => {
+      applyDefaultView();
+      settled.current = true;
+    }, 350);
+    return () => {
+      window.clearTimeout(timer);
+      observer.disconnect();
+      map.remove();
+      mapRef.current = null;
+      layerRef.current = null;
+      settled.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    layerRef.current?.remove();
+    const selected = selectedDistrict.trim().toLowerCase();
+    const layer = L.geoJSON(collection, {
+      style: (feature) => {
+        const name = String(feature?.properties?.districtName ?? "");
+        const isSelected = selected !== "" && selected === name.toLowerCase();
+        return {
+          color: isSelected ? "#1e3a8a" : "#ffffff",
+          weight: isSelected ? 2.5 : 1,
+          fillColor: String(feature?.properties?.fillColor ?? EMPTY_FILL),
+          fillOpacity: showActiveRef.current
+            ? 0.22
+            : selected !== "" && !isSelected
+              ? 0.35
+              : 0.72,
+        };
+      },
+      onEachFeature: (feature, shape) => {
+        const props = feature.properties as DistrictShapeProps;
+        const point = (event: L.LeafletMouseEvent) => {
+          const bounds = frame.current?.getBoundingClientRect();
+          if (!bounds) return null;
+          return {
+            ...props,
+            x: event.originalEvent.clientX - bounds.left,
+            y: event.originalEvent.clientY - bounds.top - 12,
+          };
+        };
+        shape.on({
+          click: () => handlers.current.onSelect(props.districtName),
+          mouseover: (event: L.LeafletMouseEvent) => {
+            const hover = point(event);
+            if (hover) handlers.current.onHover(hover);
+          },
+          mousemove: (event: L.LeafletMouseEvent) => {
+            const hover = point(event);
+            if (hover) handlers.current.onHover(hover);
+          },
+          mouseout: () => handlers.current.onLeave(),
+        });
+      },
+    }).addTo(map);
+    layerRef.current = layer;
+    paintMarkers();
+    applyDefaultView();
+  }, [collection, selectedDistrict, showActive]);
+
+  useEffect(() => {
+    paintMarkers();
+  }, [points, showActive]);
+
+  return <div ref={frame} className="absolute inset-0 z-0" />;
+}
+
 export const MapRegionalOverviewWidgetV2: React.FC = () => {
   const { filters } = useAdminDashboardFilters();
 
@@ -295,10 +475,11 @@ export const MapRegionalOverviewWidgetV2: React.FC = () => {
     useAdminDashboardV2MapOverview(mapFilters);
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const svgRef = useRef<SVGSVGElement>(null);
 
-  /** Choropleth + overview metric (classic map filters). */
-  const [mapMetric, setMapMetric] = useState<MapMetric>("learners");
+  /** Choropleth metric, or the Active tab that plots recent CHWs. */
+  const [mapView, setMapView] = useState<MapMetric | "active">("learners");
+  const showingActive = mapView === "active";
+  const mapMetric: MapMetric = showingActive ? "learners" : mapView;
   const filterMode: OverviewMode =
     mapMetric === "learners" ? "all" : mapMetric;
   const activeMetricConfig =
@@ -310,6 +491,27 @@ export const MapRegionalOverviewWidgetV2: React.FC = () => {
   const globalDistrict = filters.district ?? "";
   /** Global district wins; otherwise use map click selection. */
   const selectedDistrict = globalDistrict || localDistrict;
+
+  const pointFilters = useMemo(
+    () => ({
+      district: filters.district || undefined,
+      healthCenterId: filters.healthCenterId || undefined,
+      gender: filters.gender || undefined,
+    }),
+    [filters.district, filters.healthCenterId, filters.gender],
+  );
+  const { data: activeMap, isLoading: activeLoading, isError: activeError } = useQuery({
+    queryKey: ["attendance", "map", pointFilters],
+    queryFn: () => getActiveLearnerMap(pointFilters),
+    enabled: showingActive,
+    staleTime: 60_000,
+  });
+  const activePoints = useMemo(() => {
+    const rows = activeMap?.data ?? [];
+    const district = selectedDistrict.trim().toLowerCase();
+    if (!district) return rows;
+    return rows.filter((point) => (point.district ?? "").toLowerCase() === district);
+  }, [activeMap, selectedDistrict]);
   const [hoveredDistrict, setHoveredDistrict] = useState<{
     name: string;
     province: string;
@@ -410,67 +612,6 @@ export const MapRegionalOverviewWidgetV2: React.FC = () => {
     return items;
   }, [districts, filterMode, selectedDistrict]);
 
-  const VW = 580;
-  const VH = 520;
-
-  /** GeoJSON rings are wound opposite to d3's expectation — reverse before project/fit. */
-  const correctedGeoData = useMemo(() => {
-    if (!geoData) return null;
-    const reverseRings = (coords: number[][][]) =>
-      coords.map((ring) => [...ring].reverse());
-    return {
-      type: "FeatureCollection" as const,
-      features: geoData.features.map((f: GeoJSON.Feature) => {
-        if (f.geometry.type === "Polygon") {
-          return {
-            ...f,
-            geometry: {
-              ...f.geometry,
-              coordinates: reverseRings(
-                f.geometry.coordinates as number[][][],
-              ),
-            },
-          };
-        }
-        if (f.geometry.type === "MultiPolygon") {
-          return {
-            ...f,
-            geometry: {
-              ...f.geometry,
-              coordinates: (f.geometry.coordinates as number[][][][]).map(
-                reverseRings,
-              ),
-            },
-          };
-        }
-        return f;
-      }),
-    } satisfies GeoJSON.FeatureCollection;
-  }, [geoData]);
-
-  // Fit whole country with tight padding (larger map, sit higher).
-  // Do not post-scale — that shifts the projection off-screen.
-  const projection = useMemo(() => {
-    const proj = d3.geoMercator();
-    if (correctedGeoData) {
-      proj.fitExtent(
-        [
-          [6, 2],
-          [VW - 6, VH - 42],
-        ],
-        correctedGeoData,
-      );
-    } else {
-      proj
-        .center([29.87, -2.0])
-        .scale(14400)
-        .translate([VW / 2, VH / 2 - 20]);
-    }
-    return proj;
-  }, [correctedGeoData]);
-
-  const pathGen = useMemo(() => d3.geoPath().projection(projection), [projection]);
-
   useEffect(() => {
     fetch("/rwanda-districts.geojson")
       .then((r) => r.json())
@@ -481,48 +622,40 @@ export const MapRegionalOverviewWidgetV2: React.FC = () => {
       .catch(() => setIsLoadingGeo(false));
   }, []);
 
-  const processedFeatures = useMemo(() => {
-    if (!correctedGeoData) return [];
-    return correctedGeoData.features.map((f: GeoJSON.Feature) => {
-      const feature = f as GeoJSON.Feature;
-      const centroid = pathGen.centroid(feature);
-      const rawName = String(
-        (f.properties as { shapeName?: string } | null)?.shapeName || "",
-      ).trim();
-      const lowerName = rawName.toLowerCase();
-      const provInfo = DISTRICT_PROVINCE_MAP[lowerName] || {
-        province: "UNKNOWN",
-        code: "EAST" as const,
-        color: "#CBD5E1",
-      };
-      const metrics = districtByKey.get(lowerName);
-      const density = (() => {
+  const styledCollection = useMemo(() => {
+    if (!geoData) return null;
+    return {
+      type: "FeatureCollection" as const,
+      features: geoData.features.map((feature) => {
+        const rawName = String(
+          (feature.properties as { shapeName?: string } | null)?.shapeName || "",
+        ).trim();
+        const lowerName = rawName.toLowerCase();
+        const provInfo = DISTRICT_PROVINCE_MAP[lowerName] || {
+          province: "UNKNOWN",
+          code: "EAST" as const,
+          color: "#CBD5E1",
+        };
+        const metrics = districtByKey.get(lowerName);
         const value = getMetricValue(metrics, mapMetric);
-        if (value <= 0) return { fill: EMPTY_FILL, value: 0 };
-        return { fill: colorScale(value), value };
-      })();
-
-      return {
-        ...feature,
-        properties: {
-          ...(f.properties ?? {}),
-          districtName: rawName,
-          province: provInfo.province,
-          provCode: provInfo.code,
-          fillColor: density.fill,
-          metricValue: density.value,
-          centroid,
-          demoTotal: metrics?.totalChws ?? 0,
-          enrollments: metrics?.enrollments ?? 0,
-          completions: metrics?.completions ?? 0,
-          certifications: metrics?.certifications ?? 0,
-          demoCompletion: metrics?.completionRate ?? 0,
-          certificationRate: metrics?.certificationRate ?? 0,
-          healthCentersCount: metrics?.healthCentersCount ?? 0,
-        },
-      };
-    });
-  }, [correctedGeoData, pathGen, districtByKey, mapMetric, colorScale]);
+        return {
+          ...feature,
+          properties: {
+            ...(feature.properties ?? {}),
+            districtName: rawName,
+            province: provInfo.province,
+            fillColor: value <= 0 ? EMPTY_FILL : colorScale(value),
+            metricValue: value,
+            demoTotal: metrics?.totalChws ?? 0,
+            enrollments: metrics?.enrollments ?? 0,
+            completions: metrics?.completions ?? 0,
+            certifications: metrics?.certifications ?? 0,
+            healthCentersCount: metrics?.healthCentersCount ?? 0,
+          },
+        };
+      }),
+    } satisfies GeoJSON.FeatureCollection;
+  }, [geoData, districtByKey, mapMetric, colorScale]);
 
   const toggleDistrictSelection = (districtName: string) => {
     // Global district filter owns selection — map click must not change globals.
@@ -550,12 +683,12 @@ export const MapRegionalOverviewWidgetV2: React.FC = () => {
         >
           {MAP_METRICS.map((metric) => {
             const Icon = metric.Icon;
-            const isActive = mapMetric === metric.key;
+            const isActive = mapView === metric.key;
             return (
               <button
                 key={metric.key}
                 type="button"
-                onClick={() => setMapMetric(metric.key)}
+                onClick={() => setMapView(metric.key)}
                 className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium whitespace-nowrap transition-all border shrink-0 ${
                   isActive
                     ? "bg-[#3363AD] text-white border-[#3363AD] shadow-sm"
@@ -567,10 +700,22 @@ export const MapRegionalOverviewWidgetV2: React.FC = () => {
               </button>
             );
           })}
+          <button
+            type="button"
+            onClick={() => setMapView("active")}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium whitespace-nowrap transition-all border shrink-0 ${
+              showingActive
+                ? "bg-[#047857] text-white border-[#047857] shadow-sm"
+                : "bg-white text-gray-500 border-gray-200 hover:border-[#047857] hover:text-[#047857]"
+            }`}
+          >
+            <Activity size={11} />
+            Active
+          </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-4 items-stretch flex-1 min-h-0 overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_260px] gap-3 items-stretch flex-1 min-h-0 overflow-hidden">
         <div
           ref={containerRef}
           className="relative flex flex-col justify-between min-h-0 overflow-hidden h-full"
@@ -582,162 +727,34 @@ export const MapRegionalOverviewWidgetV2: React.FC = () => {
                 <div className="absolute inset-[28%] rounded-[32%] bg-[#C8D6E3]/70" />
               </div>
             </div>
-          ) : (
-            <div className="w-full flex-1 relative flex items-center justify-center my-auto">
-              <svg
-                ref={svgRef}
-                viewBox={`0 0 ${VW} ${VH}`}
-                className="w-full h-auto max-h-[440px] drop-shadow-xs"
-                preserveAspectRatio="xMidYMid meet"
-              >
-                <g className="districts-layer">
-                  {processedFeatures.map((f, idx) => {
-                    const dPath = pathGen(f) ?? "";
-                    const name = f.properties.districtName as string;
-                    const isSelected =
-                      selectedDistrict.toLowerCase() === name.toLowerCase();
-                    const isHovered = hoveredDistrict?.name === name;
-
-                    return (
-                      <path
-                        key={String(
-                          (f.properties as { shapeID?: string }).shapeID || idx,
-                        )}
-                        d={dPath}
-                        fill={f.properties.fillColor as string}
-                        stroke="#FFFFFF"
-                        strokeWidth={isSelected ? 2.5 : isHovered ? 2 : 1}
-                        className="cursor-pointer transition-all duration-200 hover:brightness-105"
-                        style={{
-                          opacity: selectedDistrict && !isSelected ? 0.45 : 0.92,
-                          filter: isHovered
-                            ? "drop-shadow(0 2px 4px rgba(0,0,0,0.15))"
-                            : "none",
-                        }}
-                        onClick={() => toggleDistrictSelection(name)}
-                        onMouseEnter={(e) => {
-                          const bounds =
-                            containerRef.current?.getBoundingClientRect();
-                          if (bounds) {
-                            setHoveredDistrict({
-                              name,
-                              province: f.properties.province as string,
-                              totalChws: f.properties.demoTotal as number,
-                              enrollments: f.properties.enrollments as number,
-                              completions: f.properties.completions as number,
-                              certifications: f.properties
-                                .certifications as number,
-                              healthCentersCount: f.properties
-                                .healthCentersCount as number,
-                              metricValue:
-                                (f.properties.metricValue as number) ?? 0,
-                              x: e.clientX - bounds.left,
-                              y: e.clientY - bounds.top - 12,
-                            });
-                          }
-                        }}
-                        onMouseMove={(e) => {
-                          const bounds =
-                            containerRef.current?.getBoundingClientRect();
-                          if (bounds) {
-                            setHoveredDistrict((prev) =>
-                              prev
-                                ? {
-                                    ...prev,
-                                    x: e.clientX - bounds.left,
-                                    y: e.clientY - bounds.top - 12,
-                                  }
-                                : null,
-                            );
-                          }
-                        }}
-                        onMouseLeave={() => setHoveredDistrict(null)}
-                      />
-                    );
-                  })}
-
-                  {processedFeatures.map((f, idx) => {
-                    const centroid = f.properties.centroid as
-                      | [number, number]
-                      | undefined;
-                    if (!centroid || Number.isNaN(centroid[0])) return null;
-
-                    const metricValue = (f.properties.metricValue as number) ?? 0;
-                    const hasData = metricValue > 0;
-                    const fillColor = (f.properties.fillColor as string) || EMPTY_FILL;
-                    const dark = isDarkFill(fillColor);
-                    const nameFill = dark ? "#FFFFFF" : "#0F172A";
-                    const nameStroke = dark ? "rgba(15,23,42,0.55)" : "#FFFFFF";
-                    const valueLabel = formatMetricValue(metricValue);
-                    // Approximate badge width from character count
-                    const badgeW = Math.max(
-                      22,
-                      valueLabel.length * 5.2 + 8,
-                    );
-                    const badgeH = 12;
-                    const badgeX = centroid[0] - badgeW / 2;
-                    const badgeY = centroid[1] + 1;
-
-                    return (
-                      <g
-                        key={`label-${idx}`}
-                        className="pointer-events-none"
-                      >
-                        <text
-                          textAnchor="middle"
-                          dominantBaseline="central"
-                          paintOrder="stroke"
-                          className="uppercase tracking-tighter"
-                        >
-                          <tspan
-                            x={centroid[0]}
-                            y={centroid[1] - (hasData ? 7 : 0)}
-                            fontSize="9px"
-                            fontWeight="800"
-                            fill={nameFill}
-                            stroke={nameStroke}
-                            strokeWidth="2.2px"
-                            strokeLinejoin="round"
-                          >
-                            {f.properties.districtName as string}
-                          </tspan>
-                        </text>
-                        {hasData && (
-                          <>
-                            <rect
-                              x={badgeX}
-                              y={badgeY}
-                              width={badgeW}
-                              height={badgeH}
-                              rx={3}
-                              ry={3}
-                              fill={dark ? "rgba(255,255,255,0.95)" : "rgba(15,23,42,0.88)"}
-                              stroke={dark ? "rgba(15,23,42,0.12)" : "rgba(255,255,255,0.2)"}
-                              strokeWidth={0.5}
-                            />
-                            <text
-                              x={centroid[0]}
-                              y={badgeY + badgeH / 2 + 0.5}
-                              textAnchor="middle"
-                              dominantBaseline="central"
-                              fontSize="7.5px"
-                              fontWeight={800}
-                              fill={dark ? "#1e3a8a" : "#FFFFFF"}
-                              className="normal-case tracking-normal"
-                            >
-                              {valueLabel}
-                            </text>
-                          </>
-                        )}
-                      </g>
-                    );
-                  })}
-                </g>
-              </svg>
+          ) : styledCollection ? (
+            <>
+              <DistrictZoomMap
+                collection={styledCollection}
+                selectedDistrict={selectedDistrict}
+                showActive={showingActive}
+                points={activePoints}
+                onSelect={toggleDistrictSelection}
+                onHover={(district) =>
+                  setHoveredDistrict({
+                    name: district.districtName,
+                    province: district.province,
+                    totalChws: district.demoTotal,
+                    enrollments: district.enrollments,
+                    completions: district.completions,
+                    certifications: district.certifications,
+                    healthCentersCount: district.healthCentersCount,
+                    metricValue: district.metricValue,
+                    x: district.x,
+                    y: district.y,
+                  })
+                }
+                onLeave={() => setHoveredDistrict(null)}
+              />
 
               {hoveredDistrict && (
                 <div
-                  className="absolute z-30 pointer-events-none bg-white border border-gray-200 rounded-lg shadow-xl px-3 py-2.5 text-xs min-w-[168px] max-w-[220px] transform -translate-x-1/2 -translate-y-full transition-all duration-75"
+                  className="absolute z-[1200] pointer-events-none bg-white border border-gray-200 rounded-lg shadow-xl px-3 py-2.5 text-xs min-w-[168px] max-w-[220px] transform -translate-x-1/2 -translate-y-full transition-all duration-75"
                   style={{ left: hoveredDistrict.x, top: hoveredDistrict.y }}
                 >
                   <p className="font-bold text-gray-900 text-[13px]">
@@ -796,26 +813,20 @@ export const MapRegionalOverviewWidgetV2: React.FC = () => {
                   </div>
                 </div>
               )}
-            </div>
-          )}
+            </>
+          ) : null}
 
           {/* Density legend + scale */}
-          <div className="absolute bottom-0 left-0 right-0 z-10 px-3 pb-1 pointer-events-none">
-            <div className="flex items-end justify-between gap-3">
-              <div className="flex flex-col items-center">
-                <div className="flex items-center gap-6 text-[9px] font-bold text-gray-700">
-                  <span>0</span>
-                  <span>30</span>
-                  <span>60</span>
-                </div>
-                <div className="w-24 h-1 border-b-2 border-l-2 border-r-2 border-gray-800 flex justify-between">
-                  <span className="w-0.5 h-1 bg-gray-800 self-end ml-12" />
-                </div>
-                <span className="text-[9px] font-semibold text-gray-600 mt-0.5">
-                  kilometers
-                </span>
-              </div>
+          <div className="absolute bottom-2 right-2 z-[1000] pointer-events-none">
+            <div className="flex items-end justify-end">
               <div className="bg-white/90 rounded-md border border-gray-100 px-2.5 py-1.5 min-w-[140px]">
+                {showingActive ? (
+                  <p className="text-[10px] font-medium text-gray-600 flex items-center gap-1.5">
+                    <span className="inline-block h-2 w-2 rounded-full bg-[#10b981]" />
+                    Active · {activePoints.length}
+                  </p>
+                ) : (
+                <>
                 <p className="text-[10px] font-medium text-gray-600 mb-1 truncate">
                   {activeMetricConfig.label}
                 </p>
@@ -830,6 +841,8 @@ export const MapRegionalOverviewWidgetV2: React.FC = () => {
                   <span>{legendMin}</span>
                   <span>{legendMax}</span>
                 </div>
+                </>
+                )}
               </div>
             </div>
           </div>
@@ -841,7 +854,11 @@ export const MapRegionalOverviewWidgetV2: React.FC = () => {
               Overview
             </h4>
             <span className="text-[10px] font-semibold text-[#5B6575] truncate">
-              {mapMetric === "learners" ? "All metrics" : activeMetricConfig.label}
+              {showingActive
+                ? "Last 7 days"
+                : mapMetric === "learners"
+                  ? "All metrics"
+                  : activeMetricConfig.label}
             </span>
           </div>
 
@@ -854,7 +871,35 @@ export const MapRegionalOverviewWidgetV2: React.FC = () => {
               [&::-webkit-scrollbar-thumb]:bg-[#A8B8C8]
               [&::-webkit-scrollbar-thumb]:rounded-full"
           >
-            {isLoadingData && overviewItems.length === 0 ? (
+            {showingActive ? (
+              activeLoading ? (
+                <div className="space-y-2 animate-pulse">
+                  {Array.from({ length: 6 }, (_, i) => (
+                    <div key={i} className="h-8 rounded bg-[#E8EEF4]" />
+                  ))}
+                </div>
+              ) : activeError ? (
+                <p className="py-8 text-center text-[12px] text-red-500">
+                  Could not load active CHWs
+                </p>
+              ) : activePoints.length === 0 ? (
+                <p className="py-8 text-center text-[12px] text-[#9AA3B2]">
+                  No active CHWs with a recent location
+                </p>
+              ) : (
+                activePoints.map((point) => (
+                  <div key={point.userId} className="min-w-0">
+                    <p className="text-[11px] font-semibold text-[#1A2332] truncate">
+                      {point.fullNames}
+                    </p>
+                    <p className="text-[10px] text-[#5B6575] truncate">
+                      {[point.healthCenterName, point.district].filter(Boolean).join(" · ") || "—"}
+                    </p>
+                    <p className="text-[10px] text-[#047857]">{point.lastActiveDay}</p>
+                  </div>
+                ))
+              )
+            ) : isLoadingData && overviewItems.length === 0 ? (
               <div className="space-y-3 animate-pulse">
                 {Array.from({ length: 5 }, (_, i) => (
                   <div key={i} className="space-y-1.5">

@@ -31,6 +31,7 @@ import {
   V2_PAGE_TITLE,
   V2_SECTION_TITLE,
 } from "./widgets/admin/v2CardStyles";
+import { ActivityCalendar } from "@/components/attendance/ActivityCalendar";
 
 type FilterStatus = "ALL" | "HIGH" | "NEEDS_HELP";
 
@@ -243,6 +244,8 @@ export const CEHODashboardV2: React.FC = () => {
           <DashboardVersionSwitcher onCanvas />
         </div>
       </div>
+
+      <ActivityCalendar allowTeam />
 
       {/* KPI row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

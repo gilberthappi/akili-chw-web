@@ -199,5 +199,21 @@
       "evening": "Evening",
       "night": "Night"
     }
+  },
+  "attendance": {
+    "calendarTitle": "Attendance",
+    "monthSummary": "{{attended}} active · {{missed}} missed · {{time}} studied",
+    "attended": "Active",
+    "missed": "Missed",
+    "pending": "Not yet today",
+    "myself": "My days",
+    "previousMonth": "Previous month",
+    "nextMonth": "Next month",
+    "loading": "Loading attendance…",
+    "loadError": "Could not load attendance.",
+    "notTracked": "Attendance is kept for learners.",
+    "studied": "{{time}} studied",
+    "mapTitle": "Active CHWs",
+    "mapHint": "{{count}} CHWs learned in the last 7 days and shared a study location."
   }
 }

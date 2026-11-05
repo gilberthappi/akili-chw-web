@@ -39,3 +39,7 @@ export const useAdminDashboardFilters = (): AdminDashboardFiltersContextValue =>
   }
   return ctx;
 };
+
+/** Dashboard filters when this screen sits on the admin board; otherwise null. */
+export const useOptionalAdminDashboardFilters = () =>
+  useContext(AdminDashboardFiltersContext);

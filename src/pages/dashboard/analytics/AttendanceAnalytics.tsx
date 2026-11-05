@@ -41,6 +41,7 @@ import {
   V2_TABLE_ROW,
 } from "@/components/dashboard/v2/widgets/admin/v2CardStyles";
 import { TrendLineChart } from "./TrendLineChart";
+import { ActiveLearnersMap } from "@/components/attendance/ActiveLearnersMap";
 
 const PAGE_SIZE = 20;
 
@@ -166,6 +167,8 @@ export const AttendanceAnalytics: React.FC = () => {
           A CHW is active on a day when they open or finish a slide, take a test, enrol in a course or log in.
         </p>
       </div>
+
+      <ActiveLearnersMap filters={filters} />
 
       {summaryLoading ? (
         <V2KpiSkeleton count={4} />

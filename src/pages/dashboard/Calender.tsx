@@ -66,6 +66,11 @@ import {
   updateOccurrence,
 } from "@/services/calender.service";
 import { useAuth } from "@/hooks/useAuth";
+import {
+  formatStudyMinutes,
+  getAttendanceCalendar,
+  type IAttendanceDay,
+} from "@/services/attendance.service";
 import { expandRoles, formatRoleLabel } from "@/utils/roles";
 import { uploadFileByType } from "@/services/uploader.api";
 import { getPublicHospitals } from "@/services/healthCenters.service";
@@ -311,6 +316,19 @@ const Calendar: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState("all");
   const [statsFilterType, setStatsFilterType] = useState<string | null>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [attendanceUserId, setAttendanceUserId] = useState<string | undefined>();
+  const attendanceMonth = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}`;
+  const { data: attendanceRes } = useQuery({
+    queryKey: ["attendance", "calendar", attendanceMonth, attendanceUserId ?? "me"],
+    queryFn: () => getAttendanceCalendar({ month: attendanceMonth, userId: attendanceUserId }),
+  });
+  const attendanceByDate = new Map<string, IAttendanceDay>(
+    (attendanceRes?.data.days ?? []).map((day) => [day.date, day]),
+  );
+  const attendanceFor = (date: Date) => {
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    return attendanceByDate.get(key);
+  };
   const [selectedView, setSelectedView] = useState<"month" | "week" | "day">(
     "month",
   );
@@ -1325,6 +1343,31 @@ const Calendar: React.FC = () => {
 
   const renderMonthView = () => (
     <div className={`${V2_CARD_SHELL} overflow-hidden`}>
+      {attendanceRes?.data.tracked && (
+        <div className='px-3 py-2 flex flex-wrap items-center gap-3 border-b border-[rgba(51,99,173,0.10)] dark:border-slate-700'>
+          {(attendanceRes.data.team.length > 0) && (
+            <select
+              value={attendanceUserId ?? ""}
+              onChange={(e) => setAttendanceUserId(e.target.value || undefined)}
+              className={`px-2 py-1 text-xs ${V2_INPUT}`}
+            >
+              <option value=''>My days</option>
+              {attendanceRes.data.team.map((member) => (
+                <option key={member.userId} value={member.userId}>{member.fullNames}</option>
+              ))}
+            </select>
+          )}
+          <span className='inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300'>
+            <i className='w-2 h-2 rounded-full bg-emerald-500' /> Active
+          </span>
+          <span className='inline-flex items-center gap-1 text-[11px] font-semibold text-red-600 dark:text-red-300'>
+            <i className='w-2 h-2 rounded-full bg-red-500' /> Missed
+          </span>
+          <span className={`text-[11px] ${V2_MUTED}`}>
+            {attendanceRes.data.attended} active · {attendanceRes.data.missed} missed · {formatStudyMinutes(attendanceRes.data.minutes)} studied
+          </span>
+        </div>
+      )}
       <div className={`grid grid-cols-7 ${V2_TABLE_HEAD}`}>
         {WEEKDAY_LABELS.map((day) => (
           <div key={day} className='py-2.5 text-center'>
@@ -1334,16 +1377,24 @@ const Calendar: React.FC = () => {
       </div>
 
       <div className='grid grid-cols-7'>
-        {generateCalendarDays().map((day, index) => (
+        {generateCalendarDays().map((day, index) => {
+          const attendance = day.isCurrentMonth ? attendanceFor(day.date) : undefined;
+          const attended = attendance?.mark === "attended";
+          const missed = attendance?.mark === "missed";
+          return (
           <div
             key={index}
             onClick={() => handleDayClick(day.date)}
             className={`group min-h-[118px] p-1.5 border-b border-r border-[rgba(51,99,173,0.10)] dark:border-slate-700 cursor-pointer transition-colors ${
               (index + 1) % 7 === 0 ? "border-r-0" : ""
             } ${
-              day.isCurrentMonth
-                ? "bg-white dark:bg-card-bg hover:bg-[#F8FAFC] dark:hover:bg-slate-800/40"
-                : "bg-[#F8FAFC] dark:bg-slate-900/40"
+              attended
+                ? "bg-emerald-50 dark:bg-emerald-950/30 hover:bg-emerald-100/80"
+                : missed
+                  ? "bg-red-50 dark:bg-red-950/25 hover:bg-red-100/70"
+                  : day.isCurrentMonth
+                    ? "bg-white dark:bg-card-bg hover:bg-[#F8FAFC] dark:hover:bg-slate-800/40"
+                    : "bg-[#F8FAFC] dark:bg-slate-900/40"
             }`}
           >
             <div className='flex items-center justify-between mb-1'>
@@ -1378,7 +1429,8 @@ const Calendar: React.FC = () => {
               )}
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -1739,6 +1791,7 @@ const Calendar: React.FC = () => {
             const hasEvents = events.some(
               (e: any) => e.startAt && new Date(e.startAt).toDateString() === date.toDateString(),
             );
+            const attendance = attendanceFor(date);
             return (
               <button
                 key={day}
@@ -1746,6 +1799,10 @@ const Calendar: React.FC = () => {
                 className={`relative h-8 text-xs rounded-lg font-semibold transition-colors ${
                   isSelected
                     ? "bg-[#3363AD] text-white"
+                    : attendance?.mark === "attended"
+                      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"
+                      : attendance?.mark === "missed"
+                        ? "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-200"
                     : isToday
                       ? "bg-[#EBF0F9] text-[#3363AD] dark:bg-slate-700 dark:text-blue-300"
                       : `${V2_STRONG} hover:bg-[#F1F5F9] dark:hover:bg-slate-700`
@@ -2047,6 +2104,16 @@ const Calendar: React.FC = () => {
                     day: "numeric",
                   })}
                 </h3>
+                {(() => {
+                  const day = attendanceFor(expandedDate);
+                  if (!day || day.mark === "future" || day.mark === "before") return null;
+                  const label = day.mark === "attended" ? "Active" : day.mark === "missed" ? "Missed" : "Not yet today";
+                  return (
+                    <p className={`text-xs ${day.mark === "missed" ? "text-red-600" : day.mark === "attended" ? "text-emerald-700" : V2_MUTED}`}>
+                      {label}{day.minutes > 0 ? ` · ${formatStudyMinutes(day.minutes)} studied` : ""}
+                    </p>
+                  );
+                })()}
               </div>
               <div className='flex items-center gap-2'>
                 <button

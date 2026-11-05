@@ -7,6 +7,7 @@ import { LearningActivityV2 } from "./widgets/LearningActivityV2";
 import { PerformanceMeterV2 } from "./widgets/PerformanceMeterV2";
 import { EnrolledCoursesTableV2 } from "./widgets/EnrolledCoursesTableV2";
 import { SectionSkeleton } from "../shared/SectionSkeleton";
+import { ActivityCalendar } from "@/components/attendance/ActivityCalendar";
 
 export const CHWLearnerDashboardV2: React.FC = () => {
   const {
@@ -65,6 +66,7 @@ export const CHWLearnerDashboardV2: React.FC = () => {
           </div>
 
           {/* Bottom Row: Full-Width Enrolled Courses Table */}
+          <ActivityCalendar />
           <div>
             <EnrolledCoursesTableV2 courses={courses} isLoading={isLoading} />
           </div>

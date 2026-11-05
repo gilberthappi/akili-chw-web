@@ -17,6 +17,7 @@ import {
   Calendar,
   UserCheck,
   Network,
+  Clock,
   type LucideIcon,
 } from "lucide-react";
 import { V2PageHeader, V2Tabs, V2SearchInput } from "@/components/v2/V2Page";
@@ -58,13 +59,15 @@ import StudentStatsCards from "@/components/students/StudentStatsCards";
 import CreateLearnerButton from "@/components/students/CreateLearnerButton";
 import { useAuth } from "@/hooks/useAuth";
 import { CHW_WRITE_ROLES } from "@/utils/roles";
+import { StudyTimeOverviewWidgetV2 } from "@/components/dashboard/v2/widgets/admin/StudyTimeOverviewWidgetV2";
 
-type TabId = "students" | "ceho" | "ceho-group";
+type TabId = "students" | "ceho" | "ceho-group" | "learning-time";
 
 const TAB_ICONS: Record<TabId, LucideIcon> = {
   students: Users,
   ceho: UserCheck,
   "ceho-group": Network,
+  "learning-time": Clock,
 };
 
 /* ─── Avatar ─────────────────────────────────────────────────────────────── */
@@ -404,6 +407,7 @@ const StudentsPage = () => {
     { id: "students", label: "CHW", adminOnly: false },
     { id: "ceho", label: "CEHO", adminOnly: true },
     { id: "ceho-group", label: "CEHO Groups", adminOnly: true },
+    { id: "learning-time", label: "Learning time", adminOnly: false },
   ];
 
   const visibleTabs = allTabs.filter((t) => !t.adminOnly || isAdminOrStaff);
@@ -531,6 +535,8 @@ const StudentsPage = () => {
           <StudentsList hideHeader={true} roleFilter="CEHO" />
         </div>
       )}
+
+      {activeTab === "learning-time" && <StudyTimeOverviewWidgetV2 />}
 
       {/* CEHO GROUP tab */}
       {activeTab === "ceho-group" && isAdminOrStaff && (

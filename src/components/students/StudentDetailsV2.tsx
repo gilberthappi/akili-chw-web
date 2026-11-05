@@ -10,6 +10,7 @@ import { CertificatesEarnedWidgetV2 } from "../dashboard/v2/widgets/Certificates
 import { XCircle } from "lucide-react";
 import { LearningPlansWidget } from "./LearningPlansWidget";
 import { StudyTimeWidget } from "./StudyTimeWidget";
+import { ActivityCalendar } from "@/components/attendance/ActivityCalendar";
 import { SectionSkeleton } from "../dashboard/shared/SectionSkeleton";
 import { ICourseStatEntry } from "@/services/progress.service";
 import { IMyCertificate } from "@/services/certificates.service";
@@ -274,6 +275,7 @@ export const StudentDetailsV2: React.FC = () => {
 
           <EnrolledCoursesTableV2 courses={coursesList} readOnly />
 
+          {studentInfo.userId && <ActivityCalendar userId={studentInfo.userId} />}
           {id && <LearningPlansWidget studentId={id} />}
           {id && <StudyTimeWidget studentId={id} />}
         </div>

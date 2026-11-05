@@ -199,5 +199,21 @@
       "evening": "Nimugoroba",
       "night": "Nijoro"
     }
+  },
+  "attendance": {
+    "calendarTitle": "Ubwitabire",
+    "monthSummary": "{{attended}} yakoze · {{missed}} yabuze · yize {{time}}",
+    "attended": "Yakoze",
+    "missed": "Yabuze",
+    "pending": "Uyu munsi ntirarangiye",
+    "myself": "Iminsi yanjye",
+    "previousMonth": "Ukwezi gushize",
+    "nextMonth": "Ukwezi gutaha",
+    "loading": "Gufungura ubwitabire…",
+    "loadError": "Ubwitabire ntibubashije gufunguka.",
+    "notTracked": "Ubwitabire bubarwa ku biga.",
+    "studied": "yize {{time}}",
+    "mapTitle": "Abajyanama b'ubuzima bakora",
+    "mapHint": "Abajyanama {{count}} bize mu minsi 7 ishize kandi bagaragaje aho biga."
   }
 }
