@@ -130,3 +130,8 @@
 .leaflet-container img {
   max-width: none !important;
 }
+
+.leaflet-div-icon.active-district-badge {
+  background: transparent;
+  border: none;
+}

@@ -25,6 +25,33 @@ import { V2_CARD_SHELL_PADDED } from "./v2CardStyles";
 const escapeHtml = (value: string) =>
   value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]!));
 
+type DistrictActiveCount = { district: string; count: number };
+
+/** One row per district, largest count first. */
+const districtActiveCounts = (points: IActiveLearnerPoint[]): DistrictActiveCount[] => {
+  const rows = new Map<string, DistrictActiveCount>();
+  points.forEach((point) => {
+    const district = (point.district ?? "").trim();
+    if (!district) return;
+    const key = district.toLowerCase();
+    const row = rows.get(key);
+    if (row) row.count += 1;
+    else rows.set(key, { district, count: 1 });
+  });
+  return [...rows.values()].sort((a, b) => b.count - a.count || a.district.localeCompare(b.district));
+};
+
+const activeCountIcon = (count: number) => {
+  const label = String(count);
+  const width = Math.max(28, 14 + label.length * 8);
+  return L.divIcon({
+    className: "active-district-badge",
+    iconSize: [width, 28],
+    iconAnchor: [width / 2, 14],
+    html: `<div style="width:${width}px;height:28px;border-radius:999px;background:#047857;color:#fff;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;font:700 12px/1 sans-serif;">${label}</div>`,
+  });
+};
+
 /** Map density metric (classic-style choropleth). */
 type MapMetric =
   | "learners"
@@ -353,20 +380,38 @@ function DistrictZoomMap({
     markersRef.current = null;
     if (!showActiveRef.current) return;
     const group = L.layerGroup();
+    const counts = new Map<string, DistrictActiveCount>();
     pointsRef.current.forEach((point) => {
-      const place = [point.healthCenterName, point.district].filter(Boolean).join(" · ");
-      L.circleMarker([point.latitude, point.longitude], {
-        radius: 6,
-        color: "#047857",
-        weight: 2,
-        fillColor: "#10b981",
-        fillOpacity: 0.95,
-      })
-        .bindPopup(
-          `<strong>${escapeHtml(point.fullNames)}</strong>${
-            place ? `<br/>${escapeHtml(place)}` : ""
-          }<br/>Last active ${escapeHtml(point.lastActiveDay)}`,
-        )
+      const district = (point.district ?? "").trim();
+      if (!district) return;
+      const key = district.toLowerCase();
+      const row = counts.get(key);
+      if (row) row.count += 1;
+      else counts.set(key, { district, count: 1 });
+    });
+    const placed = new Set<string>();
+    layerRef.current?.eachLayer((shape) => {
+      const feature = (shape as L.Layer & { feature?: GeoJSON.Feature }).feature;
+      const name = String(feature?.properties?.districtName ?? "").trim();
+      const key = name.toLowerCase();
+      const row = counts.get(key);
+      const bounds = (shape as L.Layer & { getBounds?: () => L.LatLngBounds }).getBounds?.();
+      if (!row || !bounds?.isValid()) return;
+      placed.add(key);
+      L.marker(bounds.getCenter(), { icon: activeCountIcon(row.count) })
+        .bindPopup(`<strong>${escapeHtml(name)}</strong><br/>${row.count} active`)
+        .addTo(group);
+    });
+    counts.forEach((row, key) => {
+      if (placed.has(key)) return;
+      const members = pointsRef.current.filter(
+        (point) => (point.district ?? "").trim().toLowerCase() === key,
+      );
+      if (members.length === 0) return;
+      const latitude = members.reduce((sum, point) => sum + point.latitude, 0) / members.length;
+      const longitude = members.reduce((sum, point) => sum + point.longitude, 0) / members.length;
+      L.marker([latitude, longitude], { icon: activeCountIcon(row.count) })
+        .bindPopup(`<strong>${escapeHtml(row.district)}</strong><br/>${row.count} active`)
         .addTo(group);
     });
     group.addTo(map);
@@ -512,6 +557,7 @@ export const MapRegionalOverviewWidgetV2: React.FC = () => {
     if (!district) return rows;
     return rows.filter((point) => (point.district ?? "").toLowerCase() === district);
   }, [activeMap, selectedDistrict]);
+  const activeByDistrict = useMemo(() => districtActiveCounts(activePoints), [activePoints]);
   const [hoveredDistrict, setHoveredDistrict] = useState<{
     name: string;
     province: string;
@@ -882,21 +928,23 @@ export const MapRegionalOverviewWidgetV2: React.FC = () => {
                 <p className="py-8 text-center text-[12px] text-red-500">
                   Could not load active CHWs
                 </p>
-              ) : activePoints.length === 0 ? (
+              ) : activeByDistrict.length === 0 ? (
                 <p className="py-8 text-center text-[12px] text-[#9AA3B2]">
                   No active CHWs with a recent location
                 </p>
               ) : (
-                activePoints.map((point) => (
-                  <div key={point.userId} className="min-w-0">
+                activeByDistrict.map((row) => (
+                  <button
+                    type="button"
+                    key={row.district}
+                    onClick={() => toggleDistrictSelection(row.district)}
+                    className="w-full min-w-0 text-left"
+                  >
                     <p className="text-[11px] font-semibold text-[#1A2332] truncate">
-                      {point.fullNames}
+                      {row.district}
                     </p>
-                    <p className="text-[10px] text-[#5B6575] truncate">
-                      {[point.healthCenterName, point.district].filter(Boolean).join(" · ") || "—"}
-                    </p>
-                    <p className="text-[10px] text-[#047857]">{point.lastActiveDay}</p>
-                  </div>
+                    <p className="text-[10px] text-[#047857]">{row.count} active</p>
+                  </button>
                 ))
               )
             ) : isLoadingData && overviewItems.length === 0 ? (

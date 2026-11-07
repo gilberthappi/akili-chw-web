@@ -1357,11 +1357,11 @@ const Calendar: React.FC = () => {
               ))}
             </select>
           )}
-          <span className='inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300'>
-            <i className='w-2 h-2 rounded-full bg-emerald-500' /> Active
+          <span className='inline-flex items-center gap-1 text-[11px] font-semibold text-[#3E6B54] dark:text-[#C5D9CE]'>
+            <i className='w-2 h-2 rounded-full bg-[#6F9A82]' /> Active
           </span>
-          <span className='inline-flex items-center gap-1 text-[11px] font-semibold text-red-600 dark:text-red-300'>
-            <i className='w-2 h-2 rounded-full bg-red-500' /> Missed
+          <span className='inline-flex items-center gap-1 text-[11px] font-semibold text-[#8C564F] dark:text-[#E4D0CD]'>
+            <i className='w-2 h-2 rounded-full bg-[#C4A09A]' /> Missed
           </span>
           <span className={`text-[11px] ${V2_MUTED}`}>
             {attendanceRes.data.attended} active · {attendanceRes.data.missed} missed · {formatStudyMinutes(attendanceRes.data.minutes)} studied
@@ -1389,9 +1389,9 @@ const Calendar: React.FC = () => {
               (index + 1) % 7 === 0 ? "border-r-0" : ""
             } ${
               attended
-                ? "bg-emerald-50 dark:bg-emerald-950/30 hover:bg-emerald-100/80"
+                ? "bg-[#E6F0EA] dark:bg-[#243830] hover:bg-[#DCE8E2]"
                 : missed
-                  ? "bg-red-50 dark:bg-red-950/25 hover:bg-red-100/70"
+                  ? "bg-[#F4E8E6] dark:bg-[#3A2C2A] hover:bg-[#EBDCD9]"
                   : day.isCurrentMonth
                     ? "bg-white dark:bg-card-bg hover:bg-[#F8FAFC] dark:hover:bg-slate-800/40"
                     : "bg-[#F8FAFC] dark:bg-slate-900/40"
@@ -1800,9 +1800,9 @@ const Calendar: React.FC = () => {
                   isSelected
                     ? "bg-[#3363AD] text-white"
                     : attendance?.mark === "attended"
-                      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"
+                      ? "bg-[#E6F0EA] text-[#3E6B54] dark:bg-[#243830] dark:text-[#C5D9CE]"
                       : attendance?.mark === "missed"
-                        ? "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-200"
+                        ? "bg-[#F4E8E6] text-[#8C564F] dark:bg-[#3A2C2A] dark:text-[#E4D0CD]"
                     : isToday
                       ? "bg-[#EBF0F9] text-[#3363AD] dark:bg-slate-700 dark:text-blue-300"
                       : `${V2_STRONG} hover:bg-[#F1F5F9] dark:hover:bg-slate-700`
@@ -2109,7 +2109,7 @@ const Calendar: React.FC = () => {
                   if (!day || day.mark === "future" || day.mark === "before") return null;
                   const label = day.mark === "attended" ? "Active" : day.mark === "missed" ? "Missed" : "Not yet today";
                   return (
-                    <p className={`text-xs ${day.mark === "missed" ? "text-red-600" : day.mark === "attended" ? "text-emerald-700" : V2_MUTED}`}>
+                    <p className={`text-xs ${day.mark === "missed" ? "text-[#8C564F] dark:text-[#E4D0CD]" : day.mark === "attended" ? "text-[#3E6B54] dark:text-[#C5D9CE]" : V2_MUTED}`}>
                       {label}{day.minutes > 0 ? ` · ${formatStudyMinutes(day.minutes)} studied` : ""}
                     </p>
                   );

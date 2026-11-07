@@ -19,9 +19,9 @@ import {
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const MARK_STYLE: Record<AttendanceDayMark, string> = {
-  attended: "bg-emerald-500 text-white",
-  missed: "bg-red-500 text-white",
-  pending: "bg-amber-400 text-white",
+  attended: "bg-[#E6F0EA] text-[#3E6B54] dark:bg-[#243830] dark:text-[#C5D9CE]",
+  missed: "bg-[#F4E8E6] text-[#8C564F] dark:bg-[#3A2C2A] dark:text-[#E4D0CD]",
+  pending: "bg-[#F4EFE4] text-[#7A6844] dark:bg-[#3A3428] dark:text-[#E4D8C0]",
   future: "bg-transparent text-inherit",
   before: "bg-transparent text-[#B8C2D0] dark:text-slate-600",
 };
@@ -148,9 +148,9 @@ export const ActivityCalendar: React.FC<{
             })}
           </div>
           <div className={`mt-3 flex flex-wrap gap-3 text-[11px] ${V2_MUTED}`}>
-            <span className="inline-flex items-center gap-1"><i className="w-2 h-2 rounded-full bg-emerald-500" />{t("attendance.attended")}</span>
-            <span className="inline-flex items-center gap-1"><i className="w-2 h-2 rounded-full bg-red-500" />{t("attendance.missed")}</span>
-            <span className="inline-flex items-center gap-1"><i className="w-2 h-2 rounded-full bg-amber-400" />{t("attendance.pending")}</span>
+            <span className="inline-flex items-center gap-1"><i className="w-2 h-2 rounded-full bg-[#6F9A82]" />{t("attendance.attended")}</span>
+            <span className="inline-flex items-center gap-1"><i className="w-2 h-2 rounded-full bg-[#C4A09A]" />{t("attendance.missed")}</span>
+            <span className="inline-flex items-center gap-1"><i className="w-2 h-2 rounded-full bg-[#C4B07A]" />{t("attendance.pending")}</span>
           </div>
         </>
       )}
