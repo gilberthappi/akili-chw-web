@@ -10,11 +10,19 @@ import { ImageMaskingInspector } from "./ImageMaskingInspector";
 import { TypographyInspector } from "./TypographyInspector";
 import { SvgColorInspector } from "./SvgColorInspector";
 import { ArtboardBackgroundState } from "../media/types";
+import { SlideTransitionType } from "../animation/types";
+import { LayerTreePanel } from "../layers/LayerTreePanel";
+import { AnimationInspector } from "./AnimationInspector";
+import { groupActiveSelection, ungroupActiveGroup } from "../engine/useGroupEngine";
 import {
   Layers,
   Trash2,
   Copy,
   Shuffle,
+  Sliders,
+  Folder,
+  Ungroup,
+  Sparkles,
 } from "lucide-react";
 
 interface CardPropertyInspectorProps {
@@ -24,6 +32,8 @@ interface CardPropertyInspectorProps {
   backgroundState?: ArtboardBackgroundState;
   onBackgroundChange?: (bg: ArtboardBackgroundState) => void;
   aspectRatioLabel?: string;
+  slideTransition?: SlideTransitionType;
+  onSlideTransitionChange?: (transition: SlideTransitionType) => void;
 }
 
 export const CardPropertyInspector: React.FC<CardPropertyInspectorProps> = ({
@@ -33,6 +43,8 @@ export const CardPropertyInspector: React.FC<CardPropertyInspectorProps> = ({
   backgroundState,
   onBackgroundChange,
   aspectRatioLabel,
+  slideTransition,
+  onSlideTransitionChange,
 }) => {
   // Local Inspector States
   const [fillColor, setFillColor] = useState<string>("#ffffff");
@@ -49,10 +61,15 @@ export const CardPropertyInspector: React.FC<CardPropertyInspectorProps> = ({
   const [posX, setPosX] = useState<number>(0);
   const [posY, setPosY] = useState<number>(0);
   const [angle, setAngle] = useState<number>(0);
+  const [inspectorTab, setInspectorTab] = useState<"design" | "animate" | "layers">("design");
+  const [blendMode, setBlendMode] = useState<string>("source-over");
 
   // Sync state whenever selectedObject changes or transforms
   useEffect(() => {
     if (!selectedObject) return;
+
+    // Blend mode
+    setBlendMode(selectedObject.globalCompositeOperation || "source-over");
 
     // Fill
     const fill = typeof selectedObject.fill === "string" ? selectedObject.fill : "#ffffff";
@@ -120,6 +137,81 @@ export const CardPropertyInspector: React.FC<CardPropertyInspectorProps> = ({
     };
   }, [selectedObject, canvas]);
 
+  const topTabs = (
+    <div className="flex border-b border-slate-200 bg-slate-50/80 p-1 shrink-0">
+      <button
+        type="button"
+        onClick={() => setInspectorTab("design")}
+        className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition text-center flex items-center justify-center space-x-1 ${
+          inspectorTab === "design"
+            ? "bg-white text-blue-600 shadow-2xs"
+            : "text-slate-500 hover:text-slate-900"
+        }`}
+        title="Design properties"
+      >
+        <Sliders className="w-3.5 h-3.5" />
+        <span>Design</span>
+      </button>
+
+      <button
+        type="button"
+        onClick={() => setInspectorTab("animate")}
+        className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition text-center flex items-center justify-center space-x-1 ${
+          inspectorTab === "animate"
+            ? "bg-white text-blue-600 shadow-2xs"
+            : "text-slate-500 hover:text-slate-900"
+        }`}
+        title="Element entrance animations & slide transitions"
+      >
+        <Sparkles className="w-3.5 h-3.5" />
+        <span>Animate</span>
+      </button>
+
+      <button
+        type="button"
+        onClick={() => setInspectorTab("layers")}
+        className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition text-center flex items-center justify-center space-x-1 ${
+          inspectorTab === "layers"
+            ? "bg-white text-blue-600 shadow-2xs"
+            : "text-slate-500 hover:text-slate-900"
+        }`}
+        title="Layers & z-index hierarchy"
+      >
+        <Layers className="w-3.5 h-3.5" />
+        <span>Layers</span>
+      </button>
+    </div>
+  );
+
+  if (inspectorTab === "animate") {
+    return (
+      <aside className="w-72 bg-white border-l border-slate-200 flex flex-col select-none flex-shrink-0 z-20 shadow-xs h-full">
+        {topTabs}
+        <AnimationInspector
+          canvas={canvas}
+          selectedObject={selectedObject}
+          onModify={onModify}
+          slideTransition={slideTransition}
+          onSlideTransitionChange={onSlideTransitionChange}
+        />
+      </aside>
+    );
+  }
+
+  if (inspectorTab === "layers") {
+    return (
+      <aside className="w-72 bg-white border-l border-slate-200 flex flex-col select-none flex-shrink-0 z-20 shadow-xs h-full">
+        {topTabs}
+        <LayerTreePanel
+          canvas={canvas}
+          selectedObject={selectedObject}
+          onSelectObject={() => onModify()}
+          onModify={onModify}
+        />
+      </aside>
+    );
+  }
+
   if (!selectedObject || !canvas) {
     if (backgroundState && onBackgroundChange) {
       return (
@@ -127,20 +219,24 @@ export const CardPropertyInspector: React.FC<CardPropertyInspectorProps> = ({
           background={backgroundState}
           onChange={onBackgroundChange}
           aspectRatioLabel={aspectRatioLabel}
+          topSlot={topTabs}
         />
       );
     }
     return (
-      <aside className="w-72 bg-white border-l border-slate-200 p-5 flex flex-col items-center justify-center text-center select-none flex-shrink-0 z-20">
-        <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-400 mb-3 shadow-2xs">
-          <Layers className="w-6 h-6" />
+      <aside className="w-72 bg-white border-l border-slate-200 flex flex-col select-none flex-shrink-0 z-20 shadow-xs h-full">
+        {topTabs}
+        <div className="flex-1 p-5 flex flex-col items-center justify-center text-center">
+          <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-400 mb-3 shadow-2xs">
+            <Layers className="w-6 h-6" />
+          </div>
+          <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-1">
+            No Element Selected
+          </h3>
+          <p className="text-xs text-slate-400 max-w-[200px]">
+            Click on any card, shape, or heading on the slide to edit its geometry, bending, and colors.
+          </p>
         </div>
-        <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-1">
-          No Element Selected
-        </h3>
-        <p className="text-xs text-slate-400 max-w-[200px]">
-          Click on any card, shape, or heading on the slide to edit its geometry, bending, and colors.
-        </p>
       </aside>
     );
   }
@@ -237,6 +333,25 @@ export const CardPropertyInspector: React.FC<CardPropertyInspectorProps> = ({
     setOpacity(val);
     selectedObject.set("opacity", val);
     canvas.requestRenderAll();
+    onModify();
+  };
+
+  const handleBlendModeChange = (val: string) => {
+    setBlendMode(val);
+    selectedObject.set("globalCompositeOperation", val as GlobalCompositeOperation);
+    canvas.requestRenderAll();
+    onModify();
+  };
+
+  const handleGroupSelection = () => {
+    if (!canvas) return;
+    groupActiveSelection(canvas);
+    onModify();
+  };
+
+  const handleUngroupSelection = () => {
+    if (!canvas) return;
+    ungroupActiveGroup(canvas);
     onModify();
   };
 
@@ -340,6 +455,45 @@ export const CardPropertyInspector: React.FC<CardPropertyInspectorProps> = ({
 
   return (
     <aside className="w-72 bg-white border-l border-slate-200 overflow-y-auto flex flex-col select-none flex-shrink-0 z-20 shadow-xs divide-y divide-slate-100">
+      {topTabs}
+
+      {/* ── Group / Ungroup Action Banners ───────────────────────────────── */}
+      {selectedObject.type === "activeselection" && (
+        <div className="p-3 bg-blue-50/60 border-b border-blue-100 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Folder className="w-4 h-4 text-blue-600" />
+            <span className="text-xs font-bold text-blue-900">Multi-Selected</span>
+          </div>
+          <button
+            type="button"
+            onClick={handleGroupSelection}
+            className="px-2.5 py-1 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-2xs transition flex items-center space-x-1"
+            title="Group Selected Objects (Ctrl+G)"
+          >
+            <Folder className="w-3 h-3" />
+            <span>Group</span>
+          </button>
+        </div>
+      )}
+
+      {selectedObject.type === "group" && (
+        <div className="p-3 bg-indigo-50/60 border-b border-indigo-100 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Folder className="w-4 h-4 text-indigo-600" />
+            <span className="text-xs font-bold text-indigo-900">Group Container</span>
+          </div>
+          <button
+            type="button"
+            onClick={handleUngroupSelection}
+            className="px-2.5 py-1 text-xs font-semibold text-indigo-700 bg-white hover:bg-indigo-50 border border-indigo-200 rounded-lg shadow-2xs transition flex items-center space-x-1"
+            title="Ungroup into individual elements (Ctrl+Shift+G)"
+          >
+            <Ungroup className="w-3 h-3" />
+            <span>Ungroup</span>
+          </button>
+        </div>
+      )}
+
       {/* ── Header: Element Title & Quick Actions ────────────────────────── */}
       <div className="p-4 flex items-center justify-between">
         <div className="flex items-center space-x-2">
@@ -539,6 +693,25 @@ export const CardPropertyInspector: React.FC<CardPropertyInspectorProps> = ({
               onChange={(e) => handleOpacityChange(Number(e.target.value))}
               className="w-full accent-blue-600 cursor-pointer"
             />
+          </div>
+
+          {/* Blend Mode */}
+          <div className="space-y-1.5 pt-1">
+            <span className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+              Blend Mode
+            </span>
+            <select
+              value={blendMode}
+              onChange={(e) => handleBlendModeChange(e.target.value)}
+              className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 outline-hidden focus:border-blue-500 font-medium text-slate-800"
+            >
+              <option value="source-over">Normal</option>
+              <option value="multiply">Multiply (Darken)</option>
+              <option value="screen">Screen (Lighten)</option>
+              <option value="overlay">Overlay (Contrast)</option>
+              <option value="darken">Darken</option>
+              <option value="lighten">Lighten</option>
+            </select>
           </div>
         </div>
       )}

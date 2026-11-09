@@ -10,6 +10,8 @@ interface UseCanvasShortcutsProps {
   onZoomOut: () => void;
   onDeleteSelected: () => void;
   onDuplicateSelected?: () => void;
+  onGroupSelected?: () => void;
+  onUngroupSelected?: () => void;
   isSpacePressedRef: React.MutableRefObject<boolean>;
   setIsPanningMode: (active: boolean) => void;
 }
@@ -23,6 +25,8 @@ export function useCanvasShortcuts({
   onZoomOut,
   onDeleteSelected,
   onDuplicateSelected,
+  onGroupSelected,
+  onUngroupSelected,
   isSpacePressedRef,
   setIsPanningMode,
 }: UseCanvasShortcutsProps) {
@@ -89,6 +93,17 @@ export function useCanvasShortcuts({
           return;
         }
 
+        // Group / Ungroup: Ctrl+G (or Ctrl+Shift+G)
+        if (e.key.toLowerCase() === "g") {
+          e.preventDefault();
+          if (e.shiftKey) {
+            onUngroupSelected?.();
+          } else {
+            onGroupSelected?.();
+          }
+          return;
+        }
+
 
         // Reset Fit: Ctrl+0
         if (e.key === "0") {
@@ -149,6 +164,8 @@ export function useCanvasShortcuts({
     onZoomOut,
     onDeleteSelected,
     onDuplicateSelected,
+    onGroupSelected,
+    onUngroupSelected,
     isSpacePressedRef,
     setIsPanningMode,
   ]);

@@ -1,4 +1,5 @@
-import type { Canvas as FabricCanvas } from "fabric";
+import type { Canvas as FabricCanvas, FabricObject } from "fabric";
+import type { ElementAnimationConfig } from "../animation/types";
 
 // Slide Studio Engine TypeScript Contracts
 
@@ -70,6 +71,11 @@ export interface SlideStudioCanvasRef {
   isPenActive: boolean;
   getCanvasJson: () => Record<string, unknown>;
   loadCanvasJson: (json: Record<string, unknown>) => Promise<void>;
+  groupSelected: () => void;
+  ungroupSelected: () => void;
   clearCanvas: () => void;
+  previewElementAnimation: (target: FabricObject, config: ElementAnimationConfig) => void;
+  playSlideAnimation: (onProgress?: (progress: number) => void, onComplete?: () => void) => void;
+  stopSlideAnimation: () => void;
   exportHighResBlob: (multiplier?: number) => Promise<Blob>;
 }

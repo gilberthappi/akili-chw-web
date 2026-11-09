@@ -64,6 +64,13 @@ export const CUSTOM_CANVAS_PROPERTIES = [
   "ry",
   "selectable",
   "evented",
+  "animationConfig",
+  "customName",
+  "lockMovementX",
+  "lockMovementY",
+  "lockRotation",
+  "lockScalingX",
+  "lockScalingY",
 ];
 
 export const DEFAULT_CANVAS_BG = "#ffffff";

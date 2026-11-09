@@ -21,6 +21,7 @@ import {
   SlideStudioCanvasRef,
   StudioAspectRatio,
 } from "@/components/courseBuilder/slideStudio/engine/types";
+import { SlideTransitionType } from "@/components/courseBuilder/slideStudio/animation/types";
 import { StudioToolDock } from "@/components/courseBuilder/slideStudio/dock/StudioToolDock";
 import { CardPropertyInspector } from "@/components/courseBuilder/slideStudio/inspectors/CardPropertyInspector";
 import {
@@ -48,6 +49,8 @@ export default function SlideDesignStudio() {
   const [isPenActive, setIsPenActive] = useState<boolean>(false);
   const [backgroundState, setBackgroundState] =
     useState<ArtboardBackgroundState>(DEFAULT_ARTBOARD_BG);
+  const [slideTransition, setSlideTransition] =
+    useState<SlideTransitionType>("fade");
   const zoomPercent = Math.round(zoom * 100);
 
   // Sync undo/redo availability from canvas
@@ -433,6 +436,10 @@ export default function SlideDesignStudio() {
             updateHistoryState();
             toast.success("Template loaded onto canvas!");
           }}
+          canvas={canvasRef.current?.getFabricCanvas() ?? null}
+          selectedObject={selectedObject}
+          onSelectObject={(obj) => setSelectedObject(obj)}
+          onModify={updateHistoryState}
         />
 
         <main className="flex-1 relative overflow-hidden">
@@ -461,6 +468,11 @@ export default function SlideDesignStudio() {
             updateHistoryState();
           }}
           aspectRatioLabel={ratio}
+          slideTransition={slideTransition}
+          onSlideTransitionChange={(tr) => {
+            setSlideTransition(tr);
+            updateHistoryState();
+          }}
         />
       </div>
     </div>

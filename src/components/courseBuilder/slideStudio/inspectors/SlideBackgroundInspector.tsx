@@ -17,6 +17,7 @@ interface SlideBackgroundInspectorProps {
   background: ArtboardBackgroundState;
   onChange: (newBackground: ArtboardBackgroundState) => void;
   aspectRatioLabel?: string;
+  topSlot?: React.ReactNode;
 }
 
 const BG_COLOR_PRESETS = [
@@ -34,6 +35,7 @@ export const SlideBackgroundInspector: React.FC<SlideBackgroundInspectorProps> =
   background,
   onChange,
   aspectRatioLabel = "16:9",
+  topSlot,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -65,6 +67,7 @@ export const SlideBackgroundInspector: React.FC<SlideBackgroundInspectorProps> =
 
   return (
     <aside className="w-72 bg-white border-l border-slate-200 overflow-y-auto flex flex-col select-none flex-shrink-0 z-20 shadow-xs divide-y divide-slate-100">
+      {topSlot}
       {/* ── Section: Header & Canvas Dimensions ─────────────────────────── */}
       <div className="p-4 space-y-2">
         <div className="flex items-center justify-between">

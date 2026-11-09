@@ -1,4 +1,5 @@
 import {
+  useState,
   useEffect,
   useRef,
   useImperativeHandle,
@@ -15,7 +16,7 @@ import {
   SlideStudioCanvasRef,
   StudioAspectRatio,
 } from "./engine/types";
-import { DEFAULT_CANVAS_BG } from "./engine/constants";
+import { DEFAULT_CANVAS_BG, CUSTOM_CANVAS_PROPERTIES } from "./engine/constants";
 import { useCanvasViewport } from "./engine/useCanvasViewport";
 import { useCanvasHistory } from "./engine/useCanvasHistory";
 import { useCanvasShortcuts } from "./engine/useCanvasShortcuts";
@@ -39,6 +40,10 @@ import { TypographyEngine } from "./typography/TypographyEngine";
 import { SvgAssetEngine } from "./assets/SvgAssetEngine";
 import { createConnectorLine } from "./shapes/ConnectorLine";
 import { useVectorPenTool } from "./engine/useVectorPenTool";
+import { useSmartSnapping } from "./engine/useSmartSnapping";
+import { groupActiveSelection, ungroupActiveGroup } from "./engine/useGroupEngine";
+import { AnimationEngine } from "./animation/AnimationEngine";
+import { ElementAnimationConfig } from "./animation/types";
 
 interface SlideStudioCanvasProps {
   ratio?: StudioAspectRatio;
@@ -67,6 +72,7 @@ export const SlideStudioCanvas = forwardRef<
     const containerRef = useRef<HTMLDivElement>(null);
     const canvasElRef = useRef<HTMLCanvasElement>(null);
     const fabricRef = useRef<FabricCanvas | null>(null);
+    const [fabricCanvas, setFabricCanvas] = useState<FabricCanvas | null>(null);
 
     // Viewport and history engines
     const viewport = useCanvasViewport(propRatio || initialRatio);
@@ -166,7 +172,7 @@ export const SlideStudioCanvas = forwardRef<
       },
       getCanvasJson: () => {
         if (!fabricRef.current) return {};
-        return fabricRef.current.toObject();
+        return fabricRef.current.toObject(CUSTOM_CANVAS_PROPERTIES);
       },
       loadCanvasJson: async (json: Record<string, unknown>) => {
         const canvas = fabricRef.current;
@@ -176,6 +182,18 @@ export const SlideStudioCanvas = forwardRef<
         canvas.requestRenderAll();
         history.initHistory(canvas);
       },
+      groupSelected: () => {
+        const canvas = fabricRef.current;
+        if (!canvas) return;
+        groupActiveSelection(canvas);
+        history.saveSnapshot(canvas, true);
+      },
+      ungroupSelected: () => {
+        const canvas = fabricRef.current;
+        if (!canvas) return;
+        ungroupActiveGroup(canvas);
+        history.saveSnapshot(canvas, true);
+      },
       clearCanvas: () => {
         const canvas = fabricRef.current;
         if (!canvas) return;
@@ -184,6 +202,18 @@ export const SlideStudioCanvas = forwardRef<
         objects.forEach((obj) => canvas.remove(obj));
         canvas.requestRenderAll();
         history.saveSnapshot(canvas, true);
+      },
+      previewElementAnimation: (target: FabricObject, config: ElementAnimationConfig) => {
+        if (!fabricRef.current) return;
+        AnimationEngine.previewElement(fabricRef.current, target, config);
+      },
+      playSlideAnimation: (onProgress?: (progress: number) => void, onComplete?: () => void) => {
+        if (!fabricRef.current) return;
+        AnimationEngine.playSlideSequence(fabricRef.current, onProgress, onComplete);
+      },
+      stopSlideAnimation: () => {
+        if (!fabricRef.current) return;
+        AnimationEngine.stopAll(fabricRef.current);
       },
       exportHighResBlob: async (multiplier = 2): Promise<Blob> => {
         const canvas = fabricRef.current;
@@ -281,7 +311,7 @@ export const SlideStudioCanvas = forwardRef<
 
     // ── Keyboard Shortcuts Engine ───────────────────────────────────────────
     useCanvasShortcuts({
-      canvas: fabricRef.current,
+      canvas: fabricCanvas,
       onUndo: () => history.undo(fabricRef.current),
       onRedo: () => history.redo(fabricRef.current),
       onResetFit: () => {
@@ -350,6 +380,18 @@ export const SlideStudioCanvas = forwardRef<
           history.saveSnapshot(canvas, true);
         });
       },
+      onGroupSelected: () => {
+        const canvas = fabricRef.current;
+        if (!canvas) return;
+        groupActiveSelection(canvas);
+        history.saveSnapshot(canvas, true);
+      },
+      onUngroupSelected: () => {
+        const canvas = fabricRef.current;
+        if (!canvas) return;
+        ungroupActiveGroup(canvas);
+        history.saveSnapshot(canvas, true);
+      },
       isSpacePressedRef,
       setIsPanningMode: (active) => {
         viewport.setIsPanning(active);
@@ -359,6 +401,13 @@ export const SlideStudioCanvas = forwardRef<
           canvas.setCursor(canvas.defaultCursor);
         }
       },
+    });
+
+    // ── Smart Alignment & Snapping Guides ───────────────────────────────────
+    useSmartSnapping(fabricCanvas, {
+      enabled: true,
+      artboardWidth: viewport.artboard.width,
+      artboardHeight: viewport.artboard.height,
     });
 
     // ── Fabric Canvas Initialization ────────────────────────────────────────
@@ -378,6 +427,7 @@ export const SlideStudioCanvas = forwardRef<
         enableRetinaScaling: true,
       });
       fabricRef.current = canvas;
+      setFabricCanvas(canvas);
 
       // Selection listeners
       const handleSelection = () => {
@@ -485,6 +535,7 @@ export const SlideStudioCanvas = forwardRef<
         resizeObserver.disconnect();
         canvas.dispose();
         fabricRef.current = null;
+        setFabricCanvas(null);
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []); // Run once on mount

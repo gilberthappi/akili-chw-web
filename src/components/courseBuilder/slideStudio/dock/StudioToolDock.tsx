@@ -1,4 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from "react";
+import { Canvas as FabricCanvas, type FabricObject } from "fabric";
 import {
   LayoutTemplate,
   Shapes,
@@ -23,14 +24,16 @@ import {
   Trash2,
   BookmarkPlus,
   FolderOpen,
+  Layers,
 } from "lucide-react";
 import { CornerRadii } from "../shapes/BentCard";
 import { STOCK_HEALTHCARE_PHOTOS } from "../media/types";
 import { CURATED_ICON_CATALOG } from "../assets/iconCatalog";
 import { IconCategory } from "../assets/types";
 import { UserTemplateStorage, UserSlideTemplate } from "./slideTemplates";
+import { LayerTreePanel } from "../layers/LayerTreePanel";
 
-export type StudioDockTab = "templates" | "tools" | "text" | "uploads";
+export type StudioDockTab = "templates" | "tools" | "text" | "uploads" | "layers";
 export type ToolsSubCategory = "all" | "shapes" | "cards" | "icons";
 
 interface StudioToolDockProps {
@@ -56,6 +59,12 @@ interface StudioToolDockProps {
   onGetCanvasJson?: () => Record<string, unknown>;
   onLoadTemplateJson?: (json: Record<string, unknown>) => void;
   currentSlideTitle?: string;
+  canvas?: FabricCanvas | null;
+  selectedObject?: FabricObject | null;
+  onSelectObject?: (obj: FabricObject | null) => void;
+  onModify?: () => void;
+  activeTab?: StudioDockTab | null;
+  onTabChange?: (tab: StudioDockTab | null) => void;
 }
 
 export const StudioToolDock: React.FC<StudioToolDockProps> = ({
@@ -76,10 +85,24 @@ export const StudioToolDock: React.FC<StudioToolDockProps> = ({
   onGetCanvasJson,
   onLoadTemplateJson,
   currentSlideTitle = "Untitled Slide",
+  canvas,
+  selectedObject,
+  onSelectObject,
+  onModify,
+  activeTab: activeTabProp,
+  onTabChange,
 }) => {
   // Navigation: closed by default, opens only on user click
-  const [activeTab, setActiveTab] = useState<StudioDockTab | null>(null);
-  const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<StudioDockTab | null>(activeTabProp || null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(Boolean(activeTabProp));
+
+  // Sync with external activeTab if provided
+  useEffect(() => {
+    if (activeTabProp !== undefined) {
+      setActiveTab(activeTabProp);
+      setIsDrawerOpen(activeTabProp !== null);
+    }
+  }, [activeTabProp]);
 
   // Tools Sub-category filter
   const [toolsSubCategory, setToolsSubCategory] = useState<ToolsSubCategory>("all");
@@ -109,9 +132,11 @@ export const StudioToolDock: React.FC<StudioToolDockProps> = ({
     if (activeTab === tab && isDrawerOpen) {
       setIsDrawerOpen(false);
       setActiveTab(null);
+      onTabChange?.(null);
     } else {
       setActiveTab(tab);
       setIsDrawerOpen(true);
+      onTabChange?.(tab);
     }
   };
 
@@ -260,6 +285,21 @@ export const StudioToolDock: React.FC<StudioToolDockProps> = ({
           <CloudUpload className="w-5 h-5 transition group-hover:scale-110" />
           <span className="text-[10px] mt-1 tracking-tight">Uploads</span>
         </button>
+
+        {/* Layers Tab */}
+        <button
+          type="button"
+          onClick={() => handleTabClick("layers")}
+          className={`flex flex-col items-center justify-center w-[58px] h-[56px] rounded-xl transition group ${
+            isDrawerOpen && activeTab === "layers"
+              ? "bg-blue-50 text-blue-600 font-semibold shadow-2xs"
+              : "text-slate-500 hover:text-slate-800 hover:bg-slate-50"
+          }`}
+          title="Layers — Object hierarchy, locking & visibility"
+        >
+          <Layers className="w-5 h-5 transition group-hover:scale-110" />
+          <span className="text-[10px] mt-1 tracking-tight">Layers</span>
+        </button>
       </div>
 
       {/* ── 2. Expandable Content Drawer (Only open when clicked) ─────────── */}
@@ -272,6 +312,7 @@ export const StudioToolDock: React.FC<StudioToolDockProps> = ({
               {activeTab === "tools" && "Tools & Elements"}
               {activeTab === "text" && "Text & Typography"}
               {activeTab === "uploads" && "Uploads & Media"}
+              {activeTab === "layers" && "Layers & Hierarchy"}
             </span>
 
             <button
@@ -820,6 +861,18 @@ export const StudioToolDock: React.FC<StudioToolDockProps> = ({
                     ))}
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* ──────── TAB 5: LAYERS (Z-Index Hierarchy) ──────── */}
+            {activeTab === "layers" && (
+              <div className="h-full -m-3.5">
+                <LayerTreePanel
+                  canvas={canvas ?? null}
+                  selectedObject={selectedObject ?? null}
+                  onSelectObject={onSelectObject}
+                  onModify={onModify}
+                />
               </div>
             )}
           </div>
