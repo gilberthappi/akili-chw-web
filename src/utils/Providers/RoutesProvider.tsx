@@ -28,12 +28,12 @@ import CoursesPage from "@/pages/dashboard/Courses";
 import CourseAnalysisV2 from "@/pages/dashboard/CourseAnalysisV2";
 import NewCoursePage from "@/components/courses/NewCoursePage";
 import NewCoursesBuilder from "@/pages/dashboard/NewCoursesBuilder";
+import SlideDesignStudio from "@/pages/dashboard/SlideDesignStudio";
 import StudentsPage from "@/pages/dashboard/Students";
 import TestersPage from "@/pages/dashboard/Testers";
 import ChwRegistryPage from "@/pages/dashboard/ChwRegistry";
 import DictionaryPage from "@/pages/dashboard/Dictionary";
 import DemographicLearnersPage from "@/pages/dashboard/DemographicLearners";
-import StudentActivityPage from "@/components/students/StudentActivityPage";
 import { StudentDetailsV2 } from "@/components/students/StudentDetailsV2";
 import Calendar from "@/pages/dashboard/Calender";
 import MeetingRecordings from "@/pages/dashboard/MeetingRecordings";
@@ -507,6 +507,24 @@ const RoutesProvider = () => {
           <div className="h-screen overflow-hidden">
             <NewCoursesBuilder />
           </div>
+        </ProtectedRoute>
+      ),
+    },
+
+    // ── Slide Design Studio (Full-screen presentation studio) ─────────
+    {
+      path: "/courses/slide-studio",
+      element: (
+        <ProtectedRoute allowedRoles={[...COURSE_MGMT_ROLES]}>
+          <SlideDesignStudio />
+        </ProtectedRoute>
+      ),
+    },
+    {
+      path: "/courses/slide-studio/:id",
+      element: (
+        <ProtectedRoute allowedRoles={[...COURSE_MGMT_ROLES]}>
+          <SlideDesignStudio />
         </ProtectedRoute>
       ),
     },
