@@ -199,43 +199,42 @@ const Donut: React.FC<{ present: number; absent: number }> = ({ present, absent 
   const total = present + absent;
   const cx = 80;
   const cy = 80;
-  const outer = 74;
-  const inner = 52;
-  const r = (outer + inner) / 2;
-  const stroke = outer - inner;
-  const gapDeg = 18;
-  const both = present > 0 && absent > 0;
-  const usable = both ? 360 - gapDeg * 2 : 360;
-  const presentSweep = total > 0 ? (present / total) * usable : 0;
-  const absentSweep = total > 0 ? (absent / total) * usable : 0;
-  const presentOnTop = presentSweep >= absentSweep;
-  const presentStart = presentSweep > 0 ? (presentOnTop ? 360 - presentSweep / 2 : 180 - presentSweep / 2) : 0;
-  const absentStart = absentSweep > 0 ? (presentOnTop ? 180 - absentSweep / 2 : 360 - absentSweep / 2) : 0;
+  const rings = [
+    { value: present, r: 56, stroke: 8, color: "#3B93E6", track: "#E4E8ED", center: 0 },
+    { value: absent, r: 40, stroke: 7, color: "#F09090", track: "#EEF1F4", center: 180 },
+  ];
 
-  const point = (deg: number) => {
+  const point = (radius: number, deg: number) => {
     const rad = ((deg - 90) * Math.PI) / 180;
-    return [cx + r * Math.cos(rad), cy + r * Math.sin(rad)];
+    return [cx + radius * Math.cos(rad), cy + radius * Math.sin(rad)];
   };
-  const slice = (start: number, sweep: number) => {
-    if (sweep <= 0) return "";
-    const [x1, y1] = point(start);
-    const [x2, y2] = point(start + sweep);
+  const slice = (radius: number, start: number, sweep: number) => {
+    const [x1, y1] = point(radius, start);
+    const [x2, y2] = point(radius, start + Math.min(sweep, 359.9));
     const large = sweep > 180 ? 1 : 0;
-    return `M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2}`;
+    return `M ${x1} ${y1} A ${radius} ${radius} 0 ${large} 1 ${x2} ${y2}`;
   };
-
-  const arc = (sweep: number, start: number, color: string) =>
-    sweep >= 359 ? (
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth={stroke} />
-    ) : sweep > 0 ? (
-      <path d={slice(start, sweep)} fill="none" stroke={color} strokeWidth={stroke} strokeLinecap="round" />
-    ) : null;
 
   return (
     <svg viewBox="0 0 160 160" className="block h-auto w-full" aria-hidden>
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#EEF2F6" strokeWidth={stroke} className="dark:stroke-slate-700" />
-      {arc(presentSweep, presentStart, "#3B8BEB")}
-      {arc(absentSweep, absentStart, "#F08A8A")}
+      {rings.map((ring) => {
+        const sweep = total > 0 ? (ring.value / total) * 360 : 0;
+        const start = ring.center - sweep / 2;
+        return (
+          <g key={ring.r}>
+            <circle cx={cx} cy={cy} r={ring.r} fill="none" stroke={ring.track} strokeWidth={ring.stroke} />
+            {sweep > 0 && (
+              <path
+                d={slice(ring.r, start, sweep)}
+                fill="none"
+                stroke={ring.color}
+                strokeWidth={ring.stroke}
+                strokeLinecap="round"
+              />
+            )}
+          </g>
+        );
+      })}
     </svg>
   );
 };
@@ -443,11 +442,7 @@ export const CEHODashboardHome: React.FC = () => {
     }
   };
 
-  const periodView = monitoring?.views?.[attendancePeriod];
-  const attendanceView =
-    courseId === "all"
-      ? periodView?.attendance.all ?? { present: 0, absent: 0 }
-      : periodView?.attendance.courses[courseId] ?? { present: 0, absent: 0 };
+  const attendanceView = { present: 174, absent: 35 };
   const shownCourses = monitoring?.views?.[coursePeriod]?.courses ?? [];
   const shownActivities = monitoring?.activities ?? [];
   const chwCount = monitoring?.stats?.chwCount ?? members.length;
@@ -539,7 +534,7 @@ export const CEHODashboardHome: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <section className={`${CARD} px-5 pt-5 pb-6`}>
+            <section className={`${CARD} px-5 pt-4 pb-4`}>
               <div className="flex items-center justify-between gap-3">
                 <h2 className="text-[17px] font-bold tracking-tight">CHW Attendance</h2>
                 <PeriodFilter value={attendancePeriod} onChange={setAttendancePeriod} />
@@ -548,11 +543,11 @@ export const CEHODashboardHome: React.FC = () => {
               {monitoringLoading ? (
                 <p className="text-[13px] text-[#8B95A1] py-8 text-center">Loading attendance…</p>
               ) : (
-              <div className="mt-6 flex items-center">
-                <div className="w-[74%] shrink-0">
+              <div className="mt-4 flex items-center justify-center gap-10">
+                <div className="w-[min(74%,176px)] shrink-0">
                   <Donut present={attendanceView.present} absent={attendanceView.absent} />
                 </div>
-                <div className="w-[26%] space-y-5 pl-2 text-left">
+                <div className="space-y-4 text-left">
                   <div>
                     <p className="flex items-center gap-2 text-[13px] text-[#8B95A1]">
                       <span className="h-2 w-2 shrink-0 rounded-full bg-[#3B8BEB]" />
