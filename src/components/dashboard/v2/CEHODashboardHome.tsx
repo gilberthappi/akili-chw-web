@@ -199,8 +199,10 @@ const Donut: React.FC<{ present: number; absent: number }> = ({ present, absent 
   const total = present + absent;
   const cx = 80;
   const cy = 80;
-  const r = 58;
-  const stroke = 11;
+  const outer = 74;
+  const inner = 52;
+  const r = (outer + inner) / 2;
+  const stroke = outer - inner;
   const gapDeg = 18;
   const both = present > 0 && absent > 0;
   const usable = both ? 360 - gapDeg * 2 : 360;
@@ -230,7 +232,7 @@ const Donut: React.FC<{ present: number; absent: number }> = ({ present, absent 
     ) : null;
 
   return (
-    <svg viewBox="0 0 160 160" className="h-[158px] w-[158px] shrink-0" aria-hidden>
+    <svg viewBox="0 0 160 160" className="block h-auto w-full" aria-hidden>
       <circle cx={cx} cy={cy} r={r} fill="none" stroke="#EEF2F6" strokeWidth={stroke} className="dark:stroke-slate-700" />
       {arc(presentSweep, presentStart, "#3B8BEB")}
       {arc(absentSweep, absentStart, "#F08A8A")}
@@ -546,22 +548,24 @@ export const CEHODashboardHome: React.FC = () => {
               {monitoringLoading ? (
                 <p className="text-[13px] text-[#8B95A1] py-8 text-center">Loading attendance…</p>
               ) : (
-              <div className="mt-6 flex items-center justify-between">
-                <Donut present={attendanceView.present} absent={attendanceView.absent} />
-                <div className="space-y-5 pr-1 text-right">
+              <div className="mt-6 flex items-center">
+                <div className="w-[74%] shrink-0">
+                  <Donut present={attendanceView.present} absent={attendanceView.absent} />
+                </div>
+                <div className="w-[26%] space-y-5 pl-2 text-left">
                   <div>
-                    <p className="flex items-center justify-end gap-2 text-[13px] text-[#8B95A1]">
-                      <span className="h-2 w-2 rounded-full bg-[#3B8BEB]" />
+                    <p className="flex items-center gap-2 text-[13px] text-[#8B95A1]">
+                      <span className="h-2 w-2 shrink-0 rounded-full bg-[#3B8BEB]" />
                       Present
                     </p>
-                    <p className="mt-1 text-[28px] font-bold leading-none text-[#2A3138] dark:text-slate-100">{attendanceView.present}</p>
+                    <p className="mt-1 ml-4 text-[28px] font-bold leading-none text-[#2A3138] dark:text-slate-100">{attendanceView.present}</p>
                   </div>
                   <div>
-                    <p className="flex items-center justify-end gap-2 text-[13px] text-[#8B95A1]">
-                      <span className="h-2 w-2 rounded-full bg-[#F07B7B]" />
+                    <p className="flex items-center gap-2 text-[13px] text-[#8B95A1]">
+                      <span className="h-2 w-2 shrink-0 rounded-full bg-[#F08A8A]" />
                       Absent
                     </p>
-                    <p className="mt-1 text-[28px] font-bold leading-none text-[#2A3138] dark:text-slate-100">{attendanceView.absent}</p>
+                    <p className="mt-1 ml-4 text-[28px] font-bold leading-none text-[#2A3138] dark:text-slate-100">{attendanceView.absent}</p>
                   </div>
                 </div>
               </div>
