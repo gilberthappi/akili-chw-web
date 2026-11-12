@@ -197,55 +197,46 @@ const StatCard: React.FC<{
 
 const Donut: React.FC<{ present: number; absent: number }> = ({ present, absent }) => {
   const total = present + absent;
+  const cx = 80;
+  const cy = 80;
   const r = 54;
-  const stroke = 18;
-  const c = 2 * Math.PI * r;
+  const stroke = 16;
+  const gapDeg = 36;
   const both = present > 0 && absent > 0;
-  const gap = both ? stroke + 16 : 0;
-  let presentLen = present > 0 ? c : 0;
-  let absentLen = absent > 0 ? c : 0;
-  if (both && total > 0) {
-    presentLen = Math.max((present / total) * c - gap, stroke);
-    absentLen = Math.max((absent / total) * c - gap, stroke);
-    const overflow = presentLen + absentLen + gap * 2 - c;
-    if (overflow > 0) {
-      const room = Math.max(c - gap * 2, stroke * 2);
-      const scale = room / (presentLen + absentLen);
-      presentLen *= scale;
-      absentLen *= scale;
-    }
-  }
-  const absentStart = both ? c / 4 - absentLen / 2 : 0;
-  const presentStart = both ? absentStart + absentLen + gap : 0;
+  const usable = both ? 360 - gapDeg * 2 : 360;
+  const presentSweep = total > 0 ? (present / total) * usable : 0;
+  const absentSweep = total > 0 ? (absent / total) * usable : 0;
+  const presentStart = presentSweep > 0 ? 360 - presentSweep / 2 : 0;
+  const absentStart = absentSweep > 0 ? 180 - absentSweep / 2 : 0;
+
+  const point = (deg: number) => {
+    const rad = ((deg - 90) * Math.PI) / 180;
+    return [cx + r * Math.cos(rad), cy + r * Math.sin(rad)];
+  };
+  const slice = (start: number, sweep: number) => {
+    if (sweep <= 0) return "";
+    const [x1, y1] = point(start);
+    const [x2, y2] = point(start + sweep);
+    const large = sweep > 180 ? 1 : 0;
+    return `M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2}`;
+  };
 
   return (
     <svg viewBox="0 0 160 160" className="w-[168px] h-[168px] shrink-0" aria-hidden>
-      <circle cx="80" cy="80" r={r} fill="none" stroke="#E6EBF1" strokeWidth={stroke} className="dark:stroke-slate-700" />
-      {presentLen > 0 && (
-        <circle
-          cx="80"
-          cy="80"
-          r={r}
-          fill="none"
-          stroke="#3B8BEB"
-          strokeWidth={stroke}
-          strokeLinecap={both ? "round" : "butt"}
-          strokeDasharray={both ? `${presentLen} ${c}` : undefined}
-          strokeDashoffset={both ? -presentStart : undefined}
-        />
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#E6EBF1" strokeWidth={stroke} className="dark:stroke-slate-700" />
+      {presentSweep >= 359 ? (
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke="#3B8BEB" strokeWidth={stroke} />
+      ) : (
+        presentSweep > 0 && (
+          <path d={slice(presentStart, presentSweep)} fill="none" stroke="#3B8BEB" strokeWidth={stroke} strokeLinecap="round" />
+        )
       )}
-      {absentLen > 0 && (
-        <circle
-          cx="80"
-          cy="80"
-          r={r}
-          fill="none"
-          stroke="#F07B7B"
-          strokeWidth={stroke}
-          strokeLinecap={both ? "round" : "butt"}
-          strokeDasharray={both ? `${absentLen} ${c}` : undefined}
-          strokeDashoffset={both ? -absentStart : undefined}
-        />
+      {absentSweep >= 359 ? (
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke="#F07B7B" strokeWidth={stroke} />
+      ) : (
+        absentSweep > 0 && (
+          <path d={slice(absentStart, absentSweep)} fill="none" stroke="#F07B7B" strokeWidth={stroke} strokeLinecap="round" />
+        )
       )}
     </svg>
   );
