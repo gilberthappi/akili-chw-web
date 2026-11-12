@@ -199,15 +199,16 @@ const Donut: React.FC<{ present: number; absent: number }> = ({ present, absent 
   const total = present + absent;
   const cx = 80;
   const cy = 80;
-  const r = 54;
-  const stroke = 16;
-  const gapDeg = 36;
+  const r = 58;
+  const stroke = 11;
+  const gapDeg = 18;
   const both = present > 0 && absent > 0;
   const usable = both ? 360 - gapDeg * 2 : 360;
   const presentSweep = total > 0 ? (present / total) * usable : 0;
   const absentSweep = total > 0 ? (absent / total) * usable : 0;
-  const presentStart = presentSweep > 0 ? 360 - presentSweep / 2 : 0;
-  const absentStart = absentSweep > 0 ? 180 - absentSweep / 2 : 0;
+  const presentOnTop = presentSweep >= absentSweep;
+  const presentStart = presentSweep > 0 ? (presentOnTop ? 360 - presentSweep / 2 : 180 - presentSweep / 2) : 0;
+  const absentStart = absentSweep > 0 ? (presentOnTop ? 180 - absentSweep / 2 : 360 - absentSweep / 2) : 0;
 
   const point = (deg: number) => {
     const rad = ((deg - 90) * Math.PI) / 180;
@@ -221,23 +222,18 @@ const Donut: React.FC<{ present: number; absent: number }> = ({ present, absent 
     return `M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2}`;
   };
 
+  const arc = (sweep: number, start: number, color: string) =>
+    sweep >= 359 ? (
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth={stroke} />
+    ) : sweep > 0 ? (
+      <path d={slice(start, sweep)} fill="none" stroke={color} strokeWidth={stroke} strokeLinecap="round" />
+    ) : null;
+
   return (
-    <svg viewBox="0 0 160 160" className="w-[168px] h-[168px] shrink-0" aria-hidden>
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#E6EBF1" strokeWidth={stroke} className="dark:stroke-slate-700" />
-      {presentSweep >= 359 ? (
-        <circle cx={cx} cy={cy} r={r} fill="none" stroke="#3B8BEB" strokeWidth={stroke} />
-      ) : (
-        presentSweep > 0 && (
-          <path d={slice(presentStart, presentSweep)} fill="none" stroke="#3B8BEB" strokeWidth={stroke} strokeLinecap="round" />
-        )
-      )}
-      {absentSweep >= 359 ? (
-        <circle cx={cx} cy={cy} r={r} fill="none" stroke="#F07B7B" strokeWidth={stroke} />
-      ) : (
-        absentSweep > 0 && (
-          <path d={slice(absentStart, absentSweep)} fill="none" stroke="#F07B7B" strokeWidth={stroke} strokeLinecap="round" />
-        )
-      )}
+    <svg viewBox="0 0 160 160" className="h-[158px] w-[158px] shrink-0" aria-hidden>
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#EEF2F6" strokeWidth={stroke} className="dark:stroke-slate-700" />
+      {arc(presentSweep, presentStart, "#3B8BEB")}
+      {arc(absentSweep, absentStart, "#F08A8A")}
     </svg>
   );
 };
@@ -550,22 +546,22 @@ export const CEHODashboardHome: React.FC = () => {
               {monitoringLoading ? (
                 <p className="text-[13px] text-[#8B95A1] py-8 text-center">Loading attendance…</p>
               ) : (
-              <div className="mt-6 flex items-center gap-8">
+              <div className="mt-6 flex items-center justify-between">
                 <Donut present={attendanceView.present} absent={attendanceView.absent} />
-                <div className="space-y-5">
+                <div className="space-y-5 pr-1 text-right">
                   <div>
-                    <p className="flex items-center gap-2 text-[13px] text-[#8B95A1]">
+                    <p className="flex items-center justify-end gap-2 text-[13px] text-[#8B95A1]">
                       <span className="h-2 w-2 rounded-full bg-[#3B8BEB]" />
                       Present
                     </p>
-                    <p className="mt-1 ml-[16px] text-[28px] font-bold leading-none text-[#2A3138] dark:text-slate-100">{attendanceView.present}</p>
+                    <p className="mt-1 text-[28px] font-bold leading-none text-[#2A3138] dark:text-slate-100">{attendanceView.present}</p>
                   </div>
                   <div>
-                    <p className="flex items-center gap-2 text-[13px] text-[#8B95A1]">
+                    <p className="flex items-center justify-end gap-2 text-[13px] text-[#8B95A1]">
                       <span className="h-2 w-2 rounded-full bg-[#F07B7B]" />
                       Absent
                     </p>
-                    <p className="mt-1 ml-[16px] text-[28px] font-bold leading-none text-[#2A3138] dark:text-slate-100">{attendanceView.absent}</p>
+                    <p className="mt-1 text-[28px] font-bold leading-none text-[#2A3138] dark:text-slate-100">{attendanceView.absent}</p>
                   </div>
                 </div>
               </div>
