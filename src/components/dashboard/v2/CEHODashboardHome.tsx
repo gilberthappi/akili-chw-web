@@ -442,7 +442,11 @@ export const CEHODashboardHome: React.FC = () => {
     }
   };
 
-  const attendanceView = { present: 174, absent: 35 };
+  const periodView = monitoring?.views?.[attendancePeriod];
+  const attendanceView =
+    courseId === "all"
+      ? periodView?.attendance.all ?? { present: 0, absent: 0 }
+      : periodView?.attendance.courses[courseId] ?? { present: 0, absent: 0 };
   const shownCourses = monitoring?.views?.[coursePeriod]?.courses ?? [];
   const shownActivities = monitoring?.activities ?? [];
   const chwCount = monitoring?.stats?.chwCount ?? members.length;
