@@ -198,39 +198,53 @@ const StatCard: React.FC<{
 const Donut: React.FC<{ present: number; absent: number }> = ({ present, absent }) => {
   const total = present + absent;
   const r = 54;
+  const stroke = 18;
   const c = 2 * Math.PI * r;
-  const gap = total > 0 && present > 0 && absent > 0 ? 8 : 0;
-  const presentLen = total ? Math.max((present / total) * c - gap, 0) : 0;
-  const absentLen = total ? Math.max((absent / total) * c - gap, 0) : 0;
+  const both = present > 0 && absent > 0;
+  const gap = both ? stroke + 16 : 0;
+  let presentLen = present > 0 ? c : 0;
+  let absentLen = absent > 0 ? c : 0;
+  if (both && total > 0) {
+    presentLen = Math.max((present / total) * c - gap, stroke);
+    absentLen = Math.max((absent / total) * c - gap, stroke);
+    const overflow = presentLen + absentLen + gap * 2 - c;
+    if (overflow > 0) {
+      const room = Math.max(c - gap * 2, stroke * 2);
+      const scale = room / (presentLen + absentLen);
+      presentLen *= scale;
+      absentLen *= scale;
+    }
+  }
+  const absentStart = both ? c / 4 - absentLen / 2 : 0;
+  const presentStart = both ? absentStart + absentLen + gap : 0;
 
   return (
-    <svg viewBox="0 0 148 148" className="w-[148px] h-[148px] shrink-0" aria-hidden>
-      <circle cx="74" cy="74" r={r} fill="none" stroke="#EEF2F6" strokeWidth="16" className="dark:stroke-slate-700" />
+    <svg viewBox="0 0 160 160" className="w-[168px] h-[168px] shrink-0" aria-hidden>
+      <circle cx="80" cy="80" r={r} fill="none" stroke="#E6EBF1" strokeWidth={stroke} className="dark:stroke-slate-700" />
       {presentLen > 0 && (
         <circle
-          cx="74"
-          cy="74"
+          cx="80"
+          cy="80"
           r={r}
           fill="none"
           stroke="#3B8BEB"
-          strokeWidth="16"
-          strokeLinecap="round"
-          strokeDasharray={`${presentLen} ${c}`}
-          transform="rotate(-90 74 74)"
+          strokeWidth={stroke}
+          strokeLinecap={both ? "round" : "butt"}
+          strokeDasharray={both ? `${presentLen} ${c}` : undefined}
+          strokeDashoffset={both ? -presentStart : undefined}
         />
       )}
       {absentLen > 0 && (
         <circle
-          cx="74"
-          cy="74"
+          cx="80"
+          cy="80"
           r={r}
           fill="none"
           stroke="#F07B7B"
-          strokeWidth="16"
-          strokeLinecap="round"
-          strokeDasharray={`${absentLen} ${c}`}
-          strokeDashoffset={-(presentLen + gap)}
-          transform="rotate(-90 74 74)"
+          strokeWidth={stroke}
+          strokeLinecap={both ? "round" : "butt"}
+          strokeDasharray={both ? `${absentLen} ${c}` : undefined}
+          strokeDashoffset={both ? -absentStart : undefined}
         />
       )}
     </svg>
@@ -266,24 +280,25 @@ const CourseTabs: React.FC<{
     scroller.current?.scrollBy({ left: direction * 160, behavior: "smooth" });
   };
 
-  const arrow =
-    "shrink-0 mb-1 grid h-6 w-6 place-items-center rounded-full text-[#5C6770] hover:bg-[#EEF3F8] disabled:opacity-30 disabled:hover:bg-transparent dark:hover:bg-slate-800";
+  const canScroll = edges.left || edges.right;
+  const tabClass = (selected: boolean) =>
+    `shrink-0 whitespace-nowrap border-b-2 pb-2.5 text-[13px] font-medium ${
+      selected ? "-mb-px border-[#2F89E6] text-[#2F89E6]" : "border-transparent text-[#9AA3AE]"
+    }`;
 
   return (
-    <div className="mt-3 flex items-end gap-1 border-b border-[#EEF1F4] dark:border-slate-700">
-      <button type="button" aria-label="Scroll courses left" className={arrow} disabled={!edges.left} onClick={() => move(-1)}>
-        <ChevronLeft size={16} />
-      </button>
+    <div className="mt-4 flex items-end gap-1">
+      {canScroll && (
+        <button type="button" aria-label="Scroll courses left" className="mb-1.5 shrink-0 text-[#8B95A1] disabled:opacity-30" disabled={!edges.left} onClick={() => move(-1)}>
+          <ChevronLeft size={16} />
+        </button>
+      )}
       <div
         ref={scroller}
         onScroll={updateEdges}
-        className="flex min-w-0 flex-1 flex-nowrap gap-x-4 overflow-x-auto overscroll-x-contain scrollbar-hide text-[13px] font-semibold"
+        className="flex min-w-0 flex-1 flex-nowrap gap-x-5 overflow-x-auto overscroll-x-contain scrollbar-hide border-b border-[#EEF1F4] dark:border-slate-700"
       >
-        <button
-          type="button"
-          onClick={() => onSelect("all")}
-          className={`shrink-0 whitespace-nowrap pb-2 ${courseId === "all" ? "text-[#2F89E6] border-b-2 border-[#2F89E6]" : "text-[#8B95A1]"}`}
-        >
+        <button type="button" onClick={() => onSelect("all")} className={tabClass(courseId === "all")}>
           All
         </button>
         {tabs.map((course) => (
@@ -291,16 +306,18 @@ const CourseTabs: React.FC<{
             key={course.id}
             type="button"
             onClick={() => onSelect(course.id)}
-            className={`shrink-0 whitespace-nowrap pb-2 ${courseId === course.id ? "text-[#2F89E6] border-b-2 border-[#2F89E6]" : "text-[#8B95A1]"}`}
+            className={tabClass(courseId === course.id)}
             title={course.title}
           >
             {course.shortName || course.title}
           </button>
         ))}
       </div>
-      <button type="button" aria-label="Scroll courses right" className={arrow} disabled={!edges.right} onClick={() => move(1)}>
-        <ChevronRight size={16} />
-      </button>
+      {canScroll && (
+        <button type="button" aria-label="Scroll courses right" className="mb-1.5 shrink-0 text-[#8B95A1] disabled:opacity-30" disabled={!edges.right} onClick={() => move(1)}>
+          <ChevronRight size={16} />
+        </button>
+      )}
     </div>
   );
 };
@@ -533,56 +550,48 @@ export const CEHODashboardHome: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <section className={`${CARD} p-4`}>
+            <section className={`${CARD} px-5 pt-5 pb-6`}>
               <div className="flex items-center justify-between gap-3">
-                <h2 className="text-[15px] font-bold">CHW Attendance</h2>
+                <h2 className="text-[17px] font-bold tracking-tight">CHW Attendance</h2>
                 <PeriodFilter value={attendancePeriod} onChange={setAttendancePeriod} />
               </div>
               <CourseTabs tabs={courseTabs} courseId={courseId} onSelect={setCourseId} />
               {monitoringLoading ? (
                 <p className="text-[13px] text-[#8B95A1] py-8 text-center">Loading attendance…</p>
               ) : (
-              <div className="mt-4 flex items-center gap-4">
+              <div className="mt-6 flex items-center gap-8">
                 <Donut present={attendanceView.present} absent={attendanceView.absent} />
-                <div className="space-y-3">
+                <div className="space-y-5">
                   <div>
-                    <p className="flex items-center gap-2 text-[13px] text-[#5C6770] dark:text-slate-400">
-                      <span className="w-2.5 h-2.5 rounded-full bg-[#3B8BEB]" />
+                    <p className="flex items-center gap-2 text-[13px] text-[#8B95A1]">
+                      <span className="h-2 w-2 rounded-full bg-[#3B8BEB]" />
                       Present
                     </p>
-                    <p className="text-[22px] font-semibold leading-none mt-1 ml-4">{attendanceView.present}</p>
+                    <p className="mt-1 ml-[16px] text-[28px] font-bold leading-none text-[#2A3138] dark:text-slate-100">{attendanceView.present}</p>
                   </div>
                   <div>
-                    <p className="flex items-center gap-2 text-[13px] text-[#5C6770] dark:text-slate-400">
-                      <span className="w-2.5 h-2.5 rounded-full bg-[#F07B7B]" />
+                    <p className="flex items-center gap-2 text-[13px] text-[#8B95A1]">
+                      <span className="h-2 w-2 rounded-full bg-[#F07B7B]" />
                       Absent
                     </p>
-                    <p className="text-[22px] font-semibold leading-none mt-1 ml-4">{attendanceView.absent}</p>
+                    <p className="mt-1 ml-[16px] text-[28px] font-bold leading-none text-[#2A3138] dark:text-slate-100">{attendanceView.absent}</p>
                   </div>
                 </div>
               </div>
               )}
-              <p className="mt-2 text-[11px] text-[#9AA3AE]">
-                {attendancePeriod === "today"
-                  ? "Present means active in the last 48 hours."
-                  : attendancePeriod === "week"
-                    ? "Present means active in the last 7 days."
-                    : "Present means active in the last 30 days."}{" "}
-                Absent is everyone else in this view.
-              </p>
             </section>
 
-            <section className={`${CARD} p-4`}>
+            <section className={`${CARD} px-5 pt-5 pb-6`}>
               <div className="flex items-center justify-between gap-3">
-                <h2 className="text-[15px] font-bold">Courses For You</h2>
+                <h2 className="text-[17px] font-bold tracking-tight">Courses For You</h2>
                 <div className="flex items-center gap-3">
                   <PeriodFilter value={coursePeriod} onChange={setCoursePeriod} />
-                  <Link to="/ceho-group?tab=learning" className="text-[13px] font-semibold text-[#2F89E6] hover:underline">
+                  <Link to="/ceho-group?tab=learning" className="text-[13px] font-semibold text-[#2F89E6]">
                     View All
                   </Link>
                 </div>
               </div>
-              <div className="mt-3 space-y-3">
+              <div className="mt-5 space-y-6">
                 {shownCourses.length === 0 ? (
                   <p className="text-[13px] text-[#8B95A1] py-8 text-center">
                     {monitoringLoading ? "Loading courses…" : "No course progress for this period."}
@@ -593,24 +602,22 @@ export const CEHODashboardHome: React.FC = () => {
                       key={course.id}
                       type="button"
                       onClick={() => navigate("/ceho-group?tab=learning")}
-                      className="w-full text-left rounded-xl bg-[#F4F6F8] dark:bg-slate-800 px-3 py-3 hover:bg-[#E8EEF4] dark:hover:bg-slate-700"
+                      className="w-full text-left"
                     >
-                      <p className="text-[13px] font-semibold leading-snug">{course.title}</p>
-                      <p className="mt-1.5 flex items-center gap-1.5 text-[12px] text-[#6B7280] dark:text-slate-400">
-                        <Users size={13} />
+                      <p className="text-[15px] font-semibold leading-snug text-[#2A3138] dark:text-slate-100">{course.title}</p>
+                      <p className="mt-2 flex items-center gap-1.5 text-[13px] text-[#8B95A1]">
+                        <Users size={14} strokeWidth={1.75} />
                         {course.students} CHW{course.students === 1 ? "" : "s"}
                       </p>
-                      <div className="mt-2 flex items-center gap-2">
-                        <span className="text-[11px] text-[#8B95A1] w-14 shrink-0">Progress</span>
-                        <div className="flex-1 h-2 rounded-full bg-[#E3E8EE] dark:bg-slate-700 overflow-hidden">
-                          <div
-                            className="h-full rounded-full bg-[#3B8BEB]"
-                            style={{ width: `${Math.min(100, Math.max(0, course.progress))}%` }}
-                          />
-                        </div>
-                        <span className="text-[12px] font-semibold text-[#5C6770] dark:text-slate-300 w-9 text-right">
-                          {course.progress}%
-                        </span>
+                      <div className="mt-3 flex items-center justify-between text-[12px] text-[#8B95A1]">
+                        <span>Progress</span>
+                        <span className="font-medium text-[#5C6770] dark:text-slate-300">{course.progress}%</span>
+                      </div>
+                      <div className="mt-1.5 h-1.5 rounded-full bg-[#E6EBF1] dark:bg-slate-700 overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-[#3B8BEB]"
+                          style={{ width: `${Math.min(100, Math.max(0, course.progress))}%` }}
+                        />
                       </div>
                     </button>
                   ))
@@ -632,7 +639,7 @@ export const CEHODashboardHome: React.FC = () => {
                   {monitoringLoading ? "Loading activity…" : "No recent activity in this group yet."}
                 </p>
               ) : (
-                shownActivities.map((item) => (
+                shownActivities.slice(0, 5).map((item) => (
                   <button
                     key={item.id}
                     type="button"
