@@ -6,6 +6,7 @@ import AdminLayout from "@/pages/Layout";
 import LearningLayout from "@/components/layouts/LearningLayout";
 import NotFound from "@/pages/NotFound";
 import { Dashboard } from "@/pages/dashboard/Dashboard";
+import { TasksPage } from "@/pages/dashboard/Tasks";
 import { DashboardV2 } from "@/pages/dashboard/DashboardV2";
 import { MyCourses } from "@/pages/dashboard/MyCourses";
 import { Messaging } from "@/pages/dashboard/Messaging";
@@ -347,6 +348,14 @@ const RoutesProvider = () => {
         {
           path: "calender",
           element: <Calendar />,
+        },
+        {
+          path: "tasks",
+          element: (
+            <ProtectedRoute allowedRoles={[...CEHO_ONLY]}>
+              <TasksPage />
+            </ProtectedRoute>
+          ),
         },
         {
           path: "recordings",

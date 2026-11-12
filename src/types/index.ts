@@ -495,6 +495,7 @@ export interface ICEHOGroupMonitoringMember {
   courseProgress: Array<{
     courseId: string;
     courseTitle: string;
+    shortName?: string;
     progress: number;
     isCompleted: boolean;
   }>;
@@ -514,10 +515,50 @@ export interface ICEHOGroupMonitoringMember {
   }>;
 }
 
+export interface ICEHOGroupActivity {
+  id: string;
+  name: string;
+  photo: string | null;
+  text: string;
+  at: string;
+}
+
+export interface ICEHOGroupCourseCard {
+  id: string;
+  title: string;
+  students: number;
+  progress: number;
+}
+
+export interface ICEHOGroupHeadcount {
+  present: number;
+  absent: number;
+}
+
+export interface ICEHOGroupPeriodView {
+  attendance: {
+    all: ICEHOGroupHeadcount;
+    courses: Record<string, ICEHOGroupHeadcount>;
+  };
+  courses: ICEHOGroupCourseCard[];
+}
+
 export interface ICEHOGroupMonitoring {
   groupId: string;
   groupName: string;
   totalMembers: number;
+  stats?: {
+    chwCount: number;
+    courseCount: number;
+    studyMinutes: number;
+  };
+  activities?: ICEHOGroupActivity[];
+  courseTabs?: Array<{ id: string; title: string; shortName: string }>;
+  views?: {
+    today: ICEHOGroupPeriodView;
+    week: ICEHOGroupPeriodView;
+    month: ICEHOGroupPeriodView;
+  };
   members: ICEHOGroupMonitoringMember[];
 }
 

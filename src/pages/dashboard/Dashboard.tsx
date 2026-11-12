@@ -5,7 +5,7 @@ import { AdoptionSection } from "@/components/dashboard/AdoptionSection";
 import { DeveloperSection } from "@/components/dashboard/DeveloperSection";
 import { CEHOSection } from "@/components/dashboard/CEHOSection";
 import { DashboardGlobalFilters } from "@/components/dashboard/DashboardGlobalFilters";
-import { DashboardVersionSwitcher } from "@/components/dashboard/DashboardVersionSwitcher";
+import { CEHODashboardVersionSwitcher, DashboardVersionSwitcher } from "@/components/dashboard/DashboardVersionSwitcher";
 import { RoleWorkspaceHome } from "@/components/dashboard/RoleWorkspaceHome";
 import { useAuth } from "@/hooks/useAuth";
 import { IDashboardFilters } from "@/types";
@@ -115,7 +115,11 @@ export const Dashboard: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          <DashboardVersionSwitcher onCanvas={isCEHO || isLearner} />
+          {isCEHO ? (
+            <CEHODashboardVersionSwitcher />
+          ) : (
+            <DashboardVersionSwitcher onCanvas={isLearner} />
+          )}
 
           {showAnalyticsFilters && (
             <div className='flex items-center gap-3'>

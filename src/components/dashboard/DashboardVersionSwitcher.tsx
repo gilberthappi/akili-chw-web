@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { LayoutDashboard, Sparkles } from "lucide-react";
+import { House, LayoutDashboard, Sparkles } from "lucide-react";
 
 /** Compact Classic ↔ V2 toggle — sits on the board without a full header bar. */
 export const DashboardVersionSwitcher: React.FC<{
@@ -53,3 +53,47 @@ export const DashboardVersionSwitcher: React.FC<{
 };
 
 export default DashboardVersionSwitcher;
+
+type CehoDashView = "home" | "board" | "classic";
+
+/** Home (default) ↔ previous beta board ↔ classic. CEHO only. */
+export const CEHODashboardVersionSwitcher: React.FC<{ className?: string }> = ({
+  className = "",
+}) => {
+  const navigate = useNavigate();
+  const { pathname, search } = useLocation();
+  const view = new URLSearchParams(search).get("view");
+  const mode: CehoDashView =
+    pathname === "/classic" ? "classic" : view === "board" ? "board" : "home";
+
+  const go = (next: CehoDashView) => {
+    if (next === "classic") navigate("/classic");
+    else if (next === "board") navigate("/?view=board");
+    else navigate("/");
+  };
+
+  const item = (id: CehoDashView, label: string, icon: React.ReactNode) => (
+    <button
+      type="button"
+      onClick={() => go(id)}
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] font-semibold transition-colors cursor-pointer ${
+        mode === id ? "bg-[#3363AD] text-white shadow-xs" : "text-[#64748B] hover:bg-[#F1F5F9]"
+      }`}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+
+  return (
+    <div
+      className={`inline-flex items-center gap-0.5 p-0.5 rounded-full border bg-white/90 border-[#D7E3F0] shadow-sm backdrop-blur-sm ${className}`}
+      role="group"
+      aria-label="CEHO dashboard version"
+    >
+      {item("home", "Home", <House size={12} />)}
+      {item("board", "Beta", <Sparkles size={12} />)}
+      {item("classic", "Classic", <LayoutDashboard size={12} />)}
+    </div>
+  );
+};

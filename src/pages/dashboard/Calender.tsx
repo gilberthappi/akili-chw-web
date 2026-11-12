@@ -66,6 +66,9 @@ import {
   updateOccurrence,
 } from "@/services/calender.service";
 import { useAuth } from "@/hooks/useAuth";
+import { useCehoTasks } from "@/hooks/useCehoTasks";
+import { TaskDialog } from "@/components/tasks/TaskDialog";
+import { CehoTask } from "@/components/tasks/cehoTasks";
 import {
   formatStudyMinutes,
   getAttendanceCalendar,
@@ -215,6 +218,7 @@ const Calendar: React.FC = () => {
   const isCEHO = effectiveRoles.has("CEHO");
   const isStaff = effectiveRoles.has("STAFF");
   const isTrainer = effectiveRoles.has("TRAINER");
+  const [viewingTask, setViewingTask] = useState<CehoTask | null>(null);
 
   // Fetch all users
   const { data: usersData } = useQuery({
@@ -286,7 +290,7 @@ const Calendar: React.FC = () => {
   });
 
   // Use events exactly as provided by the backend (no client-side deduplication)
-  const events = React.useMemo(() => {
+  const apiEvents = React.useMemo(() => {
     if (Array.isArray(eventsData?.data)) return eventsData.data;
     if (Array.isArray(eventsData)) return eventsData;
     return [];
@@ -299,18 +303,7 @@ const Calendar: React.FC = () => {
 
   const [searchParams] = useSearchParams();
   const targetEventId = searchParams.get("eventId");
-
-  React.useEffect(() => {
-    if (targetEventId && events.length > 0) {
-      const found = events.find(
-        (e: any) => String(e.id) === String(targetEventId) || String(e.originalEventId) === String(targetEventId)
-      );
-      if (found) {
-        setSelectedEvent(found);
-        setShowDetailsModal(true);
-      }
-    }
-  }, [targetEventId, events]);
+  const targetDate = searchParams.get("date");
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -359,6 +352,103 @@ const Calendar: React.FC = () => {
   const [isCreatingMeeting, setIsCreatingMeeting] = useState(false);
   const [eventToDelete, setEventToDelete] = useState<any>(null);
   const [expandedDate, setExpandedDate] = useState<Date | null>(null);
+
+  React.useEffect(() => {
+    if (!targetDate) return;
+    const parsed = new Date(`${targetDate}T12:00:00`);
+    if (Number.isNaN(parsed.getTime())) return;
+    setCurrentDate(parsed);
+    setExpandedDate(parsed);
+  }, [targetDate]);
+
+  const [taskSearch, setTaskSearch] = useState("");
+  React.useEffect(() => {
+    const timer = window.setTimeout(() => setTaskSearch(searchTerm.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [searchTerm]);
+
+  const taskWindow = React.useMemo(() => {
+    const pad = (value: number) => String(value).padStart(2, "0");
+    const ymd = (date: Date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+    const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+    let visibleStart = new Date(monthStart);
+    let visibleEnd = new Date(monthEnd);
+    if (selectedView === "week") {
+      visibleStart = new Date(currentDate);
+      visibleStart.setDate(currentDate.getDate() - currentDate.getDay());
+      visibleEnd = new Date(visibleStart);
+      visibleEnd.setDate(visibleStart.getDate() + 6);
+    } else if (selectedView === "day") {
+      visibleStart = new Date(currentDate);
+      visibleEnd = new Date(currentDate);
+    } else {
+      visibleStart.setDate(1 - monthStart.getDay());
+      visibleEnd = new Date(visibleStart);
+      visibleEnd.setDate(visibleStart.getDate() + 41);
+    }
+    const typeFilters = [filterType, statsFilterType].filter((value) => value && value !== "all") as string[];
+    const kindOf = (value: string) =>
+      value === "MEETING" ? "meeting" : value === "TRAINING" ? "training" : value === "DRILL" ? "field" : null;
+    const kinds = typeFilters.map(kindOf);
+    const excluded = kinds.some((kind) => kind === null) || new Set(kinds).size > 1;
+    const timing =
+      filterStatus === "scheduled" || filterStatus === "ongoing" || filterStatus === "completed"
+        ? filterStatus
+        : filterStatus === "all"
+          ? undefined
+          : null;
+    return {
+      enabled: isCEHO && !excluded && timing !== null,
+      query: {
+        from: ymd(visibleStart < monthStart ? visibleStart : monthStart),
+        to: ymd(visibleEnd > monthEnd ? visibleEnd : monthEnd),
+        sort: "time" as const,
+        search: taskSearch || undefined,
+        kind: (kinds.find((kind) => kind) ?? undefined) as "meeting" | "training" | "field" | undefined,
+        timing: timing || undefined,
+      },
+    };
+  }, [currentDate, selectedView, filterType, statsFilterType, filterStatus, taskSearch, isCEHO]);
+
+  const { tasks: cehoTasks, saveTask: saveCehoTask } = useCehoTasks({
+    enabled: taskWindow.enabled,
+    query: taskWindow.query,
+  });
+
+  const events = React.useMemo(() => {
+    const taskEvents = cehoTasks.map((task) => ({
+      id: `ceho-task-${task.id}`,
+      title: task.title,
+      description: task.notes || "",
+      type: task.calendarType,
+      frequency: "NONE",
+      startAt: task.startAt,
+      endAt: task.endAt,
+      allDay: false,
+      location: "",
+      status: "scheduled",
+      participants: [],
+      externalParticipants: [],
+      isCehoTask: true,
+      cehoTask: task,
+      createdById: user?.id,
+    }));
+    return [...apiEvents, ...taskEvents];
+  }, [apiEvents, cehoTasks, user?.id]);
+
+  React.useEffect(() => {
+    if (targetEventId && events.length > 0) {
+      const found = events.find(
+        (event: any) => String(event.id) === String(targetEventId) || String(event.originalEventId) === String(targetEventId),
+      );
+      if (found && !found.isCehoTask) {
+        setSelectedEvent(found);
+        setShowDetailsModal(true);
+      }
+    }
+  }, [targetEventId, events]);
+
   const [reminders, setReminders] = useState<number[]>([30]);
   const [reminderInput, setReminderInput] = useState<string>("");
   const [attachments, setAttachments] = useState<{ name: string; url: string }[]>(
@@ -637,6 +727,10 @@ const Calendar: React.FC = () => {
   };
 
   const handleViewEvent = (event: any) => {
+    if (event?.isCehoTask && event.cehoTask) {
+      setViewingTask(event.cehoTask);
+      return;
+    }
     setSelectedEvent(event);
     setShowDetailsModal(true);
   };
@@ -1160,6 +1254,7 @@ const Calendar: React.FC = () => {
 
     // Filter events based on search and filters
     const filteredEvents = events?.filter((event) => {
+      if (event.isCehoTask) return true;
       const matchesSearch =
         !searchTerm ||
         event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -1307,6 +1402,7 @@ const Calendar: React.FC = () => {
       ? new Date(value).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
       : "";
   const matchesFilters = (event: any) => {
+    if (event?.isCehoTask) return true;
     if (filterType !== "all" && event.type !== filterType) return false;
     if (
       filterStatus !== "all" &&
@@ -1332,11 +1428,12 @@ const Calendar: React.FC = () => {
         e.stopPropagation();
         handleViewEvent(event);
       }}
-      className={`flex items-center gap-1 text-[11px] font-semibold px-1.5 py-1 rounded-lg border ${getEventTypeColor(event.type)} cursor-pointer hover:shadow-sm transition-shadow`}
-      title={`${event.title} · ${timeOf(event.startAt)} – ${timeOf(event.endAt)}`}
+      className={`flex items-center gap-1 text-[11px] font-semibold px-1.5 py-1 rounded-lg border ${getEventTypeColor(event.type)} cursor-pointer hover:shadow-sm transition-shadow ${event.cehoTask?.status === "done" ? "opacity-60" : ""}`}
+      title={`${event.isCehoTask ? "Task · " : ""}${event.title} · ${timeOf(event.startAt)} – ${timeOf(event.endAt)}`}
     >
       <span className='shrink-0 tabular-nums opacity-70'>{timeOf(event.startAt)}</span>
       <span className='truncate'>{event.title}</span>
+      {event.isCehoTask && <span className='shrink-0 text-[9px] uppercase tracking-wide opacity-70'>Task</span>}
       {isRecurring(event) && <Repeat className='w-3 h-3 shrink-0 opacity-70' />}
     </div>
   );
@@ -1559,6 +1656,11 @@ const Calendar: React.FC = () => {
                     <div className='min-w-0'>
                       <h4 className={`font-bold flex items-center gap-1.5 ${V2_STRONG}`}>
                         <span className='truncate'>{event.title}</span>
+                        {event.isCehoTask && (
+                          <span className='shrink-0 text-[10px] font-semibold uppercase tracking-wide text-[#3363AD] dark:text-blue-300'>
+                            Task
+                          </span>
+                        )}
                         {isRecurring(event) && (
                           <Repeat className='w-3.5 h-3.5 text-[#3363AD] dark:text-blue-300 shrink-0' />
                         )}
@@ -1604,23 +1706,27 @@ const Calendar: React.FC = () => {
                     >
                       <Eye className='w-3.5 h-3.5' />
                     </button>
-                    <button
-                      onClick={() => {
-                        setEditingEvent(event);
-                        setShowEventModal(true);
-                      }}
-                      className={`${V2_BTN_SECONDARY} px-2.5 py-1.5`}
-                      title='Edit event'
-                    >
-                      <Edit className='w-3.5 h-3.5' />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteEvent(event)}
-                      className={`${V2_BTN_SECONDARY} px-2.5 py-1.5 text-red-500 hover:text-red-600`}
-                      title='Delete event'
-                    >
-                      <Trash2 className='w-3.5 h-3.5' />
-                    </button>
+                    {!event.isCehoTask && (
+                      <button
+                        onClick={() => {
+                          setEditingEvent(event);
+                          setShowEventModal(true);
+                        }}
+                        className={`${V2_BTN_SECONDARY} px-2.5 py-1.5`}
+                        title='Edit event'
+                      >
+                        <Edit className='w-3.5 h-3.5' />
+                      </button>
+                    )}
+                    {!event.isCehoTask && (
+                      <button
+                        onClick={() => handleDeleteEvent(event)}
+                        className={`${V2_BTN_SECONDARY} px-2.5 py-1.5 text-red-500 hover:text-red-600`}
+                        title='Delete event'
+                      >
+                        <Trash2 className='w-3.5 h-3.5' />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1633,6 +1739,8 @@ const Calendar: React.FC = () => {
 
   const upcomingEvents = events
     .filter((event: any) => {
+      const taskStatus = event.cehoTask?.status;
+      if (taskStatus === "due" || taskStatus === "done" || taskStatus === "postponed") return false;
       const matchesStatsFilter =
         !statsFilterType || event.type?.toUpperCase() === statsFilterType;
       return (
@@ -2161,7 +2269,7 @@ const Calendar: React.FC = () => {
                       type='button'
                       onClick={() => {
                         handleViewEvent(event);
-                        setExpandedDate(null);
+                        if (!event.isCehoTask) setExpandedDate(null);
                       }}
                       className={`text-left p-3 rounded-2xl border border-l-4 hover:shadow-md transition-shadow ${getEventTypeColor(event.type)}`}
                     >
@@ -2170,6 +2278,9 @@ const Calendar: React.FC = () => {
                           <div className='flex items-center gap-1.5'>
                             {getEventTypeIcon(event.type)}
                             <h4 className='font-bold text-sm truncate'>{event.title}</h4>
+                            {event.isCehoTask && (
+                              <span className='shrink-0 text-[9px] font-semibold uppercase tracking-wide opacity-70'>Task</span>
+                            )}
                             {isRecurring(event) && <Repeat className='w-3.5 h-3.5 shrink-0 opacity-70' />}
                           </div>
                           <p className='text-xs mt-1 opacity-80'>
@@ -3803,6 +3914,17 @@ const Calendar: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+      {isCEHO && (
+        <TaskDialog
+          open={viewingTask !== null}
+          task={viewingTask}
+          onClose={() => setViewingTask(null)}
+          onSave={(task) => {
+            saveCehoTask(task);
+            setViewingTask(null);
+          }}
+        />
       )}
     </div>
   );

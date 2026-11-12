@@ -539,6 +539,12 @@ const DashboardLayout = ({
       roles: [...CEHO_ONLY],
     },
     {
+      label: "Tasks",
+      icon: <ListTodo className='w-4 h-4' />,
+      path: "/tasks",
+      roles: [...CEHO_ONLY],
+    },
+    {
       label: "CHW & CEHO",
       icon: <Users className='w-4 h-4' />,
       path: "/chw",

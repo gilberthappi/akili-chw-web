@@ -1,6 +1,8 @@
 import React from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { CHWLearnerDashboardV2 } from "@/components/dashboard/v2/CHWLearnerDashboardV2";
+import { CEHODashboardHome } from "@/components/dashboard/v2/CEHODashboardHome";
 import { CEHODashboardV2 } from "@/components/dashboard/v2/CEHODashboardV2";
 import { AdminDashboardV2 } from "@/components/dashboard/v2/AdminDashboardV2";
 import { RoleWorkspaceHome } from "@/components/dashboard/RoleWorkspaceHome";
@@ -12,6 +14,7 @@ import { SectionSkeleton } from "@/components/dashboard/shared/SectionSkeleton";
 
 export const DashboardV2: React.FC = () => {
   const { user, loading, hasRole } = useAuth();
+  const [searchParams] = useSearchParams();
 
   // Before roles resolve, never fall through to Admin — that caused a CEHO flash of admin widgets.
   if (loading || !user) {
@@ -46,7 +49,8 @@ export const DashboardV2: React.FC = () => {
   }
 
   if (isCEHO) {
-    return <CEHODashboardV2 />;
+    if (searchParams.get("view") === "board") return <CEHODashboardV2 />;
+    return <CEHODashboardHome />;
   }
 
   if (isLearner) {

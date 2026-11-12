@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { getMyGroup, getGroupMonitoring } from "@/services/cehoGroup.service";
 import { SectionSkeleton } from "../shared/SectionSkeleton";
-import { DashboardVersionSwitcher } from "@/components/dashboard/DashboardVersionSwitcher";
+import { CEHODashboardVersionSwitcher } from "@/components/dashboard/DashboardVersionSwitcher";
 import { uniqueCourseCertificateCount } from "@/utils/certificates";
 import {
   V2_BTN_PRIMARY,
@@ -241,7 +241,7 @@ export const CEHODashboardV2: React.FC = () => {
             <UserPlus size={15} />
             Manage Group
           </button>
-          <DashboardVersionSwitcher onCanvas />
+          <CEHODashboardVersionSwitcher />
         </div>
       </div>
 
