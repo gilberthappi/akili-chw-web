@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { BookOpen, Users, Star, FileText, Plus, CheckCircle2, Download, Loader2 } from "lucide-react";
+import { BookOpen, Users, Star, FileText, Plus, CheckCircle2, Download, Loader2, Sparkles } from "lucide-react";
 import { V2KpiCard, V2PageHeader, V2Tabs, type V2TabItem } from "@/components/v2/V2Page";
 import { V2_BTN_PRIMARY, V2_BTN_SECONDARY, V2_PAGE_CANVAS } from "@/components/dashboard/v2/widgets/admin/v2CardStyles";
 import CourseList from "@/components/courses/CourseList";
@@ -167,6 +167,15 @@ const CoursesPage = () => {
               >
                 {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
                 Export
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/courses/slide-studio")}
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 shadow-xs transition"
+                title="Launch the Unrestricted Slide Canvas Studio"
+              >
+                <Sparkles className="w-4 h-4 text-indigo-600" />
+                <span>Slide Studio</span>
               </button>
               <button
                 type="button"

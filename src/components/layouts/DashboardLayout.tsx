@@ -40,6 +40,7 @@ import {
   LayoutTemplate,
   ListTodo,
   UserSearch,
+  Sparkles,
 } from "lucide-react";
 import ProfileAvatar from "@/components/profile/ProfileAvatar";
 import { useProfilePhoto } from "@/hooks/useProfilePhoto";
@@ -97,6 +98,7 @@ const NAV_ICONS: Record<string, JSX.Element> = {
   "/recordings": <Video className="w-5 h-5" />,
   "/settings": <Cog8ToothIcon className="w-5 h-5" />,
   "/courses": <ClipboardDocumentListIcon className="w-5 h-5" />,
+  "/courses/slide-studio": <Sparkles className="w-5 h-5 text-indigo-500" />,
   "/feedbacks": <MessageCircle className="w-4 h-4" />,
   "/meetings": <Video className="w-5 h-5" />,
 };
@@ -525,6 +527,12 @@ const DashboardLayout = ({
       // on the auth payload — do not hide Courses behind an industry gate.
       roles: [...COURSE_MGMT_ROLES],
       icon: <ClipboardDocumentListIcon className='w-5 h-5' />,
+    },
+    {
+      label: "Slide Studio",
+      path: "/courses/slide-studio",
+      roles: [...COURSE_MGMT_ROLES],
+      icon: <Sparkles className='w-5 h-5 text-indigo-500' />,
     },
     {
       label: "My Learning",

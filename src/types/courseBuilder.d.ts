@@ -9,6 +9,7 @@ export interface CourseSlide {
   audioUrl?: string | null;
   audioName?: string | null;
   order: number;
+  canvasJson?: Record<string, unknown> | null;
   createdAt: string;
 }
 
