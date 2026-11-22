@@ -98,7 +98,7 @@ const NAV_ICONS: Record<string, JSX.Element> = {
   "/recordings": <Video className="w-5 h-5" />,
   "/settings": <Cog8ToothIcon className="w-5 h-5" />,
   "/courses": <ClipboardDocumentListIcon className="w-5 h-5" />,
-  "/courses/slide-studio": <Sparkles className="w-5 h-5 text-indigo-500" />,
+  "/courses/course-studio": <Sparkles className="w-5 h-5 text-indigo-500" />,
   "/feedbacks": <MessageCircle className="w-4 h-4" />,
   "/meetings": <Video className="w-5 h-5" />,
 };
@@ -529,8 +529,8 @@ const DashboardLayout = ({
       icon: <ClipboardDocumentListIcon className='w-5 h-5' />,
     },
     {
-      label: "Slide Studio",
-      path: "/courses/slide-studio",
+      label: "Course Studio",
+      path: "/courses/course-studio",
       roles: [...COURSE_MGMT_ROLES],
       icon: <Sparkles className='w-5 h-5 text-indigo-500' />,
     },

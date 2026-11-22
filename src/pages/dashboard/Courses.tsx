@@ -170,12 +170,12 @@ const CoursesPage = () => {
               </button>
               <button
                 type="button"
-                onClick={() => navigate("/courses/slide-studio")}
+                onClick={() => navigate("/courses/course-studio")}
                 className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 shadow-xs transition"
-                title="Launch the Unrestricted Slide Canvas Studio"
+                title="Design a course from scratch"
               >
                 <Sparkles className="w-4 h-4 text-indigo-600" />
-                <span>Slide Studio</span>
+                <span>Course Studio</span>
               </button>
               <button
                 type="button"

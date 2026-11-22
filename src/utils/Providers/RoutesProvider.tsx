@@ -118,6 +118,11 @@ const LegacyStudentDetailRedirect = () => {
   return <Navigate to={`/chw/${id}`} replace />;
 };
 
+const LegacySlideStudioRedirect = () => {
+  const { id } = useParams();
+  return <Navigate to={`/courses/course-studio/${id ?? ""}`} replace />;
+};
+
 const RoutesProvider = () => {
   const router = createBrowserRouter([
     {
@@ -520,9 +525,9 @@ const RoutesProvider = () => {
       ),
     },
 
-    // ── Slide Design Studio (Full-screen presentation studio) ─────────
+    // ── Course Studio (full-screen course canvas) ──────────────────
     {
-      path: "/courses/slide-studio",
+      path: "/courses/course-studio",
       element: (
         <ProtectedRoute allowedRoles={[...COURSE_MGMT_ROLES]}>
           <SlideDesignStudio />
@@ -530,12 +535,20 @@ const RoutesProvider = () => {
       ),
     },
     {
-      path: "/courses/slide-studio/:id",
+      path: "/courses/course-studio/:courseId",
       element: (
         <ProtectedRoute allowedRoles={[...COURSE_MGMT_ROLES]}>
           <SlideDesignStudio />
         </ProtectedRoute>
       ),
+    },
+    {
+      path: "/courses/slide-studio",
+      element: <Navigate to="/courses/course-studio" replace />,
+    },
+    {
+      path: "/courses/slide-studio/:id",
+      element: <LegacySlideStudioRedirect />,
     },
 
     // ── Immersive learning layout (no sidebar) ────────────────────────
